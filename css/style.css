@@ -7,6 +7,7 @@ body {
   margin: 0;
   padding: 0;
   background-color: #008080; /* Windows 98 기본 배경색 */
+  overflow: hidden; /* 모바일 화면에서 넘침 방지 */
 }
 
 /* 메인 윈도우 설정 */
@@ -19,6 +20,7 @@ body {
   border: 2px solid black;
   padding: 5px;
   background: #C0C0C0; /* Windows 98 느낌 */
+  overflow: hidden; /* 넘침 방지 */
 }
 
 /* 메인 콘텐츠 영역 */
@@ -31,6 +33,7 @@ body {
 .title-bar {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap; /* 모바일에서 제목바가 넘치지 않도록 조정 */
 }
 
 /* 차트 컨테이너 */
@@ -47,11 +50,12 @@ body {
 /* 주식 목록과 보유 주식 목록 스타일 */
 .stock-list-window,
 .owned-stocks {
-  width: 40%;
+  width: 45%;
   height: 70%;
   border: 2px solid black;
   background-color: white;
   margin-right: 5px;
+  overflow-y: auto; /* 내용이 넘칠 경우 스크롤 가능 */
 }
 
 /* 메인 콘텐츠의 플렉스 레이아웃 설정 */
@@ -59,13 +63,7 @@ body {
   display: flex;
   justify-content: space-between;
   height: 50%;
-}
-
-/* 윈도우 내부 내용 스타일 */
-.main-content > .window-body {
-  height: 100%;
-  padding: 2px;
-  background: white;
+  flex-wrap: wrap; /* 모바일에서 요소들이 벗어나지 않도록 설정 */
 }
 
 /* 자본금 및 컨트롤 영역 */
@@ -83,15 +81,6 @@ body {
   border: 2px solid black;
 }
 
-/* 매수/매도 이익 및 손실 색상 설정 */
-.profit {
-  color: blue;
-}
-
-.loss {
-  color: red;
-}
-
 /* 매수/매도 섹션 레이아웃 */
 .trade-section {
   display: flex;
@@ -103,60 +92,23 @@ body {
   border: 2px solid black;
   margin-top: 10px;
   border-radius: 4px; /* 매끄러운 테두리 */
-}
-
-/* 매수/매도 입력 및 버튼을 동일한 줄에 배치 */
-.trade {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-weight: bold; /* 글자 굵기 굵게 */
   width: 100%; /* 부모 요소 기준으로 가득 채움 */
-  gap: 20px;
-}
-
-/* 매수/매도 개별 섹션 설정 */
-.trade .trade-input {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-/* 매수/매도 수량 입력 필드 */
-.trade input[type="number"] {
-  width: 60px;
-  padding: 3px;
-  text-align: center;
-  font-size: 1em;
-  font-weight: bold; /* 글자 굵기 추가 */
-}
-
-/* 매수/매도 버튼 */
-.trade button {
-  width: 80px;
-  padding: 5px;
-  font-size: 1em;
-  font-weight: bold;
-  background-color: #f0f0f0;
-  border: 1px solid #000;
-  cursor: pointer;
-  text-align: center;
-}
-
-/* 버튼 호버 효과 */
-.trade button:hover {
-  background-color: #d0d0d0;
-}
-
-/* 자본금 및 컨트롤 영역 스타일 */
-.controls {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
 }
 
 /* Responsive Styling for smaller screens */
 @media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .stock-list-window,
+  .owned-stocks {
+    width: 90%;
+    height: auto; /* 높이 자동 조정 */
+  }
+
   .trade input[type="number"],
   .trade button {
     width: 70px;
@@ -167,6 +119,11 @@ body {
 
   .capital {
     font-size: 1em;
+  }
+
+  #chart-container {
+    width: 100%; /* 차트 가로폭 조정 */
+    height: 300px; /* 높이 축소 */
   }
 }
 
@@ -180,5 +137,15 @@ body {
 
   .capital {
     font-size: 0.9em;
+  }
+
+  .title-bar {
+    flex-direction: column; /* 제목바를 세로로 배치 */
+    align-items: center;
+  }
+
+  #chart-container {
+    width: 100%;
+    height: 200px; /* 차트 높이 줄임 */
   }
 }
