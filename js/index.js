@@ -234,16 +234,18 @@ function saveState() {
   // 페이지를 새로고침하지 않고 URL을 업데이트
   history.replaceState(null, '', '?' + queryParams.toString());
 }
-
+//매수 버튼 클릭시 실행
 buyButton.addEventListener('click', buyStock);
+//매도 버튼 클릭시 실행
 sellButton.addEventListener('click', sellStock);
+//저장버튼 클릭시 실행
 saveButton.addEventListener('click', saveState);
 
 function init() {
   loadStateFromURL(); // 페이지 시작 시 URL에서 자본금과 주식 상태 불러오기
-  updateStockList();
+  updateStockList();    //주식 목록 상태 변환
   updateOwnedStocks(); // 불러온 주식 상태를 화면에 표시
-  setInterval(updatePrices, 3000); // 3초마다 주식 가격 변동
+  setInterval(updatePrices, 5000); // 5초마다 주식 가격 변동
 }
 
 init();
