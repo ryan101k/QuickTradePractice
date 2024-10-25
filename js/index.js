@@ -89,8 +89,17 @@ if (urlParams.has('stocks')) {
 function updateStockList() {
   stockListElement.innerHTML = ''; // 기존 주식 목록 초기화
   stockData.forEach((stock, index) => {
+    let oldPrice =0;
+    //2번째 부터 이익손실 계산
+    if(stock.history.length >1){
+      oldPrice = stock.history[stock.history.length - 2].price;
+    }
+     // 이익이면 파란색, 손실이면 빨간색
+    const profitOrLoss = stock.price- oldPrice;
+    const profitOrLossClass = profitOrLoss >= 0 ? 'profit' : 'loss';
+
     const li = document.createElement('li');
-    li.textContent = `${stock.name}: ${stock.price.toFixed(2)} 원`; // 주식 이름과 가격 표시
+    li.innerHTML =  `${stock.name}:  <span class="${profitOrLossClass}"> ${stock.price} 원 </span> [ ${profitOrLoss}원증가 ] `; // 주식 이름과 가격 표시
     li.addEventListener('click', () => {
       selectedStockIndex = index;
       updateChart(); // 선택된 주식의 차트 업데이트
@@ -114,9 +123,9 @@ function updateOwnedStocks() {
 
       const li = document.createElement('li');
       li.innerHTML = `${stockName}: ${owned.quantity}주, 
-                      현재가: ${currentPrice.toFixed(2)} 원 
+                      현재가: ${currentPrice} 원 
                       <span class="${profitOrLossClass}">
-                        (${profitOrLoss >= 0 ? '+' : ''}${profitOrLoss.toFixed(2)} 원)
+                        (${profitOrLoss >= 0 ? '+' : ''}${profitOrLoss} 원)
                       </span>`;
       ownedStocksListElement.appendChild(li);
     }
@@ -241,11 +250,11 @@ sellButton.addEventListener('click', sellStock);
 //저장버튼 클릭시 실행
 saveButton.addEventListener('click', saveState);
 
-function init() {
+function main() {
   loadStateFromURL(); // 페이지 시작 시 URL에서 자본금과 주식 상태 불러오기
   updateStockList();    //주식 목록 상태 변환
   updateOwnedStocks(); // 불러온 주식 상태를 화면에 표시
   setInterval(updatePrices, 5000); // 5초마다 주식 가격 변동
 }
-
-init();
+//시작시 프로그램 실행
+main();

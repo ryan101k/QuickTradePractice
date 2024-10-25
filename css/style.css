@@ -1,81 +1,143 @@
 body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-    padding: 0;
-    background-color: #008080; /* Windows 98 기본 배경색 */
-  }
-  .main-window {
-    width: 90%;
-    max-width: 800px;
-    height: 90%;
-    display: flex;
-    flex-direction: column;
-    border: 2px solid black;
-    padding: 5px;
-    background: #C0C0C0; /* Windows 98 느낌 */
-  }
-  .title-bar {
-    display: flex;
-    
-    justify-content: space-between;
-  }
-  .window-body {
-    padding: 10px;
-    background: white;
-  }
-  #chart-container {
-    width: 80%;
-    
-    height: 600px; /* 차트의 높이를 명확히 설정 */
-    background-color: white;
-    border: 2px solid black;
-    padding: 10px;
-    margin: 0 auto;
-    z-index: 10; /* 차트가 뒤로 가지 않도록 설정 */
-  }
-  .stock-list-window,
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: #008080; /* Windows 98 기본 배경색 */
+}
 
-  .owned-stocks {
-    width: 40%;
-    height: 70%;
-    border: 2px solid black;
-    padding: 5px;
-    background-color: white;
-    margin-right: 5px;
+.main-window {
+  width: 90%;
+  max-width: 800px;
+  height: 90%;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid black;
+  padding: 5px;
+  background: #C0C0C0; /* Windows 98 느낌 */
+}
+
+.main-content{
+  padding-top: 10px;
+}
+.title-bar {
+  display: flex;
+  justify-content: space-between;
+}
+
+.main-content > .window-body {
+  height: 100%;
+  padding: 2px;
+  background: white;
+}
+
+#chart-container {
+  width: 80%;
+  height: 600px; /* 차트의 높이를 명확히 설정 */
+  background-color: white;
+  border: 2px solid black;
+  padding: 1px;
+  margin: 0 auto;
+  z-index: 10; /* 차트가 뒤로 가지 않도록 설정 */
+}
+
+.stock-list-window,
+.owned-stocks {
+  width: 40%;
+  height: 70%;
+  border: 2px solid black;
+  background-color: white;
+  margin-right: 5px;
+}
+
+.main-content {
+  display: flex;
+  justify-content: space-between;
+  height: 50%;
+}
+
+.capital,
+.controls {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.capital {
+  font-weight: bold;
+  background-color: #C0C0C0;
+  padding: 10px;
+  border: 2px solid black;
+}
+
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.controls button,
+.controls input {
+  width: 100px;
+  padding: 5px;
+}
+
+.profit {
+  color: blue;
+}
+
+.loss {
+  color: red;
+}
+
+/* Responsive Styling */
+@media (max-width: 768px) {
+  .main-window {
+    width: 100%;
+    height: auto;
   }
+
+  #chart-container {
+    width: 100%;
+    height: 300px; /* 줄여서 모바일에서도 차트가 잘 보이도록 */
+  }
+
   .main-content {
-    display: flex;
-    justify-content: space-between;
-    height: 50%;
+    flex-direction: column;
+    align-items: center;
+    height: auto;
   }
-  .capital,
-  .controls {
-    margin-top: 10px;
-    text-align: center;
+
+  .stock-list-window,
+  .owned-stocks {
+    width: 100%;
+    height: auto;
+    margin-bottom: 10px;
   }
-  .capital {
-    font-weight: bold;
-    background-color: #C0C0C0;
-    padding: 10px;
-    border: 2px solid black;
-  }
-  .controls {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-  }
+
   .controls button,
   .controls input {
-    width: 100px;
+    width: 80px;
     padding: 5px;
   }
 
-  .profit{
-    color: blue;
-  } 
-  .loss{
-    color: red;
+  .capital {
+    font-size: 1em;
+    padding: 5px;
   }
+}
+
+@media (max-width: 480px) {
+  .controls button,
+  .controls input {
+    width: 70px;
+    padding: 3px;
+    font-size: 0.9em;
+  }
+
+  .capital {
+    font-size: 0.9em;
+    padding: 5px;
+  }
+}
