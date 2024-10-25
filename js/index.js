@@ -319,5 +319,7 @@ function main() {
   setInterval(updatePrices, 3000); // 3초마다 주식 업데이트
 }
 //처음 시작시 초기차트 가져오기
-initializeChart();
-main();
+window.onload = function() {
+  initializeChart();
+  main();
+};
