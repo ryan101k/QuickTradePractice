@@ -8,8 +8,8 @@ https://ryan101k.github.io/QuickTradePractice/
 ![샘플](https://github.com/user-attachments/assets/db2ec2b9-275c-4085-80e9-326245eedeb9)
 
 
-*현재 저장시 변경된 주식값이 저장안돼어 초기화 됩니다 수정중
-
+/**현재 저장시 변경된 주식값이 저장안돼어 초기화 됩니다 수정중**/
+/**2024-10-25 저장버그 수정완료**/
 
 사용라이브러리: https://jdan.github.io/98.css/
                https://www.chartjs.org/
