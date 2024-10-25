@@ -1,49 +1,62 @@
-let capital = 1000000; // 기본 자본금 100만원
+let capital = 10000000; // 기본 자본금 1000만원
 let selectedStockIndex = 0; // 선택된 주식의 인덱스
 let ownedStocks = {}; // 보유 주식 정보 저장 { stockName: { quantity, history } }
 
+// 주식 목록
 const stockData = [
-  { name: '삼전자', price: 50000, history: [{ price: 50000 }] },
-  { name: '컴퓨터화학', price: 10000, history: [{ price: 10000 }] },
-  { name: '그린카카오', price: 15000, history: [{ price: 15000 }] },
-  { name: '초록상자', price: 1000, history: [{ price: 1000 }] }
+  { name: '삼전', price: 50000, history: [{ price: 50000 }] },
+  { name: '김디비아', price: 10000, history: [{ price: 10000 }] },
+  { name: '럭키금성', price: 15000, history: [{ price: 15000 }] },
+  { name: '김명숙수학학원', price: 100, history: [{ price: 100 }] },
+  { name: '황금전자', price: 15000, history: [{ price: 15000 }] },
+  { name: '초록박스어린이재단', price: 4000, history: [{ price: 4000 }] }
 ];
 
 const stockListElement = document.getElementById('stock-list');
 const ownedStocksListElement = document.getElementById('owned-stocks-list');
 const capitalElement = document.getElementById('capital');
-const quantityInput = document.getElementById('quantity');
+const quantityInput = document.getElementById('quantity'); // 매수 인풋값
+const quantityInput_sell = document.getElementById('quantity2'); // 매도 인풋값
 const buyButton = document.getElementById('buy-button');
 const sellButton = document.getElementById('sell-button');
 const saveButton = document.getElementById('save-button');
 const ctx = document.getElementById('stock-chart').getContext('2d');
-const costInfoElement = document.getElementById('cost-info'); // 비용 정보를 표시할 요소
+const costInfoElement = document.getElementById('cost-info'); // 매수 비용 정보를 표시할 요소
 
 // 매수량 입력값이 변경될 때마다 비용 정보 업데이트
 quantityInput.addEventListener('input', updateCostInfo);
+// 매도량 입력값이 변경될 때마다 수익 정보 업데이트
+quantityInput_sell.addEventListener('input', updateSellCostInfo);
 
-//예측매도 매수량
-function updateCostInfo() {
-    const quantity = parseInt(quantityInput.value); // 입력된 매수량
-    const stock = stockData[selectedStockIndex]; // 선택된 주식
-    const cost = stock.price * quantity; // 매수 또는 매도 비용 계산
-    costInfoElement.textContent = `비용: ${cost} 원`; // 비용 표시 업데이트
+// 예측 매도 수익 계산
+function updateSellCostInfo() {
+  const quantity = parseInt(quantityInput_sell.value); // 입력된 매도량
+  const stock = stockData[selectedStockIndex]; // 선택된 주식
+  const sellProfit = stock.price * quantity; // 매도 수익 계산
+  const costInfoSellElement = document.getElementById('cost-info-sell'); // 매도 수익 정보를 표시할 요소
+  costInfoSellElement.textContent = `수익: ${sellProfit} 원`; // 수익 표시 업데이트
 }
 
+// 매수 비용 계산 및 업데이트
+function updateCostInfo() {
+  const quantity = parseInt(quantityInput.value); // 입력된 매수량
+  const stock = stockData[selectedStockIndex]; // 선택된 주식
+  const cost = stock.price * quantity; // 매수 비용 계산
+  costInfoElement.textContent = `비용: ${cost} 원`; // 비용 표시 업데이트
+}
 
-// 차트 설정
+// 차트 초기 설정
 let stockChart = new Chart(ctx, {
   type: 'line', // 라인 차트 사용
   data: {
-    labels: Array(stockData[selectedStockIndex].history.length).fill(''), // X축 레이블 설정
-    datasets: [ {
-        label: stockData[selectedStockIndex].name, // 주식 이름
-        data: stockData[selectedStockIndex].history.map(entry => entry.price),
-        borderColor: 'rgb(75, 192, 192)',
-        fill: false, // 차트가 선으로만 표현되도록 설정
-        tension: 0.1
-      }
-    ]
+    labels: stockData[selectedStockIndex].history.map((_, i) => `시간 대`), // 초기값 설정
+    datasets: [{
+      label: stockData[selectedStockIndex].name, // 선택된 주식 이름
+      data: stockData[selectedStockIndex].history.map(entry => entry.price),
+      borderColor: 'rgb(75, 192, 192)',
+      fill: false,
+      tension: 0.1
+    }]
   },
   options: {
     scales: {
@@ -54,177 +67,179 @@ let stockChart = new Chart(ctx, {
   }
 });
 
-// URL에서 자본금과 보유 주식 상태 불러오기
-function loadStateFromURL() {
-const urlParams = new URLSearchParams(window.location.search);
+// 페이지가 로드될 때 선택된 주식의 초기 차트 렌더링
+function initializeChart() {
+  const stock = stockData[selectedStockIndex];
+  
+  // 초기 레이블과 데이터셋 설정
 
-// URL에서 자본금 불러오기
-if (urlParams.has('capital')) {
-  capital = parseFloat(urlParams.get('capital'));
-  capitalElement.textContent = capital;
+  stockChart.data.datasets[0].label = stock.name;
+  stockChart.data.datasets[0].data = stock.history.map(entry => entry.price);
+
+  stockChart.update();
 }
 
-// URL에서 보유 주식 상태 불러오기
-if (urlParams.has('stocks')) {
-  try {
-    const stocksArray = JSON.parse(urlParams.get('stocks')); // 배열로 저장된 주식 정보
-    ownedStocks = {}; // 빈 객체로 초기화
 
-    // 배열 데이터를 객체로 변환하여 ownedStocks에 저장
-    stocksArray.forEach(stock => {
-      ownedStocks[stock.name] = {
-        quantity: stock.quantity,
-        buyPrice: stock.buyPrice
-      };
-    });
 
-    updateOwnedStocks(); // 보유 주식 목록 업데이트
-  } catch (error) {
-    console.error('Error parsing stocks from URL:', error);
+// 개별 주식 차트 업데이트 함수
+function updateChart() {
+  const stock = stockData[selectedStockIndex];
+  
+  // 차트 라벨과 데이터셋 업데이트
+  stockChart.data.datasets[0].label = stock.name;
+  stockChart.data.datasets[0].data = stock.history.map(entry => entry.price);
+  
+  // 시간 라벨 업데이트 (현재 시간 추가)
+  const newLabel = new Date().toLocaleTimeString('en-GB', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  if (stockChart.data.labels.length >= 10) {
+    stockChart.data.labels.shift(); // 오래된 라벨 삭제
   }
-}
+  stockChart.data.labels.push(newLabel); // 새로운 라벨 추가
+
+  stockChart.update(); // 차트 업데이트
 }
 
+// 주식 가격 업데이트 함수
+function updatePrices() {
+  stockData.forEach(stock => {
+    const maxChange = stock.price * 0.3;
+    const change = (Math.random() * (2 * maxChange)) - maxChange;
+    stock.price = Math.max(0, stock.price + parseInt(change));
+    stock.history.push({ price: stock.price });
+    if (stock.history.length > 10) {
+      stock.history.shift();
+    }
+  });
+
+  updateStockList(); // 주식 목록 업데이트
+  updateOwnedStocks(); // 보유 주식 목록 업데이트
+  
+  // 선택된 주식만 업데이트
+  updateChart();
+}
 // 주식 목록 업데이트 함수
 function updateStockList() {
   stockListElement.innerHTML = ''; // 기존 주식 목록 초기화
   stockData.forEach((stock, index) => {
-    let oldPrice =0;
-    //2번째 부터 이익손실 계산
-    if(stock.history.length >1){
-      oldPrice = stock.history[stock.history.length - 2].price;
+    let oldPrice = 0;
+    if (stock.history.length > 1) {
+      oldPrice = stock.history[stock.history.length - 2].price; // 이전 가격
     }
-     // 이익이면 파란색, 손실이면 빨간색
-    const profitOrLoss = stock.price- oldPrice;
-    const profitOrLossClass = profitOrLoss >= 0 ? 'profit' : 'loss';
+    const profitOrLoss = stock.price - oldPrice; // 이익/손실 계산
+    const profitOrLossClass = profitOrLoss >= 0 ? 'profit' : 'loss'; // 이익이면 파란색, 손실이면 빨간색
 
+    // 새로운 목록 아이템 생성
     const li = document.createElement('li');
-    li.innerHTML =  `${stock.name}:  <span class="${profitOrLossClass}"> ${stock.price} 원 </span> [ ${profitOrLoss}원증가 ] `; // 주식 이름과 가격 표시
+    li.innerHTML = `${stock.name}: <span class="${profitOrLossClass}"> ${stock.price} 원 </span> [ ${profitOrLoss}원 ${profitOrLoss >= 0 ? '증가' : '감소'} ]`;
+    
+    // 클릭 시 해당 주식의 차트를 업데이트하도록 설정
     li.addEventListener('click', () => {
       selectedStockIndex = index;
       updateChart(); // 선택된 주식의 차트 업데이트
     });
-    stockListElement.appendChild(li);
+    
+    stockListElement.appendChild(li); // 주식 목록에 추가
   });
 }
 
 // 보유한 주식 목록 업데이트 함수
 function updateOwnedStocks() {
   ownedStocksListElement.innerHTML = ''; // 기존 보유 주식 목록 초기화
+
   Object.keys(ownedStocks).forEach(stockName => {
-    const stock = stockData.find(s => s.name === stockName);
+    const stock = stockData.find(s => s.name === stockName); // 주식 데이터에서 해당 주식 찾기
     if (stock) {
-      const owned = ownedStocks[stockName];
-      const currentPrice = stock.price;
-      const totalCost = owned.quantity * owned.buyPrice;
-      const currentValue = owned.quantity * currentPrice;
+      const owned = ownedStocks[stockName]; // 보유한 주식 데이터
+      const currentPrice = stock.price; // 현재가
+      const totalCost = owned.quantity * owned.buyPrice; // 총 매입 비용
+      const currentValue = owned.quantity * currentPrice; // 현재 가치
       const profitOrLoss = currentValue - totalCost; // 이익/손실 계산
       const profitOrLossClass = profitOrLoss >= 0 ? 'profit' : 'loss'; // 이익이면 파란색, 손실이면 빨간색
 
+      // 보유 주식 목록에 표시할 내용 생성
       const li = document.createElement('li');
-      li.innerHTML = `${stockName}: ${owned.quantity}주, 
-                      현재가: ${currentPrice} 원 
+      li.innerHTML = `${stockName}: ${owned.quantity}주, 현재가: ${currentPrice} 원 
                       <span class="${profitOrLossClass}">
                         (${profitOrLoss >= 0 ? '+' : ''}${profitOrLoss} 원)
                       </span>`;
-      ownedStocksListElement.appendChild(li);
+      ownedStocksListElement.appendChild(li); // 보유 주식 목록에 추가
     }
   });
 }
 
-// 차트 업데이트 함수
-function updateChart() {
-const stock = stockData[selectedStockIndex];
-let today = new Date();
+// URL에서 자본금과 보유 주식 상태 불러오기
+function loadStateFromURL() {
+  const urlParams = new URLSearchParams(window.location.search);
 
-// 차트의 데이터셋 업데이트 (가격)
-stockChart.data.datasets[0].label = stock.name;
-stockChart.data.datasets[0].data = stock.history.map(entry => entry.price);
+  if (urlParams.has('capital')) {
+    capital = parseFloat(urlParams.get('capital'));
+    capitalElement.textContent = capital;
+  }
 
-// 차트 라벨 업데이트 (현재 시간 추가)
-const newLabel = today.toLocaleTimeString('en-GB', { 
-hour: '2-digit', 
-minute: '2-digit', 
-second: '2-digit' 
-});
+  if (urlParams.has('stocks')) {
+    try {
+      const stocksArray = JSON.parse(urlParams.get('stocks'));
+      ownedStocks = {};
+      stocksArray.forEach(stock => {
+        ownedStocks[stock.name] = {
+          quantity: stock.quantity,
+          buyPrice: stock.buyPrice
+        };
+      });
 
-// 기록이 10개를 넘으면 오래된 기록과 라벨 삭제
-if (stockChart.data.labels.length >= 10) {
-stockChart.data.labels.shift(); // 오래된 라벨 삭제
+      updateOwnedStocks();
+    } catch (error) {
+      console.error('Error parsing stocks from URL:', error);
+    }
+  }
 }
-
-stockChart.data.labels.push(newLabel); // 새 라벨 추가
-stockChart.update(); // 차트 업데이트
-}
-
-// 주식 가격 업데이트 함수
-function updatePrices() {
-stockData.forEach(stock => {
-const maxChange = stock.price * 0.3;
-const change = (Math.random() * (2 * maxChange)) - maxChange;
-stock.price = Math.max(0, stock.price + parseInt(change));
-
-// 가격 기록(history)에 새로운 가격 추가
-stock.history.push({ price: stock.price });
-
-// 기록이 10개를 넘으면 오래된 기록 삭제
-if (stock.history.length > 10) {
-  stock.history.shift(); // 오래된 기록 삭제
-}
-});
-
-updateStockList(); // 주식 목록 업데이트
-updateOwnedStocks(); // 보유 주식 목록 업데이트
-updateChart(); // 차트 업데이트
-}
-
-
 
 // 매수 함수
 function buyStock() {
-  const quantity = parseInt(quantityInput.value); // 매수량 가져오기
+  const quantity = parseInt(quantityInput.value);
   const stock = stockData[selectedStockIndex];
-  const cost = stock.price * quantity; // 총 매수 비용 계산
+  const cost = stock.price * quantity;
   if (capital >= cost) {
-    capital -= cost; // 자본금에서 매수 비용 차감
+    capital -= cost;
     capitalElement.textContent = capital;
     if (ownedStocks[stock.name]) {
       const totalQuantity = ownedStocks[stock.name].quantity + quantity;
-      ownedStocks[stock.name].buyPrice = 
-        ((ownedStocks[stock.name].buyPrice * ownedStocks[stock.name].quantity) + cost) / totalQuantity; // 평균 매입가 재계산
+      ownedStocks[stock.name].buyPrice =
+        ((ownedStocks[stock.name].buyPrice * ownedStocks[stock.name].quantity) + cost) / totalQuantity;
       ownedStocks[stock.name].quantity = totalQuantity;
     } else {
-      ownedStocks[stock.name] = { quantity, buyPrice: stock.price }; // 새로운 주식 추가
+      ownedStocks[stock.name] = { quantity, buyPrice: stock.price };
     }
-    alert(`${stock.name} 주식을 ${quantity}주 매수했습니다. 현재 가격: ${stock.price} 원`);
+    showTemporaryAlert(`${stock.name} 주식을 ${quantity}주 매수했습니다. 현재 가격: ${stock.price} 원`, 2000);
     updateOwnedStocks();
   } else {
-    alert('자본금이 부족합니다.');
+    showTemporaryAlert('자본금이 부족합니다.', 2000);
   }
 }
 
 // 매도 함수
 function sellStock() {
-  const quantity = parseInt(quantityInput.value); // 매도할 주식 수량
+  const quantity = parseInt(quantityInput_sell.value);
   const stock = stockData[selectedStockIndex];
   if (ownedStocks[stock.name] && ownedStocks[stock.name].quantity >= quantity) {
-    const profit = stock.price * quantity; // 매도 후 이익 계산
-    capital += profit; // 자본금에 매도 이익 추가
-    ownedStocks[stock.name].quantity -= quantity; // 보유 주식 수량 감소
+    const profit = stock.price * quantity;
+    capital += profit;
+    ownedStocks[stock.name].quantity -= quantity;
     if (ownedStocks[stock.name].quantity === 0) {
-      delete ownedStocks[stock.name]; // 주식 수량이 0이 되면 삭제
+      delete ownedStocks[stock.name];
     }
-    capitalElement.textContent = capital.toFixed(2);
-    alert(`${stock.name} 주식을 ${quantity}주 매도했습니다. 현재 가격: ${stock.price} 원`);
+    capitalElement.textContent = capital;
+    showTemporaryAlert(`${stock.name} 주식을 ${quantity}주 매도했습니다. 현재 가격: ${stock.price} 원`, 2000);
     updateOwnedStocks();
   } else {
-    alert('보유한 주식이 부족합니다.');
+    showTemporaryAlert('보유한 주식이 부족합니다.', 2000);
   }
 }
 
-  // 상태 저장 함수
+// 상태 저장 함수
 function saveState() {
-  // 보유 주식 정보가 제대로 저장되어 있는지 확인
   const stocksOwned = Object.keys(ownedStocks).map(stockName => {
     const stock = ownedStocks[stockName];
     return {
@@ -234,27 +249,75 @@ function saveState() {
     };
   });
 
-  // 자본금 및 보유 주식 상태 저장을 위해 URL 파라미터로 변환
   const queryParams = new URLSearchParams({
-    capital: capital, // 자본금
-    stocks: JSON.stringify(stocksOwned) // 보유 주식 데이터
+    capital: capital,
+    stocks: JSON.stringify(stocksOwned),
+    stockHistory: JSON.stringify(stockData.map(stock => ({
+      name: stock.name,
+      price: stock.price,
+      history: stock.history
+    })))
   });
 
-  // 페이지를 새로고침하지 않고 URL을 업데이트
-  history.replaceState(null, '', '?' + queryParams.toString());
+  const url = '?' + queryParams.toString();
+  history.replaceState(null, '', url);
+  copyToClipboard(url);
+  showTemporaryAlert('상태가 저장되었습니다!', 2000);
 }
-//매수 버튼 클릭시 실행
+
+// 클립보드에 URL 복사 함수
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(window.location.href)
+    .then(() => console.log('URL copied to clipboard'))
+    .catch(err => console.error('Failed to copy URL:', err));
+}
+
+// 임시 알림 메시지 표시 함수
+function showTemporaryAlert(message, duration) {
+  const alertBox = document.createElement('div');
+  alertBox.textContent = message;
+  alertBox.className = 'alert';
+  document.body.appendChild(alertBox);
+
+  setTimeout(() => {
+    alertBox.remove();
+  }, duration);
+}
+
+// 알림 상자 설정
+const style = document.createElement('style');
+style.innerHTML = `
+  .alert {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 15px;
+    background-color: #c0c0c0;
+    color: black;
+    border: 2px solid #000;
+    font-family: 'MS Sans Serif', Arial, sans-serif;
+    font-size: 14px;
+    box-shadow: 3px 3px #404040, -1px -1px #ffffff;
+    z-index: 1000;
+    width: 300px;
+    text-align: center;
+  }
+`;
+document.head.appendChild(style);
+
+// 버튼 클릭 이벤트 설정
 buyButton.addEventListener('click', buyStock);
-//매도 버튼 클릭시 실행
 sellButton.addEventListener('click', sellStock);
-//저장버튼 클릭시 실행
 saveButton.addEventListener('click', saveState);
 
+// 초기 로딩 및 이벤트 설정
 function main() {
-  loadStateFromURL(); // 페이지 시작 시 URL에서 자본금과 주식 상태 불러오기
-  updateStockList();    //주식 목록 상태 변환
-  updateOwnedStocks(); // 불러온 주식 상태를 화면에 표시
-  setInterval(updatePrices, 5000); // 5초마다 주식 가격 변동
+  loadStateFromURL();
+  updateStockList();
+  updateOwnedStocks();
+  setInterval(updatePrices, 3000); // 3초마다 주식 업데이트
 }
-//시작시 프로그램 실행
+//처음 시작시 초기차트 가져오기
+initializeChart();
 main();
