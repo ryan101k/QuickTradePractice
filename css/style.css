@@ -1,0 +1,81 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    background-color: #008080; /* Windows 98 기본 배경색 */
+  }
+  .main-window {
+    width: 90%;
+    max-width: 800px;
+    height: 90%;
+    display: flex;
+    flex-direction: column;
+    border: 2px solid black;
+    padding: 5px;
+    background: #C0C0C0; /* Windows 98 느낌 */
+  }
+  .title-bar {
+    display: flex;
+    
+    justify-content: space-between;
+  }
+  .window-body {
+    padding: 10px;
+    background: white;
+  }
+  #chart-container {
+    width: 80%;
+    
+    height: 600px; /* 차트의 높이를 명확히 설정 */
+    background-color: white;
+    border: 2px solid black;
+    padding: 10px;
+    margin: 0 auto;
+    z-index: 10; /* 차트가 뒤로 가지 않도록 설정 */
+  }
+  .stock-list-window,
+
+  .owned-stocks {
+    width: 40%;
+    height: 70%;
+    border: 2px solid black;
+    padding: 5px;
+    background-color: white;
+    margin-right: 5px;
+  }
+  .main-content {
+    display: flex;
+    justify-content: space-between;
+    height: 50%;
+  }
+  .capital,
+  .controls {
+    margin-top: 10px;
+    text-align: center;
+  }
+  .capital {
+    font-weight: bold;
+    background-color: #C0C0C0;
+    padding: 10px;
+    border: 2px solid black;
+  }
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+  .controls button,
+  .controls input {
+    width: 100px;
+    padding: 5px;
+  }
+
+  .profit{
+    color: blue;
+  } 
+  .loss{
+    color: red;
+  }
