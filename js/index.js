@@ -27,7 +27,7 @@ function updateCostInfo() {
     const quantity = parseInt(quantityInput.value); // 입력된 매수량
     const stock = stockData[selectedStockIndex]; // 선택된 주식
     const cost = stock.price * quantity; // 매수 또는 매도 비용 계산
-    costInfoElement.textContent = `비용: ${cost.toFixed(2)} 원`; // 비용 표시 업데이트
+    costInfoElement.textContent = `비용: ${cost} 원`; // 비용 표시 업데이트
 }
 
 
@@ -61,7 +61,7 @@ const urlParams = new URLSearchParams(window.location.search);
 // URL에서 자본금 불러오기
 if (urlParams.has('capital')) {
   capital = parseFloat(urlParams.get('capital'));
-  capitalElement.textContent = capital.toFixed(2);
+  capitalElement.textContent = capital;
 }
 
 // URL에서 보유 주식 상태 불러오기
@@ -187,7 +187,7 @@ function buyStock() {
   const cost = stock.price * quantity; // 총 매수 비용 계산
   if (capital >= cost) {
     capital -= cost; // 자본금에서 매수 비용 차감
-    capitalElement.textContent = capital.toFixed(2);
+    capitalElement.textContent = capital;
     if (ownedStocks[stock.name]) {
       const totalQuantity = ownedStocks[stock.name].quantity + quantity;
       ownedStocks[stock.name].buyPrice = 
@@ -196,7 +196,7 @@ function buyStock() {
     } else {
       ownedStocks[stock.name] = { quantity, buyPrice: stock.price }; // 새로운 주식 추가
     }
-    alert(`${stock.name} 주식을 ${quantity}주 매수했습니다. 현재 가격: ${stock.price.toFixed(2)} 원`);
+    alert(`${stock.name} 주식을 ${quantity}주 매수했습니다. 현재 가격: ${stock.price} 원`);
     updateOwnedStocks();
   } else {
     alert('자본금이 부족합니다.');
@@ -215,7 +215,7 @@ function sellStock() {
       delete ownedStocks[stock.name]; // 주식 수량이 0이 되면 삭제
     }
     capitalElement.textContent = capital.toFixed(2);
-    alert(`${stock.name} 주식을 ${quantity}주 매도했습니다. 현재 가격: ${stock.price.toFixed(2)} 원`);
+    alert(`${stock.name} 주식을 ${quantity}주 매도했습니다. 현재 가격: ${stock.price} 원`);
     updateOwnedStocks();
   } else {
     alert('보유한 주식이 부족합니다.');
@@ -236,7 +236,7 @@ function saveState() {
 
   // 자본금 및 보유 주식 상태 저장을 위해 URL 파라미터로 변환
   const queryParams = new URLSearchParams({
-    capital: capital.toFixed(2), // 자본금
+    capital: capital, // 자본금
     stocks: JSON.stringify(stocksOwned) // 보유 주식 데이터
   });
 
