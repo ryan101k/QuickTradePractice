@@ -32,14 +32,17 @@ const issueData = [
   { issueName: '고객 데이터 유출', lossOfProfit: -1700 }
 ];
 
-const stockListElement = document.getElementById('stock-list');
-const ownedStocksListElement = document.getElementById('owned-stocks-list');
-const capitalElement = document.getElementById('capital');  
-const quantityInput = document.getElementById('quantity'); // 매수 인풋값
-const quantityInput_sell = document.getElementById('quantity2'); // 매도 인풋값
+const stockListElement = document.getElementById('stock-list'); //주식목록
+const ownedStocksListElement = document.getElementById('owned-stocks-list'); //보유주식목록
+const capitalElement = document.getElementById('capital');   //자본금
+
+const quantityInput = document.getElementById('quantity-buy'); // 매수 인풋값
+const quantityInput_sell = document.getElementById('quantity-sell'); // 매도 인풋값
+
 const buyButton = document.getElementById('buy-button');  //매수버튼
 const sellButton = document.getElementById('sell-button'); //매도버튼
 const saveButton = document.getElementById('save-button'); //저장버튼
+
 const ctx = document.getElementById('stock-chart').getContext('2d');
 const costInfoElement = document.getElementById('cost-info'); // 매수 비용 정보를 표시할 요소
 const stockIssueElement = document.getElementById('stock-issue'); //이슈데이터
@@ -101,7 +104,7 @@ function initializeChart() {
 
 
 
-// 개별 주식 차트 업데이트 함수
+// 주식 목록에서 선택시 차트 업데이트 함수
 function updateChart() {
   const stock = stockData[selectedStockIndex];
   
