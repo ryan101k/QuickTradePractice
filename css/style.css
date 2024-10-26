@@ -51,7 +51,7 @@ body {
   border: 2px solid black;
 }
 
-/* 차트 컨테이너 */
+/* 차트 영역*/
 #chart-container {
   width: 100%;
   height: 100%;

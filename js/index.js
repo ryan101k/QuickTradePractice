@@ -170,6 +170,9 @@ function updatePrices() {
   updateStockList(); // 주식 목록 업데이트
   updateOwnedStocks(); // 보유 주식 목록 업데이트
   updateChart(); // 선택된 주식만 업데이트
+  updateCostInfo(); //매수정보 바로업데이트
+  updateSellCostInfo(); //매도정보
+
 }
 
 
