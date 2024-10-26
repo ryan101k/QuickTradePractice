@@ -1,15 +1,15 @@
 let capital = 10000000; // 기본 자본금 1000만원
 let selectedStockIndex = 0; // 선택된 주식의 인덱스
-let ownedStocks = {}; // 보유 주식 정보 저장 { stockName: { quantity, history } }
+let ownedStocks = {}; // 보유 주식 정보 저장 { stockName: { price(가격), history(기록),category(기업상태) } }
 
-// 주식 목록
+// 주식 목록에 카테고리 추가
 const stockData = [
-  { name: '사성전자', price: 50000, history: [{ price: 50000 }] },
-  { name: '매플소프트', price: 100000, history: [{ price: 10000 }] },
-  { name: '럭키금성', price: 15000, history: [{ price: 15000 }] },
-  { name: '남남수수학학원', price: 1000, history: [{ price: 100 }] },
-  { name: '몽자동차', price: 15000, history: [{ price: 15000 }] },
-  { name: '초록박스어린이재단', price: 30000, history: [{ price: 4000 }] }
+  { name: '사성전자', price: 50000, history: [{ price: 50000 }], category: 'high' },
+  { name: '계진소프트', price: 100000, history: [{ price: 10000 }], category: 'high' },
+  { name: '민재상사', price: 15000, history: [{ price: 15000 }], category: 'medium' },
+  { name: '남남수수학학원', price: 1000, history: [{ price: 100 }], category: 'low' },
+  { name: '몽자동차', price: 15000, history: [{ price: 15000 }], category: 'medium' },
+  { name: '초록박스어린이재단', price: 30000, history: [{ price: 4000 }], category: 'low' }
 ];
 
 // 회사 이슈 데이터
@@ -21,7 +21,7 @@ const issueData = [
   { issueName: '인수합병 성공', lossOfProfit: 5000 },
   { issueName: '대규모 인수합병 예정', lossOfProfit: 5000 },
   { issueName: '회장구속', lossOfProfit: 10000 },
-
+  { issueName: '노벨평화상수상', lossOfProfit: 10000 },
   { issueName: '닌자 습격', lossOfProfit: -1000 },
   { issueName: '세금 체납', lossOfProfit: -800 },
   { issueName: '정부 규제 예정', lossOfProfit: -5800 },
@@ -103,9 +103,6 @@ function initializeChart() {
   stockChart.data.datasets[0].data = stock.history.map(entry => entry.price);
   stockChart.update();
 }
-
-
-
 // 주식 목록에서 선택시 차트 업데이트 함수
 function updateChart() {
   const stock = stockData[selectedStockIndex];
@@ -128,12 +125,13 @@ function updateChart() {
 function getRandomIssue() {
   return issueData[Math.floor(Math.random() * issueData.length)];
 }
+// 주식 카테고리에 따른 이슈 영향 배수 정의
+const issueImpactMultiplier = {
+  high: 0.5,   // 우량주: 영향이 적음 (50% 적용)
+  medium: 1,   // 보통주: 일반적인 영향 (100% 적용)
+  low: 1.5     // 개잡주: 영향이 큼 (150% 적용)
+};
 
-
-// 주식 데이터 구조에 적용 대기 이슈 추가
-stockData.forEach(stock => {
-  stock.pendingIssue = null; // 초기에는 대기 중인 이슈가 없음
-});
 
 // 주식 가격과 이슈 목록을 업데이트하는 함수
 function updatePrices() {
@@ -141,41 +139,52 @@ function updatePrices() {
 
   stockData.forEach(stock => {
     // 1. 기존 대기 중인 이슈를 확인하여 적용
-    const issueImpact = stock.pendingIssue ? stock.pendingIssue.lossOfProfit : 0;
-    
+    let issueImpact = 0;
+    if (stock.pendingIssue) {
+      // Adjust issue impact based on the stock's category
+      issueImpact = Math.floor(stock.pendingIssue.lossOfProfit * issueImpactMultiplier[stock.category]);
+    }
+
     // 2. 주식마다 새로운 랜덤 이슈 가져오기 (다음 회차 적용을 위해 대기)
     stock.pendingIssue = getRandomIssue();
-    
 
-    // 3. 기본 변동값 계산 (정수로 변환하여 소수점 제거)
-    const maxChange = Math.floor(stock.price * 0.3);
+    // 3. 카테고리에 따른 변동 제한 설정
+    let maxChange;
+    if (stock.category === 'high') {
+      maxChange = Math.floor(stock.price * 0.1); // 우량주: 최대 ±10% 변동
+    } else if (stock.category === 'medium') {
+      maxChange = Math.floor(stock.price * 0.2); // 보통: 최대 ±20% 변동
+    } else {
+      maxChange = Math.floor(stock.price * 0.5); // 개잡주: 최대 ±50% 변동
+    }
+
+    // 4. 기본 변동값 계산
     const randomChange = Math.floor(Math.random() * (2 * maxChange)) - maxChange;
-    
-    // 4. 이슈 영향 적용 (이번 업데이트에 반영되는 이슈는 이전 대기 중이었던 이슈)
+
+    // 5. 이슈 영향 적용 (이번 업데이트에 반영되는 이슈는 이전 대기 중이었던 이슈)
     const totalChange = randomChange + issueImpact;
 
-    // 5. 주식 가격 업데이트 (3 미만 방지 로직 추가)
+    // 6. 주식 가격 업데이트 (3 미만 방지 로직 추가)
     const newPrice = stock.price + totalChange;
     stock.price = Math.max(3, newPrice > 0 ? newPrice : Math.floor(Math.random() * maxChange));
 
-    // 6. 히스토리 기록 업데이트
+    // 7. 히스토리 기록 업데이트
     stock.history.push({ price: stock.price });
     if (stock.history.length > 10) {
       stock.history.shift();
     }
 
-    // 7. 적용된 이슈를 이슈 목록에 추가 
+    // 8. 적용된 이슈를 이슈 목록에 추가 
     const issueItem = document.createElement('li');
     issueItem.innerHTML = `<span><strong>${stock.name}</strong>: ${stock.pendingIssue.issueName}</span>`;
     stockIssueElement.appendChild(issueItem); // 이슈 목록에 항목 추가
   });
 
-  updateStockList(); // 주식 목록 업데이트
-  updateOwnedStocks(); // 보유 주식 목록 업데이트
-  updateChart(); // 선택된 주식만 업데이트
-  updateCostInfo(); //매수정보 바로업데이트
-  updateSellCostInfo(); //매도정보
-
+  updateStockList();
+  updateOwnedStocks();
+  updateChart();
+  updateCostInfo();
+  updateSellCostInfo();
 }
 
 

@@ -123,11 +123,12 @@ body {
 }
 /* 매수/매도 이익 및 손실 색상 설정 */
 .profit {
-  color: blue;
+  color: red;
 }
 
 .loss {
-  color: red;
+ 
+  color: blue;
 }
 
 
