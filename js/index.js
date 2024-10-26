@@ -205,7 +205,7 @@ function updateStockList() {
   });
 }
 
-// 보유 주식 목록 업데이트 함수
+/// 보유 주식 목록 업데이트 함수
 function updateOwnedStocks() {
   ownedStocksListElement.innerHTML = ''; // 기존 보유 주식 목록 초기화
 
@@ -225,10 +225,18 @@ function updateOwnedStocks() {
                       <span class="${profitOrLossClass}">
                         (${profitOrLoss >= 0 ? '+' : ''}${profitOrLoss} 원)
                       </span>`;
+
+      // 클릭 시 해당 보유 주식의 차트를 업데이트하도록 설정
+      li.addEventListener('click', () => {
+        selectedStockIndex = stockData.findIndex(s => s.name === stockName); // 선택된 주식 인덱스 변경
+        updateChart(); // 선택된 주식의 차트 업데이트
+      });
+
       ownedStocksListElement.appendChild(li); // 보유 주식 목록에 추가
     }
   });
 }
+
 
 // URL에서 자본금, 보유 주식 상태, 주식 가격 히스토리 불러오기
 function loadStateFromURL() {
@@ -290,9 +298,11 @@ function buyStock() {
     } else {
       ownedStocks[stock.name] = { quantity, buyPrice: stock.price };
     }
+    speakText('매수채결되었습니다');
     showTemporaryAlert(`${stock.name} 주식을 ${quantity}주 매수했습니다. 현재 가격: ${stock.price} 원`, 2000);
     updateOwnedStocks();
   } else {
+    speakText('자본금이부족합니다');
     showTemporaryAlert('자본금이 부족합니다.', 2000);
   }
 }
@@ -309,9 +319,11 @@ function sellStock() {
       delete ownedStocks[stock.name];
     }
     capitalElement.textContent = capital;
+    speakText('매도채결되었습니다');
     showTemporaryAlert(`${stock.name} 주식을 ${quantity}주 매도했습니다. 현재 가격: ${stock.price} 원`, 2000);
     updateOwnedStocks();
   } else {
+    speakText('자본금이부족합니다');
     showTemporaryAlert('보유한 주식이 부족합니다.', 2000);
   }
 }
@@ -390,6 +402,25 @@ function showTemporaryAlert(message, duration) {
   }, duration);
 }
 
+//tts 설정
+function speakText(text) {
+    if ('speechSynthesis' in window) {
+      console.log("이 브라우저는 TTS를 지원합니다.");
+  } else {
+      console.log("이 브라우저는 TTS를 지원하지 않습니다.");
+  }
+  // 음성합성 객체 생성
+  const synth = window.speechSynthesis;
+  const utterThis = new SpeechSynthesisUtterance(text);
+
+  // 음성 설정 (선택 사항)
+  utterThis.lang = 'ko-KR'; // 한국어로 설정
+  utterThis.pitch = 1;      // 음높이 조절 (0 ~ 2)
+  utterThis.rate = 1;       // 속도 조절 (0.1 ~ 10)
+
+  // 음성합성 실행
+  synth.speak(utterThis);
+}
 // 알림 상자 설정
 const style = document.createElement('style');
 style.innerHTML = `
