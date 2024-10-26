@@ -8,7 +8,7 @@ const stockData = [
   { name: '매플소프트', price: 100000, history: [{ price: 10000 }] },
   { name: '럭키금성', price: 15000, history: [{ price: 15000 }] },
   { name: '남남수수학학원', price: 1000, history: [{ price: 100 }] },
-  { name: '몽규자동차', price: 15000, history: [{ price: 15000 }] },
+  { name: '몽자동차', price: 15000, history: [{ price: 15000 }] },
   { name: '초록박스어린이재단', price: 30000, history: [{ price: 4000 }] }
 ];
 
@@ -20,14 +20,15 @@ const issueData = [
   { issueName: '도적 집단 토벌', lossOfProfit: 1500 },
   { issueName: '인수합병 성공', lossOfProfit: 5000 },
   { issueName: '대규모 인수합병 예정', lossOfProfit: 5000 },
-  { issueName: '화성진출', lossOfProfit: 10000 },
+  { issueName: '회장구속', lossOfProfit: 10000 },
 
+  { issueName: '닌자 습격', lossOfProfit: -1000 },
   { issueName: '세금 체납', lossOfProfit: -800 },
   { issueName: '정부 규제 예정', lossOfProfit: -5800 },
   { issueName: '신재품 개발 취소', lossOfProfit: -2000 },
   { issueName: '부도 위기 소문', lossOfProfit: -1800 },
   { issueName: '신규 사업 실패', lossOfProfit: -3000 },
-  { issueName: '회장 구속', lossOfProfit: -1500 },
+  { issueName: '대규모 파업', lossOfProfit: -1500 },
   { issueName: '도적집단 습격', lossOfProfit: -1200 },
   { issueName: '고객 데이터 유출', lossOfProfit: -1700 }
 ];
@@ -42,8 +43,9 @@ const quantityInput_sell = document.getElementById('quantity-sell'); // 매도 �
 const buyButton = document.getElementById('buy-button');  //매수버튼
 const sellButton = document.getElementById('sell-button'); //매도버튼
 const saveButton = document.getElementById('save-button'); //저장버튼
-
-const ctx = document.getElementById('stock-chart').getContext('2d');
+const buyMaxButton = document.getElementById('buy-max');  //매도 최대 버튼
+const sellMaxButton = document.getElementById('buy-sell'); //매수 최대버튼
+const ctx = document.getElementById('stock-chart').getContext('2d'); //차트 
 const costInfoElement = document.getElementById('cost-info'); // 매수 비용 정보를 표시할 요소
 const stockIssueElement = document.getElementById('stock-issue'); //이슈데이터
 
@@ -74,7 +76,7 @@ function updateCostInfo() {
 let stockChart = new Chart(ctx, {
   type: 'line', // 라인 차트 사용
   data: {
-    labels: stockData[selectedStockIndex].history.map((_, i) => `시간 대`), // 초기값 설정
+    labels: stockData[selectedStockIndex].history.map((_, i) => `시작가`), // 초기값 설정
     datasets: [{
       label: stockData[selectedStockIndex].name, // 선택된 주식 이름
       data: stockData[selectedStockIndex].history.map(entry => entry.price),
@@ -112,12 +114,10 @@ function updateChart() {
   stockChart.data.datasets[0].label = stock.name;
   stockChart.data.datasets[0].data = stock.history.map(entry => entry.price);
   
-  // 시간 라벨 업데이트 (현재 시간 추가)
-  const newLabel = new Date().toLocaleTimeString('en-GB', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
-  });
-  if (stockChart.data.labels.length >= 10) {
-    stockChart.data.labels.shift(); // 오래된 라벨 삭제
+  //  라벨 업데이트 (현재 가격으로 변경)
+  const newLabel = stock.price + "원";
+  if (stockChart.data.labels.length >= 6) {
+    stockChart.data.labels.shift(); // 오래된 요소제거
   }
   stockChart.data.labels.push(newLabel); // 새로운 라벨 추가
 
@@ -145,7 +145,7 @@ function updatePrices() {
     
     // 2. 주식마다 새로운 랜덤 이슈 가져오기 (다음 회차 적용을 위해 대기)
     stock.pendingIssue = getRandomIssue();
-    console.log(`Next Issue for ${stock.name}: ${stock.pendingIssue.issueName}, Impact: ${stock.pendingIssue.lossOfProfit}`);
+    
 
     // 3. 기본 변동값 계산 (정수로 변환하여 소수점 제거)
     const maxChange = Math.floor(stock.price * 0.3);
@@ -282,7 +282,7 @@ function buyStock() {
   if (capital >= cost) {
     capital -= cost;
     capitalElement.textContent = capital;
-    if (ownedStocks[stock.name]) {
+    if (ownedStocks[stock.name] && ownedStocks[stock.name].quantity >= quantity) {
       const totalQuantity = ownedStocks[stock.name].quantity + quantity;
       ownedStocks[stock.name].buyPrice =
         ((ownedStocks[stock.name].buyPrice * ownedStocks[stock.name].quantity) + cost) / totalQuantity;
@@ -315,7 +315,30 @@ function sellStock() {
     showTemporaryAlert('보유한 주식이 부족합니다.', 2000);
   }
 }
+// 최대 매도
+function sellMax() {
+  const stock = stockData[selectedStockIndex]; // 현재 선택된 주식
+  if (ownedStocks[stock.name]) {
+    const sellValue = ownedStocks[stock.name].quantity; // 보유한 주식 수량
+    quantityInput_sell.value = sellValue; // 매도 인풋에 최대 수량 설정
+  } else {
+    quantityInput_sell.value = 1; // 주식이 없는 경우 1으로 설정
+  }
+}
 
+//최대 매수
+function buyMax(){
+  
+  const stock = stockData[selectedStockIndex]; //현재 선택 주식
+  capitalElement.textContent = capital;
+  const buyValue = parseInt(capital/stock.price);
+  if(buyValue < 1){
+    quantityInput.value = 1;
+  }else{
+    quantityInput.value =  buyValue;
+  }
+ 
+}
 // 저장버튼 기능 구현
 function saveState() {
   // 데이터 확인
@@ -347,11 +370,12 @@ function saveState() {
   showTemporaryAlert('상태가 저장되었습니다!', 2000);
 }
 
+
 // 클립보드에 URL 복사 함수
 function copyToClipboard(text) {
   navigator.clipboard.writeText(window.location.href)
     .then(() => console.log('URL copied to clipboard'))
-    .catch(err => console.error('Failed to copy URL:', err));
+    .catch(err => console.error('URL 복사가 실패:', err));
 }
 
 // 임시 알림 메시지 표시 함수
@@ -393,6 +417,8 @@ buyButton.addEventListener('click', buyStock);
 sellButton.addEventListener('click', sellStock);
 saveButton.addEventListener('click', saveState);
 
+buyMaxButton.addEventListener('click', buyMax);
+sellMaxButton.addEventListener('click', sellMax);
 // 초기 로딩 및 이벤트 설정
 function main() {
   loadStateFromURL();
@@ -400,7 +426,7 @@ function main() {
   updateOwnedStocks();
   updateCostInfo(); //매수정보 바로업데이트
   updateSellCostInfo(); //매도정보
-  setInterval(updatePrices, 5000); // 5초마다 주식 가격과 이슈 업데이트
+  setInterval(updatePrices, 6000); // 6초마다 주식 가격과 이슈 업데이트
 }
 
 // 초기 차트 및 메인 함수 실행
