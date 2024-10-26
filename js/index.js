@@ -1,4 +1,4 @@
-let capital = 10000000; // 기본 자본금 1000만원
+let capital = 1000000; // 기본 자본금 100만원
 let selectedStockIndex = 0; // 선택된 주식의 인덱스
 let ownedStocks = {}; // 보유 주식 정보 저장 { stockName: { price(가격), history(기록),category(기업상태) } }
 
