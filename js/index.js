@@ -11,6 +11,19 @@ const stockData = [
   { name: '황금전자', price: 15000, history: [{ price: 15000 }] },
   { name: '초록박스어린이재단', price: 4000, history: [{ price: 4000 }] }
 ];
+// 회사 이슈 데이터
+const issueData = [
+  { issueName: '신제품개발 성공', lossOfProfit: 2000 },
+  { issueName: '회장 구속', lossOfProfit: -1500 },
+  { issueName: '주가 조작 혐의', lossOfProfit: -1200 },
+  { issueName: '해외 시장 진출 성공', lossOfProfit: 3000 },
+  { issueName: '부도 위기 소문', lossOfProfit: -1800 },
+  { issueName: '환경 문제 해결', lossOfProfit: 1500 },
+  { issueName: '세금 체납', lossOfProfit: -800 },
+  { issueName: '인수합병 성공', lossOfProfit: 2500 },
+  { issueName: '신규 사업 실패', lossOfProfit: -2000 },
+  { issueName: '고객 데이터 유출', lossOfProfit: -1700 }
+];
 
 const stockListElement = document.getElementById('stock-list');
 const ownedStocksListElement = document.getElementById('owned-stocks-list');
@@ -101,9 +114,17 @@ function updateChart() {
   stockChart.update(); // 차트 업데이트
 }
 
+
+// 랜덤 이슈 선택 함수
+function getRandomIssue() {
+  return issueData[Math.floor(Math.random() * issueData.length)];
+}
+
 // 주식 가격 업데이트 함수
 function updatePrices() {
   stockData.forEach(stock => {
+    //2024-10-26
+
     const maxChange = stock.price * 0.3;
     const change = (Math.random() * (2 * maxChange)) - maxChange;
     stock.price = Math.max(0, stock.price + parseInt(change));
@@ -119,6 +140,7 @@ function updatePrices() {
   // 선택된 주식만 업데이트
   updateChart();
 }
+
 // 주식 목록 업데이트 함수
 function updateStockList() {
   stockListElement.innerHTML = ''; // 기존 주식 목록 초기화
@@ -144,7 +166,7 @@ function updateStockList() {
   });
 }
 
-// 보유한 주식 목록 업데이트 함수
+// 보유 주식 목록 업데이트 함수
 function updateOwnedStocks() {
   ownedStocksListElement.innerHTML = ''; // 기존 보유 주식 목록 초기화
 
@@ -169,7 +191,7 @@ function updateOwnedStocks() {
   });
 }
 
-// URL에서 자본금과 보유 주식 상태 불러오기
+// URL에서 자본금, 보유 주식 상태, 주식 가격 히스토리 불러오기
 function loadStateFromURL() {
   const urlParams = new URLSearchParams(window.location.search);
 
@@ -188,10 +210,27 @@ function loadStateFromURL() {
           buyPrice: stock.buyPrice
         };
       });
-
       updateOwnedStocks();
     } catch (error) {
       console.error('Error parsing stocks from URL:', error);
+    }
+  }
+
+  // 주식 히스토리 불러오기
+  if (urlParams.has('stockHistory')) {
+    try {
+      const stockHistoryArray = JSON.parse(urlParams.get('stockHistory'));
+      stockData.forEach(stock => {
+        const savedStock = stockHistoryArray.find(s => s.name === stock.name);
+        if (savedStock) {
+          stock.price = savedStock.price;
+          stock.history = savedStock.history;
+        }
+      });
+      updateStockList();
+      updateChart();
+    } catch (error) {
+      console.error('Error parsing stock history from URL:', error);
     }
   }
 }
@@ -238,8 +277,9 @@ function sellStock() {
   }
 }
 
-// 상태 저장 함수
+// 저장버튼 기능 구현
 function saveState() {
+  // 데이터 확인
   const stocksOwned = Object.keys(ownedStocks).map(stockName => {
     const stock = ownedStocks[stockName];
     return {
@@ -248,7 +288,7 @@ function saveState() {
       buyPrice: stock.buyPrice
     };
   });
-
+  //url에 정보 저장
   const queryParams = new URLSearchParams({
     capital: capital,
     stocks: JSON.stringify(stocksOwned),
@@ -259,8 +299,11 @@ function saveState() {
     })))
   });
 
+  //url에 값부여
   const url = '?' + queryParams.toString();
+  //새로고침방지
   history.replaceState(null, '', url);
+  //클립보드에 url 복사
   copyToClipboard(url);
   showTemporaryAlert('상태가 저장되었습니다!', 2000);
 }
