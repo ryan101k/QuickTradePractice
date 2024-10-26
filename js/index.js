@@ -395,7 +395,8 @@ function main() {
   loadStateFromURL();
   updateStockList();
   updateOwnedStocks();
-
+  updateCostInfo(); //매수정보 바로업데이트
+  updateSellCostInfo(); //매도정보
   setInterval(updatePrices, 5000); // 5초마다 주식 가격과 이슈 업데이트
 }
 
