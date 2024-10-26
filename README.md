@@ -2,7 +2,9 @@ https://ryan101k.github.io/QuickTradePractice/
 
 주식 단타매매법을 시도해볼수 있는 사이트입니다
 
-기본 자본금 100만원에서 시작하며 3초마다 주식 값이 변경됩니다
+기본 자본금 1000만원에서 시작하며 6초마다 주식 값이 변경됩니다
+기업의 규모에따라 수익변동폭과 이슈에 대한 영향을 다르게하였습니다
+
 새로운 버전 ver3
 ![image](https://github.com/user-attachments/assets/05247512-c19b-4081-ba89-93a411b6e0fd)
 
