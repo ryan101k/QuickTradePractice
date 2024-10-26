@@ -4,37 +4,46 @@ let ownedStocks = {}; // 보유 주식 정보 저장 { stockName: { quantity, hi
 
 // 주식 목록
 const stockData = [
-  { name: '삼전', price: 50000, history: [{ price: 50000 }] },
-  { name: '김디비아', price: 10000, history: [{ price: 10000 }] },
+  { name: '사성전자', price: 50000, history: [{ price: 50000 }] },
+  { name: '매플소프트', price: 100000, history: [{ price: 10000 }] },
   { name: '럭키금성', price: 15000, history: [{ price: 15000 }] },
-  { name: '김명숙수학학원', price: 100, history: [{ price: 100 }] },
-  { name: '황금전자', price: 15000, history: [{ price: 15000 }] },
-  { name: '초록박스어린이재단', price: 4000, history: [{ price: 4000 }] }
+  { name: '남남수수학학원', price: 1000, history: [{ price: 100 }] },
+  { name: '몽규자동차', price: 15000, history: [{ price: 15000 }] },
+  { name: '초록박스어린이재단', price: 30000, history: [{ price: 4000 }] }
 ];
+
 // 회사 이슈 데이터
 const issueData = [
   { issueName: '신제품개발 성공', lossOfProfit: 2000 },
-  { issueName: '회장 구속', lossOfProfit: -1500 },
-  { issueName: '주가 조작 혐의', lossOfProfit: -1200 },
+  { issueName: '정부 지원', lossOfProfit: 5000 },
   { issueName: '해외 시장 진출 성공', lossOfProfit: 3000 },
-  { issueName: '부도 위기 소문', lossOfProfit: -1800 },
-  { issueName: '환경 문제 해결', lossOfProfit: 1500 },
+  { issueName: '도적 집단 토벌', lossOfProfit: 1500 },
+  { issueName: '인수합병 성공', lossOfProfit: 5000 },
+  { issueName: '대규모 인수합병 예정', lossOfProfit: 5000 },
+  { issueName: '화성진출', lossOfProfit: 10000 },
+
   { issueName: '세금 체납', lossOfProfit: -800 },
-  { issueName: '인수합병 성공', lossOfProfit: 2500 },
-  { issueName: '신규 사업 실패', lossOfProfit: -2000 },
+  { issueName: '정부 규제 예정', lossOfProfit: -5800 },
+  { issueName: '신재품 개발 취소', lossOfProfit: -2000 },
+  { issueName: '부도 위기 소문', lossOfProfit: -1800 },
+  { issueName: '신규 사업 실패', lossOfProfit: -3000 },
+  { issueName: '회장 구속', lossOfProfit: -1500 },
+  { issueName: '도적집단 습격', lossOfProfit: -1200 },
   { issueName: '고객 데이터 유출', lossOfProfit: -1700 }
 ];
 
 const stockListElement = document.getElementById('stock-list');
 const ownedStocksListElement = document.getElementById('owned-stocks-list');
-const capitalElement = document.getElementById('capital');
+const capitalElement = document.getElementById('capital');  
 const quantityInput = document.getElementById('quantity'); // 매수 인풋값
 const quantityInput_sell = document.getElementById('quantity2'); // 매도 인풋값
-const buyButton = document.getElementById('buy-button');
-const sellButton = document.getElementById('sell-button');
-const saveButton = document.getElementById('save-button');
+const buyButton = document.getElementById('buy-button');  //매수버튼
+const sellButton = document.getElementById('sell-button'); //매도버튼
+const saveButton = document.getElementById('save-button'); //저장버튼
 const ctx = document.getElementById('stock-chart').getContext('2d');
 const costInfoElement = document.getElementById('cost-info'); // 매수 비용 정보를 표시할 요소
+const stockIssueElement = document.getElementById('stock-issue'); //이슈데이터
+
 
 // 매수량 입력값이 변경될 때마다 비용 정보 업데이트
 quantityInput.addEventListener('input', updateCostInfo);
@@ -85,10 +94,8 @@ function initializeChart() {
   const stock = stockData[selectedStockIndex];
   
   // 초기 레이블과 데이터셋 설정
-
   stockChart.data.datasets[0].label = stock.name;
   stockChart.data.datasets[0].data = stock.history.map(entry => entry.price);
-
   stockChart.update();
 }
 
@@ -114,32 +121,58 @@ function updateChart() {
   stockChart.update(); // 차트 업데이트
 }
 
-
 // 랜덤 이슈 선택 함수
 function getRandomIssue() {
   return issueData[Math.floor(Math.random() * issueData.length)];
 }
 
-// 주식 가격 업데이트 함수
-function updatePrices() {
-  stockData.forEach(stock => {
-    //2024-10-26
 
-    const maxChange = stock.price * 0.3;
-    const change = (Math.random() * (2 * maxChange)) - maxChange;
-    stock.price = Math.max(0, stock.price + parseInt(change));
+// 주식 데이터 구조에 적용 대기 이슈 추가
+stockData.forEach(stock => {
+  stock.pendingIssue = null; // 초기에는 대기 중인 이슈가 없음
+});
+
+// 주식 가격과 이슈 목록을 업데이트하는 함수
+function updatePrices() {
+  stockIssueElement.innerHTML = ''; // 기존 이슈 목록 초기화
+
+  stockData.forEach(stock => {
+    // 1. 기존 대기 중인 이슈를 확인하여 적용
+    const issueImpact = stock.pendingIssue ? stock.pendingIssue.lossOfProfit : 0;
+    
+    // 2. 주식마다 새로운 랜덤 이슈 가져오기 (다음 회차 적용을 위해 대기)
+    stock.pendingIssue = getRandomIssue();
+    console.log(`Next Issue for ${stock.name}: ${stock.pendingIssue.issueName}, Impact: ${stock.pendingIssue.lossOfProfit}`);
+
+    // 3. 기본 변동값 계산 (정수로 변환하여 소수점 제거)
+    const maxChange = Math.floor(stock.price * 0.3);
+    const randomChange = Math.floor(Math.random() * (2 * maxChange)) - maxChange;
+    
+    // 4. 이슈 영향 적용 (이번 업데이트에 반영되는 이슈는 이전 대기 중이었던 이슈)
+    const totalChange = randomChange + issueImpact;
+
+    // 5. 주식 가격 업데이트 (3 미만 방지 로직 추가)
+    const newPrice = stock.price + totalChange;
+    stock.price = Math.max(3, newPrice > 0 ? newPrice : Math.floor(Math.random() * maxChange));
+
+    // 6. 히스토리 기록 업데이트
     stock.history.push({ price: stock.price });
     if (stock.history.length > 10) {
       stock.history.shift();
     }
+
+    // 7. 적용된 이슈를 이슈 목록에 추가 
+    const issueItem = document.createElement('li');
+    issueItem.innerHTML = `<span><strong>${stock.name}</strong>: ${stock.pendingIssue.issueName}</span>`;
+    stockIssueElement.appendChild(issueItem); // 이슈 목록에 항목 추가
   });
 
   updateStockList(); // 주식 목록 업데이트
   updateOwnedStocks(); // 보유 주식 목록 업데이트
-  
-  // 선택된 주식만 업데이트
-  updateChart();
+  updateChart(); // 선택된 주식만 업데이트
 }
+
+
 
 // 주식 목록 업데이트 함수
 function updateStockList() {
@@ -154,7 +187,7 @@ function updateStockList() {
 
     // 새로운 목록 아이템 생성
     const li = document.createElement('li');
-    li.innerHTML = `${stock.name}: <span class="${profitOrLossClass}"> ${stock.price} 원 </span> [ ${profitOrLoss}원 ${profitOrLoss >= 0 ? '증가' : '감소'} ]`;
+    li.innerHTML = `<strong>${stock.name}</strong>: <span class="${profitOrLossClass}"> ${stock.price} 원 </span> [ ${profitOrLoss}원 ${profitOrLoss >= 0 ? '증가' : '감소'} ]`;
     
     // 클릭 시 해당 주식의 차트를 업데이트하도록 설정
     li.addEventListener('click', () => {
@@ -359,9 +392,11 @@ function main() {
   loadStateFromURL();
   updateStockList();
   updateOwnedStocks();
-  setInterval(updatePrices, 3000); // 3초마다 주식 업데이트
+
+  setInterval(updatePrices, 5000); // 5초마다 주식 가격과 이슈 업데이트
 }
-//처음 시작시 초기차트 가져오기
+
+// 초기 차트 및 메인 함수 실행
 window.onload = function() {
   initializeChart();
   main();

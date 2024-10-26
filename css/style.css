@@ -3,10 +3,10 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  height: auto;
   margin: 0;
   background-color: #008080; /*고전느낌나게 초록으로*/
-  padding: 0;
+  padding-top: 10px;
 }
 
 /* 메인 윈도우 설정 */
@@ -55,11 +55,11 @@ body {
 #chart-container {
   width: 100%;
   height: 100%;
+  max-height: 600px; /* 최대 높이 제한 추가 */
   background-color: white;
   border: 2px solid black;
   padding: 5px;
 }
-
 /* 자본금 및 컨트롤 영역 */
 .capital,
 .controls {
@@ -130,17 +130,54 @@ body {
   color: red;
 }
 
-/* 모바일 반응형처리 */
-/* 아이템들이 아래로 내려가게  */
+
+
+/* 모바일 반응형 처리 */
+/* 모바일 반응형에서 상단 여백 더 확보 */
 @media (max-width: 768px) {
   .main-window {
-    width: 100%;
+    padding-top: 15px; /* 작은 화면에서 추가 여백 */
+  }
+
+
+  body, html {
+    overflow-x: hidden;
+    padding: 0;
+    margin: 0;
+  }
+
+
+  .main-content {
+    flex-direction: column;
+    align-items: center;
     height: auto;
+    padding: 10px 0;
   }
 
   #chart-container {
     width: 100%;
-    height: 200px;
+    height: 240px; /* 모바일에서 차트의 높이 감소 */
+    margin-top: 10px;
+  }
+
+  .left-column,
+  .right-column {
+    width: 100%;
+    padding: 10px 0;
+  }
+
+  .window-body {
+    overflow-y: auto;
+    max-height: 400px;
+    padding: 5px;
+  }
+}
+
+/* 더 작은 모바일 스크린 대응 */
+@media (max-width: 480px) {
+  .main-window {
+    padding: 5px;
+    height: auto; /* 자동 높이로 조정 */
   }
 
   .main-content {
@@ -149,24 +186,10 @@ body {
     height: auto;
   }
 
-  .left-column,
-  .right-column {
-    width: 100%;
+  #chart-container {
+    height: 180px; /* 작은 화면에서 차트 높이 추가 감소 */
   }
 
-  .controls button,
-  .controls input {
-    width: 80px;
-    padding: 5px;
-  }
-
-  .capital {
-    font-size: 1em;
-    padding: 5px;
-  }
-}
-
-@media (max-width: 480px) {
   .controls button,
   .controls input {
     width: 70px;
@@ -177,5 +200,9 @@ body {
   .capital {
     font-size: 0.9em;
     padding: 5px;
+  }
+
+  .window-body {
+    max-height: 200px;
   }
 }
