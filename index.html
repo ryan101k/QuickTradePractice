@@ -3,97 +3,164 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>단타 주식 연습</title>
-  <link rel="stylesheet" href="https://ryan101k.github.io/QuickTradePractice/css/style.css">
+  <title>단타 시뮬레이터</title>
   <link rel="stylesheet" href="https://unpkg.com/98.css">
+  <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
+  <div class="toast-area" id="toast-area"></div>
+
   <div class="main-window window">
     <!-- 타이틀 바 -->
     <div class="title-bar">
-      <div class="title-bar-text">연습을 위해 1분봉이 아닌 6초봉으로 6초마다 값이 변합니다</div>
+      <div class="title-bar-text">📈단타 주식 시뮬레이터 v2.0</div>
+      <div class="title-bar-controls">
+        <button aria-label="Minimize"></button>
+        <button aria-label="Maximize"></button>
+        <button aria-label="Close"></button>
+      </div>
     </div>
 
-    <!-- 메인 컨텐츠 -->
+    <!-- 뉴스 티커 -->
+    <div class="news-ticker-bar">
+      <span class="ticker-label">📰 실시간</span>
+      <div class="ticker-viewport"><div id="news-ticker" class="ticker-text">장이 열렸습니다…</div></div>
+    </div>
+
+    <!-- 상단 상태바 -->
+    <div class="status-strip">
+      <div class="stat"><span class="stat-label">자본금(현금)</span><span class="stat-val" id="capital">1,000,000</span></div>
+      <div class="stat"><span class="stat-label">순자산</span><span class="stat-val" id="networth">1,000,000</span></div>
+      <div class="stat"><span class="stat-label">총 손익</span><span class="stat-val" id="total-pl">+0원 (0.00%)</span></div>
+      <div class="stat"><span class="stat-label">실현손익</span><span class="stat-val" id="realized">0</span></div>
+      <div class="stat"><span class="stat-label badge" id="day-badge">1일차</span></div>
+    </div>
+
+    <!-- 컨트롤바 -->
+    <div class="control-bar">
+      <button id="pause-btn">⏸ 일시정지</button>
+      <span class="ctl-group">배속:
+        <button class="speed-btn active" data-speed="1">1x</button>
+        <button class="speed-btn" data-speed="2">2x</button>
+        <button class="speed-btn" data-speed="4">4x</button>
+      </span>
+      <span class="ctl-group">차트:
+        <button id="chart-line" class="active">라인</button>
+        <button id="chart-candle">캔들</button>
+      </span>
+      <label class="chk"><input type="checkbox" id="sound-toggle" checked> 효과음</label>
+      <label class="chk"><input type="checkbox" id="tts-toggle"> 음성</label>
+      <span class="spacer"></span>
+      <button id="save-btn">💾 저장</button>
+      <button id="share-btn">🔗 공유</button>
+      <button id="reset-btn">🗑 초기화</button>
+    </div>
+
+    <!-- 메인 3-컬럼 -->
     <div class="main-content">
-      <!-- 왼쪽 컬럼: 주식 목록, 회사 이슈, 보유 주식 -->
-      <div class="left-column">
-        <!-- 주식 목록 -->
-        <div class="stock-list-window window">
-          <div class="title-bar"><div class="title-bar-text">현재 주식 목록</div></div>
-          <div class="window-body"><ul id="stock-list"></ul></div>
-        </div>
-        
-        <!-- 회사 이슈 -->
-        <div class="stock-list-issue window">
-          <div class="title-bar"><div class="title-bar-text">회사 이슈</div></div>
-          <div class="window-body"><ul id="stock-issue"></ul></div>
-        </div>
-        
-        <!-- 보유 주식 -->
-        <div class="owned-stocks window">
-          <div class="title-bar"><div class="title-bar-text">보유한 주식</div></div>
-          <div class="window-body"><ul id="owned-stocks-list"></ul></div>
+      <!-- 왼쪽: 종목 목록 -->
+      <div class="col col-left">
+        <div class="window panel">
+          <div class="title-bar"><div class="title-bar-text">📋 현재 주식 목록</div></div>
+          <div class="panel-toolbar">
+            섹터:
+            <select id="sector-filter"><option value="all">전체</option></select>
+          </div>
+          <div class="window-body scroll"><ul id="stock-list" class="clean-list"></ul></div>
         </div>
       </div>
 
-      <!-- 오른쪽 컬럼: 주식 차트 -->
-      <div class="right-column">
-        <div id="chart-container" class="window">
-          <canvas id="stock-chart"></canvas>
+      <!-- 가운데: 차트 + 거래 -->
+      <div class="col col-center">
+        <div class="window panel">
+          <div class="title-bar"><div class="title-bar-text">📊 <span id="sel-name">차트</span> · <span id="sel-price">-</span></div></div>
+          <div class="window-body chart-body"><canvas id="price-chart"></canvas></div>
+        </div>
+
+        <!-- 거래 패널 -->
+        <div class="window panel trade-panel">
+          <div class="title-bar"><div class="title-bar-text">💱 주문</div></div>
+          <div class="window-body">
+            <div class="trade-row">
+              <span class="cost-info up" id="cost-buy">비용: 0원</span>
+              <label>매수량 <input type="number" id="qty-buy" value="1" min="1"></label>
+              <button id="buy-btn" class="btn-buy">매수 (B)</button>
+              <button id="buy-max">MAX</button>
+            </div>
+            <div class="trade-row">
+              <span class="cost-info down" id="cost-sell">수령: 0원</span>
+              <label>매도량 <input type="number" id="qty-sell" value="1" min="1"></label>
+              <button id="sell-btn" class="btn-sell">매도 (S)</button>
+              <button id="sell-max">MAX</button>
+            </div>
+            <p class="hint">💡 보유분이 없을 때 매도하면 <strong>공매도(숏)</strong> 진입됩니다. 하락하면 이익!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 오른쪽: 탭(보유/이슈/뉴스/랭킹/업적) -->
+      <div class="col col-right">
+        <div class="window panel">
+          <div class="title-bar"><div class="title-bar-text">💼 내 정보 & 시장</div></div>
+          <menu role="tablist" class="tabs">
+            <li role="tab" aria-selected="true" data-tab="owned"><a href="#">보유</a></li>
+            <li role="tab" data-tab="issue"><a href="#">이슈</a></li>
+            <li role="tab" data-tab="news"><a href="#">뉴스</a></li>
+            <li role="tab" data-tab="rank"><a href="#">랭킹</a></li>
+            <li role="tab" data-tab="ach"><a href="#">업적</a></li>
+          </menu>
+          <div class="window-body tab-body scroll">
+            <div class="tab-pane active" data-pane="owned"><ul id="owned-list" class="clean-list"></ul></div>
+            <div class="tab-pane" data-pane="issue"><ul id="issue-list" class="clean-list"></ul></div>
+            <div class="tab-pane" data-pane="news"><ul id="news-log" class="clean-list news-log"></ul></div>
+            <div class="tab-pane" data-pane="rank">
+              <ul id="leaderboard" class="clean-list leaderboard"></ul>
+              <div class="mini-chart-wrap"><span class="mini-label">순자산 추이</span><canvas id="nw-chart"></canvas></div>
+            </div>
+            <div class="tab-pane" data-pane="ach">
+              <div class="ach-header">달성 <span id="ach-count">0/0</span></div>
+              <ul id="achievement-list" class="clean-list"></ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="window panel">
+          <div class="title-bar"><div class="title-bar-text">🥧 포트폴리오</div></div>
+          <div class="window-body pie-body"><canvas id="pie-chart"></canvas></div>
         </div>
       </div>
     </div>
 
-    <!-- 자본금 및 거래 제어 -->
-    <div class="capital">자본금: <span id="capital">1,000,000</span> 원</div>
-    <div class="capital">
-      <div class="trade">
-        <!-- 매수 섹션 -->
-        <div class="trade-input">
-          <span class="cost-info" id="cost-info">비용: 0 원</span>
-          매수량: <input type="number" id="quantity-buy" value="1" min="1">
-          <button id="buy-button">매수</button>
-          <button id="buy-max">MAX</button>
-        </div>
-      </div>
-    </div>
-    
-    <div class="capital">
-      <div class="trade">
-        <!-- 매도 섹션 -->
-        <div class="trade-input">
-          <span class="cost-info" id="cost-info-sell">수익: 0 원</span>
-          매도량: <input type="number" id="quantity-sell" value="1" min="1">
-          <button id="sell-button">매도</button>
-          <button id="buy-sell">MAX</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 저장 버튼 -->
-    <div class="controls">
-      <div class="trade">
-        <button id="save-button">저장</button>
-      </div>
-    </div>
-
-    <!-- 설명 섹션 -->
-    <div class="description window">
-      <div class="title-bar"><div class="title-bar-text">설명</div></div>
-      <div class="window-body">
-        <p id="description-text">
-          1. 저장 시 클립보드에 URL이 복사되며 링크에 값이 저장됩니다.<br>
-          2. 회사 이슈에서 나온 이슈는 즉시 반영되지 않고 그다음에 부여됩니다 (추후 랜덤 적용 예정).<br>
-          3. 주식가격의 변동값은 기존값에서 ±30%와 이슈들의 합으로 반영됩니다.<br>
-          4. 회사의 규모에 따라 이슈의 대한 영향과 변동폭이 다릅니다
-          <br>
-          제작: ryan101k
+    <!-- 하단 설명 -->
+    <div class="window panel help-panel">
+      <div class="title-bar"><div class="title-bar-text">ℹ️ 도움말</div></div>
+      <div class="window-body help-body">
+        <p>
+          • <strong>단축키</strong>: <kbd>B</kbd> 매수 · <kbd>S</kbd> 매도 · <kbd>Space</kbd> 일시정지 · <kbd>↑</kbd>/<kbd>↓</kbd> 종목 이동<br>
+          • 가격은 <strong>±30% 상·하한가</strong> 안에서, 개별 추세 + 랜덤 변동 + <strong>대기 이슈</strong> + 시장 이벤트의 합으로 갱신됩니다 (이슈는 <em>다음 틱</em>에 반영).<br>
+          • 회사 규모(<strong>대/중/소</strong>)에 따라 변동폭과 이슈 민감도가 다릅니다. 소형주는 상장폐지 위험이 있어요.<br>
+          • 매매엔 <strong>수수료 0.015%</strong>, 매도엔 <strong>거래세 0.18%</strong>가 붙습니다. 대형 우량주는 <strong>배당금</strong>도 나옵니다.<br>
+          • <strong>AI 라이벌</strong> 3명과 순자산 경쟁! 저장은 브라우저에 자동으로 됩니다.
         </p>
+        <p class="credit">원작: ryan101k</p>
       </div>
     </div>
   </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="./js/data.js"></script>
+  <script src="./js/app.js"></script>
+  <script>
+    // 탭 전환 (간단 UI 로직)
+    document.querySelectorAll('.tabs [role="tab"]').forEach(tab => {
+      tab.addEventListener('click', e => {
+        e.preventDefault();
+        document.querySelectorAll('.tabs [role="tab"]').forEach(t => t.setAttribute('aria-selected', 'false'));
+        tab.setAttribute('aria-selected', 'true');
+        const name = tab.dataset.tab;
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+      });
+    });
+  </script>
 </body>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="js/index.js"></script>
 </html>
