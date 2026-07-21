@@ -74,6 +74,7 @@ const LIFE = {
   HAPPY_DECAY: 2,            // 매달 자연 감소하는 행복
   PROP_APPRECIATE: [0.0, 0.02], // 매달 부동산 시세 상승률 범위
   LIFE_LOAN_INTEREST: 0.02,  // 개인 대출 월 이자 2%
+  EVENT_PROB: 0.5,           // 장 마감 때 선택지 이벤트가 뜰 확률
 };
 
 function newLife() {
@@ -416,6 +417,7 @@ function closeMarket() {
   renderAll();
   renderMarketPhase();
   renderCloseReport(endedDay);          // 마감 리포트(뉴스 골라보기) 표시
+  maybeLifeEvent();                     // 이번 달 선택지 이벤트(있으면 리포트 위로 팝업)
   autoSave();
 }
 
@@ -478,9 +480,11 @@ function renderCloseReport(day) {
        </div>
        <div class="window-body">
          <div class="close-summary">
+           <div class="cash-big">💰 보유 현금 <strong>${won(S.capital)}원</strong></div>
            <div>당월 투자손익 <strong class="${investPL >= 0 ? 'up' : 'down'}">${investPL >= 0 ? '+' : ''}${won(investPL)}원</strong></div>
            <div>마감 순자산 <strong>${won(nwNow)}원</strong></div>
            <div>총 재산 <strong>${won(totalWealth())}원</strong></div>
+           ${S.life && S.life.loan > 0 ? `<div>개인 대출 <strong class="down">${won(S.life.loan)}원</strong></div>` : ''}
            ${settleBits.length ? `<div class="settle-line">월말 정산 · ${settleBits.join(' · ')}</div>` : ''}
          </div>
          <div class="close-news-title">📰 이번 달 주요 뉴스 — 골라서 읽어보세요${totalCnt > news.length ? ` <span class="muted" style="color:#ccd">(주요 ${news.length}건 / 총 ${totalCnt}건)</span>` : ''}</div>
@@ -645,6 +649,73 @@ function showJobModal(isChange) {
   const x = $('job-x'); if (x) x.addEventListener('click', closeLifeModal);
 }
 function closeLifeModal() { const h = $('life-modal'); if (h) { h.style.display = 'none'; h.innerHTML = ''; } }
+
+/* ---- 선택지 이벤트 (직업/연애/빚/일상) ---- */
+const EVENT_CAT = { job: '직업', love: '연애', debt: '빚', life: '일상' };
+function resolveAmt(v) { return Array.isArray(v) ? Math.round(rand(v[0], v[1])) : v; }
+
+function maybeLifeEvent() {
+  if (!D.LIFE_EVENTS || Math.random() > LIFE.EVENT_PROB) return;
+  const L = S.life;
+  const ctx = { job: L.job, loan: L.loan, rel: L.relationship, happy: L.happy, charm: L.charm };
+  const pool = D.LIFE_EVENTS.filter(e => !e.cond || e.cond(ctx));
+  if (pool.length) showLifeEvent(pick(pool));
+}
+
+function showLifeEvent(ev) {
+  const host = $('life-event'); if (!host) return;
+  S._curEvent = ev;
+  host.style.display = 'block';
+  host.innerHTML =
+    `<div class="window event-window">
+       <div class="title-bar event-bar"><div class="title-bar-text">❗ 사건 발생 · ${EVENT_CAT[ev.cat] || ''}</div></div>
+       <div class="window-body">
+         <div class="event-title">${ev.emoji} ${ev.title}</div>
+         <div class="event-desc">${ev.desc}</div>
+         <div class="event-options">
+           ${ev.options.map((o, i) => `<button class="event-opt" data-i="${i}">${o.text}</button>`).join('')}
+         </div>
+         <div class="event-outcome" id="event-outcome"></div>
+       </div>
+     </div>`;
+  host.querySelectorAll('.event-opt').forEach(b => b.addEventListener('click', () => resolveEvent(+b.dataset.i)));
+}
+
+function applyEventEffects(eff) {
+  const L = S.life, changes = [];
+  if (eff.cash != null) { const v = resolveAmt(eff.cash); S.capital += v; if (v) changes.push(`현금 <b class="${v >= 0 ? 'up' : 'down'}">${v >= 0 ? '+' : ''}${won(v)}</b>`); }
+  if (eff.debt != null) { const v = resolveAmt(eff.debt); L.loan = Math.max(0, L.loan + v); if (v) changes.push(`빚 <b class="${v >= 0 ? 'down' : 'up'}">${v >= 0 ? '+' : ''}${won(v)}</b>`); }
+  if (eff.happy != null) { L.happy = clamp(L.happy + eff.happy, 0, 100); changes.push(`행복 ${eff.happy >= 0 ? '+' : ''}${eff.happy}`); }
+  if (eff.charm != null) { L.charm = Math.max(0, L.charm + eff.charm); changes.push(`매력 ${eff.charm >= 0 ? '+' : ''}${eff.charm}`); }
+  if (eff.endRelationshipChance && L.relationship !== 'single' && Math.random() < eff.endRelationshipChance) {
+    const nm = L.partner ? L.partner.name : '연인';
+    L.relationship = 'single'; L.partner = null; L.charm = Math.floor(L.charm * 0.5); L.happy = clamp(L.happy - 10, 0, 100);
+    changes.push(`💔 <b class="down">${nm}와 이별</b>`);
+  }
+  return changes;
+}
+
+function resolveEvent(i) {
+  const ev = S._curEvent; if (!ev) return;
+  const opt = ev.options[i];
+  const changes = applyEventEffects(opt.effects || {});
+  addNews(`${ev.emoji} ${ev.title} — ${opt.text}`, 'neutral');
+  const host = $('life-event');
+  const optWrap = host.querySelector('.event-options'); if (optWrap) optWrap.innerHTML = '';
+  const out = $('event-outcome');
+  out.innerHTML =
+    `<div class="oc-text">${opt.outcome}</div>` +
+    (changes.length ? `<div class="oc-changes">${changes.join(' · ')}</div>` : '') +
+    `<button id="event-confirm" class="session-btn opening">확인</button>`;
+  const cf = $('event-confirm'); if (cf) cf.addEventListener('click', closeLifeEvent);
+  renderCapital(); renderLifePanel(); checkAchievements(); autoSave();
+}
+
+function closeLifeEvent() {
+  const host = $('life-event'); if (host) { host.style.display = 'none'; host.innerHTML = ''; }
+  S._curEvent = null;
+  if (S.phase === 'closed' && $('market-close') && $('market-close').style.display === 'block') renderCloseReport(S.day);
+}
 
 function chooseJob(id) {
   const job = D.JOBS.find(j => j.id === id); if (!job) return;

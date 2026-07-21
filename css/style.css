@@ -261,6 +261,28 @@ body {
 .job-sal { font-weight: bold; font-size: 12.5px; color: var(--up); white-space: nowrap; }
 .risk-tag { font-size: 10.5px; font-weight: normal; color: #666; background: #eee; border: 1px solid #ccc; border-radius: 3px; padding: 0 4px; white-space: nowrap; }
 
+/* 마감 리포트 보유 현금 강조 */
+.close-summary .cash-big { flex: 1 1 100%; font-size: 15px; background: #fffbe6; border: 2px solid #d6a01f; border-radius: 3px; padding: 5px 10px; margin-bottom: 4px; }
+.close-summary .cash-big strong { font-size: 18px; color: #7a5c00; }
+
+/* 선택지 이벤트 모달 */
+.event-host {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 10001; width: min(500px, 94vw); animation: breaking-in .3s ease;
+}
+.event-window { box-shadow: 6px 6px 0 rgba(0,0,0,.5); }
+.event-bar { background: linear-gradient(90deg, #b8860b, #d61f1f) !important; animation: breaking-flash 1.2s steps(2) infinite; }
+.event-window .window-body { background: #fffdf5; padding: 12px; max-height: 82vh; overflow-y: auto; }
+.event-title { font-size: 16px; font-weight: bold; margin-bottom: 4px; }
+.event-desc { font-size: 13px; color: #333; line-height: 1.5; margin-bottom: 10px; }
+.event-options { display: flex; flex-direction: column; gap: 6px; }
+.event-opt { text-align: left; padding: 8px 10px; font-size: 13px; cursor: pointer; }
+.event-opt:hover { background: #fff0d0; }
+.event-outcome:not(:empty) { margin-top: 10px; border-top: 2px dashed #d6a01f; padding-top: 8px; }
+.oc-text { font-size: 13px; margin-bottom: 4px; }
+.oc-changes { font-size: 13px; font-weight: bold; margin-bottom: 8px; }
+#event-confirm { width: 100%; padding: 8px; }
+
 /* ---------------------------------------------------------------- 반응형 */
 @media (max-width: 1100px) {
   .main-content { flex-direction: column; }

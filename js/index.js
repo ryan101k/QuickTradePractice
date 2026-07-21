@@ -30,7 +30,9 @@ const issueData = [
   { issueName: '신규 사업 실패', lossOfProfit: -3000 },
   { issueName: '대규모 파업', lossOfProfit: -1500 },
   { issueName: '도적집단 습격', lossOfProfit: -1200 },
-  { issueName: '고객 데이터 유출', lossOfProfit: -1700 }
+  { issueName: '고객 데이터 유출', lossOfProfit: -1700 },
+  { issueName: '정치권의 공격', lossOfProfit: -1100 },
+  { issueName: '가짜뉴스 등장', lossOfProfit: -1000 }
 ];
 
 const stockListElement = document.getElementById('stock-list'); //주식목록
