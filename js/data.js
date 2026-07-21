@@ -222,6 +222,77 @@ const ACHIEVEMENTS = [
   { id: 'short_win',   icon: '🐻', name: '공매도 성공',    desc: '공매도로 수익 실현',                 check: c => c.shortsClosed >= 1 },
   { id: 'diamond',     icon: '💎', name: '다이아몬드 핸즈', desc: '10일차까지 생존',                    check: c => c.day >= 10 },
   { id: 'beat_bots',   icon: '🤖', name: 'AI 정복자',      desc: 'AI 라이벌을 모두 제치고 1위',        check: c => c.rank === 1 && c.day >= 3 },
+  { id: 'leverage',    icon: '⚡', name: '빚투 데뷔',      desc: '신용(레버리지)으로 매수',            check: c => c.usedLeverage },
+  { id: 'margincall',  icon: '☠️', name: '반대매매 경험',   desc: '마진콜로 강제청산 당함',             check: c => c.marginCalled },
+];
+
+/* ---------------------------------------------------------------------------
+ *  전문가(애널리스트) — 긴급 속보 시 3명이 랜덤하게 상승/하락 전망을 냄
+ *  (전망은 실제 결과와 무관한 랜덤 → 엇갈리는 재미 + 낚시)
+ * ------------------------------------------------------------------------- */
+const EXPERTS = [
+  '여의도 황소 박불장', '곰돌이리서치 이하락', '존버 애널 김단타', '차트박사 최고점',
+  '유튜버 슈퍼개미TV', '외국계 IB 제임스', '동학개미 대장 정떡상', '전직 큰손 왕회장',
+  '점쟁이 애널 무당김', '역발상 투자자 반대만', '모멘텀 사냥꾼 추격매수', '가치투자 대가 존버핏',
+];
+// 전망 코멘트 템플릿
+const EXPERT_BULL = [
+  '지금이 저점입니다. 풀매수 각!', '이건 무조건 상한가 갑니다.', '개미 여러분, 지금 담으세요.',
+  '차트가 너무 아름답습니다. 우상향 확정.', '세력이 들어옵니다. 올라탈 때예요.', '눌림목 매수 기회, 놓치지 마세요.',
+  '목표가 20% 상향합니다.', '이 뉴스는 대형 호재로 해석됩니다.', '지금 안 사면 후회합니다. 강력 매수.',
+];
+const EXPERT_BEAR = [
+  '전형적인 설거지 구간, 손절하세요.', '지금 물리면 3년 존버각입니다.', '고점입니다. 지금 도망치세요.',
+  '이건 하락의 서막일 뿐입니다.', '데드캣 바운스, 속지 마세요.', '거래량 없는 상승은 함정입니다.',
+  '목표가 하향, 비중 축소 권고.', '악재를 호재로 포장한 것뿐입니다.', '지금 매수는 자살행위입니다.',
+];
+
+/* =========================================================================
+ *  인생(LIFE) 모드 데이터
+ *  - 장 1회 = 한 달. 마감 때 월급/월세/이자 정산 + 마감 후 인생 행동
+ * ------------------------------------------------------------------------- */
+
+// 직업(JOBS)은 js/jobs.js, 연애 상대(CHARACTERS)·성격(PERSONALITIES)은 js/characters.js 로 분리됨
+
+// 취미: 돈을 써서 행복(happy) + 매력(charm) 상승. 일부는 연애에 도움
+const HOBBIES = [
+  { id: 'game',   emoji: '🎮', name: '게임',       cost: 200000,  happy: 8,  charm: 0 },
+  { id: 'food',   emoji: '🍽️', name: '맛집 탐방',   cost: 150000,  happy: 7,  charm: 1 },
+  { id: 'gym',    emoji: '🏋️', name: '헬스',       cost: 300000,  happy: 6,  charm: 3 },
+  { id: 'study',  emoji: '📚', name: '자기계발',   cost: 500000,  happy: 3,  charm: 2 },
+  { id: 'travel', emoji: '✈️', name: '여행',       cost: 1000000, happy: 20, charm: 5 },
+];
+
+// 부동산: 매입가(price)만큼 현금 지불, 매달 월세(rent) 수입, 매달 조금씩 시세 상승
+const PROPERTIES = [
+  { id: 'oneroom',  emoji: '🏠', name: '원룸',       price: 50000000,   rent: 400000 },
+  { id: 'officetel',emoji: '🏨', name: '오피스텔',   price: 150000000,  rent: 900000 },
+  { id: 'apart',    emoji: '🏬', name: '아파트',     price: 300000000,  rent: 1500000 },
+  { id: 'store',    emoji: '🏪', name: '상가',       price: 500000000,  rent: 3000000 },
+  { id: 'building', emoji: '🏢', name: '꼬마빌딩',   price: 2000000000, rent: 12000000 },
+];
+
+// 개인 대출: 프리셋 금액 (매달 이자 LIFE_LOAN_INTEREST 만큼 빚 증가)
+const LOAN_OPTIONS = [10000000, 50000000, 100000000, 500000000];
+
+// 취미/데이트를 많이 하며 쌓인 매력(charm)으로 연애 → 결혼까지 진행
+const RELATIONSHIP = {
+  DATE_COST: 300000,     // 데이트 1회 비용
+  DATE_CHARM: [6, 13],   // 데이트 1회 매력 상승 범위
+  DATE_HAPPY: 6,
+  DATING_AT: 30,         // 이 매력 이상이면 연애 시작
+  MARRY_AT: 100,         // 이 매력 이상이면 결혼 가능
+  WEDDING_COST: 30000000,// 결혼식 비용
+};
+
+// 인생 관련 업적
+const LIFE_ACHIEVEMENTS = [
+  { id: 'got_job',   icon: '💼', name: '사회초년생',   desc: '직업을 가진다',              check: c => c.hasJob },
+  { id: 'first_home',icon: '🏠', name: '내 집 마련',    desc: '부동산을 처음 매입',          check: c => c.propCount >= 1 },
+  { id: 'landlord',  icon: '🏢', name: '건물주',        desc: '부동산 3채 이상 보유',        check: c => c.propCount >= 3 },
+  { id: 'in_love',   icon: '💕', name: '연애 시작',     desc: '누군가와 사귀게 된다',        check: c => c.relationship !== 'single' },
+  { id: 'married',   icon: '💍', name: '결혼',          desc: '결혼에 골인한다',            check: c => c.relationship === 'married' },
+  { id: 'happy',     icon: '😄', name: '인생 만족',     desc: '행복도 90 이상 달성',         check: c => c.happy >= 90 },
 ];
 
 /* 전역 노출 */
@@ -229,4 +300,7 @@ window.QT_DATA = {
   SECTORS, COMPANY_MASTER,
   EVENTS_COMPANY_GOOD, EVENTS_COMPANY_BAD, EVENTS_SECTOR,
   EVENTS_MARKET, EVENTS_NONE, ACHIEVEMENTS,
+  EXPERTS, EXPERT_BULL, EXPERT_BEAR,
+  JOBS, HOBBIES, PROPERTIES, LOAN_OPTIONS, RELATIONSHIP, LIFE_ACHIEVEMENTS,
+  CHARACTERS, PERSONALITIES,   // js/characters.js
 };

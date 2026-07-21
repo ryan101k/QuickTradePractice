@@ -3,17 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>단타 시뮬레이터</title>
+  <title>QuickTrade Life — 주식 인생 시뮬레이터</title>
   <link rel="stylesheet" href="https://unpkg.com/98.css">
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
   <div class="toast-area" id="toast-area"></div>
+  <div class="breaking-host" id="breaking" style="display:none"></div>
+  <div class="close-host" id="market-close" style="display:none"></div>
+  <div class="life-modal-host" id="life-modal" style="display:none"></div>
 
   <div class="main-window window">
     <!-- 타이틀 바 -->
     <div class="title-bar">
-      <div class="title-bar-text">📈단타 주식 시뮬레이터 v2.0</div>
+      <div class="title-bar-text">📈 QuickTrade Life — 주식 인생 시뮬레이터 v3.0</div>
       <div class="title-bar-controls">
         <button aria-label="Minimize"></button>
         <button aria-label="Maximize"></button>
@@ -33,11 +36,15 @@
       <div class="stat"><span class="stat-label">순자산</span><span class="stat-val" id="networth">1,000,000</span></div>
       <div class="stat"><span class="stat-label">총 손익</span><span class="stat-val" id="total-pl">+0원 (0.00%)</span></div>
       <div class="stat"><span class="stat-label">실현손익</span><span class="stat-val" id="realized">0</span></div>
+      <div class="stat"><span class="stat-label">⚡신용융자(빚)</span><span class="stat-val" id="debt">0</span></div>
+      <div class="stat"><span class="stat-label">매수여력</span><span class="stat-val" id="buying-power">1,000,000</span></div>
       <div class="stat"><span class="stat-label badge" id="day-badge">1일차</span></div>
     </div>
 
     <!-- 컨트롤바 -->
     <div class="control-bar">
+      <button id="session-btn" class="session-btn opening">🔔 장 열림</button>
+      <span class="phase-badge" id="phase-badge">🔒 장 마감</span>
       <button id="pause-btn">⏸ 일시정지</button>
       <span class="ctl-group">배속:
         <button class="speed-btn active" data-speed="1">1x</button>
@@ -81,6 +88,17 @@
         <div class="window panel trade-panel">
           <div class="title-bar"><div class="title-bar-text">💱 주문</div></div>
           <div class="window-body">
+            <div class="trade-row lev-row">
+              <label>⚡ 신용 레버리지
+                <select id="leverage-select">
+                  <option value="1">1x (현금)</option>
+                  <option value="2">2x</option>
+                  <option value="3">3x</option>
+                  <option value="5">5x (풀빚투)</option>
+                </select>
+              </label>
+              <span class="lev-hint">배율만큼 매수여력↑ · 하락 시 <strong>반대매매</strong> 주의</span>
+            </div>
             <div class="trade-row">
               <span class="cost-info up" id="cost-buy">비용: 0원</span>
               <label>매수량 <input type="number" id="qty-buy" value="1" min="1"></label>
@@ -104,6 +122,7 @@
           <div class="title-bar"><div class="title-bar-text">💼 내 정보 & 시장</div></div>
           <menu role="tablist" class="tabs">
             <li role="tab" aria-selected="true" data-tab="owned"><a href="#">보유</a></li>
+            <li role="tab" data-tab="life"><a href="#">인생</a></li>
             <li role="tab" data-tab="issue"><a href="#">이슈</a></li>
             <li role="tab" data-tab="news"><a href="#">뉴스</a></li>
             <li role="tab" data-tab="rank"><a href="#">랭킹</a></li>
@@ -111,6 +130,7 @@
           </menu>
           <div class="window-body tab-body scroll">
             <div class="tab-pane active" data-pane="owned"><ul id="owned-list" class="clean-list"></ul></div>
+            <div class="tab-pane" data-pane="life"><div id="life-panel" class="life-panel"></div></div>
             <div class="tab-pane" data-pane="issue"><ul id="issue-list" class="clean-list"></ul></div>
             <div class="tab-pane" data-pane="news"><ul id="news-log" class="clean-list news-log"></ul></div>
             <div class="tab-pane" data-pane="rank">
@@ -136,18 +156,25 @@
       <div class="title-bar"><div class="title-bar-text">ℹ️ 도움말</div></div>
       <div class="window-body help-body">
         <p>
-          • <strong>단축키</strong>: <kbd>B</kbd> 매수 · <kbd>S</kbd> 매도 · <kbd>Space</kbd> 일시정지 · <kbd>↑</kbd>/<kbd>↓</kbd> 종목 이동<br>
+          • <strong>단축키</strong>: <kbd>O</kbd> 장 열림/마감 · <kbd>B</kbd> 매수 · <kbd>S</kbd> 매도 · <kbd>Space</kbd> 일시정지 · <kbd>↑</kbd>/<kbd>↓</kbd> 종목 이동<br>
+          • 🔔 <strong>장 열림 = 한 달</strong>: 버튼을 눌러 개장하면 한 달치 장이 돌고, 시간이 지나면 자동 <strong>장 마감</strong>(또는 조기 마감). 장중엔 큰 사건만 <strong>가끔</strong> 긴급속보로 뜹니다.<br>
+          • 🎬 <strong>인생 모드</strong>: 시작할 때 <strong>직업</strong>을 고르면 매달 <strong>월급</strong>이 들어옵니다. 장 마감 리포트에서 <strong>취미·부동산·데이트·빚내기·이직</strong>을 할 수 있고, 데이트/취미로 <strong>매력</strong>을 쌓으면 <strong>연애 → 결혼</strong>까지 진행돼요. 오른쪽 <strong>인생 탭</strong>에서 상태 확인!<br>
           • 가격은 <strong>±30% 상·하한가</strong> 안에서, 개별 추세 + 랜덤 변동 + <strong>대기 이슈</strong> + 시장 이벤트의 합으로 갱신됩니다 (이슈는 <em>다음 틱</em>에 반영).<br>
           • 회사 규모(<strong>대/중/소</strong>)에 따라 변동폭과 이슈 민감도가 다릅니다. 소형주는 상장폐지 위험이 있어요.<br>
           • 매매엔 <strong>수수료 0.015%</strong>, 매도엔 <strong>거래세 0.18%</strong>가 붙습니다. 대형 우량주는 <strong>배당금</strong>도 나옵니다.<br>
+          • ⚡ <strong>신용 레버리지</strong>(2~5배)로 매수여력을 늘릴 수 있어요. 대신 <strong>이자(일 0.4%)</strong>가 붙고, 자기자본이 부족해지면 <strong>반대매매(마진콜)</strong>로 강제청산됩니다.<br>
+          • 🚨 큰 뉴스는 <strong>긴급속보</strong> 창으로 뜨고, <strong>전문가 3인</strong>이 상승/하락 전망을 냅니다 — 서로 엇갈리니 참고만 하세요! (티커에 마우스를 올리면 멈춥니다)<br>
           • <strong>AI 라이벌</strong> 3명과 순자산 경쟁! 저장은 브라우저에 자동으로 됩니다.
         </p>
-        <p class="credit">원작: ryan101k</p>
+        <p class="credit">원작: ryan101k · 리뉴얼: QuickTrade Pro v2.0</p>
       </div>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script src="./js/jobs.js"></script>
+  <script src="./js/characters.js"></script>
   <script src="./js/data.js"></script>
   <script src="./js/app.js"></script>
   <script>

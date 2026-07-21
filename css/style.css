@@ -49,8 +49,10 @@ body {
 .ticker-viewport { flex: 1; overflow: hidden; position: relative; height: 100%; }
 .ticker-text {
   position: absolute; white-space: nowrap; top: 50%; transform: translateY(-50%);
-  padding-left: 100%; animation: ticker 30s linear infinite; font-size: 13px;
+  padding-left: 100%; animation: ticker 60s linear infinite; font-size: 13px;
 }
+/* 마우스를 올리면 티커 정지(읽기 편하게) */
+.ticker-viewport:hover .ticker-text { animation-play-state: paused; }
 @keyframes ticker { from { transform: translate(0, -50%); } to { transform: translate(-100%, -50%); } }
 
 /* ---------------------------------------------------------------- 상태바 */
@@ -160,6 +162,105 @@ body {
 .toast.bad { border-left: 6px solid var(--down); }
 .toast.neutral { border-left: 6px solid #000080; }
 
+/* ---------------------------------------------------------------- 레버리지 UI */
+.lev-row { background: #fff7e6; border: 1px dashed #d6a01f; padding: 6px 8px; border-radius: 3px; }
+.lev-row select { font-weight: bold; }
+.lev-hint { font-size: 11px; color: #8a6d1f; }
+
+/* ---------------------------------------------------------------- 긴급 속보 */
+.breaking-host {
+  position: fixed; top: 54px; left: 50%; transform: translateX(-50%);
+  z-index: 9998; width: min(560px, 94vw);
+  animation: breaking-in .35s ease;
+}
+@keyframes breaking-in { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.breaking-window { box-shadow: 5px 5px 0 rgba(0,0,0,.45); }
+.breaking-bar {
+  background: linear-gradient(90deg, #d61f1f, #ff5a00) !important;
+  animation: breaking-flash 1s steps(2) infinite;
+}
+@keyframes breaking-flash { 50% { filter: brightness(1.35); } }
+.breaking-window .window-body { background: #fffef7; padding: 10px; }
+.breaking-headline { font-size: 17px; font-weight: bold; line-height: 1.35; margin-bottom: 4px; color: #111; }
+.breaking-target { font-size: 12px; color: #444; margin-bottom: 8px; }
+.experts-title { font-size: 12px; font-weight: bold; background: #000080; color: #fff; padding: 3px 6px; }
+.experts { border: 1px inset #808080; background: #fff; }
+.experts .expert { display: flex; flex-direction: column; gap: 1px; cursor: default; padding: 6px 8px; }
+.ex-name { font-weight: bold; font-size: 12.5px; }
+.ex-view { font-size: 12px; font-weight: bold; }
+.ex-cmt { font-size: 12px; color: #555; }
+
+/* ---------------------------------------------------------------- 장 개장/마감 */
+.session-btn { font-weight: bold; }
+.session-btn.opening { background: #d0ffd0 !important; }
+.session-btn.closing { background: #ffd0d0 !important; }
+.phase-badge {
+  font-size: 12px; font-weight: bold; padding: 2px 8px;
+  border: 1px inset #808080; background: #e6e6e6; color: #666;
+}
+.phase-badge.open { background: #113311; color: #23ff23; border-color: #0a0; }
+#pause-btn:disabled { opacity: .5; }
+
+.close-host {
+  position: fixed; top: 48px; left: 50%; transform: translateX(-50%);
+  z-index: 9998; width: min(620px, 95vw);
+  animation: breaking-in .3s ease;
+}
+.close-window { box-shadow: 6px 6px 0 rgba(0,0,0,.45); max-height: 88vh; display: flex; flex-direction: column; }
+.close-bar { background: linear-gradient(90deg, #000080, #1f6fd6) !important; }
+.close-window .window-body { background: #f7f9ff; padding: 10px; overflow-y: auto; }
+.close-summary {
+  display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px;
+  background: #fff; border: 2px inset #808080; padding: 8px 10px; margin-bottom: 8px;
+}
+.close-news-title { font-size: 12px; font-weight: bold; background: #000080; color: #fff; padding: 3px 6px; }
+.close-news { border: 1px inset #808080; background: #fff; max-height: 46vh; overflow-y: auto; }
+.report-news { display: flex; flex-direction: column; gap: 2px; }
+.rn-head { font-weight: bold; font-size: 13px; }
+.rn-meta { font-size: 11.5px; color: #555; }
+.rn-detail { display: none; }
+.rn-detail.open { display: block; margin-top: 6px; }
+.close-actions { display: flex; gap: 8px; margin-top: 10px; }
+.close-actions #next-day-btn { flex: 1; padding: 8px; }
+
+/* ---------------------------------------------------------------- 인생 모드: 정산/허브 */
+.settle-line { flex: 1 1 100%; font-size: 12px; color: #444; border-top: 1px dashed #bbb; padding-top: 5px; margin-top: 2px; }
+.settle-line b { font-weight: bold; }
+
+.life-hub { border: 2px groove #fff; background: #f0f4ff; padding: 8px; margin-top: 8px; }
+.hub-title { font-size: 12.5px; font-weight: bold; margin-bottom: 6px; }
+.hub-group { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.hub-label { font-size: 12px; font-weight: bold; min-width: 62px; padding-top: 4px; }
+.hub-btns { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; }
+.life-btn { font-size: 12px; padding: 4px 8px; cursor: pointer; }
+.life-btn small { color: #666; font-size: 10.5px; }
+.life-btn.hot { background: #ffe0ec !important; font-weight: bold; border: 1px solid #d61f7a; }
+
+/* 인생 상태 패널 */
+.life-panel { padding: 2px 0; }
+.life-stat { display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; border-bottom: 1px dotted #ccc; font-size: 12.5px; }
+.life-stat span { color: #555; }
+.life-stat strong { font-weight: bold; }
+.life-stat.total { background: #fffbcc; font-size: 13.5px; }
+.life-props { padding: 6px 8px; font-size: 12px; color: #333; background: #f6f6f6; }
+
+/* 직업 선택 / 이직 모달 */
+.life-modal-host {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 10000; width: min(560px, 94vw); animation: breaking-in .3s ease;
+}
+.life-window { box-shadow: 6px 6px 0 rgba(0,0,0,.5); }
+.life-bar { background: linear-gradient(90deg, #7a1fd6, #d61f7a) !important; }
+.life-window .window-body { background: #fbf7ff; padding: 10px; max-height: 82vh; overflow-y: auto; }
+.life-intro { font-size: 12.5px; color: #444; margin: 2px 0 8px; }
+.job-list { border: 1px inset #808080; background: #fff; }
+.job-row { display: flex; align-items: center; gap: 10px; }
+.job-row:hover { background: #f0e6ff; }
+.job-emoji { font-size: 22px; }
+.job-main { flex: 1; font-size: 13px; line-height: 1.35; }
+.job-sal { font-weight: bold; font-size: 12.5px; color: var(--up); white-space: nowrap; }
+.risk-tag { font-size: 10.5px; font-weight: normal; color: #666; background: #eee; border: 1px solid #ccc; border-radius: 3px; padding: 0 4px; white-space: nowrap; }
+
 /* ---------------------------------------------------------------- 반응형 */
 @media (max-width: 1100px) {
   .main-content { flex-direction: column; }
@@ -169,8 +270,26 @@ body {
 }
 @media (max-width: 560px) {
   body { padding: 3px; }
-  .status-strip .stat { min-width: 90px; }
+  .status-strip .stat { min-width: 46%; flex: 1 1 46%; }
   .stat-val { font-size: 13px; }
-  .trade-row { gap: 5px; }
+
+  /* 모바일: 주문 버튼을 크고 확실히 누를 수 있게 */
+  .trade-row { gap: 6px; align-items: stretch; flex-wrap: wrap; }
   .cost-info { min-width: 100%; }
+  .trade-row label { flex: 1 1 100%; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+  .trade-row input[type="number"] { flex: 1; width: auto; height: 44px; font-size: 16px; } /* iOS 확대 방지 위해 16px */
+  .trade-row button,
+  .control-bar button,
+  .speed-btn, #chart-line, #chart-candle {
+    min-height: 44px; padding: 10px 12px; font-size: 15px;
+    touch-action: manipulation;
+  }
+  .btn-buy, .btn-sell { flex: 1 1 60%; }
+  #buy-max, #sell-max { flex: 1 1 30%; }
+  .lev-row select { min-height: 44px; font-size: 15px; flex: 1; }
+  .control-bar { gap: 6px 8px; }
+  .control-bar .ctl-group { flex: 1 1 100%; justify-content: space-between; }
+  .breaking-host { top: 8px; }
+  .breaking-headline { font-size: 15px; }
+  .close-host { top: 8px; }
 }
