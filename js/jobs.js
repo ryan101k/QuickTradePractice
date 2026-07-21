@@ -70,6 +70,16 @@ const JOBS = [
       { text: '갑질 논란으로 불매·소송', cost: [15000000, 60000000] },
     ],
   },
+  { id:'delivery',emoji:'🛵',name:'배달 라이더',salary:0,variable:[1400000,4200000],risk:.09,dateBonus:6,difficulty:5,desc:'일한 만큼 벌지만 날씨와 사고 위험',incidents:[{text:'빗길 오토바이 사고',cost:[500000,8000000]},{text:'오토바이 수리와 휴업',cost:[300000,2500000]}] },
+  { id:'factory',emoji:'🏭',name:'생산직',salary:3200000,risk:.06,dateBonus:8,difficulty:25,desc:'교대근무 수당과 안정적인 현금흐름',incidents:[{text:'작업 중 부상과 치료비',cost:[500000,6000000]},{text:'공장 감산으로 무급휴직',cost:[1000000,4000000]}] },
+  { id:'teacher',emoji:'📚',name:'교사',salary:3000000,risk:.035,dateBonus:15,difficulty:65,desc:'안정적이지만 민원과 업무 스트레스',incidents:[{text:'학부모 민원 대응 치료비',cost:[300000,1500000]},{text:'교실 물품 파손 변상',cost:[100000,700000]}] },
+  { id:'nurse',emoji:'🩺',name:'간호사',salary:3600000,risk:.075,dateBonus:16,difficulty:55,desc:'전문직 수입과 고강도 교대근무',incidents:[{text:'허리 부상으로 치료·휴직',cost:[800000,5000000]},{text:'감염 노출 후 자가격리',cost:[400000,2500000]}] },
+  { id:'designer',emoji:'🎨',name:'디자이너',salary:3300000,risk:.06,dateBonus:17,difficulty:40,desc:'감각과 마감 사이에서 버티는 직업',incidents:[{text:'프리랜스 외주대금 미수',cost:[500000,5000000]},{text:'장비 고장과 교체 비용',cost:[1000000,4000000]}] },
+  { id:'sales',emoji:'🤝',name:'영업직',salary:0,variable:[1800000,7500000],risk:.10,dateBonus:18,difficulty:35,desc:'성과급 대박 또는 실적 압박',incidents:[{text:'접대비를 개인 비용으로 처리',cost:[500000,5000000]},{text:'계약 취소로 인센티브 환수',cost:[1000000,10000000]}] },
+  { id:'accountant',emoji:'🧾',name:'회계사',salary:5800000,risk:.08,dateBonus:20,difficulty:78,desc:'높은 전문성과 바쁜 결산 시즌',incidents:[{text:'검토 오류 관련 손해배상',cost:[3000000,30000000]},{text:'과로로 장기 치료',cost:[1000000,8000000]}] },
+  { id:'lawyer',emoji:'⚖️',name:'변호사',salary:6500000,risk:.11,dateBonus:23,difficulty:88,desc:'고소득 전문직, 사건 수임 변동성',incidents:[{text:'수임 분쟁과 반환 소송',cost:[5000000,50000000]},{text:'사무실 운영비 적자',cost:[3000000,20000000]}] },
+  { id:'researcher',emoji:'🔬',name:'연구원',salary:4200000,risk:.045,dateBonus:19,difficulty:70,desc:'안정적인 전문직과 긴 연구 기간',incidents:[{text:'연구비 정산 오류 변상',cost:[500000,5000000]},{text:'프로젝트 종료 후 계약 공백',cost:[1000000,6000000]}] },
+  { id:'realtor',emoji:'🏠',name:'공인중개사',salary:0,variable:[500000,10000000],risk:.13,dateBonus:14,difficulty:45,desc:'부동산 경기에 따라 수입이 크게 변동',incidents:[{text:'중개사고 손해배상',cost:[5000000,50000000]},{text:'거래절벽으로 사무실 적자',cost:[2000000,12000000]}] },
 ];
 
 /* 직업 리스크 등급 (UI 표시용) */

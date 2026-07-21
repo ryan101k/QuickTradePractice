@@ -20,20 +20,20 @@ const PERSONALITIES = {
 
 /* 연애 상대 로스터 — 연애가 시작되면 이 중 한 명이 랜덤 배정 */
 const CHARACTERS = [
-  { name: '서연', emoji: '👩', job: '디자이너', income: 2800000, personality: 'caring' },
-  { name: '민준', emoji: '👨', job: '변호사',   income: 6000000, personality: 'ambitious' },
-  { name: '지우', emoji: '🧑', job: '백수',     income: 0,       personality: 'lavish' },
-  { name: '하은', emoji: '👩', job: '간호사',   income: 3200000, personality: 'frugal' },
-  { name: '도윤', emoji: '👨', job: '의사',     income: 7000000, personality: 'cold' },
-  { name: '수빈', emoji: '🧑', job: '유튜버',   income: 1500000, personality: 'free' },
-  { name: '예린', emoji: '👩', job: '공무원',   income: 2200000, personality: 'homebody' },
-  { name: '시우', emoji: '👨', job: '개발자',   income: 4000000, personality: 'ambitious' },
-  { name: '채원', emoji: '👩', job: '승무원',   income: 3000000, personality: 'lavish' },
-  { name: '건우', emoji: '👨', job: '자영업',   income: 2500000, personality: 'frugal' },
-  { name: '유나', emoji: '👩', job: '모델',     income: 2000000, personality: 'free' },
-  { name: '준서', emoji: '🧑', job: '교사',     income: 2600000, personality: 'caring' },
-  { name: '태양', emoji: '👨', job: '사업가',   income: 5000000, personality: 'lavish' },
-  { name: '보라', emoji: '👩', job: '약사',     income: 4500000, personality: 'homebody' },
+  { name: '서연', emoji: '👩', job: '디자이너', income: 2800000, personality: 'caring', portrait: 'seoyeon.webp' },
+  { name: '민준', emoji: '👨', job: '변호사', income: 6000000, personality: 'ambitious', portrait: 'minjun.webp' },
+  { name: '지우', emoji: '🧑', job: '백수', income: 0, personality: 'lavish', portrait: 'jiwoo.webp' },
+  { name: '하은', emoji: '👩', job: '간호사', income: 3200000, personality: 'frugal', portrait: 'haeun.webp' },
+  { name: '도윤', emoji: '👨', job: '의사', income: 7000000, personality: 'cold', portrait: 'doyun.webp' },
+  { name: '수빈', emoji: '🧑', job: '유튜버', income: 1500000, personality: 'free', portrait: 'subin.webp' },
+  { name: '예린', emoji: '👩', job: '공무원', income: 2200000, personality: 'homebody', portrait: 'yerin.webp' },
+  { name: '시우', emoji: '👨', job: '개발자', income: 4000000, personality: 'ambitious', portrait: 'siwoo.webp' },
+  { name: '채원', emoji: '👩', job: '승무원', income: 3000000, personality: 'lavish', portrait: 'chaewon.webp' },
+  { name: '건우', emoji: '👨', job: '자영업', income: 2500000, personality: 'frugal', portrait: 'geonwoo.webp' },
+  { name: '유나', emoji: '👩', job: '모델', income: 2000000, personality: 'free', portrait: 'yuna.webp' },
+  { name: '준서', emoji: '🧑', job: '교사', income: 2600000, personality: 'caring', portrait: 'junseo.webp' },
+  { name: '태양', emoji: '👨', job: '사업가', income: 5000000, personality: 'lavish', portrait: 'taeyang.webp' },
+  { name: '보라', emoji: '👩', job: '약사', income: 4500000, personality: 'homebody', portrait: 'bora.webp' },
 ];
 
 /* 데이트 접근 방식(선택지) — 성공 판정에 mod/보정이 다르게 들어감
@@ -42,9 +42,14 @@ const CHARACTERS = [
  *   flexReward: 이 비용을 감당할 현금이 있으면 큰 보정(+), 없으면 역효과(-)
  *   variance  : 점수에 ±범위 랜덤 (고위험 고수익) */
 const DATE_APPROACHES = [
-  { key: 'sincere', emoji: '💬', label: '진솔하게 대화한다', mod: 12, cost: 0, desc: '무난하고 안정적' },
-  { key: 'flex', emoji: '💳', label: '화려하게 플렉스', mod: 0, cost: 2000000, flexReward: 28, desc: '돈으로 어필, 여유 있으면 강력' },
-  { key: 'push', emoji: '🎭', label: '밀당을 시도한다', mod: 4, cost: 0, variance: 35, desc: '고위험 고수익, 완전 랜덤' },
+  { key:'sincere',emoji:'💬',label:'진솔하게 가치관을 묻는다',mod:12,cost:0,desc:'신뢰를 중시하는 상대에게 효과적' },
+  { key:'listen',emoji:'👂',label:'상대 이야기를 끝까지 들어준다',mod:10,cost:0,desc:'배려형·내향형에게 효과적' },
+  { key:'humor',emoji:'😄',label:'가벼운 농담으로 분위기를 푼다',mod:7,cost:0,variance:12,desc:'잘 통하면 빠르게 가까워짐' },
+  { key:'plan',emoji:'🗓️',label:'다음 데이트를 구체적으로 제안한다',mod:8,cost:100000,desc:'계획적이고 야망 있는 상대 선호' },
+  { key:'vulnerable',emoji:'🌙',label:'요즘 힘든 고민을 솔직히 나눈다',mod:6,cost:0,variance:15,desc:'정서적 친밀감 또는 부담' },
+  { key:'direct',emoji:'❤️',label:'호감을 분명하게 표현한다',mod:9,cost:0,variance:18,desc:'빠르고 솔직하지만 부담 가능' },
+  { key:'flex',emoji:'💳',label:'특별한 코스를 준비한다',mod:0,cost:2000000,flexReward:28,desc:'경험과 이벤트를 중시하는 상대 선호' },
+  { key:'push',emoji:'🎭',label:'일부러 여유 있는 척 밀당한다',mod:4,cost:0,variance:35,desc:'자유로운 상대 외에는 역효과 위험' },
 ];
 
 /* 소개팅 경로(선택지) — 경로마다 만나는 사람의 성향 풀(pool)이 다르다.

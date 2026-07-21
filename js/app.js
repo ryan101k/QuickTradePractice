@@ -6,6 +6,21 @@
 'use strict';
 
 const D = window.QT_DATA;
+const PORTFOLIO = window.QT_PORTFOLIO;
+const LOAN = window.QT_LOAN;
+const RIVALS = window.QT_RIVALS;
+const EXPERTS = window.QT_EXPERTS;
+const ROMANCE = window.QT_ROMANCE;
+const HEALTH = window.QT_HEALTH;
+const FAMILY = window.QT_FAMILY;
+const CHILD_EVENTS = window.QT_CHILD_EVENTS;
+const SOCIAL = window.QT_SOCIAL;
+const JUSTICE = window.QT_JUSTICE;
+const LEGACY = window.QT_LEGACY;
+const CAREER = window.QT_CAREER;
+const ECONOMY = window.QT_ECONOMY;
+const HOUSING = window.QT_HOUSING;
+const LIFE_FINANCE = window.QT_LIFE_FINANCE;
 
 /* ------------------------------------------------------------------ 설정 */
 const CFG = {
@@ -20,6 +35,8 @@ const CFG = {
   NEWS_MAX: 40,             // 뉴스 로그 최대 보관
   MARGIN_INTEREST: 0.004,   // 신용융자 일 이자 0.4%/day
   MAINT_MARGIN: 0.25,       // 유지증거금율 (자기자본/롱평가액) 미만 시 반대매매
+  SHORT_MAX_LEVERAGE: 2.0,  // 순자산 대비 최대 공매도 노출
+  SHORT_MAINT_MARGIN: 0.30, // 숏 유지증거금율
   BREAKING_MIN: 0.12,       // 이 이상 |impact| 회사 이슈면 긴급속보 대상
   BREAKING_MS: 11000,       // 긴급속보 자동 닫힘(ms)
   BREAKING_INSESSION_PROB: 0.03, // 장중 속보 등장 확률(아주 가끔). 나머지 뉴스는 마감 리포트에서 몰아 봄
@@ -67,6 +84,7 @@ const S = {
   awaitingNextDay: false,     // 마감 후 '다음달 개장' 대기 상태
   dayStartNW: CFG.START_CAPITAL, // 개장 시점 순자산(당월 손익 계산용)
   life: null,                 // 인생 상태(직업/행복/관계/부동산/대출) — boot 에서 초기화
+  economy: null,              // 장기 경제 국면
 };
 
 /* 인생 모드 설정 */
@@ -75,7 +93,7 @@ const LIFE = {
   HAPPY_DECAY: 2,            // 매달 자연 감소하는 행복
   PROP_APPRECIATE: [0.0, 0.02], // 매달 부동산 시세 상승률 범위
   LIFE_LOAN_INTEREST: 0.02,  // 개인 대출 월 이자 2%
-  EVENT_PROB: 0.5,           // 장 마감 때 선택지 이벤트가 뜰 확률
+  EVENT_PROB: 0.72,          // 장 마감 때 선택지 이벤트가 뜰 확률
 };
 
 function newLife() {
@@ -89,8 +107,34 @@ function newLife() {
     lovers: [],              // 양다리 상대 목록 (문어발) — 적발 위험
     properties: [],          // [{id, name, emoji, value, rent}]
     loan: 0,                 // 개인 대출 잔액
+    creditScore: 720,        // 신용점수(0~1000)
+    loans: [],               // 금융사별 대출 목록
+    collectionLevel: 0,      // 0 정상 ~ 3 방문추심
+    sharkMonths: 0,          // 불법 사채 유지 개월
+    jailMonths: 0,           // 수감 잔여 개월
+    criminalRecord: 0,       // 적발 횟수
+    health: 82,               // 건강 0~100
+    stress: 22,               // 스트레스 0~100
+    fitness: 10,              // 체력·운동 습관
+    conditions: [],           // 진단된 질환 id
+    generation: 1,            // 가문 세대
+    checkups: 0,
+    playerName: '나',         // 현재 세대 주인공
+    children: [],             // 자녀 목록
+    familyPlan: null,         // 출산·입양 대기
+    parentAge: 58,
+    parentHealth: 78,
+    familyBond: 35,
+    career: null,
+    housing: null,
+    finance: null,
+    social: null,
+    justice: null,
+    legacy: null,
     hobbiesDone: 0,
     dates: 0,
+    affection: 0,
+    memories: [],
   };
 }
 
@@ -143,16 +187,7 @@ function buildStocks() {
 }
 
 function buildBots() {
-  const personas = [
-    { name: '🤖 개미봇',      style: 'random' },   // 무작정 단타
-    { name: '📊 퀀트김',      style: 'momentum' }, // 상승 추세 추종
-    { name: '🐢 존버박',      style: 'value' },     // 저PBR 소형주 홀딩
-  ];
-  S.bots = personas.map(p => ({
-    ...p,
-    capital: CFG.START_CAPITAL,
-    owned: {},
-  }));
+  S.bots = RIVALS.createBots();
 }
 
 /* ------------------------------------------------------------------ 이벤트 배정 */
@@ -219,7 +254,7 @@ function tick() {
 
     // 3) 랜덤 노이즈(삼각분포로 0 근처가 잦게) + 추세 + 이슈 + 시장
     const noise = (Math.random() + Math.random() - 1) * meta.sigma * stock.vol;
-    let changeRate = stock.trend + noise + issueImpact + marketImpact;
+    let changeRate = stock.trend + noise + issueImpact + marketImpact + ECONOMY.stockImpact(S.economy, stock.sector);
 
     // 4) 상한가/하한가 제한
     changeRate = clamp(changeRate, -CFG.DAILY_LIMIT, CFG.DAILY_LIMIT);
@@ -314,11 +349,9 @@ function maybeNewListing() {
 
 /* ------------------------------------------------------------------ 마진콜(반대매매) */
 function checkMarginCall() {
-  if (S.loan <= 0) return;
-  const lv = longValue();
-  const equity = netWorthClean();               // 이미 빚 차감된 자기자본
+  const margin = PORTFOLIO.marginState(S, CFG.MAINT_MARGIN, CFG.SHORT_MAINT_MARGIN);
   // 자기자본이 롱평가액의 유지증거금율 미만이면 강제청산
-  if (lv > 0 && equity < lv * CFG.MAINT_MARGIN) {
+  if (margin.longCall) {
     // 롱 포지션 전량 시장가 청산
     Object.keys(S.owned).forEach(name => {
       const pos = S.owned[name];
@@ -339,6 +372,27 @@ function checkMarginCall() {
     addNews('☠️ 반대매매 발생! 신용 포지션이 강제 청산되었습니다', 'bad');
     showBreaking({ headline: '☠️ 반대매매(마진콜)! 강제 청산', target: '내 계좌', impact: -0.3, market: true }, true);
     playSound('crash');
+    return;
+  }
+
+  // 공매도 손실로 자기자본이 숏 평가액의 유지증거금율 아래로 내려가면 강제 숏커버
+  if (margin.shortCall) {
+    Object.keys(S.owned).forEach(name => {
+      const pos = S.owned[name];
+      if (pos.qty < 0) {
+        const qty = Math.abs(pos.qty);
+        const p = priceOf(name);
+        const gross = p * qty;
+        const fee = Math.round(gross * CFG.FEE_RATE);
+        S.capital -= gross + fee;
+        S.realizedPnL += (pos.avg - p) * qty - fee;
+        delete S.owned[name];
+      }
+    });
+    S.marginCalled = true;
+    addNews('☠️ 숏 마진콜 발생! 공매도 포지션이 강제 청산되었습니다', 'bad');
+    showBreaking({ headline: '☠️ 숏 마진콜! 공매도 강제 청산', target: '내 계좌', impact: -0.3, market: true }, true);
+    playSound('crash');
   }
 }
 
@@ -355,18 +409,11 @@ function triggerBreaking() {
   showBreaking(chosen);
 }
 
-function pickExperts() {
-  const names = [...D.EXPERTS].sort(() => Math.random() - 0.5).slice(0, 3);
-  return names.map(name => {
-    const bull = Math.random() < 0.5;                            // 전망은 순수 랜덤(엇갈림)
-    const comment = bull ? pick(D.EXPERT_BULL) : pick(D.EXPERT_BEAR);
-    return { name, bull, comment };
-  });
-}
+function pickExperts(item) { return EXPERTS.reports(item, 3); }
 
 function showBreaking(item, isAlert) {
   if (S.breaking && S.breaking.timer) clearTimeout(S.breaking.timer);
-  const experts = pickExperts();
+  const experts = pickExperts(item);
   S.breaking = { ...item, experts, timer: null };
   renderBreaking();
   playSound(isAlert ? 'crash' : (item.impact >= 0 ? 'buy' : 'sell'));
@@ -385,9 +432,9 @@ function renderBreaking() {
   const b = S.breaking;
   const rows = b.experts.map(e =>
     `<li class="expert">
-       <span class="ex-name">${e.name}</span>
-       <span class="ex-view ${e.bull ? 'up' : 'down'}">${e.bull ? '📈 상승 전망' : '📉 하락 전망'}</span>
-       <span class="ex-cmt">"${e.comment}"</span>
+       <span class="ex-name">${e.icon} ${e.name} <small>${e.firm} · ${e.style}</small></span>
+       <span class="ex-view ${e.bull ? 'up' : 'down'}">${e.bull ? '📈 비중확대' : '📉 비중축소'} · 확신 ${e.confidence}% · ${e.horizon}</span>
+       <span class="ex-cmt"><b>판단</b> ${e.thesis}<br><b>확인</b> ${e.catalyst}<br><b>위험</b> ${e.risk}</span>
      </li>`).join('');
   host.style.display = 'block';
   host.innerHTML =
@@ -559,15 +606,15 @@ function renderCloseReport(day) {
       if (!detail) return;
       if (detail.innerHTML) { detail.innerHTML = ''; detail.classList.remove('open'); return; }
       const n = news[i];
-      if (!n.experts) n.experts = pickExperts();
+      if (!n.experts) n.experts = pickExperts(n);
       detail.innerHTML =
         `<div class="experts-title">🎙️ 전문가 긴급 진단 (제각각입니다, 참고만!)</div>
          <ul class="clean-list experts">` +
         n.experts.map(e =>
           `<li class="expert">
-             <span class="ex-name">${e.name}</span>
-             <span class="ex-view ${e.bull ? 'up' : 'down'}">${e.bull ? '📈 상승 전망' : '📉 하락 전망'}</span>
-             <span class="ex-cmt">"${e.comment}"</span>
+             <span class="ex-name">${e.icon} ${e.name} <small>${e.firm} · ${e.style}</small></span>
+             <span class="ex-view ${e.bull ? 'up' : 'down'}">${e.bull ? '📈 비중확대' : '📉 비중축소'} · 확신 ${e.confidence}% · ${e.horizon}</span>
+             <span class="ex-cmt"><b>판단</b> ${e.thesis}<br><b>확인</b> ${e.catalyst}<br><b>위험</b> ${e.risk}</span>
            </li>`).join('') + '</ul>' +
         (isStockName(n.target) ? `<button class="gobuy-btn" data-buy="${n.target}">📈 ${n.target} 구매하러 가기</button>` : '');
       detail.classList.add('open');
@@ -605,6 +652,7 @@ function jobOf() { return D.JOBS.find(j => j.id === (S.life && S.life.job)) || D
 function totalWealth() {
   const L = S.life;
   if (!L) return netWorthClean();
+  LOAN.ensure(L);
   const propVal = L.properties.reduce((s, p) => s + p.value, 0);
   return netWorthClean() + propVal - L.loan;
 }
@@ -623,29 +671,40 @@ function jobIncomeLabel(j) {
 // 월말 정산: 월급 + 월세 + 부동산 시세상승 − 대출이자 − 직업사고 + 연애상대 효과 − 행복감소
 function settleMonth() {
   const L = S.life;
+  S.economy = ECONOMY.ensure(S.economy);
+  LOAN.ensure(L);
   const info = dateInfo(S.day);
   const b = { salary: 0, rent: 0, lifeInterest: 0, partner: 0, incident: null, breakup: false };
   const job = jobOf();
 
   // 1) 월급 (사업가/유튜버는 변동 · 적자 가능)
-  b.salary = job.variable ? Math.round(rand(job.variable[0], job.variable[1])) : job.salary;
+  const wasJailed = L.jailMonths > 0;
+  b.salary = wasJailed ? 0 : Math.round(CAREER.salary(job, L) * ECONOMY.salaryMultiplier(S.economy));
   S.capital += b.salary;
+  if (wasJailed) {
+    L.jailMonths--;
+    L.happy = clamp(L.happy - 12, 0, 100);
+    addNews(`🔒 수감 생활로 이번 달 월급을 받지 못했습니다 · 남은 형기 ${L.jailMonths}개월`, 'bad');
+  }
 
   // 2) 부동산 월세 + 시세 상승
   L.properties.forEach(p => {
     b.rent += p.rent;
-    p.value = Math.round(p.value * (1 + rand(LIFE.PROP_APPRECIATE[0], LIFE.PROP_APPRECIATE[1])));
+    p.value = Math.round(p.value * (1 + ECONOMY.propertyReturn(S.economy)));
   });
   if (b.rent > 0) S.capital += b.rent;
 
-  // 3) 개인 대출 이자
-  if (L.loan > 0) { b.lifeInterest = Math.round(L.loan * LIFE.LIFE_LOAN_INTEREST); L.loan += b.lifeInterest; }
+  // 3) 금융사별 이자·신용등급·추심 단계 갱신
+  const assetValue = L.properties.reduce((sum, p) => sum + p.value, 0) + Math.max(0, netWorthClean());
+  const debtResult = LOAN.settleMonth(L, Math.max(0, b.salary + b.rent), assetValue, ECONOMY.loanMultiplier(S.economy));
+  b.lifeInterest = debtResult.interest;
+  b.debtResult = debtResult;
 
   // 4) 직업 리스크 사고 → 빚 발생 (고소득일수록 위험이 큼)
   if (job.risk && job.incidents && job.incidents.length && Math.random() < job.risk) {
     const inc = pick(job.incidents);
     const cost = Math.round(rand(inc.cost[0], inc.cost[1]));
-    L.loan += cost;
+    LOAN.addDebt(L, cost, `${job.name} 사고채무`);
     b.incident = { text: inc.text, cost };
   }
 
@@ -676,7 +735,7 @@ function settleMonth() {
     if (Math.random() < catchChance) {
       const fired = (L.job && L.job !== 'none') && Math.random() < 0.4;
       const settle = Math.round(rand(2000000, 12000000));   // 위자료/합의금 → 빚
-      L.loan += settle;
+      LOAN.addDebt(L, settle, '위자료·합의금');
       const wasMarried = L.relationship === 'married';
       L.relationship = 'single'; L.partner = null; L.lovers = [];
       L.charm = Math.floor(L.charm * 0.4);
@@ -698,8 +757,87 @@ function settleMonth() {
   else if (b.salary < 0) addNews(`📉 ${job.name} 적자 ${won(b.salary)}원`, 'bad');
   if (b.rent > 0) addNews(`🏠 월세 수입 ${won(b.rent)}원`, 'good');
   if (b.lifeInterest > 0) addNews(`💳 개인 대출이자 ${won(b.lifeInterest)}원 (빚 ${won(L.loan)})`, 'bad');
+  if (b.debtResult && b.debtResult.message) addNews(b.debtResult.message, b.debtResult.collectionLevel >= 2 ? 'bad' : 'neutral');
   if (b.incident) { addNews(`🚑 [${job.name}] ${b.incident.text} — 빚 ${won(b.incident.cost)}원 발생`, 'bad'); flashToast(`🚑 사고! ${b.incident.text}`, 'bad'); playSound('crash'); }
   S._settle = b;
+  RIVALS.settleBots(S.bots).forEach(text => addNews(text, text.includes('+') ? 'good' : 'bad'));
+  const attack = RIVALS.attackPlayer(S.bots, Math.max(0, totalWealth()));
+  if (attack) {
+    if (!attack.caught && attack.loss > 0) {
+      const cashLoss = Math.min(Math.max(0, S.capital), attack.loss);
+      S.capital -= cashLoss;
+      if (attack.loss > cashLoss) LOAN.addDebt(L, attack.loss - cashLoss, '라이벌 공작 피해채무');
+      L.happy = clamp(L.happy - 5, 0, 100);
+    }
+    addNews(`⚔️ ${attack.message}`, attack.caught ? 'good' : 'bad');
+    flashToast(`⚔️ ${attack.message}`, attack.caught ? 'good' : 'bad');
+  }
+  const housingResult = HOUSING.monthly(L, ECONOMY.livingMultiplier(S.economy));
+  if (housingResult.expense > 0) {
+    const paid=Math.min(Math.max(0,S.capital),housingResult.expense);S.capital-=paid;
+    if(housingResult.expense>paid)LOAN.addDebt(L,housingResult.expense-paid,'주거비 연체');
+    addNews(`${housingResult.home.icon} ${housingResult.home.name} 주거비 ${won(housingResult.expense)}원`,'neutral');
+  }
+  L.health=clamp(L.health+housingResult.health,0,100);L.stress=clamp(L.stress+housingResult.stress+housingResult.commute*.25,0,100);L.charm=Math.max(0,L.charm+housingResult.charm*.08);
+  const healthResult = HEALTH.monthly(L, {
+    age: info.age, jobRisk: job.risk || 0,
+    debtRatio: L.loan / Math.max(1, Math.max(0, b.salary + b.rent) * 12),
+    jailed: wasJailed, happy: L.happy,
+  });
+  healthResult.news.forEach(text => addNews(text, 'bad'));
+  const careerResult = CAREER.monthly(L, job, { health:L.health, stress:L.stress });
+  if (careerResult.promotion) {
+    S.capital += careerResult.bonus;
+    addNews(`🎉 ${job.name} ${careerResult.promotion} 승진 · 축하금 ${won(careerResult.bonus)}원`, 'good');
+    flashToast(`🎉 ${careerResult.promotion} 승진!`, 'good'); celebrate();
+  }
+  const familyResult = FAMILY.monthly(L);
+  familyResult.cost = Math.round(familyResult.cost * ECONOMY.livingMultiplier(S.economy));
+  if (familyResult.cost > 0) {
+    const paid = Math.min(Math.max(0, S.capital), familyResult.cost);
+    S.capital -= paid;
+    if (familyResult.cost > paid) LOAN.addDebt(L, familyResult.cost - paid, '양육·교육비');
+    addNews(`👨‍👩‍👧 이번 달 양육·교육비 ${won(familyResult.cost)}원`, 'neutral');
+  }
+  familyResult.news.forEach(text => addNews(text, text.includes('건강') ? 'bad' : 'good'));
+  if (familyResult.birth) { L.happy = clamp(L.happy + 20,0,100); celebrate({particleCount:180}); }
+  const financeResult = LIFE_FINANCE.monthly(L, {
+    age: info.age,
+    income: Math.max(0, b.salary + b.rent),
+    propertyValue: L.properties.reduce((sum, p) => sum + p.value, 0),
+    unemployed: L.job === 'none',
+  });
+  const financeIncome = financeResult.pensionPayout + financeResult.incomeBenefit;
+  const financeExpense = financeResult.premiums + financeResult.tax + financeResult.propertyTax + financeResult.pensionContribution;
+  S.capital += financeIncome;
+  const financePaid = Math.min(Math.max(0, S.capital), financeExpense);
+  S.capital -= financePaid;
+  if (financeExpense > financePaid) LOAN.addDebt(L, financeExpense - financePaid, '보험료·세금·연금 미납');
+  if (financeResult.premiums) addNews(`🛡️ 보험료 ${won(financeResult.premiums)}원`, 'neutral');
+  if (financeResult.tax + financeResult.propertyTax) addNews(`🧾 소득세·재산세 ${won(financeResult.tax + financeResult.propertyTax)}원`, 'neutral');
+  if (financeResult.pensionContribution) addNews(`🏦 연금 적립 ${won(financeResult.pensionContribution)}원`, 'neutral');
+  if (financeResult.pensionPayout) addNews(`👴 연금 수령 +${won(financeResult.pensionPayout)}원`, 'good');
+  if (financeResult.incomeBenefit) addNews(`🧰 실직 소득보장 +${won(financeResult.incomeBenefit)}원`, 'good');
+  b.finance = financeResult;
+  const socialResult = SOCIAL.monthly(L);
+  socialResult.news.forEach(text=>addNews(text,'good'));
+  const justiceResult=JUSTICE.monthly(L,SOCIAL.legalShield(L)+(L.legalShield||0)*.03);
+  justiceResult.news.forEach(text=>addNews(text,text.includes('무죄')||text.includes('불기소')?'good':'bad'));
+  if(justiceResult.verdict&&justiceResult.verdict.fine){const paid=Math.min(Math.max(0,S.capital),justiceResult.verdict.fine);S.capital-=paid;if(justiceResult.verdict.fine>paid)LOAN.addDebt(L,justiceResult.verdict.fine-paid,'형사 벌금 미납');}
+  const layoffExempt = ['none','civil','teacher','doctor','nurse','lawyer','accountant','ceo','youtuber'];
+  if (!layoffExempt.includes(job.id) && Math.random() < ECONOMY.layoffRisk(S.economy, job.risk)) {
+    L.job = 'none'; CAREER.switchJob(L, 'none'); L.happy = clamp(L.happy-14,0,100);
+    addNews(`📦 ${ECONOMY.phase(S.economy).name} 여파로 ${job.name}에서 해고됐습니다`, 'bad');
+    flashToast('📦 경기 악화로 해고됐습니다', 'bad');
+  }
+  const economyResult = ECONOMY.monthly(S.economy);
+  if (economyResult.changed) {
+    addNews(`${economyResult.changed.to.icon} 경제 국면 전환: ${economyResult.changed.from.name} → ${economyResult.changed.to.name}`, economyResult.changed.to.market>=0?'good':'bad');
+    flashToast(`${economyResult.changed.to.icon} ${economyResult.changed.to.name} 진입`, economyResult.changed.to.market>=0?'good':'bad');
+  }
+  LEGACY.monthly(L,{age:info.age,month:info.month,job:L.job,jobName:jobOf().name,children:L.children.length,record:L.criminalRecord||0,wealth:totalWealth(),relationship:L.relationship});
+  if (healthResult.died) setTimeout(() => showDeathScreen(info.age), 700);
+  if (b.debtResult && b.debtResult.gameOver) setTimeout(showDebtGameOver, 500);
 }
 
 /* ---- 직업 선택 / 이직 모달 ---- */
@@ -743,6 +881,7 @@ function attemptJobChange(id) {
   closeLifeModal();
   if (Math.random() * 100 < chance) {
     S.life.job = id;
+    CAREER.switchJob(S.life, id);
     addNews(`✅ ${target.name} 이직 성공! (합격 확률 ${chance}%)`, 'good');
     flashToast(`✅ ${target.name} 합격!`, 'good'); celebrate(); playSound('buy');
   } else {
@@ -755,15 +894,95 @@ function attemptJobChange(id) {
 }
 function closeLifeModal() { const h = $('life-modal'); if (h) { h.style.display = 'none'; h.innerHTML = ''; } }
 
+function showDebtGameOver() {
+  if (S.timer) { clearInterval(S.timer); S.timer = null; }
+  S.phase = 'closed'; S.paused = true;
+  const host = $('life-modal'); if (!host) return;
+  host.style.display = 'flex';
+  host.innerHTML = `<div class="window event-window">
+    <div class="title-bar"><div class="title-bar-text">☠️ GAME OVER · 사채의 끝</div></div>
+    <div class="window-body">
+      <div class="event-title">🦈 감당할 수 없는 불법 사채</div>
+      <div class="event-desc">석 달 넘게 불어난 사채와 추심을 버티지 못했습니다.<br>최종 채무: <strong class="down">${won(S.life.loan)}원</strong></div>
+      <p class="hint">사채는 신용심사 없이 빠르지만 월 10% 복리와 강제 게임오버 위험이 있습니다.</p>
+      <button id="debt-restart">새 인생 시작</button>
+    </div></div>`;
+  const restart = $('debt-restart');
+  if (restart) restart.addEventListener('click', () => { localStorage.removeItem(LS_KEY); location.reload(); });
+  autoSave(); playSound('crash');
+}
+
+function showDeathScreen(age) {
+  if (S.timer) { clearInterval(S.timer); S.timer = null; }
+  S.phase = 'closed'; S.paused = true;
+  const lifeBenefit = LIFE_FINANCE.deathBenefit(S.life);
+  const legacy = HEALTH.inheritance(totalWealth() + lifeBenefit);
+  S._legacy = legacy;
+  const heir = FAMILY.bestHeir(S.life);
+  S._heir = heir;
+  const ending = LEGACY.ending(S.life,{wealth:legacy.gross,trades:S.trades,realized:S.realizedPnL});
+  LEGACY.push(S.life,age,ending.icon,`${ending.name} 엔딩을 맞았다`,'ending');
+  const lifeHistory=LEGACY.ensure(S.life).timeline.slice().sort((a,b)=>a.age-b.age);
+  const host = $('life-modal'); if (!host) return;
+  host.style.display = 'flex';
+  host.innerHTML = `<div class="window event-window legacy-window">
+    <div class="title-bar"><div class="title-bar-text">🌅 한 인생의 끝 · ${S.life.generation}대</div></div>
+    <div class="window-body">
+      <div class="event-title">향년 ${age}세</div>
+      <div class="event-desc"><strong>${ending.icon} ${ending.name}</strong><br>${ending.desc}</div>
+      <p>직업 <b>${jobOf().name}</b> · 거래 ${S.trades}회 · 전과 ${S.life.criminalRecord||0}회</p>
+      <div class="legacy-ledger">
+        <div>최종 재산 <strong>${won(legacy.gross)}원</strong></div>
+        ${lifeBenefit ? `<div>생명보험금 <strong class="up">+${won(lifeBenefit)}원</strong></div>` : ''}
+        <div>상속 정산 <strong class="down">-${won(legacy.tax)}원 (${Math.round(legacy.rate*100)}%)</strong></div>
+        <div>다음 세대 시드 <strong class="up">${won(legacy.net)}원</strong></div>
+      </div>
+      <p>후계자: <strong>${heir ? `${FAMILY.traitOf(heir).icon} ${heir.name} · ${FAMILY.traitOf(heir).name}` : '먼 친척에게 계승'}</strong></p>
+      <details open><summary>📜 인생 연대기 · ${lifeHistory.length}개 기록</summary><div class="legacy-ledger">${lifeHistory.map(e=>`<div><span>${e.icon} ${e.age}세</span> <strong>${e.text}</strong></div>`).join('')}</div></details>
+      ${LEGACY.ensure(S.life).dynasty.length?`<details><summary>🌳 가문 기록 · 이전 ${LEGACY.ensure(S.life).dynasty.length}세대</summary><div class="legacy-ledger">${LEGACY.ensure(S.life).dynasty.map(x=>`<div>${x.icon} ${x.generation}대 ${x.name} · ${x.ending} · ${won(x.wealth)}원</div>`).join('')}</div></details>`:''}
+      <p class="hint">주식·부동산·채무를 정리한 뒤 다음 세대가 순자산을 상속합니다. 업적과 라이벌 역사는 유지됩니다.</p>
+      <button id="next-generation">🌳 ${heir ? heir.name+'로 ' : ''}${S.life.generation+1}대 이어하기</button>
+    </div></div>`;
+  $('next-generation').addEventListener('click', startNextGeneration);
+  autoSave(); playSound('sell');
+}
+
+function startNextGeneration() {
+  const nextGeneration = (S.life.generation || 1) + 1;
+  const inherited = (S._legacy || HEALTH.inheritance(totalWealth())).net;
+  S.capital = inherited; S.owned = {}; S.loan = 0; S.day = 1; S.tick = 0;
+  S.realizedPnL = 0; S.netWorthHist = [inherited]; S.maxNetWorth = inherited;
+  const previousLife=S.life;
+  const previousEnding=(LEGACY.ENDINGS.find(e=>e.id===LEGACY.ensure(previousLife).ending)||LEGACY.ENDINGS[LEGACY.ENDINGS.length-1]);
+  const dynasty=LEGACY.archive(previousLife,{generation:previousLife.generation,name:previousLife.playerName,ending:previousEnding.name,icon:previousEnding.icon,wealth:(S._legacy||{}).gross||totalWealth()});
+  S.life = newLife(); S.life.generation = nextGeneration;LEGACY.ensure(S.life).dynasty=dynasty;
+  if (S._heir) {
+    const trait = FAMILY.traitOf(S._heir);
+    S.life.playerName = S._heir.name;
+    S.life.heritage = { trait: trait.id, talent: S._heir.talent, education: S._heir.education, bond: S._heir.bond };
+    S.life.charm += Math.min(15, Math.floor(S._heir.education / 10));
+    S.life.happy = clamp(45 + Math.floor(S._heir.bond / 5), 35, 75);
+  }
+  HEALTH.ensure(S.life); LOAN.ensure(S.life);
+  FAMILY.ensure(S.life);
+  closeLifeModal(); renderAll(); renderMarketPhase(); autoSave();
+  showJobModal(false);
+  flashToast(`🌳 ${nextGeneration}대 시작 · 상속 ${won(inherited)}원`, 'good');
+}
+
 /* ---- 선택지 이벤트 (직업/연애/빚/일상) ---- */
-const EVENT_CAT = { job: '직업', love: '연애', debt: '빚', life: '일상' };
+const EVENT_CAT = { job: '직업', love: '연애', debt: '빚', life: '일상', family: '자녀·가족' };
 function resolveAmt(v) { return Array.isArray(v) ? Math.round(rand(v[0], v[1])) : v; }
 
 function maybeLifeEvent() {
   if (!D.LIFE_EVENTS || Math.random() > LIFE.EVENT_PROB) return;
   const L = S.life;
-  const ctx = { job: L.job, loan: L.loan, rel: L.relationship, happy: L.happy, charm: L.charm };
-  const pool = D.LIFE_EVENTS.filter(e => !e.cond || e.cond(ctx));
+  if (L.children && L.children.length && Math.random() < .45) {
+    const childEvent = CHILD_EVENTS.make(L);
+    if (childEvent) { showLifeEvent(childEvent); return; }
+  }
+  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,charm:L.charm,affection:L.affection||0,pers:L.partner&&L.partner.personality };
+  const pool = (D.LIFE_EVENTS || []).concat(D.ROMANCE_EVENTS || [], D.CAREER_EVENTS || []).filter(e => !e.cond || e.cond(ctx));
   if (pool.length) showLifeEvent(pick(pool));
 }
 
@@ -789,9 +1008,14 @@ function showLifeEvent(ev) {
 function applyEventEffects(eff) {
   const L = S.life, changes = [];
   if (eff.cash != null) { const v = resolveAmt(eff.cash); S.capital += v; if (v) changes.push(`현금 <b class="${v >= 0 ? 'up' : 'down'}">${v >= 0 ? '+' : ''}${won(v)}</b>`); }
-  if (eff.debt != null) { const v = resolveAmt(eff.debt); L.loan = Math.max(0, L.loan + v); if (v) changes.push(`빚 <b class="${v >= 0 ? 'down' : 'up'}">${v >= 0 ? '+' : ''}${won(v)}</b>`); }
+  if (eff.debt != null) {
+    const v = resolveAmt(eff.debt);
+    if (v >= 0) LOAN.addDebt(L, v, '인생 이벤트 채무'); else LOAN.repay(L, -v);
+    if (v) changes.push(`빚 <b class="${v >= 0 ? 'down' : 'up'}">${v >= 0 ? '+' : ''}${won(v)}</b>`);
+  }
   if (eff.happy != null) { L.happy = clamp(L.happy + eff.happy, 0, 100); changes.push(`행복 ${eff.happy >= 0 ? '+' : ''}${eff.happy}`); }
   if (eff.charm != null) { L.charm = Math.max(0, L.charm + eff.charm); changes.push(`매력 ${eff.charm >= 0 ? '+' : ''}${eff.charm}`); }
+  if (eff.affection != null) { L.affection = Math.max(0, (L.affection || 0) + eff.affection); changes.push(`친밀도 ${eff.affection >= 0 ? '+' : ''}${eff.affection}`); }
   if (eff.endRelationshipChance && L.relationship !== 'single' && Math.random() < eff.endRelationshipChance) {
     const nm = L.partner ? L.partner.name : '연인';
     L.relationship = 'single'; L.partner = null; L.charm = Math.floor(L.charm * 0.5); L.happy = clamp(L.happy - 10, 0, 100);
@@ -804,6 +1028,10 @@ function resolveEvent(i) {
   const ev = S._curEvent; if (!ev) return;
   const opt = ev.options[i];
   const changes = applyEventEffects(opt.effects || {});
+  if (ev.childId && opt.childEffects) {
+    if (opt.childEffects.cash != null) changes.push(...applyEventEffects({cash:opt.childEffects.cash}));
+    changes.push(...CHILD_EVENTS.apply(S.life, ev.childId, opt.childEffects));
+  }
   addNews(`${ev.emoji} ${ev.title} — ${opt.text}`, 'neutral');
   const host = $('life-event');
   const optWrap = host.querySelector('.event-options'); if (optWrap) optWrap.innerHTML = '';
@@ -826,6 +1054,7 @@ function chooseJob(id) {
   const job = D.JOBS.find(j => j.id === id); if (!job) return;
   const first = !S.life.started;
   S.life.job = id;
+  CAREER.switchJob(S.life, id);
   S.life.started = true;
   closeLifeModal();
   flashToast(`${job.emoji} 직업: ${job.name}`, 'good');
@@ -844,8 +1073,130 @@ function doHobby(id) {
   S.life.happy = clamp(S.life.happy + h.happy, 0, 100);
   S.life.charm += h.charm;
   S.life.hobbiesDone++;
+  if (id === 'gym') HEALTH.exercise(S.life);
+  else if (id === 'travel' || id === 'game') HEALTH.rest(S.life);
   flashToast(`${h.emoji} ${h.name}! 행복 +${h.happy}${h.charm ? ` 매력 +${h.charm}` : ''}`, 'good');
   checkRelationship(); afterLifeAction();
+}
+
+function doHealthCheckup() {
+  const cost = 500000;
+  if (S.capital < cost) { flashToast('💸 검진 비용 500,000원이 필요합니다', 'bad'); return; }
+  S.capital -= cost;
+  const found = HEALTH.checkup(S.life);
+  flashToast(found.length ? `🏥 검진 결과: ${found.map(x=>x.name).join(', ')}` : '🏥 특별한 이상이 없습니다', found.length ? 'bad' : 'good');
+  afterLifeAction();
+}
+
+function doTreatment() {
+  const offer = HEALTH.treatmentOffer(S.life);
+  if (!offer) { flashToast('치료가 필요한 질환이 없습니다', 'neutral'); return; }
+  const claim = LIFE_FINANCE.treatmentCost(S.life, offer.cost);
+  if (S.capital < claim.pay) { flashToast(`💸 본인부담 치료비 ${won(claim.pay)}원 부족`, 'bad'); return; }
+  S.capital -= claim.pay; HEALTH.treat(S.life);
+  if (claim.covered) addNews(`🛡️ ${claim.plan.name} 보험금 ${won(claim.covered)}원 지급`, 'good');
+  addNews(`🏥 ${offer.name} 치료 완료 · 건강 회복`, 'good');
+  flashToast(`🏥 ${offer.name} 치료 완료`, 'good'); afterLifeAction();
+}
+
+function doRestMonth() {
+  S.capital -= Math.min(Math.max(0,S.capital),300000);
+  HEALTH.rest(S.life); flashToast('🛌 충분히 쉬어 스트레스가 줄었습니다', 'good'); afterLifeAction();
+}
+
+function doFamilyPlan(method) {
+  if (S.life.relationship !== 'married') { flashToast('💍 결혼 후 가족 계획을 세울 수 있습니다', 'neutral'); return; }
+  if (!HOUSING.canAddChild(S.life)) { flashToast(`🏠 ${HOUSING.home(S.life).name}에는 가족이 더 살 공간이 없습니다`, 'bad'); return; }
+  const preview = method === 'adopt' ? 12000000 : 5000000;
+  if (S.capital < preview) { flashToast(`💸 초기 비용 ${won(preview)}원 부족`, 'bad'); return; }
+  const result = FAMILY.startPlan(S.life, method);
+  if (!result.ok) { flashToast(result.message, 'neutral'); return; }
+  S.capital -= result.plan.cost;
+  addNews(`👶 ${result.plan.method} 가족 계획 시작 · ${result.plan.months}개월 후`, 'good');
+  flashToast(`👶 ${result.plan.method} 계획을 시작했습니다`, 'good'); afterLifeAction();
+}
+
+function doChildEducation(id) {
+  const cost=1000000;if(S.capital<cost){flashToast('💸 교육비 1,000,000원 부족','bad');return;}
+  const child=FAMILY.educate(S.life,id,cost);if(!child)return;S.capital-=cost;
+  flashToast(`📚 ${child.name} 교육 투자 · 역량 ${Math.round(child.education)}`,'good');afterLifeAction();
+}
+
+function doChildBond(id) {
+  const cost=200000;if(S.capital<cost){flashToast('💸 가족 활동비 200,000원 부족','bad');return;}
+  const child=FAMILY.bond(S.life,id);if(!child)return;S.capital-=cost;S.life.happy=clamp(S.life.happy+5,0,100);
+  flashToast(`🫶 ${child.name}와 시간을 보냈습니다 · 유대 ${Math.round(child.bond)}`,'good');afterLifeAction();
+}
+
+function doParentCare() {
+  const cost=1500000;if(S.capital<cost){flashToast('💸 부모님 돌봄 비용 1,500,000원 부족','bad');return;}
+  S.capital-=cost;FAMILY.careParents(S.life);S.life.happy=clamp(S.life.happy+4,0,100);
+  flashToast('👵 부모님 병원과 생활을 챙겼습니다','good');afterLifeAction();
+}
+
+function doCareerTraining() {
+  const cost=700000;if(S.capital<cost){flashToast('💸 교육비 700,000원 부족','bad');return;}
+  S.capital-=cost;const c=CAREER.train(S.life);S.life.happy=clamp(S.life.happy-2,0,100);
+  flashToast(`📈 직무교육 완료 · 능력 ${Math.round(c.skill)}`,'good');afterLifeAction();
+}
+
+function doCertification(id) {
+  const cert=CAREER.CERTS.find(x=>x.id===id);if(!cert)return;
+  if(CAREER.ensure(S.life).certifications.includes(id)){flashToast('이미 보유한 자격입니다','neutral');return;}
+  if(S.capital<cert.cost){flashToast(`💸 응시·교육비 ${won(cert.cost)}원 부족`,'bad');return;}
+  S.capital-=cert.cost;CAREER.certify(S.life,id);addNews(`${cert.icon} ${cert.name} 자격 취득`,'good');
+  flashToast(`${cert.icon} ${cert.name} 취득!`,'good');afterLifeAction();
+}
+
+function doMoveHousing(id) {
+  const target=HOUSING.HOMES.find(h=>h.id===id);if(!target)return;
+  const current=HOUSING.ensure(S.life),refund=Math.round((current.depositPaid||0)*.97),needed=Math.max(0,target.deposit-refund);
+  if(S.capital<needed){flashToast(`💸 이사에 ${won(needed)}원 필요`,'bad');return;}
+  const result=HOUSING.move(S.life,id);S.capital+=result.refund-result.cost;S.life.happy=clamp(S.life.happy+3,0,100);
+  addNews(`${target.icon} ${target.name}으로 이사 · 보증금 ${won(target.deposit)}원`,'good');flashToast(`${target.icon} 이사 완료!`,'good');afterLifeAction();
+}
+
+function doInsurance(id) {
+  const plan = LIFE_FINANCE.subscribe(S.life, id);
+  if (!plan) { flashToast('이미 가입했거나 선택할 수 없는 보험입니다', 'neutral'); return; }
+  addNews(`${plan.icon} ${plan.name} 가입 · 월 ${won(plan.premium)}원`, 'good');
+  flashToast(`${plan.icon} ${plan.name} 가입`, 'good'); afterLifeAction();
+}
+
+function cancelInsurance(id) {
+  const plan = LIFE_FINANCE.POLICIES.find(p => p.id === id);
+  LIFE_FINANCE.cancel(S.life, id);
+  flashToast(`${plan ? plan.name : '보험'} 해지`, 'neutral'); afterLifeAction();
+}
+
+function setPensionRate(rate) {
+  LIFE_FINANCE.setPensionRate(S.life, rate);
+  flashToast(`🏦 연금 적립률 ${Math.round(rate * 100)}%로 변경`, 'good'); afterLifeAction();
+}
+
+function meetContact() {
+  const cost=500000;if(S.capital<cost){flashToast('💸 모임 참가비 500,000원 부족','bad');return;}
+  const c=SOCIAL.meet(S.life);if(!c){flashToast('현재 만날 수 있는 주요 인맥을 모두 알게 됐습니다','neutral');return;}
+  S.capital-=cost;const r=SOCIAL.role(c);addNews(`${r.icon} ${r.name} ${c.name}과(와) 알게 됐습니다`,'good');flashToast(`${r.icon} 새 인맥: ${c.name}`,'good');afterLifeAction();
+}
+function nurtureContact(id){const cost=300000;if(S.capital<cost){flashToast('💸 만남 비용 300,000원 부족','bad');return;}const c=SOCIAL.nurture(S.life,id);if(!c)return;S.capital-=cost;flashToast(`🤝 ${c.name} 신뢰 ${c.trust}`,'good');afterLifeAction();}
+function askContact(id){const r=SOCIAL.ask(S.life,id);if(!r.ok){flashToast(r.message,'neutral');return;}const e=r.effect;if(e.cash)S.capital+=e.cash;if(e.credit)S.life.creditScore=clamp(S.life.creditScore+e.credit,300,950);if(e.careerSkill)CAREER.ensure(S.life).skill+=e.careerSkill;if(e.reputation)SOCIAL.ensure(S.life).reputation+=e.reputation;if(e.recordShield)S.life.legalShield=(S.life.legalShield||0)+e.recordShield;addNews(`${SOCIAL.role(r.contact).icon} ${r.contact.name}: ${e.text}`,'good');flashToast(e.text,'good');afterLifeAction();}
+function hireCourtLawyer(tier){const preview={public:0,standard:5000000,elite:20000000}[tier];if(S.capital<preview){flashToast(`💸 선임비 ${won(preview)}원 부족`,'bad');return;}const r=JUSTICE.hire(S.life,tier);if(!r)return;S.capital-=r.cost;flashToast(`⚖️ ${r.name} 선임`,'good');afterLifeAction();}
+function chooseCourtStrategy(strategy){if(!JUSTICE.choose(S.life,strategy)){flashToast('재판 단계에서 선택할 수 있습니다','neutral');return;}flashToast('⚖️ 재판 전략을 제출했습니다','good');afterLifeAction();}
+
+const ROMANCE_META = {
+  frugal:{interests:['산책','재테크','집밥'],value:'안정과 신뢰',best:['sincere','plan','listen']},
+  ambitious:{interests:['자기계발','전시회','여행'],value:'성장과 성취',best:['plan','direct','sincere']},
+  homebody:{interests:['영화','요리','보드게임'],value:'편안한 일상',best:['listen','sincere','vulnerable']},
+  caring:{interests:['맛집','봉사','카페'],value:'배려와 대화',best:['listen','vulnerable','sincere']},
+  cold:{interests:['독서','미술관','러닝'],value:'독립성과 존중',best:['listen','humor']},
+  lavish:{interests:['쇼핑','파인다이닝','공연'],value:'경험과 즐거움',best:['flex','direct','humor']},
+  free:{interests:['페스티벌','여행','클럽'],value:'자유와 자극',best:['humor','push','direct']},
+};
+function characterPortrait(c) {
+  const master = c && D.CHARACTERS.find(x => x.name === c.name);
+  const file = (c && c.portrait) || (master && master.portrait);
+  return file ? `./assets/characters/${file}` : '';
 }
 
 // 데이트 상대 프로필 생성 (이름·나이·직업·성격) — 경로(route)에 따라 성향 풀이 다름
@@ -857,6 +1208,7 @@ function makeCandidate(route) {
   }
   const c = Object.assign({}, pick(pool));
   c.age = 23 + Math.floor(Math.random() * 18);   // 만 23~40세
+  Object.assign(c, ROMANCE_META[c.personality] || ROMANCE_META.caring);
   if (route && route.office) c.job = '사내 동료';  // 사내연애: 같은 회사 동료
   return c;
 }
@@ -867,6 +1219,8 @@ function dateScore(approach) {
   let s = Math.min(L.charm, 120) * 0.5;           // 매력 (최대 60)
   s += job.dateBonus || 0;                        // 직업/능력 (0~25)
   s += approach.mod || 0;                         // 접근 방식 고정 보정
+  const meta = ROMANCE_META[(S._dateCandidate || {}).personality] || {};
+  s += (meta.best || []).includes(approach.key) ? 14 : -3;
   s += (S._dateRoute && S._dateRoute.scoreMod) || 0;  // 경로 난이도 보정
   if (approach.flexReward) s += (S.capital >= (approach.cost || 0) + dateBaseCost()) ? approach.flexReward : -15;
   if (approach.variance) s += rand(-approach.variance, approach.variance);
@@ -891,14 +1245,14 @@ function showRouteModal() {
   if (inRel) {
     cards += `<button class="route-card partner-card" data-partner="1">
        <div class="rc-head">💞 ${L.relationship === 'married' ? '배우자' : '연인'}과 데이트 <span class="muted">비용 ${won(D.RELATIONSHIP.DATE_COST)}</span></div>
-       <div class="rc-person">${L.partner.emoji || '❤️'} <strong>${L.partner.name}</strong> · ${L.partner.job}</div>
+       <div class="rc-person"><img class="char-thumb" src="${characterPortrait(L.partner)}" alt="${L.partner.name}"><span><strong>${L.partner.name}</strong> · ${L.partner.job}</span></div>
      </button>`;
   }
   cards += S._dateOffers.map((o, i) => {
     const per = D.PERSONALITIES[o.cand.personality] || {};
     return `<button class="route-card" data-i="${i}">
        <div class="rc-head">${o.route.emoji} ${o.route.name} <span class="muted">${o.route.desc} · 비용 ${won(o.route.cost)}</span></div>
-       <div class="rc-person">${o.cand.emoji || '👤'} <strong>${o.cand.name}</strong> · 만 ${o.cand.age}세 · ${o.cand.job} · ${per.emoji || ''}${per.name || ''}</div>
+       <div class="rc-person"><img class="char-thumb" src="${characterPortrait(o.cand)}" alt="${o.cand.name}"> <span><strong>${o.cand.name}</strong> · 만 ${o.cand.age}세 · ${o.cand.job}<br>${per.emoji || ''}${per.name || ''}</span></div>
      </button>`;
   }).join('');
   const title = inRel ? '💘 누구와 만날까?' : '💘 소개팅 — 어디서 만날까?';
@@ -909,6 +1263,7 @@ function showRouteModal() {
        <div class="title-bar event-bar"><div class="title-bar-text">${title}</div>
          <div class="title-bar-controls"><button aria-label="Close" id="route-x"></button></div></div>
        <div class="window-body">
+         <img class="dating-banner" src="./assets/dating-lounge.png" alt="레트로 소개팅 라운지">
          <div class="event-desc">${hint}</div>
          <div class="route-list">${cards}</div>
        </div>
@@ -929,6 +1284,7 @@ function showRouteModal() {
 
 function showDateModal(c, route) {
   const host = $('date-host'); if (!host) return;
+  Object.assign(c, ROMANCE_META[c.personality] || ROMANCE_META.caring, c);
   const per = D.PERSONALITIES[c.personality] || {};
   const withPartner = !route && S.life.relationship !== 'single';
   const opts = D.DATE_APPROACHES.map((a, i) =>
@@ -938,10 +1294,12 @@ function showDateModal(c, route) {
     `<div class="window event-window">
        <div class="title-bar event-bar"><div class="title-bar-text">💘 ${withPartner ? '연인과 데이트' : (route ? route.emoji + ' ' + route.name : '데이트')}</div></div>
        <div class="window-body">
+         <img class="dating-banner compact" src="./assets/dating-lounge.png" alt="레트로 데이트 라운지">
          <div class="date-profile">
-           <div class="dp-emoji">${c.emoji || '👤'}</div>
+           <img class="char-portrait" src="${characterPortrait(c)}" alt="${c.name}">
            <div class="dp-info"><strong>${c.name}</strong> · 만 ${c.age}세<br>
-             <span class="muted">${c.job} · ${per.emoji || ''}${per.name || ''}</span></div>
+             <span class="muted">${c.job} · ${per.emoji || ''}${per.name || ''}</span><br>
+             <span class="muted">관심사 ${(c.interests || []).join(' · ')} · 중요 가치 ${c.value || '신뢰'}</span></div>
          </div>
          <div class="event-desc">내 매력 <b>${Math.floor(S.life.charm)}</b> · 직업 매력 <b>+${jobOf().dateBonus || 0}</b>${route && route.scoreMod ? ` · 경로 <b>${route.scoreMod > 0 ? '+' : ''}${route.scoreMod}</b>` : ''} · 데이트 비용 <b>${won(dateBaseCost())}</b></div>
          <div class="event-options">${opts}</div>
@@ -965,9 +1323,16 @@ function resolveDate(i) {
   if (score >= 70) { tier = '성공'; dCharm = Math.round(rand(12, 22)); dHappy = 10; }
   else if (score >= 45) { tier = '보통'; dCharm = Math.round(rand(4, 9)); dHappy = 3; }
   else { tier = '실패'; dCharm = -Math.round(rand(3, 8)); dHappy = -5; }
-  const msg = pick(D.DATE_LINES[tier] || ['...']);
+  const scene = pick(D.DATE_LINES[tier] || ['...']);
+  const personalityLine = ROMANCE.dateLine(c.personality, tier, a.key, c.name);
+  const preference = (c.best || []).includes(a.key) ? '선택한 방식이 상대의 연애 성향과 잘 맞았다.' : '상대는 접근 방식보다 진심을 더 지켜보는 눈치다.';
+  const msg = `${scene}<br><br><b>${personalityLine}</b><br>${preference}`;
   L.charm = Math.max(0, L.charm + dCharm);
   L.happy = clamp(L.happy + dHappy, 0, 100);
+  if (!S._dateRoute && L.relationship !== 'single') L.affection = Math.max(0, (L.affection || 0) + dCharm);
+  L.memories = L.memories || [];
+  L.memories.unshift({ day: S.day, name: c.name, tier, approach: a.label });
+  L.memories = L.memories.slice(0, 5);
 
   const meetingNew = !!S._dateRoute;   // 경로로 새 사람을 만나는 중
   let extra = '';
@@ -1045,11 +1410,14 @@ function buyProperty(id) {
   celebrate(); afterLifeAction();
 }
 
-function takeLoan(amt) {
-  amt = Math.floor(amt); if (amt < 1) return;
-  S.life.loan += amt; S.capital += amt;
-  addNews(`💳 개인 대출 ${won(amt)}원 (빚 ${won(S.life.loan)})`, 'bad');
-  flashToast(`💳 ${won(amt)}원 대출 실행`, 'neutral');
+function takeLoan(providerId, amt) {
+  const job = jobOf();
+  const monthlyIncome = job.variable ? Math.max(0, (job.variable[0] + job.variable[1]) / 2) : job.salary;
+  const result = LOAN.borrow(S.life, providerId, amt, monthlyIncome);
+  if (!result.ok) { flashToast(`⛔ ${result.message}`, 'bad'); playSound('error'); return; }
+  S.capital += result.amount;
+  addNews(`${result.offer.icon} ${result.offer.tier} ${result.offer.name}에서 ${won(result.amount)}원 대출`, result.offer.illegal ? 'bad' : 'neutral');
+  flashToast(`${result.offer.icon} ${won(result.amount)}원 대출 실행`, result.offer.illegal ? 'bad' : 'neutral');
   afterLifeAction();
 }
 
@@ -1058,8 +1426,32 @@ function repayLoan() {
   if (L.loan <= 0) { flashToast('갚을 빚이 없습니다', 'neutral'); return; }
   const pay = Math.min(L.loan, S.capital);
   if (pay <= 0) { flashToast('💸 갚을 현금이 없습니다', 'bad'); return; }
-  L.loan -= pay; S.capital -= pay;
-  flashToast(`💳 ${won(pay)}원 상환 (남은 빚 ${won(L.loan)})`, 'good');
+  const paid = LOAN.repay(L, pay); S.capital -= paid;
+  flashToast(`💳 ${won(paid)}원 상환 (남은 빚 ${won(L.loan)})`, 'good');
+  afterLifeAction();
+}
+
+function doRivalAction(actionId, targetIndex) {
+  const target = S.bots[targetIndex]; if (!target) return;
+  const oldJail=S.life.jailMonths||0,oldRecord=S.life.criminalRecord||0;
+  const player = { cash: S.capital, jailMonths: S.life.jailMonths || 0, criminalRecord: S.life.criminalRecord || 0 };
+  const result = RIVALS.act(player, target, actionId);
+  if (!result.ok) { flashToast(`⛔ ${result.message}`, 'bad'); return; }
+  S.capital = player.cash;
+  S.life.jailMonths = player.jailMonths;
+  S.life.criminalRecord = player.criminalRecord;
+  if (result.detected) {
+    S.life.jailMonths=oldJail;S.life.criminalRecord=oldRecord;
+    const action=RIVALS.ACTIONS.find(a=>a.id===actionId);
+    JUSTICE.openCase(S.life,actionId==='rig'?'불법 시세조종':'명예훼손·업무방해',actionId==='rig'?.85:.6,result.jail,result.fine);
+    S.capital+=result.fine;
+    LOAN.ensure(S.life); HEALTH.ensure(S.life); FAMILY.ensure(S.life);
+    S.life.creditScore = clamp(S.life.creditScore - 120, 0, 1000);
+    addNews(`🚔 수사 개시! 즉시 처벌되지 않고 수사·재판 절차가 시작됩니다.`, 'bad'); playSound('crash');
+  } else {
+    addNews(`⚔️ ${result.message}`, result.success ? 'good' : 'neutral');
+  }
+  flashToast(result.detected ? `🚔 ${result.message}` : `⚔️ ${result.message}`, result.detected ? 'bad' : (result.success ? 'good' : 'neutral'));
   afterLifeAction();
 }
 
@@ -1072,6 +1464,17 @@ function afterLifeAction() {
 function renderLifePanel() {
   const el = $('life-panel'); if (!el || !S.life) return;
   const L = S.life, R = D.RELATIONSHIP, info = dateInfo(S.day), job = jobOf();
+  S.economy = ECONOMY.ensure(S.economy);
+  LOAN.ensure(L);
+  HEALTH.ensure(L);
+  FAMILY.ensure(L);
+  CAREER.ensure(L);
+  HOUSING.ensure(L);
+  const finance = LIFE_FINANCE.ensure(L);
+  const activePolicies = LIFE_FINANCE.active(L);
+  const social = SOCIAL.ensure(L);
+  const justice = JUSTICE.ensure(L);
+  const legacyState = LEGACY.ensure(L);
   const pName = L.partner ? L.partner.name : '';
   const relLabel = L.relationship === 'married' ? `💍 ${pName}님과 결혼`
     : L.relationship === 'dating' ? `💕 ${pName}님과 연애 중` : '🙍 솔로';
@@ -1083,21 +1486,51 @@ function renderLifePanel() {
   let partnerRow = '';
   if (L.partner) {
     const per = D.PERSONALITIES[L.partner.personality] || {};
-    partnerRow = `<div class="life-stat"><span>상대</span><strong>${L.partner.emoji || '❤️'} ${L.partner.name} · ${L.partner.job} · ${per.emoji || ''}${per.name || ''}</strong></div>`;
+    partnerRow = `<div class="life-partner"><img class="char-thumb" src="${characterPortrait(L.partner)}" alt="${L.partner.name}"><strong>${L.partner.name} · ${L.partner.job}<br><span class="muted">${per.emoji || ''}${per.name || ''}</span></strong></div>`;
   }
   if (L.lovers && L.lovers.length) {
     partnerRow += `<div class="life-stat"><span>양다리 😈</span><strong class="down">${L.lovers.map(x => (x.emoji || '💔') + x.name).join(', ')} <span class="muted">(발각 주의!)</span></strong></div>`;
   }
   el.innerHTML =
     `<div class="life-stat"><span>나이/시점</span><strong>${info.label}</strong></div>
+     <div class="life-stat"><span>경제 국면</span><strong>${ECONOMY.phase(S.economy).icon} ${ECONOMY.phase(S.economy).name} · ${S.economy.monthsLeft}개월 예상</strong></div>
+     <div class="life-stat"><span>실거주</span><strong>${HOUSING.home(L).icon} ${HOUSING.home(L).name} · 정원 ${HOUSING.home(L).capacity}명</strong></div>
+     <div class="life-stat"><span>주거비</span><strong>${won(HOUSING.home(L).rent+HOUSING.home(L).manage)}원/월 · 보증금 ${won(L.housing.depositPaid||0)}</strong></div>
+     <div class="life-stat"><span>보험</span><strong>${activePolicies.length ? activePolicies.map(p=>p.icon+p.name).join(' · ') : '미가입'}</strong></div>
+     <div class="life-stat"><span>연금</span><strong>${won(finance.pensionBalance)}원 · 소득의 ${Math.round(finance.pensionRate*100)}%</strong></div>
+     <div class="life-stat"><span>누적 세금</span><strong>${won(finance.taxesPaid)}원</strong></div>
+     <div class="life-stat"><span>인맥</span><strong>${social.contacts.length}명 · 평판 ${Math.round(social.reputation)}</strong></div>
+     ${justice.case?`<div class="life-stat"><span>형사사건</span><strong class="down">⚖️ ${justice.case.crime} · ${justice.case.phase}</strong></div>`:''}
+     <div class="life-stat"><span>연대기</span><strong>📜 ${legacyState.timeline.length}개 기록 · 가문 ${legacyState.dynasty.length+1}대</strong></div>
+     ${finance.claims ? `<div class="life-stat"><span>보험금 수령</span><strong class="up">${won(finance.claims)}원</strong></div>` : ''}
+     <div class="life-stat"><span>경기 설명</span><strong class="muted">${ECONOMY.phase(S.economy).desc}</strong></div>
      <div class="life-stat"><span>직업</span><strong>${job.emoji} ${job.name} <span class="risk-tag">${risk.icon}${risk.label}</span></strong></div>
+     <div class="life-stat"><span>직급</span><strong>📈 ${CAREER.rank(L)} · 경력 ${CAREER.ensure(L).months}개월</strong></div>
+     <div class="life-stat"><span>직무능력</span><strong>${Math.round(CAREER.ensure(L).skill)} · 성과 ${Math.round(CAREER.ensure(L).performance)} · 평판 ${Math.round(CAREER.ensure(L).reputation)}</strong></div>
+     ${CAREER.ensure(L).certifications.length?`<div class="life-stat"><span>자격</span><strong>${CAREER.ensure(L).certifications.map(id=>(CAREER.CERTS.find(c=>c.id===id)||{}).icon+(CAREER.CERTS.find(c=>c.id===id)||{}).name).join(' · ')}</strong></div>`:''}
      <div class="life-stat"><span>월 수입</span><strong>${jobIncomeLabel(job)}</strong></div>
      <div class="life-stat"><span>행복도</span><strong>${hearts} ${Math.round(L.happy)}/100</strong></div>
+     <div class="life-stat"><span>건강</span><strong class="${L.health < 35 ? 'down' : ''}">❤️ ${Math.round(L.health)}/100</strong></div>
+     <div class="life-stat"><span>스트레스</span><strong class="${L.stress > 70 ? 'down' : ''}">🧠 ${Math.round(L.stress)}/100</strong></div>
+     <div class="life-stat"><span>체력</span><strong>🏃 ${Math.round(L.fitness)}/100</strong></div>
+     <div class="life-stat"><span>세대</span><strong>🌳 ${L.generation}대</strong></div>
+     <div class="life-stat"><span>주인공</span><strong>${L.playerName}</strong></div>
+     <div class="life-stat"><span>가족 유대</span><strong>🏡 ${Math.round(L.familyBond)}/100</strong></div>
+     ${L.generation===1?`<div class="life-stat"><span>부모님</span><strong class="${L.parentHealth<35?'down':''}">만 ${Math.floor(L.parentAge)}세 · 건강 ${Math.round(L.parentHealth)}</strong></div>`:''}
+     ${L.familyPlan?`<div class="life-stat"><span>가족 계획</span><strong>👶 ${L.familyPlan.method} · ${L.familyPlan.months}개월 남음</strong></div>`:''}
+     <div class="life-stat"><span>자녀</span><strong>${L.children.length}명</strong></div>
+     ${L.children.length?`<div class="life-props">${L.children.map(c=>{const t=FAMILY.traitOf(c);return `${t.icon}<b>${c.name}</b> ${FAMILY.childAge(c).label}·${FAMILY.stage(c)}·유대 ${Math.round(c.bond)}`}).join('<br>')}</div>`:''}
+     ${L.conditions.length ? `<div class="life-stat"><span>질환</span><strong class="down">${HEALTH.conditionDetails(L).map(c=>c.icon+c.name).join(' · ')}</strong></div>` : ''}
      <div class="life-stat"><span>관계</span><strong>${relLabel}</strong></div>
+     ${L.relationship !== 'single' ? `<div class="life-stat"><span>친밀도</span><strong>${Math.max(0,L.affection||0)}</strong></div>` : ''}
      ${partnerRow}
      <div class="life-stat"><span>매력</span><strong>${Math.floor(L.charm)} <span class="muted">${charmHint}</span></strong></div>
      <div class="life-stat"><span>부동산</span><strong>${L.properties.length}채 · ${won(propVal)}원</strong></div>
      <div class="life-stat"><span>개인 대출</span><strong class="${L.loan > 0 ? 'down' : ''}">${won(L.loan)}원</strong></div>
+     <div class="life-stat"><span>신용등급</span><strong class="${L.creditScore < 500 ? 'down' : ''}">${LOAN.grade(L.creditScore)} · ${Math.round(L.creditScore)}점</strong></div>
+     ${L.jailMonths > 0 ? `<div class="life-stat"><span>신분</span><strong class="down">🔒 수감 중 · ${L.jailMonths}개월 남음</strong></div>` : ''}
+     ${L.criminalRecord > 0 ? `<div class="life-stat"><span>전과</span><strong class="down">${L.criminalRecord}범</strong></div>` : ''}
+     ${L.collectionLevel ? `<div class="life-stat"><span>추심 상태</span><strong class="down">${['','상환 독촉','방문 추심','위험한 추심'][L.collectionLevel]}</strong></div>` : ''}
      <div class="life-stat total"><span>총 재산</span><strong>${won(totalWealth())}원</strong></div>
      ${L.properties.length ? '<div class="life-props">' + L.properties.map(p => `${p.emoji}${p.name}`).join(' · ') + '</div>' : ''}`;
 }
@@ -1105,9 +1538,23 @@ function renderLifePanel() {
 /* ---- 마감 리포트에 들어갈 '이번 달 행동' 허브 ---- */
 function lifeHubHTML() {
   const L = S.life, R = D.RELATIONSHIP;
+  LOAN.ensure(L);
+  HEALTH.ensure(L);
+  FAMILY.ensure(L);
+  CAREER.ensure(L);
+  HOUSING.ensure(L);
+  const finance = LIFE_FINANCE.ensure(L);
+  const social = SOCIAL.ensure(L);
+  const justice = JUSTICE.ensure(L);
   const hobbyBtns = D.HOBBIES.map(h => `<button class="life-btn" data-act="hobby" data-id="${h.id}">${h.emoji} ${h.name} <small>${won(h.cost)}</small></button>`).join('');
   const propBtns = D.PROPERTIES.map(p => `<button class="life-btn" data-act="prop" data-id="${p.id}">${p.emoji} ${p.name} <small>${won(p.price)}</small></button>`).join('');
-  const loanBtns = D.LOAN_OPTIONS.map(a => `<button class="life-btn" data-act="loan" data-amt="${a}">💳 +${won(a)}</button>`).join('');
+  const job = jobOf();
+  const monthlyIncome = job.variable ? Math.max(0, (job.variable[0] + job.variable[1]) / 2) : job.salary;
+  const loanBtns = LOAN.offers(L, monthlyIncome).map(o => {
+    const amt = Math.min(o.available, o.illegal ? 30000000 : 10000000);
+    const rate = (o.monthlyRate * 100).toFixed(1);
+    return `<button class="life-btn ${o.illegal ? 'hot' : ''}" data-act="loan" data-provider="${o.id}" data-amt="${Math.floor(amt)}" ${o.approved ? '' : 'disabled'}>${o.icon} ${o.tier} <small>${o.approved ? `+${won(amt)} · 월 ${rate}%` : `거절 · ${o.minScore}점 필요`}</small></button>`;
+  }).join('');
   const canMarry = L.relationship === 'dating' && L.charm >= R.MARRY_AT;
   const perName = L.partner ? (D.PERSONALITIES[L.partner.personality] || {}).name : '';
   const partnerTag = L.partner ? `<span class="muted">${L.partner.emoji || ''}${L.partner.name}·${L.partner.job}·${perName} · </span>` : '';
@@ -1115,12 +1562,32 @@ function lifeHubHTML() {
     ? `<span class="muted">💍 ${L.partner.name}님과 결혼 생활 중</span>`
     : partnerTag + `<button class="life-btn" data-act="date">💘 데이트 <small>${won(R.DATE_COST)}</small></button>` +
       (canMarry ? `<button class="life-btn hot" data-act="marry">💍 결혼하기 <small>${won(R.WEDDING_COST)}</small></button>` : '');
+  const rivalSelect = `<select id="rival-target">${S.bots.map((b,i)=>`<option value="${i}">${b.name} · ${won(botNetWorth(b))}</option>`).join('')}</select>`;
+  const rivalBtns = RIVALS.ACTIONS.map(a=>`<button class="life-btn ${a.illegal?'hot':''}" data-act="rival" data-rival-action="${a.id}" ${L.jailMonths>0?'disabled':''}>${a.label} <small>${won(a.cost)} · ${a.desc}</small></button>`).join('');
+  const planBtns = L.relationship==='married'&&!L.familyPlan ? `<button class="life-btn" data-act="family-plan" data-method="birth">👶 출산 계획 <small>5,000,000</small></button><button class="life-btn" data-act="family-plan" data-method="adopt">🫶 입양 신청 <small>12,000,000</small></button>` : '';
+  const childBtns = L.children.map(c=>`<button class="life-btn" data-act="child-bond" data-child="${c.id}">🫶 ${c.name}와 시간 보내기 <small>200,000</small></button><button class="life-btn" data-act="child-edu" data-child="${c.id}">📚 ${c.name} 교육 투자 <small>1,000,000</small></button>`).join('');
+  const certBtns = CAREER.CERTS.filter(c=>!CAREER.ensure(L).certifications.includes(c.id)).map(c=>`<button class="life-btn" data-act="cert" data-cert="${c.id}">${c.icon} ${c.name} <small>${won(c.cost)}</small></button>`).join('');
+  const housingBtns = HOUSING.HOMES.filter(h=>h.id!==L.housing.id).map(h=>`<button class="life-btn" data-act="move" data-home="${h.id}">${h.icon} ${h.name} <small>보증금 ${won(h.deposit)} · 월 ${won(h.rent+h.manage)}</small></button>`).join('');
+  const insuranceBtns = LIFE_FINANCE.POLICIES.map(p => finance.policies.includes(p.id)
+    ? `<button class="life-btn hot" data-act="insurance-cancel" data-policy="${p.id}">${p.icon} ${p.name} 해지 <small>월 ${won(p.premium)}</small></button>`
+    : `<button class="life-btn" data-act="insurance" data-policy="${p.id}">${p.icon} ${p.name} <small>${p.desc} · 월 ${won(p.premium)}</small></button>`).join('');
+  const pensionBtns = [.05,.09,.15].map(rate=>`<button class="life-btn ${Math.abs(finance.pensionRate-rate)<.001?'hot':''}" data-act="pension" data-rate="${rate}">연금 ${Math.round(rate*100)}%</button>`).join('');
+  const contactBtns = social.contacts.map(c=>{const r=SOCIAL.role(c);return `<button class="life-btn" data-act="contact-nurture" data-contact="${c.id}">${r.icon} ${c.name} 만나기 <small>신뢰 ${c.trust} · 호의 ${c.favor} · 300,000</small></button><button class="life-btn" data-act="contact-ask" data-contact="${c.id}">🙏 ${c.name}에게 부탁</button>`}).join('');
+  const courtBtns=justice.case?`<span class="muted">${justice.case.crime} · ${justice.case.phase}</span><button class="life-btn" data-act="lawyer" data-tier="public">국선변호인</button><button class="life-btn" data-act="lawyer" data-tier="standard">전문 변호사 <small>5,000,000</small></button><button class="life-btn" data-act="lawyer" data-tier="elite">대형 로펌 <small>20,000,000</small></button>${justice.case.phase==='재판'?'<button class="life-btn" data-act="court" data-strategy="plea">혐의 인정·선처</button><button class="life-btn" data-act="court" data-strategy="contest">무죄 다툼</button><button class="life-btn" data-act="court" data-strategy="cooperate">수사 협조</button>':''}`:'<span class="muted">진행 중인 사건 없음</span>';
   return `
     <div class="life-hub">
       <div class="hub-title">🎬 이번 달 인생 행동 <span class="muted">(현금 결제 · 여러 번 가능)</span></div>
       <div class="hub-group"><span class="hub-label">🎨 취미</span><div class="hub-btns">${hobbyBtns}</div></div>
+      <div class="hub-group"><span class="hub-label">📈 경력</span><div class="hub-btns"><button class="life-btn" data-act="career-train">📚 직무교육 <small>700,000</small></button>${certBtns}</div></div>
+      <div class="hub-group"><span class="hub-label">🏡 실거주</span><div class="hub-btns">${housingBtns}</div></div>
+      <div class="hub-group"><span class="hub-label">🛡️ 보험·연금</span><div class="hub-btns">${insuranceBtns}${pensionBtns}</div></div>
+      <div class="hub-group"><span class="hub-label">🤝 인맥</span><div class="hub-btns"><button class="life-btn" data-act="contact-meet">🍽️ 업계 모임 참가 <small>500,000</small></button>${contactBtns}</div></div>
+      <div class="hub-group"><span class="hub-label">⚖️ 법정</span><div class="hub-btns">${courtBtns}</div></div>
+      <div class="hub-group"><span class="hub-label">❤️ 건강</span><div class="hub-btns"><button class="life-btn" data-act="checkup">🏥 건강검진 <small>500,000</small></button><button class="life-btn" data-act="treat">💊 치료${HEALTH.treatmentOffer(L) ? ' · '+HEALTH.treatmentOffer(L).name+' '+won(HEALTH.treatmentOffer(L).cost) : ''}</button><button class="life-btn" data-act="rest">🛌 푹 쉬기 <small>300,000</small></button></div></div>
       <div class="hub-group"><span class="hub-label">💘 연애</span><div class="hub-btns">${relBtns}</div></div>
+      <div class="hub-group"><span class="hub-label">👨‍👩‍👧 가족</span><div class="hub-btns">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👵 부모님 돌봄 <small>1,500,000</small></button></div></div>
       <div class="hub-group"><span class="hub-label">🏠 부동산</span><div class="hub-btns">${propBtns}</div></div>
+      <div class="hub-group"><span class="hub-label">⚔️ 라이벌</span><div class="hub-btns">${rivalSelect}${rivalBtns}</div></div>
       <div class="hub-group"><span class="hub-label">💳 금융</span><div class="hub-btns">${loanBtns}<button class="life-btn" data-act="repay">상환${L.loan > 0 ? ' ' + won(L.loan) : ''}</button><button class="life-btn" data-act="changejob">💼 이직</button></div></div>
     </div>`;
 }
@@ -1130,8 +1597,27 @@ function wireLifeHub(host) {
     const act = b.dataset.act;
     if (act === 'hobby') doHobby(b.dataset.id);
     else if (act === 'prop') buyProperty(b.dataset.id);
-    else if (act === 'loan') takeLoan(+b.dataset.amt);
+    else if (act === 'loan') takeLoan(b.dataset.provider, +b.dataset.amt);
     else if (act === 'repay') repayLoan();
+    else if (act === 'checkup') doHealthCheckup();
+    else if (act === 'treat') doTreatment();
+    else if (act === 'rest') doRestMonth();
+    else if (act === 'family-plan') doFamilyPlan(b.dataset.method);
+    else if (act === 'child-bond') doChildBond(b.dataset.child);
+    else if (act === 'child-edu') doChildEducation(b.dataset.child);
+    else if (act === 'parent-care') doParentCare();
+    else if (act === 'career-train') doCareerTraining();
+    else if (act === 'cert') doCertification(b.dataset.cert);
+    else if (act === 'move') doMoveHousing(b.dataset.home);
+    else if (act === 'insurance') doInsurance(b.dataset.policy);
+    else if (act === 'insurance-cancel') cancelInsurance(b.dataset.policy);
+    else if (act === 'pension') setPensionRate(+b.dataset.rate);
+    else if (act === 'contact-meet') meetContact();
+    else if (act === 'contact-nurture') nurtureContact(b.dataset.contact);
+    else if (act === 'contact-ask') askContact(b.dataset.contact);
+    else if (act === 'lawyer') hireCourtLawyer(b.dataset.tier);
+    else if (act === 'court') chooseCourtStrategy(b.dataset.strategy);
+    else if (act === 'rival') doRivalAction(b.dataset.rivalAction, +($('rival-target') ? $('rival-target').value : 0));
     else if (act === 'date') doDate();
     else if (act === 'marry') doMarriage();
     else if (act === 'changejob') showJobModal(true);
@@ -1142,6 +1628,7 @@ function wireLifeHub(host) {
 function runBots() {
   const live = S.stocks.filter(s => s.listed);
   S.bots.forEach(bot => {
+    if (bot.jailMonths > 0) return;
     if (Math.random() > 0.6) return; // 매 틱 거래하진 않음
     let target;
     if (bot.style === 'random') target = pick(live);
@@ -1156,7 +1643,7 @@ function runBots() {
     // 결정: 오르는 추세면 매수, 아니면 매도
     const bullish = trendOf(target) >= 0;
     if (bullish && bot.capital > price * 10) {
-      const qty = Math.max(1, Math.floor((bot.capital * rand(0.1, 0.3)) / price));
+      const qty = Math.max(1, Math.floor((bot.capital * rand(0.1, Math.min(0.45, 0.22 * (bot.skill || 1)))) / price));
       bot.capital -= qty * price;
       bot.owned[target.name] = (has || 0) + qty;
     } else if (has) {
@@ -1183,43 +1670,34 @@ function botNetWorth(bot) {
 
 /* ------------------------------------------------------------------ 순자산 */
 function priceOf(name) {
-  const s = S.stocks.find(x => x.name === name);
-  return s && s.listed ? s.history[s.history.length - 1].c : 0;
+  return PORTFOLIO.currentPrice(S.stocks, name);
 }
 
-/* 순자산 = 현금 + 롱 평가액 + 숏 미실현손익 − 신용융자(빚)
-   (공매도 진입 시 매도대금이 이미 S.capital 에 유입돼 있으므로,
-    숏은 진입가 대비 미실현손익 (avg-price)*|qty| 만 더한다) */
+/* 순자산 = 현금 + 롱 평가액 − 숏 현재 상환가치 − 신용융자(빚)
+   공매도 진입 시 받은 매도대금은 이미 현금에 포함되어 있다. */
 function netWorthClean() {
-  let v = S.capital;
-  Object.keys(S.owned).forEach(name => {
-    const pos = S.owned[name];
-    const p = priceOf(name);
-    if (pos.qty >= 0) v += pos.qty * p;                    // 롱 평가액
-    else v += (pos.avg - p) * Math.abs(pos.qty);           // 숏 미실현손익(담보금은 capital에 이미 포함)
-  });
-  return v - S.loan;
+  return PORTFOLIO.netWorth(S);
 }
 
 // 롱 포지션 총 평가액
 function longValue() {
-  let v = 0;
-  Object.keys(S.owned).forEach(name => {
-    const pos = S.owned[name];
-    if (pos.qty > 0) v += pos.qty * priceOf(name);
-  });
-  return v;
+  return PORTFOLIO.positionValues(S).long;
 }
 
 // 신용 매수여력 = 현금 × 배율 − 현재 빚
 function buyingPower() {
-  return Math.max(0, S.capital * S.leverage - S.loan);
+  return PORTFOLIO.longBuyingPower(S, S.leverage);
+}
+
+function shortSellingPower() {
+  return PORTFOLIO.shortSellingPower(S, CFG.SHORT_MAX_LEVERAGE);
 }
 
 /* ------------------------------------------------------------------ 트레이딩 */
 function curStock() { return S.stocks.filter(s => s.listed)[S.selected] || S.stocks.filter(s => s.listed)[0]; }
 
 function buy(qty) {
+  if (S.life && S.life.jailMonths > 0) { flashToast(`🔒 수감 중 · ${S.life.jailMonths}개월 남음`, 'bad'); return; }
   if (S.phase !== 'open') { flashToast('🔒 장 마감 상태입니다. 먼저 개장하세요', 'bad'); return; }
   const stock = curStock();
   if (!stock) return;
@@ -1256,6 +1734,7 @@ function buy(qty) {
 }
 
 function sell(qty) {
+  if (S.life && S.life.jailMonths > 0) { flashToast(`🔒 수감 중 · ${S.life.jailMonths}개월 남음`, 'bad'); return; }
   if (S.phase !== 'open') { flashToast('🔒 장 마감 상태입니다. 먼저 개장하세요', 'bad'); return; }
   const stock = curStock();
   if (!stock) return;
@@ -1295,6 +1774,11 @@ function sell(qty) {
 function openShort(stock, qty, price) {
   const gross = price * qty;
   const fee = Math.round(gross * CFG.FEE_RATE);
+  if (gross + fee > shortSellingPower()) {
+    flashToast(`🐻 공매도 한도 초과 · 가능 ${won(shortSellingPower())}원`, 'bad');
+    playSound('error');
+    return;
+  }
   // 담보로 현금 유입
   S.capital += gross - fee;
   const pos = S.owned[stock.name];
@@ -1731,6 +2215,15 @@ function renderAchievements() {
 const LS_KEY = 'quicktrade_pro_save';
 const LS_ACH = 'quicktrade_pro_ach';
 
+function migrateOwnedNames(owned) {
+  const migrated = {};
+  Object.entries(owned || {}).forEach(([oldName, pos]) => {
+    const name = (D.COMPANY_NAME_MIGRATIONS || {})[oldName] || oldName;
+    migrated[name] = pos;
+  });
+  return migrated;
+}
+
 function autoSave() {
   try {
     const data = {
@@ -1738,10 +2231,10 @@ function autoSave() {
       trades: S.trades, realizedPnL: S.realizedPnL, shortsClosed: S.shortsClosed,
       maxNetWorth: S.maxNetWorth, watchlist: S.watchlist,
       loan: S.loan, leverage: S.leverage, usedLeverage: S.usedLeverage, marginCalled: S.marginCalled,
-      awaitingNextDay: S.awaitingNextDay, life: S.life,
+      awaitingNextDay: S.awaitingNextDay, life: S.life, economy: S.economy,
       stocks: S.stocks.map(s => ({ name: s.name, history: s.history.slice(-20), listed: s.listed, trend: s.trend })),
       netWorthHist: S.netWorthHist.slice(-60),
-      bots: S.bots.map(b => ({ name: b.name, capital: b.capital, owned: b.owned })),
+      bots: S.bots.map(b => ({ name: b.name, capital: b.capital, owned: b.owned, jailMonths: b.jailMonths, criminalRecord: b.criminalRecord, monthlyProfit: b.monthlyProfit })),
     };
     localStorage.setItem(LS_KEY, JSON.stringify(data));
   } catch (e) { /* 용량 초과 등 무시 */ }
@@ -1752,20 +2245,28 @@ function loadSave() {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return false;
     const d = JSON.parse(raw);
-    S.capital = d.capital; S.owned = d.owned || {}; S.day = d.day || 1; S.tick = d.tick || 0;
+    S.capital = d.capital; S.owned = migrateOwnedNames(d.owned); S.day = d.day || 1; S.tick = d.tick || 0;
     S.trades = d.trades || 0; S.realizedPnL = d.realizedPnL || 0; S.shortsClosed = d.shortsClosed || 0;
     S.maxNetWorth = d.maxNetWorth || CFG.START_CAPITAL; S.watchlist = d.watchlist || {};
     S.loan = d.loan || 0; S.leverage = d.leverage || 1;
     S.usedLeverage = !!d.usedLeverage; S.marginCalled = !!d.marginCalled;
     S.awaitingNextDay = !!d.awaitingNextDay;   // 저장 시점이 마감 후였다면 개장 버튼이 다음달로
     S.life = Object.assign(newLife(), d.life || {});
+    S.economy = ECONOMY.ensure(d.economy);
+    LOAN.ensure(S.life); HEALTH.ensure(S.life); FAMILY.ensure(S.life);
+    CAREER.ensure(S.life); HOUSING.ensure(S.life); LIFE_FINANCE.ensure(S.life);
+    CHILD_EVENTS.ensure(S.life); SOCIAL.ensure(S.life); JUSTICE.ensure(S.life); LEGACY.ensure(S.life);
     if (typeof S.life.partner === 'string') S.life.partner = null;   // 구버전 세이브(문자열 상대) 호환
     S.netWorthHist = d.netWorthHist && d.netWorthHist.length ? d.netWorthHist : [S.capital];
     (d.stocks || []).forEach(sv => {
-      const s = S.stocks.find(x => x.name === sv.name);
+      const savedName = (D.COMPANY_NAME_MIGRATIONS || {})[sv.name] || sv.name;
+      const s = S.stocks.find(x => x.name === savedName);
       if (s && sv.history && sv.history.length) { s.history = sv.history; s.listed = sv.listed !== false; s.trend = sv.trend || s.trend; }
     });
-    if (d.bots) d.bots.forEach((bv, i) => { if (S.bots[i]) { S.bots[i].capital = bv.capital; S.bots[i].owned = bv.owned || {}; } });
+    if (d.bots) d.bots.forEach((bv, i) => {
+      const bot = S.bots.find(x => x.name === bv.name) || S.bots[i];
+      if (bot) Object.assign(bot, bv, { owned: migrateOwnedNames(bv.owned) });
+    });
     return true;
   } catch (e) { return false; }
 }
@@ -1867,11 +2368,13 @@ function fillSectorFilter() {
 
 /* ------------------------------------------------------------------ 부트 */
 function boot() {
+  S.economy = ECONOMY.ensure(S.economy);
   buildStocks();
   buildBots();
   loadAchievements();
   const loaded = loadSave();
   if (!S.life) S.life = newLife();     // 새 게임
+  LOAN.ensure(S.life); HEALTH.ensure(S.life); FAMILY.ensure(S.life);
   fillSectorFilter();
   wire();
   $('leverage-select').value = String(S.leverage);

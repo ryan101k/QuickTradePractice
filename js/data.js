@@ -7,7 +7,7 @@
 /* ---------------------------------------------------------------------------
  *  섹터 정의 (테마 색상 포함)
  * ------------------------------------------------------------------------- */
-const SECTORS = {
+const LEGACY_SECTORS = {
   semi:    { name: '반도체',      color: '#3b82f6' },
   auto:    { name: '자동차',      color: '#ef4444' },
   bio:     { name: '바이오/제약', color: '#10b981' },
@@ -26,7 +26,7 @@ const SECTORS = {
  *  ETF (지수 추종 상품) — 시장 전체 지수 등락률 × lev 배율로 움직임
  *  lev: 1(정방향) · 2(레버리지) · -1(인버스) · -2(곱버스)
  * ------------------------------------------------------------------------- */
-const ETFS = [
+const LEGACY_ETFS = [
   { name: '코덱스200',       price: 38000, lev: 1 },
   { name: '코덱스 레버리지', price: 21000, lev: 2 },
   { name: '코덱스 인버스',   price: 5200,  lev: -1 },
@@ -39,7 +39,7 @@ const ETFS = [
  *  vol  : 기본 변동성 배수 (클수록 출렁임)
  *  div  : 분기 배당수익률(연 기준, 옵션) — 대형 우량주만 배당
  * ------------------------------------------------------------------------- */
-const COMPANY_MASTER = [
+const LEGACY_COMPANY_MASTER = [
   // 반도체
   { name: '사성전자',       sector: 'semi',    cap: 'large', price: 71000,  vol: 0.8, div: 0.02 },
   { name: '하이닉수',       sector: 'semi',    cap: 'large', price: 128000, vol: 0.9, div: 0.015 },
@@ -91,7 +91,7 @@ const COMPANY_MASTER = [
  * ------------------------------------------------------------------------- */
 
 // (1) 회사 개별 이벤트 — 섹터 무관 (호재)
-const EVENTS_COMPANY_GOOD = [
+const LEGACY_EVENTS_COMPANY_GOOD = [
   { text: '깜짝 실적 발표', impact: 0.08, weight: 10 },
   { text: '자사주 매입 결정', impact: 0.05, weight: 12 },
   { text: '신제품 흥행 대박', impact: 0.14, weight: 8 },
@@ -113,7 +113,7 @@ const EVENTS_COMPANY_GOOD = [
 ];
 
 // (2) 회사 개별 이벤트 — 섹터 무관 (악재)
-const EVENTS_COMPANY_BAD = [
+const LEGACY_EVENTS_COMPANY_BAD = [
   { text: '실적 어닝 쇼크', impact: -0.10, weight: 10 },
   { text: '오너 리스크 부각', impact: -0.09, weight: 8 },
   { text: '회장 구속영장 청구', impact: -0.15, weight: 4 },
@@ -135,7 +135,7 @@ const EVENTS_COMPANY_BAD = [
 ];
 
 // (3) 섹터 특화 이벤트 (호재/악재 혼합)
-const EVENTS_SECTOR = [
+const LEGACY_EVENTS_SECTOR = [
   // 반도체
   { sector: 'semi', text: 'AI 반도체 슈퍼사이클 도래', impact: 0.16, weight: 6 },
   { sector: 'semi', text: 'D램 가격 급등', impact: 0.11, weight: 8 },
@@ -197,7 +197,7 @@ const EVENTS_SECTOR = [
 ];
 
 // (4) 시장 전체 이벤트 — 모든 종목에 곱연산으로 적용, 뉴스로 크게 표시
-const EVENTS_MARKET = [
+const LEGACY_EVENTS_MARKET = [
   { text: '📈 산타랠리! 시장 전체 훈풍', impact: 0.06, type: 'good', weight: 8 },
   { text: '📈 외국인 폭풍 매수, 지수 급등', impact: 0.05, type: 'good', weight: 9 },
   { text: '📈 금리 인하 기대감에 랠리', impact: 0.07, type: 'good', weight: 7 },
@@ -212,7 +212,7 @@ const EVENTS_MARKET = [
 ];
 
 // (5) 평범한 날 — 특별한 이슈 없음 (자주 등장시켜 노이즈 조절)
-const EVENTS_NONE = [
+const LEGACY_EVENTS_NONE = [
   { text: '특별한 이슈 없음', impact: 0, weight: 45 },
   { text: '보합권 등락', impact: 0, weight: 30 },
   { text: '관망세 지속', impact: 0, weight: 25 },
@@ -309,11 +309,11 @@ const LIFE_ACHIEVEMENTS = [
 
 /* 전역 노출 */
 window.QT_DATA = {
-  SECTORS, COMPANY_MASTER, ETFS,
+  SECTORS, COMPANY_MASTER, COMPANY_NAME_MIGRATIONS, ETFS,
   EVENTS_COMPANY_GOOD, EVENTS_COMPANY_BAD, EVENTS_SECTOR,
   EVENTS_MARKET, EVENTS_NONE, ACHIEVEMENTS,
   EXPERTS, EXPERT_BULL, EXPERT_BEAR,
   JOBS, HOBBIES, PROPERTIES, LOAN_OPTIONS, RELATIONSHIP, LIFE_ACHIEVEMENTS,
   CHARACTERS, PERSONALITIES, DATE_APPROACHES, DATE_ROUTES, DATE_LINES,   // js/characters.js
-  LIFE_EVENTS,                 // js/events_life.js
+  LIFE_EVENTS, ROMANCE_EVENTS: QT_ROMANCE.ROMANCE_EVENTS, CAREER_EVENTS: QT_CAREER_EVENTS,
 };
