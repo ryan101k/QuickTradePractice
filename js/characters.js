@@ -33,11 +33,11 @@ const CHARACTERS = [
   { name: '예린', gender: 'f', emoji: '👩', job: '공무원', income: 2200000, personality: 'homebody', portrait: 'yerin-v2-neutral.webp' },
   { name: '시우', gender: 'm', emoji: '👨', job: '개발자', income: 4000000, personality: 'ambitious', portrait: 'siwoo-v2-neutral.webp' },
   { name: '채원', gender: 'f', emoji: '👩', job: '승무원', income: 3000000, personality: 'lavish', portrait: 'chaewon-v2-neutral.webp' },
-  { name: '건우', gender: 'm', emoji: '👨', job: '자영업', income: 2500000, personality: 'frugal', portrait: 'geonwoo.webp' },
-  { name: '유나', gender: 'f', emoji: '👩', job: '모델', income: 2000000, personality: 'free', portrait: 'yuna.webp' },
-  { name: '수아', gender: 'f', emoji: '👩', job: '교사', income: 2600000, personality: 'caring', portrait: 'sua.webp' },
-  { name: '태양', gender: 'm', emoji: '👨', job: '사업가', income: 5000000, personality: 'lavish', portrait: 'taeyang.webp' },
-  { name: '보라', gender: 'f', emoji: '👩', job: '약사', income: 4500000, personality: 'homebody', portrait: 'bora.webp' },
+  { name: '건우', gender: 'm', emoji: '👨', job: '자영업', income: 2500000, personality: 'frugal', portrait: 'geonwoo-v2-neutral.webp' },
+  { name: '유나', gender: 'f', emoji: '👩', job: '모델', income: 2000000, personality: 'free', portrait: 'yuna-v2-neutral.webp' },
+  { name: '수아', gender: 'f', emoji: '👩', job: '교사', income: 2600000, personality: 'caring', portrait: 'sua-v2-neutral.webp' },
+  { name: '태양', gender: 'm', emoji: '👨', job: '사업가', income: 5000000, personality: 'lavish', portrait: 'taeyang-v2-neutral.webp' },
+  { name: '보라', gender: 'f', emoji: '👩', job: '약사', income: 4500000, personality: 'homebody', portrait: 'bora-v2-neutral.webp' },
 ];
 
 /* 구버전 세이브 호환 — 이름이 바뀐 인물(초상화 성별과 맞추느라 교체) */
@@ -48,7 +48,7 @@ const GENDER_LABEL = { m: '남성', f: '여성' };
 /* 스토리 전용 인물 — 일반 랜덤 소개팅 풀에는 들어가지 않는다. */
 const SPECIAL_CHARACTERS = {
   narae: { id:'narae', name:'나래', gender:'f', emoji:'👩', age:28, job:'투자교육 매니저', income:4200000, personality:'cold', portrait:'narae-v2-neutral.webp', romanceDifficulty:-25, special:'tutorial' },
-  taesik: { id:'taesik', name:'장태식', gender:'m', emoji:'🦈', age:39, job:'사채 추심 책임자', income:0, personality:'cold', portrait:'taesik-neutral.webp', special:'collector' },
+  taesik: { id:'taesik', name:'장태식', gender:'m', emoji:'🦈', age:39, job:'사채 추심 책임자', income:0, personality:'cold', portrait:'taesik-v2-neutral.webp', special:'collector' },
 };
 
 /* 데이트 접근 방식(선택지) — 성공 판정에 mod/보정이 다르게 들어감
