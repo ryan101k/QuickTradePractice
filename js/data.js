@@ -314,6 +314,19 @@ window.QT_DATA = {
   EVENTS_MARKET, EVENTS_NONE, ACHIEVEMENTS,
   EXPERTS, EXPERT_BULL, EXPERT_BEAR,
   JOBS, HOBBIES, PROPERTIES, LOAN_OPTIONS, RELATIONSHIP, LIFE_ACHIEVEMENTS,
-  CHARACTERS, SPECIAL_CHARACTERS, PERSONALITIES, DATE_APPROACHES, DATE_ROUTES, DATE_LINES,   // js/characters.js
+  CHARACTERS, SPECIAL_CHARACTERS, PERSONALITIES, DATE_APPROACHES, DATE_ROUTES,   // js/characters.js
+  CHARACTER_NAME_MIGRATIONS, GENDER_LABEL,
+  // 장면 묘사·호감도 단계는 js/character_voices.js 에서 (없으면 구버전 DATE_LINES 로 폴백)
+  DATE_LINES: (window.QT_VOICES && QT_VOICES.SCENE_LINES) || DATE_LINES,
+  AFFECTION_STAGES: (window.QT_VOICES && QT_VOICES.AFFECTION_STAGES) || [],
   LIFE_EVENTS, ROMANCE_EVENTS: QT_ROMANCE.ROMANCE_EVENTS, CAREER_EVENTS: QT_CAREER_EVENTS,
 };
+
+/* 이벤트 파일은 계속 덧붙게 되므로 id 중복을 개발 중에 바로 알아채도록 경고만 남긴다 */
+(function warnDuplicateEventIds() {
+  const ids = window.QT_DATA.LIFE_EVENTS
+    .concat(window.QT_DATA.ROMANCE_EVENTS, window.QT_DATA.CAREER_EVENTS)
+    .map(e => e.id);
+  const dupes = [...new Set(ids.filter((v, i) => ids.indexOf(v) !== i))];
+  if (dupes.length) console.warn('[QuickTrade] 이벤트 id 중복:', dupes.join(', '));
+})();

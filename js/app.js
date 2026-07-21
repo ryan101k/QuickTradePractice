@@ -68,6 +68,7 @@ const S = {
   maxNetWorth: CFG.START_CAPITAL,
   watchlist: {},              // { name: true }
   soundOn: true,
+  bgmOn: false,               // 배경음악 (브라우저 정책상 사용자가 켜야 시작)
   ttsOn: false,
   chartMode: 'line',          // 'line' | 'candle'
   bots: [],                   // AI 라이벌
@@ -82,6 +83,7 @@ const S = {
   sessionTick: 0,             // 이번 장(세션) 경과 틱
   sessionNews: [],            // 이번 장에서 발생한 주요 뉴스(마감 리포트용)
   awaitingNextDay: false,     // 마감 후 '다음달 개장' 대기 상태
+  pendingOrders: [],          // 장 마감 중 걸어둔 예약주문 [{id, name, side, qty}] — 다음 개장 시초가에 체결
   dayStartNW: CFG.START_CAPITAL, // 개장 시점 순자산(당월 손익 계산용)
   life: null,                 // 인생 상태(직업/행복/관계/부동산/대출) — boot 에서 초기화
   economy: null,              // 장기 경제 국면
@@ -105,6 +107,7 @@ function newLife() {
     relationship: 'single',  // single | dating | married
     partner: null,           // 메인 연애 상대(객체)
     lovers: [],              // 양다리 상대 목록 (문어발) — 적발 위험
+    met: [],                 // 한 번이라도 만난 사람 (헤어져도 기억한다) — rememberPerson() 참고
     properties: [],          // [{id, name, emoji, value, rent}]
     loan: 0,                 // 개인 대출 잔액
     creditScore: 720,        // 신용점수(0~1000)
@@ -492,6 +495,7 @@ function openMarket() {
   setSpeed(S.speed);                    // 타이머 시작
   $('pause-btn').textContent = '⏸ 일시정지';
   renderMarketPhase();
+  runPendingOrders();                   // 마감 중 걸어둔 예약주문을 시초가로 체결
   renderAll();
 }
 
@@ -526,7 +530,8 @@ function closeMarket() {
 function renderMarketPhase() {
   const btn = $('session-btn');
   const badge = $('phase-badge');
-  if (S.phase === 'open') {
+  const open = S.phase === 'open';
+  if (open) {
     if (btn) { btn.textContent = '🔴 장 마감'; btn.className = 'session-btn closing'; }
     if (badge) { badge.textContent = '🟢 장중'; badge.className = 'phase-badge open'; }
   } else {
@@ -537,7 +542,16 @@ function renderMarketPhase() {
     if (badge) { badge.textContent = '🔒 장 마감'; badge.className = 'phase-badge'; }
   }
   const pauseBtn = $('pause-btn');
-  if (pauseBtn) pauseBtn.disabled = (S.phase !== 'open');
+  if (pauseBtn) pauseBtn.disabled = !open;
+  // 마감 중에는 즉시 체결 대신 예약주문
+  const buyBtn = $('buy-btn'), sellBtn = $('sell-btn');
+  if (buyBtn) buyBtn.textContent = open ? '매수 (B)' : '📌 매수 예약 (B)';
+  if (sellBtn) sellBtn.textContent = open ? '매도 (S)' : '📌 매도 예약 (S)';
+  // 마감 리포트를 닫아도 다시 열 수 있게
+  const reportBtn = $('report-btn');
+  if (reportBtn) reportBtn.style.display = (!open && S.awaitingNextDay) ? '' : 'none';
+  renderPendingOrders();
+  syncBGM();   // 장중 ↔ 마감 트랙 전환
 }
 
 /* 장 마감 리포트: 그날의 뉴스를 골라서 전문가 진단까지 볼 수 있다 */
@@ -569,7 +583,12 @@ function renderCloseReport(day) {
   if (st.rent) settleBits.push(`월세 <b class="up">+${won(st.rent)}</b>`);
   if (st.partner) settleBits.push(`배우자 <b class="${st.partner >= 0 ? 'up' : 'down'}">${st.partner >= 0 ? '+' : ''}${won(st.partner)}</b>`);
   if (st.incident) settleBits.push(`🚑사고 <b class="down">-${won(st.incident.cost)}</b>`);
-  if (st.scandal) settleBits.push(`😱${st.scandal.wasMarried ? '불륜' : '양다리'}발각 <b class="down">-${won(st.scandal.settle)}${st.scandal.fired ? ' +해고' : ''}</b>`);
+  if (st.scandal) {
+    const kind = st.scandal.wasMarried ? '불륜' : '양다리';
+    settleBits.push(st.scandal.forgiven
+      ? `😰${kind}발각 <b class="down">용서받음 · 친밀도 급락</b>`
+      : `😱${kind}발각 <b class="down">${st.scandal.settle ? `-${won(st.scandal.settle)}` : '이별'}${st.scandal.fired ? ' +해고' : ''}</b>`);
+  }
   if (st.lifeInterest) settleBits.push(`대출이자 <b class="down">-${won(st.lifeInterest)}</b>`);
   const info = dateInfo(day);
   const nextInfo = dateInfo(day + 1);
@@ -637,6 +656,12 @@ function renderCloseReport(day) {
 function closeReport() {
   const host = $('market-close');
   if (host) { host.style.display = 'none'; host.innerHTML = ''; }
+}
+
+// 리포트를 닫아버려도 마감 중이면 언제든 다시 열 수 있다 (인생 허브가 리포트 안에 있으므로 중요)
+function reopenReport() {
+  if (S.phase === 'open') { flashToast('장중에는 마감 리포트가 없습니다', 'neutral'); return; }
+  renderCloseReport(S.day);
 }
 
 /* ------------------------------------------------------------------ 인생(LIFE) 모드 */
@@ -726,32 +751,64 @@ function settleMonth() {
     if (b.partner) addNews(`💑 ${nm}(${per.name}) 가계 ${b.partner >= 0 ? '기여 +' : ''}${won(b.partner)}원`, b.partner >= 0 ? 'good' : 'bad');
     // 자유로운(바람둥이) 성격은 연애 중 이별 위험
     if (!married && per.breakup && Math.random() < per.breakup) {
-      addNews(`💔 ${nm}님과 이별했습니다...`, 'bad');
+      breakUp(0.5, 15);
+      addNews(`💔 ${nm}님과 이별했습니다... (아는 사람으로 남아 다시 만날 수 있어요)`, 'bad');
       flashToast(`💔 ${nm}님과 이별...`, 'bad');
-      L.relationship = 'single'; L.charm = Math.floor(L.charm * 0.5);
-      L.happy = clamp(L.happy - 15, 0, 100); L.partner = null; b.breakup = true;
+      b.breakup = true;
     }
   }
 
-  // 5-1) 양다리(문어발) 발각 — 애인이 많을수록 위험, 걸리면 파국(+해고+위자료)
+  // 5-1) 양다리·불륜 발각
+  //   결혼 전이면 법적으로 남남이다 — 위자료도 해고도 없고, 관계와 평판만 무너진다.
+  //   결혼했을 때만 위자료·해고 위험이 붙는다. 상대 성격에 따라 용서받고 이어갈 수도 있다.
   if (L.relationship !== 'single' && L.lovers && L.lovers.length && !b.breakup) {
     const catchChance = Math.min(0.55, 0.15 * L.lovers.length);
     if (Math.random() < catchChance) {
-      const fired = (L.job && L.job !== 'none') && Math.random() < 0.4;
-      const settle = Math.round(rand(2000000, 12000000));   // 위자료/합의금 → 빚
-      LOAN.addDebt(L, settle, '위자료·합의금');
       const wasMarried = L.relationship === 'married';
-      L.relationship = 'single'; L.partner = null; L.lovers = [];
-      L.charm = Math.floor(L.charm * 0.4);
-      L.happy = clamp(L.happy - 30, 0, 100);
-      if (fired) L.job = 'none';
-      b.scandal = { fired, settle, wasMarried };
+      const per2 = D.PERSONALITIES[(L.partner || {}).personality] || {};
+      // 친밀도가 높을수록 조금 더 용서받는다. 불륜(기혼)은 용서 확률이 절반.
+      const forgiveChance = Math.min(0.8, (per2.forgive || 0) + Math.max(0, (L.affection || 0) - 40) / 400) * (wasMarried ? 0.5 : 1);
+      const forgiven = Math.random() < forgiveChance;
+      const partnerName = L.partner ? L.partner.name : '연인';
       const kind = wasMarried ? '불륜' : '양다리';
-      addNews(`😱 ${kind} 발각! ${fired ? '회사에서 해고 + ' : ''}위자료 ${won(settle)}원 (모두와 이별)`, 'bad');
-      flashToast(`😱 ${kind} 발각!${fired ? ' 해고까지...' : ''}`, 'bad');
+      const loverNames = L.lovers.map(x => x.name).join(', ');
+      L.lovers.forEach(x => { const r = metRecord(L, x.name); if (r) r.status = 'ex'; });
+      L.lovers = [];
+
+      if (forgiven) {
+        // 관계는 유지되지만 친밀도·행복·매력에 큰 타격
+        L.affection = Math.max(0, Math.round((L.affection || 0) * 0.3));
+        L.charm = Math.floor(L.charm * 0.75);
+        L.happy = clamp(L.happy - 18, 0, 100);
+        SOCIAL.ensure(L).reputation -= 5;
+        b.scandal = { fired: false, settle: 0, wasMarried, forgiven: true, partnerName };
+        addNews(`😰 ${kind} 발각! 하지만 ${partnerName}님(${per2.name})은 이번 한 번만 넘어가 주었습니다 (${loverNames}와는 정리)`, 'bad');
+        flashToast(`😰 ${kind} 발각… ${partnerName}님이 겨우 참아줬다`, 'bad');
+      } else if (wasMarried) {
+        // 결혼 상태에서의 불륜 — 이혼·위자료, 직장에도 소문이 난다
+        const fired = (L.job && L.job !== 'none') && Math.random() < 0.4;
+        const settle = Math.round(rand(2000000, 12000000));
+        LOAN.addDebt(L, settle, '이혼 위자료·합의금');
+        if (fired) L.job = 'none';
+        SOCIAL.ensure(L).reputation -= 15;
+        breakUp(0.4, 30);
+        b.scandal = { fired, settle, wasMarried, forgiven: false, partnerName };
+        addNews(`😱 불륜 발각! 이혼 + ${fired ? '회사에서 해고 + ' : ''}위자료 ${won(settle)}원`, 'bad');
+        flashToast(`😱 불륜 발각!${fired ? ' 해고까지...' : ''}`, 'bad');
+      } else {
+        // 결혼 전 양다리 — 돈이 오갈 일은 없다. 이별 + 소문(평판·매력) 타격
+        SOCIAL.ensure(L).reputation -= 8;
+        breakUp(0.4, 25);
+        b.scandal = { fired: false, settle: 0, wasMarried, forgiven: false, partnerName };
+        addNews(`😱 양다리 발각! ${partnerName}님과 이별하고 ${loverNames}와의 관계도 끝났습니다 (소문이 돌아 평판 하락)`, 'bad');
+        flashToast(`😱 양다리 발각! 모두와 이별...`, 'bad');
+      }
       playSound('crash');
     }
   }
+
+  // 5-2) 인간관계 유지 — 오래 안 만나면 사이가 식고, 가끔 근황이 들려온다
+  updateRelationships(L);
 
   // 6) 행복 자연 감소
   L.happy = clamp(L.happy - LIFE.HAPPY_DECAY, 0, 100);
@@ -1006,13 +1063,26 @@ function maybeLifeEvent() {
 
 function showLifeEvent(ev) {
   const host = $('life-event'); if (!host) return;
+  const L = S.life;
   S._curEvent = ev;
+  // 연애 사건은 '누구와의' 일인지 얼굴과 말투까지 같이 보여준다
+  let who = '';
+  if (ev.cat === 'love' && L.partner) {
+    const per = D.PERSONALITIES[L.partner.personality] || {};
+    const prof = ROMANCE.profileOf(L.partner);
+    who = `<div class="date-profile">
+       <img class="char-thumb" src="${characterPortrait(L.partner)}" alt="${L.partner.name}">
+       <div class="dp-info"><strong>${L.partner.name}</strong> · ${L.partner.job} · ${stageBadge(L.affection)}<br>
+         <span class="muted">${per.emoji || ''}${per.name || ''}${prof ? ` · 🗣️ ${prof.style}` : ''}</span></div>
+     </div>`;
+  }
   host.style.display = 'block';
   host.innerHTML =
     `<div class="window event-window">
        <div class="title-bar event-bar"><div class="title-bar-text">❗ 사건 발생 · ${EVENT_CAT[ev.cat] || ''}</div></div>
        <div class="window-body">
          <div class="event-title">${ev.emoji} ${ev.title}</div>
+         ${who}
          <div class="event-desc">${ev.desc}</div>
          <div class="event-options">
            ${ev.options.map((o, i) => `<button class="event-opt" data-i="${i}">${o.text}</button>`).join('')}
@@ -1034,10 +1104,15 @@ function applyEventEffects(eff) {
   if (eff.happy != null) { L.happy = clamp(L.happy + eff.happy, 0, 100); changes.push(`행복 ${eff.happy >= 0 ? '+' : ''}${eff.happy}`); }
   if (eff.charm != null) { L.charm = Math.max(0, L.charm + eff.charm); changes.push(`매력 ${eff.charm >= 0 ? '+' : ''}${eff.charm}`); }
   if (eff.affection != null) { L.affection = Math.max(0, (L.affection || 0) + eff.affection); changes.push(`친밀도 ${eff.affection >= 0 ? '+' : ''}${eff.affection}`); }
-  if (eff.endRelationshipChance && L.relationship !== 'single' && Math.random() < eff.endRelationshipChance) {
-    const nm = L.partner ? L.partner.name : '연인';
-    L.relationship = 'single'; L.partner = null; L.charm = Math.floor(L.charm * 0.5); L.happy = clamp(L.happy - 10, 0, 100);
-    changes.push(`💔 <b class="down">${nm}와 이별</b>`);
+  if (eff.endRelationshipChance && L.relationship !== 'single') {
+    // 성격이 너그럽거나 친밀도가 높으면 같은 잘못에도 관계가 안 깨질 수 있다
+    const per = D.PERSONALITIES[(L.partner || {}).personality] || {};
+    const resist = (per.forgive || 0) * 0.6 + Math.max(0, (L.affection || 0) - 40) / 500;
+    const chance = Math.max(0, eff.endRelationshipChance * (1 - Math.min(0.85, resist)));
+    if (Math.random() < chance) {
+      const nm = breakUp(0.5, 10);
+      changes.push(`💔 <b class="down">${nm}와 이별</b>`);
+    }
   }
   return changes;
 }
@@ -1221,22 +1296,141 @@ function characterPortrait(c, mood) {
   return emotionFile ? `./assets/characters/${emotionFile}` : '';
 }
 
+/* 구버전 세이브 보정 — 초상화 성별을 맞추며 바뀐 이름을 따라가고, 로스터의 성별·초상화를 다시 붙인다 */
+function migrateLifePeople(L) {
+  const renames = D.CHARACTER_NAME_MIGRATIONS || {};
+  const fix = p => {
+    if (!p || typeof p !== 'object') return p;
+    if (renames[p.name]) { p.name = renames[p.name]; delete p.portrait; }
+    const master = D.CHARACTERS.find(x => x.name === p.name);
+    if (master) { p.gender = master.gender; p.emoji = master.emoji; p.portrait = master.portrait; }
+    return p;
+  };
+  if (!Array.isArray(L.met)) L.met = [];
+  fix(L.partner);
+  L.lovers = (L.lovers || []).map(fix).filter(x => !L.partner || x.name !== L.partner.name);
+  L.met = L.met.map(fix);
+  (L.memories || []).forEach(m => { if (m && renames[m.name]) m.name = renames[m.name]; });
+  // 명부가 없던 세이브 — 지금 만나고 있는 사람들부터 채워 넣는다
+  const seed = (p, status) => {
+    if (!p || L.met.some(m => m.name === p.name)) return;
+    L.met.push(Object.assign({ affection: 0, dates: 0, firstDay: S.day, lastDay: S.day }, p, { status }));
+  };
+  seed(L.partner, 'partner');
+  (L.lovers || []).forEach(x => seed(x, 'lover'));
+}
+
+/* ---- 만난 사람 기억(인간관계 명부) ----
+ * 한 번 만난 사람은 헤어져도 사라지지 않는다. 나이·성격·초상화·호감도를 그대로 들고 있다가
+ * 다음 데이트 화면에 '아는 사람'으로 다시 나타난다. */
+function ensureMet(L) { if (!Array.isArray(L.met)) L.met = []; return L.met; }
+function metRecord(L, name) { return ensureMet(L).find(m => m.name === name); }
+
+function rememberPerson(c, status) {
+  const L = S.life, met = ensureMet(L);
+  let rec = met.find(m => m.name === c.name);
+  if (!rec) {
+    rec = { name: c.name, gender: c.gender, emoji: c.emoji, job: c.job, age: c.age,
+            income: c.income, personality: c.personality, portrait: c.portrait,
+            affection: 0, dates: 0, status: 'acquaintance', firstDay: S.day };
+    met.push(rec);
+  }
+  if (status) rec.status = status;
+  rec.lastDay = S.day;
+  return rec;
+}
+
+/* 호감도 단계 — 사람마다 따로 쌓인다 (어색한 사이 → 알아가는 중 → 썸 → 진지한 사이 → 깊은 사이) */
+function affectionStage(v) {
+  const stages = D.AFFECTION_STAGES || [];
+  let cur = stages[0] || { label: '', emoji: '', desc: '' };
+  stages.forEach(s => { if ((v || 0) >= s.min) cur = s; });
+  return cur;
+}
+function stageBadge(v) {
+  const s = affectionStage(v);
+  return `${s.emoji || ''}${s.label || ''}`;
+}
+
+/* 매달 인간관계 갱신 — 연락이 끊기면 사이가 식고, 아는 사람의 근황이 들려온다.
+ * 연인·배우자는 따로 관리되므로 여기서는 그 외 사람들만 다룬다. */
+function updateRelationships(L) {
+  const met = ensureMet(L);
+  if (!met.length) return;
+  const partnerName = L.partner && L.partner.name;
+  const faded = [];
+  met.forEach(m => {
+    if (m.name === partnerName) { m.idleMonths = 0; return; }
+    m.idleMonths = (m.idleMonths || 0) + 1;
+    if (m.idleMonths < 2) return;
+    // 몰래 만나는 사이는 더 빨리 식는다 (자주 못 보니까)
+    const isLover = (L.lovers || []).some(x => x.name === m.name);
+    const before = m.affection || 0;
+    m.affection = Math.max(0, before - (isLover ? 4 : 2));
+    if (affectionStage(m.affection).key !== affectionStage(before).key) faded.push(m.name);
+    // 완전히 식은 양다리 상대는 알아서 떠난다
+    if (isLover && m.affection <= 0) {
+      L.lovers = L.lovers.filter(x => x.name !== m.name);
+      m.status = 'ex';
+      addNews(`💔 ${m.name}님이 연락을 끊었습니다. "이런 식이면 못 만나겠어."`, 'bad');
+    }
+  });
+  if (faded.length) addNews(`🕸️ 한동안 못 만난 ${faded.join(', ')}님과 사이가 조금 멀어졌습니다`, 'neutral');
+
+  // 아직 연이 남아 있는 사람 중 한 명의 근황 (30% 확률) — 완전히 식은 사이는 소식도 끊긴다
+  const reachable = met.filter(m => (m.affection || 0) > 0);
+  if (reachable.length && Math.random() < 0.3) {
+    const who = pick(reachable);
+    const line = ROMANCE.momentLine(who, 'news');
+    if (line) addNews(`📮 ${who.name}: ${line}`, 'neutral');
+  }
+}
+
+// 지금 이 사람과 어떤 사이인가 — 명부 카드에 붙는 배지
+function relationTag(L, name) {
+  if (L.partner && L.partner.name === name) return L.relationship === 'married' ? '배우자' : '연인';
+  if ((L.lovers || []).some(x => x.name === name)) return '몰래 만나는 중';
+  const rec = metRecord(L, name);
+  return rec && rec.status === 'ex' ? '전 연인' : '아는 사람';
+}
+
+// 이미 아는 사람인가 (연인·양다리 상대·명부 등재자)
+function isKnownPerson(L, name) {
+  return (L.partner && L.partner.name === name) ||
+         (L.lovers || []).some(x => x.name === name) ||
+         !!metRecord(L, name);
+}
+
 // 데이트 상대 프로필 생성 (이름·나이·직업·성격) — 경로(route)에 따라 성향 풀이 다름
-function makeCandidate(route) {
+// 이미 아는 사람은 새 소개팅 상대로 다시 뽑지 않는다(같은 사람이 초면인 척 등장하던 버그).
+function makeCandidate(route, exclude) {
+  const L = S.life;
   if (route && route.fixed && D.SPECIAL_CHARACTERS[route.fixed]) {
     const fixed=Object.assign({},D.SPECIAL_CHARACTERS[route.fixed]);
     Object.assign(fixed,ROMANCE_META[fixed.personality]||ROMANCE_META.caring);
     return fixed;
   }
   let pool = D.CHARACTERS;
-  if (route && Array.isArray(route.pool)) {
+  if (route && Array.isArray(route.pool) && route.pool.length) {
     const filtered = D.CHARACTERS.filter(c => route.pool.includes(c.personality));
     if (filtered.length) pool = filtered;
   }
-  const c = Object.assign({}, pick(pool));
+  const taken = exclude || [];
+  // 아는 사람이 초면인 척 다시 소개되지 않도록, 정말 처음 보는 사람만 뽑는다
+  const fresh = pool.filter(c => !isKnownPerson(L, c.name) && !taken.includes(c.name));
+  if (!fresh.length) return null;   // 로스터를 다 만났다 — 새로 소개받을 사람 없음
+  const c = Object.assign({}, pick(fresh));
   c.age = 23 + Math.floor(Math.random() * 18);   // 만 23~40세
   Object.assign(c, ROMANCE_META[c.personality] || ROMANCE_META.caring);
   if (route && route.office) c.job = '사내 동료';  // 사내연애: 같은 회사 동료
+  return c;
+}
+
+// 명부에 기록된 사람을 데이트 상대 객체로 되살린다 (나이·직업·초상화 그대로)
+function candidateFromRecord(rec) {
+  const master = D.CHARACTERS.find(x => x.name === rec.name) || {};
+  const c = Object.assign({}, master, rec);
+  Object.assign(c, ROMANCE_META[c.personality] || ROMANCE_META.caring);
   return c;
 }
 
@@ -1250,6 +1444,9 @@ function dateScore(approach) {
   s += (meta.best || []).includes(approach.key) ? 14 : -3;
   s += (S._dateRoute && S._dateRoute.scoreMod) || 0;  // 경로 난이도 보정
   s += (S._dateCandidate && S._dateCandidate.romanceDifficulty) || 0;
+  // 이미 아는 사람이면 쌓아온 호감도만큼 수월해진다 (최대 +20)
+  const rec = S._dateCandidate && metRecord(L, S._dateCandidate.name);
+  if (rec) s += Math.min(20, (rec.affection || 0) * 0.15);
   if (approach.flexReward) s += (S.capital >= (approach.cost || 0) + dateBaseCost()) ? approach.flexReward : -15;
   if (approach.variance) s += rand(-approach.variance, approach.variance);
   s += rand(0, 25);                               // 기본 운
@@ -1260,31 +1457,67 @@ function dateScore(approach) {
 function dateBaseCost() { return S._dateRoute ? (S._dateRoute.cost || D.RELATIONSHIP.DATE_COST) : D.RELATIONSHIP.DATE_COST; }
 
 // 데이트 버튼 → 데이트 상대/경로 고르기 (솔로: 소개팅 / 연애·결혼 중: 연인 or 새 사람=양다리)
-function doDate() { showRouteModal(); }
+function doDate() { showRouteModal(); syncBGM(); }
 
-// 상대 고르기 — 경로마다 서로 다른 사람이 등장, 연애 중이면 연인 카드도 함께
+// 사람 카드 한 장 (연인/아는 사람/새 소개팅 상대 공용)
+function personCardHTML(c, head, attrs, cls) {
+  const per = D.PERSONALITIES[c.personality] || {};
+  const g = (D.GENDER_LABEL || {})[c.gender] || '';
+  const age = c.age ? ` · 만 ${c.age}세` : '';
+  const prof = ROMANCE.profileOf(c);
+  return `<button class="route-card ${cls || ''}" ${attrs}>
+       <div class="rc-head">${head}</div>
+       <div class="rc-person"><img class="char-thumb" src="${characterPortrait(c)}" alt="${c.name}"><span><strong>${c.emoji || ''}${c.name}</strong>${g ? ` · ${g}` : ''}${age} · ${c.job}<br>${per.emoji || ''}${per.name || ''}${prof ? ` <span class="muted">· 🗣️ ${prof.style}</span>` : ''}</span></div>
+     </button>`;
+}
+
+// 상대 고르기 — 연인 / 이미 아는 사람 / 경로별 새 소개팅 상대
 function showRouteModal() {
   const host = $('date-host'); if (!host) return;
   const L = S.life;
+  ensureMet(L);
   const inRel = L.relationship !== 'single' && L.partner;
   const routes = D.DATE_ROUTES.filter(r => !r.needsJob || (L.job && L.job !== 'none'));
-  S._dateOffers = routes.map(r => ({ route: r, cand: makeCandidate(r) }));
+  // 같은 화면에 같은 사람이 두 번 뜨지 않도록 경로별로 순차 배정
+  // 후보 풀이 좁은 경로부터 배정해야 넓은 경로가 먼저 사람을 채가지 않는다 (표시 순서는 원래대로)
+  const taken = [];
+  const poolSize = r => Array.isArray(r.pool) && r.pool.length ? r.pool.length : 99;
+  const assigned = new Map();
+  routes.slice().sort((a, b) => poolSize(a) - poolSize(b)).forEach(r => {
+    const cand = makeCandidate(r, taken);
+    if (cand) { taken.push(cand.name); assigned.set(r.key, cand); }
+  });
+  S._dateOffers = routes.filter(r => assigned.has(r.key)).map(r => ({ route: r, cand: assigned.get(r.key) }));
+
+  // 이미 아는 사람들 — 연인은 따로, 양다리 상대·전 연인·그냥 아는 사람은 여기에
+  S._dateKnown = L.met.filter(m => !(L.partner && L.partner.name === m.name)).map(candidateFromRecord);
+
   let cards = '';
   if (inRel) {
-    cards += `<button class="route-card partner-card" data-partner="1">
-       <div class="rc-head">💞 ${L.relationship === 'married' ? '배우자' : '연인'}과 데이트 <span class="muted">비용 ${won(D.RELATIONSHIP.DATE_COST)}</span></div>
-       <div class="rc-person"><img class="char-thumb" src="${characterPortrait(L.partner)}" alt="${L.partner.name}"><span><strong>${L.partner.name}</strong> · ${L.partner.job}</span></div>
-     </button>`;
+    cards += personCardHTML(Object.assign({ age: L.partner.age || 28 }, L.partner),
+      `💞 ${L.relationship === 'married' ? '배우자' : '연인'}과 데이트 <span class="muted">비용 ${won(D.RELATIONSHIP.DATE_COST)} · 친밀도 ${Math.max(0, L.affection || 0)}</span>`,
+      'data-partner="1"', 'partner-card');
   }
-  cards += S._dateOffers.map((o, i) => {
-    const per = D.PERSONALITIES[o.cand.personality] || {};
-    return `<button class="route-card" data-i="${i}">
-       <div class="rc-head">${o.route.emoji} ${o.route.name} <span class="muted">${o.route.desc} · 비용 ${won(o.route.cost)}</span></div>
-       <div class="rc-person"><img class="char-thumb" src="${characterPortrait(o.cand)}" alt="${o.cand.name}"> <span><strong>${o.cand.name}</strong> · 만 ${o.cand.age}세 · ${o.cand.job}<br>${per.emoji || ''}${per.name || ''}</span></div>
-     </button>`;
-  }).join('');
-  const title = inRel ? '💘 누구와 만날까?' : '💘 소개팅 — 어디서 만날까?';
-  const hint = inRel ? '연인과 데이트하거나 새로운 사람을 몰래 만날 수도 있어요. 양다리는 발각 위험!' : '경로에 따라 만나는 사람이 달라져요.';
+  if (S._dateKnown.length) {
+    cards += `<div class="route-sep">📇 아는 사람 다시 만나기 <span class="muted">비용 ${won(D.RELATIONSHIP.DATE_COST)}</span></div>`;
+    cards += S._dateKnown.map((c, i) => {
+      const tag = relationTag(L, c.name);
+      const idle = c.idleMonths >= 3 ? ` · <span class="down">${c.idleMonths}개월째 못 봄</span>` : '';
+      return personCardHTML(c, `${tag === '몰래 만나는 중' ? '😈' : tag === '전 연인' ? '💔' : '🙂'} ${tag} · ${stageBadge(c.affection)} <span class="muted">호감도 ${Math.round(c.affection || 0)} · ${c.dates || 0}번 만남${idle}</span>`,
+        `data-known="${i}"`, 'known-card');
+    }).join('');
+  }
+  if (S._dateOffers.length) {
+    cards += `<div class="route-sep">💘 새로운 사람 만나기</div>`;
+    cards += S._dateOffers.map((o, i) =>
+      personCardHTML(o.cand, `${o.route.emoji} ${o.route.name} <span class="muted">${o.route.desc} · 비용 ${won(o.route.cost)}</span>`,
+        `data-i="${i}"`)).join('');
+  } else {
+    cards += `<div class="route-sep muted">더 이상 새로 소개받을 사람이 없어요. 아는 사람을 다시 만나보세요.</div>`;
+  }
+  const title = inRel ? '💘 누구와 만날까?' : '💘 소개팅 — 누구를 만날까?';
+  const hint = inRel ? '연인과 데이트하거나 아는 사람·새로운 사람을 몰래 만날 수도 있어요. 양다리는 발각 위험!'
+    : '한 번 만난 사람은 계속 기억해요. 경로에 따라 새로 만나는 사람이 달라집니다.';
   host.style.display = 'block';
   host.innerHTML =
     `<div class="window event-window">
@@ -1303,6 +1536,12 @@ function showRouteModal() {
       showDateModal(S._dateCandidate, null);
       return;
     }
+    if (b.dataset.known != null) {
+      S._dateRoute = null;
+      S._dateCandidate = S._dateKnown[+b.dataset.known];
+      showDateModal(S._dateCandidate, null);
+      return;
+    }
     const o = S._dateOffers[+b.dataset.i];
     S._dateCandidate = o.cand; S._dateRoute = o.route;
     showDateModal(o.cand, o.route);
@@ -1314,27 +1553,48 @@ function showDateModal(c, route) {
   const host = $('date-host'); if (!host) return;
   Object.assign(c, ROMANCE_META[c.personality] || ROMANCE_META.caring, c);
   const per = D.PERSONALITIES[c.personality] || {};
-  const withPartner = !route && S.life.relationship !== 'single';
-  const opts = D.DATE_APPROACHES.map((a, i) =>
-    `<button class="event-opt" data-i="${i}">${a.emoji} ${a.label}<span class="opt-sub">${a.desc}${a.cost ? ` · 추가 ${won(a.cost)}원` : ''}</span></button>`).join('');
+  const L = S.life;
+  const withPartner = !route && L.partner && L.partner.name === c.name;
+  const known = !route && !withPartner;
+  const rec = metRecord(L, c.name);
+  const prof = ROMANCE.profileOf(c);   // 말투·사연 (인물 전용 목소리가 있을 때만)
+  const gLabel = (D.GENDER_LABEL || {})[c.gender] || '';
+  // 감당 못 하는 선택지는 비활성화해서 '돈 없어서 아무것도 못 하고 갇히는' 상황을 막는다
+  const base = dateBaseCost();
+  const opts = D.DATE_APPROACHES.map((a, i) => {
+    const total = base + (a.cost || 0);
+    const poor = S.capital < total;
+    return `<button class="event-opt" data-i="${i}" ${poor ? 'disabled' : ''}>${a.emoji} ${a.label}<span class="opt-sub">${a.desc}${a.cost ? ` · 추가 ${won(a.cost)}원` : ''}${poor ? ` · 💸 현금 ${won(total)}원 필요` : ''}</span></button>`;
+  }).join('');
+  const broke = S.capital < base;
   host.style.display = 'block';
   host.innerHTML =
     `<div class="window event-window">
-       <div class="title-bar event-bar"><div class="title-bar-text">💘 ${withPartner ? '연인과 데이트' : (route ? route.emoji + ' ' + route.name : '데이트')}</div></div>
+       <div class="title-bar event-bar"><div class="title-bar-text">💘 ${withPartner ? (L.relationship === 'married' ? '배우자와 데이트' : '연인과 데이트') : known ? `${relationTag(L, c.name)} 다시 만나기` : (route ? route.emoji + ' ' + route.name : '데이트')}</div>
+         <div class="title-bar-controls"><button aria-label="Close" id="date-x"></button></div></div>
        <div class="window-body">
          <img class="dating-banner compact" src="./assets/dating-lounge.png" alt="레트로 데이트 라운지">
          <div class="date-profile">
            <img id="date-portrait" class="char-portrait" src="${characterPortrait(c)}" alt="${c.name}">
-           <div class="dp-info"><strong>${c.name}</strong> · 만 ${c.age}세<br>
-             <span class="muted">${c.job} · ${per.emoji || ''}${per.name || ''}</span><br>
-             <span class="muted">관심사 ${(c.interests || []).join(' · ')} · 중요 가치 ${c.value || '신뢰'}</span></div>
+           <div class="dp-info"><strong>${c.emoji || ''}${c.name}</strong>${gLabel ? ` · ${gLabel}` : ''} · 만 ${c.age}세<br>
+             <span class="muted">${c.job} · ${per.emoji || ''}${per.name || ''}${prof ? ` · 🗣️ ${prof.style}` : ''}</span><br>
+             <span class="muted">관심사 ${(c.interests || []).join(' · ')} · 중요 가치 ${c.value || '신뢰'}</span>
+             ${prof ? `<br><span class="muted">📖 ${prof.background}</span>` : ''}
+             ${rec ? `<br><span class="muted">${stageBadge(rec.affection)} · ${rec.dates || 0}번 만남 · 호감도 ${Math.round(rec.affection || 0)}</span>` : '<br><span class="muted">🫥 오늘 처음 만나는 사람</span>'}</div>
          </div>
          <div class="event-desc">내 매력 <b>${Math.floor(S.life.charm)}</b> · 직업 매력 <b>+${jobOf().dateBonus || 0}</b>${route && route.scoreMod ? ` · 경로 <b>${route.scoreMod > 0 ? '+' : ''}${route.scoreMod}</b>` : ''} · 데이트 비용 <b>${won(dateBaseCost())}</b></div>
+         ${broke ? `<div class="event-desc down">💸 현금이 ${won(base)}원 이상 있어야 만날 수 있어요. 창을 닫고 돈을 마련한 뒤 다시 오세요.</div>` : ''}
          <div class="event-options">${opts}</div>
+         <div class="close-actions">
+           <button id="date-back">↩ 다른 사람 고르기</button>
+           <button id="date-cancel">닫기</button>
+         </div>
          <div class="event-outcome" id="date-outcome"></div>
        </div>
      </div>`;
   host.querySelectorAll('.event-opt').forEach(b => b.addEventListener('click', () => resolveDate(+b.dataset.i)));
+  const back = $('date-back'); if (back) back.addEventListener('click', showRouteModal);
+  [$('date-x'), $('date-cancel')].forEach(b => { if (b) b.addEventListener('click', closeDateModal); });
 }
 
 function resolveDate(i) {
@@ -1354,26 +1614,52 @@ function resolveDate(i) {
   c.mood = tier === '성공' ? 'happy' : tier === '실패' ? (score < 25 ? 'angry' : 'sad') : 'neutral';
   const datePortrait=$('date-portrait');if(datePortrait)datePortrait.src=characterPortrait(c,c.mood);
   const scene = pick(D.DATE_LINES[tier] || ['...']);
-  const personalityLine = ROMANCE.dateLine(c.personality, tier, a.key, c.name);
+  const prevRec = metRecord(L, c.name);
+  const voiceLine = ROMANCE.dateLine(c, tier, a.key, c.name, {
+    first: !prevRec,                       // 처음 만나는 사람이면 첫인사부터
+    affection: (prevRec && prevRec.affection) || 0,
+  });
   const preference = (c.best || []).includes(a.key) ? '선택한 방식이 상대의 연애 성향과 잘 맞았다.' : '상대는 접근 방식보다 진심을 더 지켜보는 눈치다.';
-  const msg = `${scene}<br><br><b>${personalityLine}</b><br>${preference}`;
+  const msg = `${scene}<br><br><b>${voiceLine}</b><br>${preference}`;
   L.charm = Math.max(0, L.charm + dCharm);
   L.happy = clamp(L.happy + dHappy, 0, 100);
-  if (!S._dateRoute && L.relationship !== 'single') L.affection = Math.max(0, (L.affection || 0) + dCharm);
+  const withPartner = L.partner && L.partner.name === c.name;
+  if (withPartner) L.affection = Math.max(0, (L.affection || 0) + dCharm);
   L.memories = L.memories || [];
   L.memories.unshift({ day: S.day, name: c.name, tier, approach: a.label });
   L.memories = L.memories.slice(0, 5);
 
-  const meetingNew = !!S._dateRoute;   // 경로로 새 사람을 만나는 중
-  let extra = '';
+  // 만난 사람은 명부에 남는다 — 헤어져도, 실패해도 기억한다
+  const rec = rememberPerson(c);
+  const beforeAff = rec.affection || 0;
+  rec.dates = (rec.dates || 0) + 1;
+  rec.affection = Math.max(0, beforeAff + dCharm);
+  rec.age = c.age; rec.job = c.job;
+  rec.idleMonths = 0;   // 방금 만났으니 소원해짐 카운터 초기화
+
+  // 사이가 한 단계 올라갔으면(또는 내려갔으면) 알려준다
+  let stageNote = '';
+  const beforeStage = affectionStage(beforeAff), afterStage = affectionStage(rec.affection);
+  if (beforeStage.key !== afterStage.key) {
+    const up = rec.affection > beforeAff;
+    stageNote = `<br>${up ? '📈' : '📉'} <b class="${up ? 'up' : 'down'}">${c.name}님과의 사이: ${beforeStage.emoji}${beforeStage.label} → ${afterStage.emoji}${afterStage.label}</b> <span class="muted">${afterStage.desc}</span>`;
+  }
+
+  let extra = stageNote;
   if (L.relationship === 'single') {
-    if (tier !== '실패' && L.charm >= R.DATING_AT) { startDating(c); extra = `<br>💕 ${c.name}님과 연애를 시작했어요!`; }
-  } else if (meetingNew && tier === '성공') {
+    if (tier !== '실패' && L.charm >= R.DATING_AT) {
+      const confess = ROMANCE.momentLine(c, 'confess');
+      startDating(c);
+      extra += `<br>💕 <b class="up">${c.name}님과 연애를 시작했어요!</b>${confess ? `<br>${c.name}: ${confess}` : ''}`;
+    }
+  } else if (!withPartner && tier === '성공') {
     L.lovers = L.lovers || [];
-    const dup = (L.partner && L.partner.name === c.name) || L.lovers.some(x => x.name === c.name);
-    if (!dup) {
-      L.lovers.push({ name: c.name, job: c.job, personality: c.personality, age: c.age, emoji: c.emoji });
-      extra = `<br>💘 <b class="down">${c.name}님과도 몰래 만나기 시작… 양다리! (발각 주의)</b>`;
+    if (!L.lovers.some(x => x.name === c.name)) {
+      L.lovers.push({ name: c.name, job: c.job, personality: c.personality, age: c.age, emoji: c.emoji, gender: c.gender, portrait: c.portrait });
+      rec.status = 'lover';
+      extra += `<br>💘 <b class="down">${c.name}님과도 몰래 만나기 시작… 양다리! (발각 주의)</b>`;
+    } else {
+      extra += `<br>😈 <span class="down">${c.name}님과 몰래 만남을 이어갔다. (${stageBadge(rec.affection)})</span>`;
     }
   }
   addNews(`💘 ${c.name}와의 데이트 — ${tier}`, tier === '실패' ? 'bad' : 'good');
@@ -1381,6 +1667,7 @@ function resolveDate(i) {
 
   const host = $('date-host');
   const ow = host.querySelector('.event-options'); if (ow) ow.innerHTML = '';
+  const ca = host.querySelector('.close-actions'); if (ca) ca.remove();   // 결과가 나오면 '다른 사람 고르기'는 감춘다
   const changes = [`매력 ${dCharm >= 0 ? '+' : ''}${dCharm}`, `행복 ${dHappy >= 0 ? '+' : ''}${dHappy}`, `현금 -${won(cost)}`];
   $('date-outcome').innerHTML =
     `<div class="oc-text"><b class="${tier === '실패' ? 'down' : 'up'}">[${tier}]</b> ${msg}${extra}</div>` +
@@ -1392,6 +1679,7 @@ function resolveDate(i) {
 
 function closeDateModal() {
   const h = $('date-host'); if (h) { h.style.display = 'none'; h.innerHTML = ''; }
+  syncBGM();   // 데이트 트랙 → 원래 장면 트랙으로
   S._dateCandidate = null; S._dateRoute = null; S._dateOffers = null;
   if (S.phase === 'closed' && $('market-close') && $('market-close').style.display === 'block') renderCloseReport(S.day);
 }
@@ -1402,6 +1690,9 @@ function startDating(partnerObj) {
   L.relationship = 'dating';
   L.partner = Object.assign({}, partnerObj);
   L.partner.mood = 'happy';
+  L.lovers = (L.lovers || []).filter(x => x.name !== L.partner.name);   // 애인이 됐으면 양다리 목록에서 뺀다
+  const rec = rememberPerson(L.partner, 'partner');
+  L.affection = Math.round(rec.affection || 0);   // 그동안 쌓은 호감도를 이어받는다
   L.happy = clamp(L.happy + 15, 0, 100);
   const per = D.PERSONALITIES[L.partner.personality] || {};
   addNews(`💕 ${L.partner.name}(${L.partner.job}·${per.name})님과 연애 시작!`, 'good');
@@ -1409,10 +1700,34 @@ function startDating(partnerObj) {
   celebrate(); playSound('buy');
 }
 
+/* 이별 처리 공용 — 헤어진 상대는 명부에 '전 연인'으로 남아 다시 만날 수 있다.
+ * charmPenalty: 매력에 곱할 비율, happyPenalty: 행복 감소치 */
+function breakUp(charmPenalty, happyPenalty) {
+  const L = S.life;
+  const name = L.partner ? L.partner.name : '연인';
+  if (L.partner) {
+    const rec = rememberPerson(L.partner, 'ex');
+    rec.affection = Math.max(0, Math.round((L.affection || 0) * 0.5));   // 미련은 절반쯤 남는다
+    const parting = ROMANCE.momentLine(L.partner, 'parting');
+    if (parting) addNews(`💔 ${name}: ${parting}`, 'bad');
+  }
+  L.relationship = 'single';
+  L.partner = null;
+  L.affection = 0;
+  if (charmPenalty != null) L.charm = Math.floor(L.charm * charmPenalty);
+  if (happyPenalty) L.happy = clamp(L.happy - happyPenalty, 0, 100);
+  return name;
+}
+
 // 취미 등으로 매력이 임계치를 넘으면 자동으로 연애 시작(랜덤 상대)
 function checkRelationship() {
   const L = S.life, R = D.RELATIONSHIP;
-  if (L.relationship === 'single' && L.charm >= R.DATING_AT) startDating(makeCandidate());
+  if (L.relationship !== 'single' || L.charm < R.DATING_AT) return;
+  // 아는 사람이 있으면 그중 호감도가 가장 높은 사람과, 없으면 새로 만난 사람과 시작
+  const known = ensureMet(L).slice().sort((a, b) => (b.affection || 0) - (a.affection || 0))[0];
+  const who = (known && (known.affection || 0) >= 20 ? candidateFromRecord(known) : null)
+    || makeCandidate() || (known ? candidateFromRecord(known) : null);
+  if (who) startDating(who);
 }
 
 function doMarriage() {
@@ -1517,10 +1832,17 @@ function renderLifePanel() {
   let partnerRow = '';
   if (L.partner) {
     const per = D.PERSONALITIES[L.partner.personality] || {};
-    partnerRow = `<div class="life-partner"><img class="char-thumb" src="${characterPortrait(L.partner)}" alt="${L.partner.name}"><strong>${L.partner.name} · ${L.partner.job}<br><span class="muted">${per.emoji || ''}${per.name || ''}</span></strong></div>`;
+    const g = (D.GENDER_LABEL || {})[L.partner.gender] || '';
+    const prof = ROMANCE.profileOf(L.partner);
+    partnerRow = `<div class="life-partner"><img class="char-thumb" src="${characterPortrait(L.partner)}" alt="${L.partner.name}"><strong>${L.partner.name}${g ? ` (${g})` : ''} · ${L.partner.job} · ${stageBadge(L.affection)}<br><span class="muted">${per.emoji || ''}${per.name || ''} · 용서 성향 ${Math.round((per.forgive || 0) * 100)}%${prof ? `<br>🗣️ ${prof.style}` : ''}</span></strong></div>`;
   }
   if (L.lovers && L.lovers.length) {
     partnerRow += `<div class="life-stat"><span>양다리 😈</span><strong class="down">${L.lovers.map(x => (x.emoji || '💔') + x.name).join(', ')} <span class="muted">(발각 주의!)</span></strong></div>`;
+  }
+  const met = ensureMet(L);
+  if (met.length) {
+    partnerRow += `<div class="life-stat"><span>아는 사람 📇</span><strong>${met.length}명</strong></div>` +
+      `<div class="life-props">${met.map(m => `${m.emoji || '🙂'}<b>${m.name}</b> ${relationTag(L, m.name)} · ${stageBadge(m.affection)} ${Math.round(m.affection || 0)}${m.idleMonths >= 3 ? ` <span class="muted">(${m.idleMonths}개월째 연락 없음)</span>` : ''}`).join('<br>')}</div>`;
   }
   el.innerHTML =
     `<div class="life-stat"><span>나이/시점</span><strong>${info.label}</strong></div>
@@ -1725,9 +2047,71 @@ function shortSellingPower() {
 /* ------------------------------------------------------------------ 트레이딩 */
 function curStock() { return S.stocks.filter(s => s.listed)[S.selected] || S.stocks.filter(s => s.listed)[0]; }
 
+/* ---- 예약주문: 장 마감 중에 걸어두고 다음 개장 시초가에 체결 ---- */
+function queueOrder(side, qty) {
+  const stock = curStock();
+  if (!stock) return;
+  qty = Math.floor(qty);
+  if (!(qty >= 1)) { flashToast('수량을 1주 이상 입력하세요', 'neutral'); return; }
+  S.pendingOrders = S.pendingOrders || [];
+  if (S.pendingOrders.length >= 20) { flashToast('예약주문은 최대 20건까지 가능합니다', 'bad'); return; }
+  // 같은 종목·같은 방향은 한 건으로 합친다
+  const same = S.pendingOrders.find(o => o.name === stock.name && o.side === side);
+  if (same) same.qty += qty;
+  else S.pendingOrders.push({ id: 'po' + Date.now() + Math.random().toString(36).slice(2, 6), name: stock.name, side, qty });
+  const label = side === 'buy' ? '매수' : '매도';
+  flashToast(`📌 ${stock.name} ${qty}주 ${label} 예약 · 다음 개장 시초가 체결`, 'good');
+  playSound('buy');
+  renderPendingOrders(); autoSave();
+}
+
+function cancelOrder(id) {
+  S.pendingOrders = (S.pendingOrders || []).filter(o => o.id !== id);
+  flashToast('예약주문을 취소했습니다', 'neutral');
+  renderPendingOrders(); autoSave();
+}
+
+// 개장 직후 실행 — 예약주문을 시초가(직전 종가)로 순서대로 체결
+function runPendingOrders() {
+  const orders = S.pendingOrders || [];
+  if (!orders.length) return;
+  S.pendingOrders = [];
+  orders.forEach(o => {
+    const live = S.stocks.filter(s => s.listed);
+    const i = live.findIndex(s => s.name === o.name);
+    if (i < 0) { addNews(`📌 예약주문 실패 · ${o.name} 상장폐지`, 'bad'); return; }
+    const prevSelected = S.selected, prevTrades = S.trades;
+    S.selected = i;
+    if (o.side === 'buy') buy(o.qty); else sell(o.qty);
+    S.selected = prevSelected;
+    // buy/sell 은 체결에 성공해야 trades 를 올린다 — 안 올랐으면 자금·수량 부족으로 불발
+    if (S.trades === prevTrades) {
+      addNews(`📌 예약주문 불발 · ${o.name} ${o.qty}주 ${o.side === 'buy' ? '매수' : '매도'} (자금·수량 부족)`, 'bad');
+    }
+  });
+  flashToast(`📌 예약주문 ${orders.length}건 처리 완료`, 'neutral');
+  renderPendingOrders();
+}
+
+function renderPendingOrders() {
+  const el = $('pending-orders');
+  if (!el) return;
+  const orders = S.pendingOrders || [];
+  if (!orders.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = 'block';
+  el.innerHTML = `<div class="po-title">📌 예약주문 ${orders.length}건 <span class="muted">다음 개장 시초가에 체결</span></div>` +
+    orders.map(o => {
+      const price = priceOf(o.name);
+      return `<div class="po-row"><span class="${o.side === 'buy' ? 'up' : 'down'}">${o.side === 'buy' ? '매수' : '매도'}</span>
+        <strong>${o.name}</strong> ${o.qty}주 <span class="muted">(현재가 ${won(price)}원 · 약 ${won(price * o.qty)}원)</span>
+        <button class="po-cancel" data-id="${o.id}">취소</button></div>`;
+    }).join('');
+  el.querySelectorAll('.po-cancel').forEach(b => b.addEventListener('click', () => cancelOrder(b.dataset.id)));
+}
+
 function buy(qty) {
   if (S.life && S.life.jailMonths > 0) { flashToast(`🔒 수감 중 · ${S.life.jailMonths}개월 남음`, 'bad'); return; }
-  if (S.phase !== 'open') { flashToast('🔒 장 마감 상태입니다. 먼저 개장하세요', 'bad'); return; }
+  if (S.phase !== 'open') return queueOrder('buy', qty);   // 장 마감 중 → 예약주문
   const stock = curStock();
   if (!stock) return;
   qty = Math.floor(qty);
@@ -1764,7 +2148,7 @@ function buy(qty) {
 
 function sell(qty) {
   if (S.life && S.life.jailMonths > 0) { flashToast(`🔒 수감 중 · ${S.life.jailMonths}개월 남음`, 'bad'); return; }
-  if (S.phase !== 'open') { flashToast('🔒 장 마감 상태입니다. 먼저 개장하세요', 'bad'); return; }
+  if (S.phase !== 'open') return queueOrder('sell', qty);   // 장 마감 중 → 예약주문
   const stock = curStock();
   if (!stock) return;
   qty = Math.floor(qty);
@@ -1867,6 +2251,7 @@ function sellMax() {
 function renderAll() {
   renderStockList();
   renderOwned();
+  renderPendingOrders();
   renderCapital();
   renderIssues();
   renderNews();
@@ -2177,6 +2562,47 @@ function flashToast(msg, cls) {
   setTimeout(() => { box.classList.remove('show'); setTimeout(() => box.remove(), 300); }, 2200);
 }
 
+/* ------------------------------------------------------------------ 배경음악 */
+const BGM = window.QT_BGM;
+
+// 지금 화면에 맞는 트랙을 고른다 (데이트 > 마감 리포트 > 장중)
+function bgmScene() {
+  const dateOpen = $('date-host') && $('date-host').style.display === 'block';
+  if (dateOpen) return 'date';
+  return S.phase === 'open' ? 'market' : 'closed';
+}
+function syncBGM() {
+  if (!BGM || !S.bgmOn) return;
+  BGM.play(bgmScene());
+}
+function toggleBGM(on) {
+  if (!BGM) return;
+  S.bgmOn = on == null ? !S.bgmOn : !!on;
+  BGM.setEnabled(S.bgmOn);
+  if (S.bgmOn) BGM.play(bgmScene(), true);
+  const btn = $('bgm-toggle');
+  if (btn) { btn.textContent = S.bgmOn ? '🎵 음악 ON' : '🎵 음악 OFF'; btn.classList.toggle('on', S.bgmOn); }
+  try { localStorage.setItem('qt_bgm', JSON.stringify({ on: S.bgmOn, vol: BGM.getVolume() })); } catch (e) {}
+}
+
+/* 저장된 음악 설정 복원. 브라우저가 사용자 조작 전 재생을 막으므로,
+ * 켜져 있던 경우엔 첫 클릭/터치 때 실제로 재생을 시작한다. */
+function restoreBGMPref() {
+  if (!BGM) return;
+  let pref = {};
+  try { pref = JSON.parse(localStorage.getItem('qt_bgm')) || {}; } catch (e) {}
+  if (pref.vol != null) BGM.setVolume(pref.vol);
+  const volEl = $('bgm-vol'); if (volEl) volEl.value = Math.round(BGM.getVolume() * 100);
+  if (!pref.on) { toggleBGM(false); return; }
+  S.bgmOn = true;
+  BGM.setEnabled(true);
+  const btn = $('bgm-toggle');
+  if (btn) { btn.textContent = '🎵 음악 ON'; btn.classList.add('on'); }
+  const arm = () => { syncBGM(); document.removeEventListener('pointerdown', arm); document.removeEventListener('keydown', arm); };
+  document.addEventListener('pointerdown', arm);
+  document.addEventListener('keydown', arm);
+}
+
 let audioCtx;
 function playSound(kind) {
   if (!S.soundOn) return;
@@ -2260,7 +2686,7 @@ function autoSave() {
       trades: S.trades, realizedPnL: S.realizedPnL, shortsClosed: S.shortsClosed,
       maxNetWorth: S.maxNetWorth, watchlist: S.watchlist,
       loan: S.loan, leverage: S.leverage, usedLeverage: S.usedLeverage, marginCalled: S.marginCalled,
-      awaitingNextDay: S.awaitingNextDay, life: S.life, economy: S.economy,
+      awaitingNextDay: S.awaitingNextDay, pendingOrders: S.pendingOrders, life: S.life, economy: S.economy,
       stocks: S.stocks.map(s => ({ name: s.name, history: s.history.slice(-20), listed: s.listed, trend: s.trend })),
       netWorthHist: S.netWorthHist.slice(-60),
       bots: S.bots.map(b => ({ name: b.name, capital: b.capital, owned: b.owned, jailMonths: b.jailMonths, criminalRecord: b.criminalRecord, monthlyProfit: b.monthlyProfit })),
@@ -2280,12 +2706,14 @@ function loadSave() {
     S.loan = d.loan || 0; S.leverage = d.leverage || 1;
     S.usedLeverage = !!d.usedLeverage; S.marginCalled = !!d.marginCalled;
     S.awaitingNextDay = !!d.awaitingNextDay;   // 저장 시점이 마감 후였다면 개장 버튼이 다음달로
+    S.pendingOrders = Array.isArray(d.pendingOrders) ? d.pendingOrders : [];
     S.life = Object.assign(newLife(), d.life || {});
     S.economy = ECONOMY.ensure(d.economy);
     LOAN.ensure(S.life); HEALTH.ensure(S.life); FAMILY.ensure(S.life);
     CAREER.ensure(S.life); HOUSING.ensure(S.life); LIFE_FINANCE.ensure(S.life);
     CHILD_EVENTS.ensure(S.life); SOCIAL.ensure(S.life); JUSTICE.ensure(S.life); LEGACY.ensure(S.life);
     if (typeof S.life.partner === 'string') S.life.partner = null;   // 구버전 세이브(문자열 상대) 호환
+    migrateLifePeople(S.life);
     S.netWorthHist = d.netWorthHist && d.netWorthHist.length ? d.netWorthHist : [S.capital];
     (d.stocks || []).forEach(sv => {
       const savedName = (D.COMPANY_NAME_MIGRATIONS || {})[sv.name] || sv.name;
@@ -2354,6 +2782,7 @@ function wire() {
   });
   $('pause-btn').addEventListener('click', togglePause);
   $('session-btn').addEventListener('click', () => { S.phase === 'open' ? closeMarket() : openMarket(); });
+  $('report-btn').addEventListener('click', reopenReport);
   document.querySelectorAll('.speed-btn').forEach(b => b.addEventListener('click', () => setSpeed(+b.dataset.speed)));
   $('sector-filter').addEventListener('change', renderStockList);
   $('leverage-select').addEventListener('change', e => {
@@ -2364,6 +2793,12 @@ function wire() {
   $('chart-line').addEventListener('click', () => { S.chartMode = 'line'; renderChart(); toggleChartBtn(); });
   $('chart-candle').addEventListener('click', () => { S.chartMode = 'candle'; renderChart(); toggleChartBtn(); });
   $('sound-toggle').addEventListener('change', e => S.soundOn = e.target.checked);
+  $('bgm-toggle').addEventListener('click', () => toggleBGM());
+  $('bgm-vol').addEventListener('input', e => {
+    if (!BGM) return;
+    BGM.setVolume(+e.target.value / 100);
+    try { localStorage.setItem('qt_bgm', JSON.stringify({ on: S.bgmOn, vol: BGM.getVolume() })); } catch (err) {}
+  });
   $('tts-toggle').addEventListener('change', e => S.ttsOn = e.target.checked);
   $('save-btn').addEventListener('click', () => { autoSave(); flashToast('💾 저장 완료', 'good'); });
   $('share-btn').addEventListener('click', shareURL);
@@ -2411,6 +2846,7 @@ function boot() {
   renderAll();
   setSpeed(1);
   toggleChartBtn();
+  restoreBGMPref();
   renderMarketPhase();
   if (!S.life.started) {
     if(!S.life.tutorialSeen)showTutorial();else showJobModal(false);

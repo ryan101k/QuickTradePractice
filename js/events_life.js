@@ -150,3 +150,188 @@ const LIFE_EVENTS = [
     ],
   },
 ];
+
+/* =========================================================================
+ *  추가 이벤트 — 투자자로 사는 일상의 압박, 돈과 사람 사이의 선택
+ * ========================================================================= */
+LIFE_EVENTS.push(
+  /* ---------------- 투자자의 일상 ---------------- */
+  {
+    id: 'inv_hotlist', cat: 'life', emoji: '📱', title: '단톡방 성지글',
+    desc: '주식 단톡방에 "이번 주 안에 두 배 간다"는 종목 하나가 계속 올라옵니다. 이미 몇 명은 샀다고 인증했습니다.',
+    options: [
+      { text: '직접 재무제표부터 열어본다', effects: { happy: -2 }, outcome: '적자에 부채비율 400%였다. 조용히 창을 닫았다.' },
+      { text: '소액만 따라 들어간다', effects: { cash: [-3000000, 4000000] }, outcome: '결과는 반반이었다. 다만 하루 종일 호가창만 봤다.' },
+      { text: '단톡방을 나간다', effects: { happy: 8 }, outcome: '알림이 사라지자 머리가 맑아졌다.' },
+    ],
+  },
+  {
+    id: 'inv_lossnight', cat: 'life', emoji: '🌙', title: '잠 못 드는 밤',
+    desc: '계좌가 크게 물렸습니다. 새벽 세 시, 미국 선물 지수를 열 번째 새로고침하고 있습니다.',
+    cond: c => c.loan > 0 || c.happy < 60,
+    options: [
+      { text: '휴대폰을 끄고 눕는다', effects: { happy: 6 }, outcome: '아침에 보니 그새 반등해 있었다. 밤새 봐도 달라질 건 없었다.' },
+      { text: '손실 원인을 노트에 정리한다', effects: { happy: 3, charm: 2 }, outcome: '"진입 근거 없음"이라고 쓰고 나니 부끄러웠지만, 기록이 남았다.' },
+      { text: '물타기 할 돈을 계산한다', effects: { cash: -2000000, happy: -8 }, outcome: '평단은 낮아졌지만 잠은 더 안 왔다.' },
+    ],
+  },
+  {
+    id: 'inv_friendtip', cat: 'life', emoji: '🤫', title: '친구의 내부 정보',
+    desc: '대기업에 다니는 친구가 "다음 주 공시 나기 전에 사둬"라며 종목을 알려줍니다.',
+    options: [
+      { text: '정중히 거절하고 화제를 돌린다', effects: { happy: 4 }, outcome: '"조심하는 게 맞지." 친구도 머쓱해하며 웃었다.' },
+      { text: '친구에게 위험하다고 말려준다', effects: { happy: 6, charm: 3 }, outcome: '며칠 뒤 친구가 고맙다고 연락이 왔다. 실제로 조사가 있었다고 한다.' },
+      { text: '조용히 사둔다', effects: { cash: [-8000000, 15000000], happy: -5 }, outcome: '수익은 났지만, 공시 뜨는 날까지 심장이 내려앉았다.' },
+    ],
+  },
+  {
+    id: 'inv_youtube', cat: 'life', emoji: '📺', title: '유료 리딩방 광고',
+    desc: '"월 수익률 40% 보장"이라는 리딩방 광고가 계속 따라다닙니다. 첫 달은 반값이라고 합니다.',
+    options: [
+      { text: '무시한다', effects: {}, outcome: '보장이라는 단어가 이미 답이었다.' },
+      { text: '한 달만 결제해본다', effects: { cash: -1500000, happy: -6 }, outcome: '"지금 들어가세요"만 반복했다. 환불은 안 된다고 한다.' },
+      { text: '금융감독원에 신고한다', effects: { happy: 7 }, outcome: '며칠 뒤 그 계정이 사라졌다.' },
+    ],
+  },
+  {
+    id: 'inv_windfall', cat: 'life', emoji: '🎯', title: '뜻밖의 수익',
+    desc: '오래전 잊고 있던 종목이 급등해 계좌에 큰 수익이 찍혔습니다. 손이 떨립니다.',
+    cond: c => c.happy >= 40,
+    options: [
+      { text: '절반만 익절하고 나머지는 둔다', effects: { cash: [3000000, 9000000], happy: 8 }, outcome: '욕심과 두려움을 반반씩 인정한 선택이었다.' },
+      { text: '전부 팔고 한동안 쉰다', effects: { cash: [5000000, 12000000], happy: 5 }, outcome: '계좌를 닫고 오랜만에 푹 잤다.' },
+      { text: '수익금 전부를 몰빵한다', effects: { cash: [-15000000, 30000000], happy: -4 }, outcome: '결과가 어떻든, 이 습관은 언젠가 대가를 치른다.' },
+    ],
+  },
+
+  /* ---------------- 사람과 돈 사이 ---------------- */
+  {
+    id: 'life_lendfriend', cat: 'life', emoji: '🙏', title: '친구의 돈 부탁',
+    desc: '오래된 친구가 "석 달만"이라며 목돈을 빌려달라고 합니다. 눈을 잘 못 마주칩니다.',
+    options: [
+      { text: '빌려주되 차용증을 쓴다', effects: { cash: -5000000, happy: 2 }, outcome: '"이렇게 하는 게 서로 편하지." 친구도 고개를 끄덕였다.' },
+      { text: '못 갚아도 될 만큼만 준다', effects: { cash: -1500000, happy: 6 }, outcome: '돌려받을 생각을 접자 관계가 편해졌다.' },
+      { text: '거절한다', effects: { happy: -5 }, outcome: '그날 이후 연락이 뜸해졌다.' },
+    ],
+  },
+  {
+    id: 'life_familyask', cat: 'life', emoji: '🏠', title: '가족의 사업 자금',
+    desc: '가족이 사업을 해보겠다며 투자를 부탁합니다. 계획서는 두 장짜리입니다.',
+    options: [
+      { text: '사업계획을 같이 다시 짠다', effects: { happy: 5, cash: -500000 }, outcome: '숫자를 채워 넣다 보니 가족도 스스로 무리라는 걸 알았다.' },
+      { text: '잃어도 되는 돈만 투자한다', effects: { cash: [-10000000, 20000000] }, outcome: '결과는 하늘에 맡겼다. 관계는 지켰다.' },
+      { text: '단호히 거절한다', effects: { happy: -8 }, outcome: '명절 밥상이 조용해졌다.' },
+    ],
+  },
+  {
+    id: 'life_flexpost', cat: 'life', emoji: '📸', title: '수익 인증의 유혹',
+    desc: '수익 캡처를 SNS에 올릴까 고민 중입니다. 손가락이 업로드 버튼 위에 멈춰 있습니다.',
+    options: [
+      { text: '올리지 않는다', effects: { happy: 3 }, outcome: '조용히 버는 게 오래 버는 길이라고 되뇌었다.' },
+      { text: '올린다', effects: { charm: 5, happy: -3 }, outcome: '좋아요는 늘었지만, 돈 빌려달라는 DM도 세 통 왔다.' },
+      { text: '손실 캡처를 같이 올린다', effects: { charm: 8, happy: 5 }, outcome: '"이 사람은 솔직하네"라는 댓글이 달렸다.' },
+    ],
+  },
+  {
+    id: 'life_oldfriend', cat: 'life', emoji: '☎️', title: '10년 만의 연락',
+    desc: '10년 만에 연락 온 동창이 커피를 사겠다고 합니다. 어쩐지 보험 이야기가 나올 것 같습니다.',
+    options: [
+      { text: '나가서 옛날 얘기만 하고 온다', effects: { happy: 7, cash: -30000 }, outcome: '정말 옛날 얘기만 했다. 괜히 의심한 게 미안했다.' },
+      { text: '용건을 먼저 물어본다', effects: { happy: 2 }, outcome: '"사실은…" 예상대로였지만, 솔직해서 오히려 덜 불편했다.' },
+      { text: '바쁘다고 미룬다', effects: { happy: -2 }, outcome: '두 번 다시 연락은 오지 않았다.' },
+    ],
+  },
+
+  /* ---------------- 몸과 마음 ---------------- */
+  {
+    id: 'life_backpain', cat: 'life', emoji: '🪑', title: '굳어버린 어깨',
+    desc: '하루 종일 차트를 보다 보니 목과 어깨가 돌처럼 굳었습니다.',
+    options: [
+      { text: '정형외과에 간다', effects: { cash: -300000, happy: 6 }, outcome: '자세 교정 처방을 받았다. 확실히 낫다.' },
+      { text: '스트레칭 습관을 만든다', effects: { happy: 8 }, outcome: '한 시간에 한 번 알람을 맞췄다. 돈도 안 들었다.' },
+      { text: '진통제로 버틴다', effects: { cash: -50000, happy: -4 }, outcome: '당장은 괜찮지만 점점 잦아진다.' },
+    ],
+  },
+  {
+    id: 'life_burnout', cat: 'life', emoji: '🕯️', title: '아무것도 하기 싫은 날',
+    desc: '아침에 눈을 떴는데 아무것도 하고 싶지 않습니다. 계좌를 열 마음도 안 납니다.',
+    cond: c => c.happy < 50,
+    options: [
+      { text: '하루 완전히 쉰다', effects: { happy: 14 }, outcome: '알림을 다 끄고 잤다. 세상은 아무 일 없이 돌아갔다.' },
+      { text: '가까운 사람에게 털어놓는다', effects: { happy: 10, charm: 2 }, outcome: '"나도 그래." 그 한마디가 컸다.' },
+      { text: '억지로 평소처럼 지낸다', effects: { happy: -6 }, outcome: '버티긴 했지만, 다음 주에 더 크게 왔다.' },
+    ],
+  },
+  {
+    id: 'life_moving', cat: 'life', emoji: '📦', title: '전세 만기 통보',
+    desc: '집주인이 만기에 맞춰 보증금을 올리겠다고 연락했습니다.',
+    options: [
+      { text: '주변 시세를 조사해 협상한다', effects: { cash: -1000000, happy: 5 }, outcome: '근거를 들이대자 인상폭이 절반으로 줄었다.' },
+      { text: '요구를 받아들인다', effects: { cash: -8000000, happy: -3 }, outcome: '이사 비용보다는 싸다고 스스로를 설득했다.' },
+      { text: '더 싼 곳으로 이사한다', effects: { cash: -3000000, happy: -6 }, outcome: '출퇴근이 40분 늘었다. 통장은 조금 편해졌다.' },
+    ],
+  },
+  {
+    id: 'life_parenthealth', cat: 'life', emoji: '🏥', title: '부모님의 검진 결과',
+    desc: '부모님 건강검진에서 재검사가 필요하다는 연락이 왔습니다.',
+    options: [
+      { text: '휴가를 내고 같이 병원에 간다', effects: { cash: -500000, happy: 10 }, outcome: '다행히 큰 문제는 아니었다. 같이 간 게 더 오래 기억에 남았다.' },
+      { text: '검사비를 보내드린다', effects: { cash: -1500000, happy: 4 }, outcome: '"바쁜데 뭐하러." 목소리는 서운함 반, 고마움 반이었다.' },
+      { text: '결과 나오면 알려달라고 한다', effects: { happy: -7 }, outcome: '결과는 괜찮았다. 다만 그 통화가 계속 마음에 걸렸다.' },
+    ],
+  },
+
+  /* ---------------- 직장 ---------------- */
+  {
+    id: 'job_sidehustle', cat: 'job', emoji: '🌙', title: '부업 제안',
+    desc: '주말에만 하면 되는 부업 제안이 들어왔습니다. 회사 규정상 겸업은 애매합니다.',
+    cond: c => c.job !== 'none',
+    options: [
+      { text: '회사에 먼저 확인한다', effects: { happy: 3 }, outcome: '신고 후 승인받았다. 마음 편히 시작했다.' },
+      { text: '몰래 시작한다', effects: { cash: [1000000, 4000000], happy: -5 }, outcome: '돈은 들어오지만 들킬까 봐 계속 신경이 쓰인다.' },
+      { text: '거절하고 본업에 집중한다', effects: { happy: 5 }, outcome: '한 우물을 파기로 했다.' },
+    ],
+  },
+  {
+    id: 'job_blame', cat: 'job', emoji: '🫥', title: '남의 실수, 내 이름',
+    desc: '동료의 실수로 생긴 문제인데 회의에서 내 이름이 거론됐습니다.',
+    cond: c => c.job !== 'none',
+    options: [
+      { text: '기록을 정리해 조용히 해명한다', effects: { happy: 4, charm: 3 }, outcome: '감정 없이 사실만 정리해 보내자 정정됐다.' },
+      { text: '회의 자리에서 바로 반박한다', effects: { happy: -3 }, outcome: '사실은 밝혀졌지만 분위기는 오래 껄끄러웠다.' },
+      { text: '그냥 뒤집어쓴다', effects: { happy: -10 }, outcome: '한 번 넘어가자 다음에도 같은 일이 생겼다.' },
+    ],
+  },
+  {
+    id: 'job_counteroffer', cat: 'job', emoji: '💼', title: '역제안',
+    desc: '이직 의사를 밝히자 회사가 연봉 인상을 제안합니다.',
+    cond: c => c.job !== 'none',
+    options: [
+      { text: '조건을 문서로 남기고 남는다', effects: { cash: [2000000, 6000000], happy: 4 }, outcome: '구두 약속은 사라진다는 걸 알고 있었다.' },
+      { text: '그래도 나간다', effects: { happy: 6 }, outcome: '돈 때문에 나가는 게 아니었다.' },
+      { text: '구두 약속만 믿고 남는다', effects: { happy: -6 }, outcome: '반년 뒤, 그런 얘기 한 적 없다는 답이 돌아왔다.' },
+    ],
+  },
+
+  /* ---------------- 빚 ---------------- */
+  {
+    id: 'debt_bundle', cat: 'debt', emoji: '🧮', title: '빚 정리 상담',
+    desc: '여러 곳에 흩어진 빚을 한 곳으로 묶어주겠다는 안내를 받았습니다.',
+    cond: c => c.loan > 5000000,
+    options: [
+      { text: '금리를 비교해 갈아탄다', effects: { debt: -3000000, happy: 6 }, outcome: '이자 부담이 눈에 띄게 줄었다.' },
+      { text: '수수료가 아까워 그냥 둔다', effects: {}, outcome: '아무것도 달라지지 않았다.' },
+      { text: '한도를 더 받아 생활비로 쓴다', effects: { cash: 3000000, debt: 5000000, happy: -4 }, outcome: '당장은 숨통이 트였지만 원금은 늘었다.' },
+    ],
+  },
+  {
+    id: 'debt_collector_calls', cat: 'debt', emoji: '📞', title: '하루 열 통의 전화',
+    desc: '모르는 번호로 하루에 열 통씩 전화가 옵니다.',
+    cond: c => c.loan > 10000000,
+    options: [
+      { text: '직접 연락해 상환 계획을 협의한다', effects: { happy: 5, debt: -1000000 }, outcome: '분할 상환으로 조정됐다. 피하는 것보다 나았다.' },
+      { text: '신용회복위원회에 상담을 신청한다', effects: { happy: 8 }, outcome: '혼자 감당할 문제가 아니라는 걸 알게 됐다.' },
+      { text: '번호를 계속 차단한다', effects: { happy: -8, debt: 1000000 }, outcome: '연체 가산금만 늘었다.' },
+    ],
+  }
+);

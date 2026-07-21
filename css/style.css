@@ -174,6 +174,10 @@ body {
   animation: breaking-in .35s ease;
 }
 @keyframes breaking-in { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+/* 모바일 전체화면 시트: transform 을 쓰지 않는다.
+ * (transform 이 걸린 조상은 position:fixed 자식의 기준이 되어버리고,
+ *  애니메이션이 중간에 멈추면 시트가 화면 밖으로 밀린다) */
+@keyframes sheet-in { from { opacity: 0; } to { opacity: 1; } }
 .breaking-window { box-shadow: 5px 5px 0 rgba(0,0,0,.45); }
 .breaking-bar {
   background: linear-gradient(90deg, #d61f1f, #ff5a00) !important;
@@ -323,7 +327,7 @@ body {
   .col-right .tab-body { height: 260px; }
 }
 @media (max-width: 560px) {
-  body { padding: 3px; }
+  body { padding: 3px; padding-bottom: env(safe-area-inset-bottom); }
   .status-strip .stat { min-width: 46%; flex: 1 1 46%; }
   .stat-val { font-size: 13px; }
 
@@ -345,7 +349,67 @@ body {
   .control-bar .ctl-group { flex: 1 1 100%; justify-content: space-between; }
   .breaking-host { top: 8px; }
   .breaking-headline { font-size: 15px; }
-  .close-host { top: 8px; }
+
+  /* --- 모달을 화면에 꽉 채우는 시트로: 작은 화면에서 잘리지 않게 --- */
+  .close-host, .event-host, .life-modal-host {
+    top: 0; left: 0; right: 0; bottom: 0;
+    transform: none; width: 100%;
+    display: flex; align-items: flex-end;
+    /* 데스크톱용 breaking-in 은 translate(-50%) 라 모바일 전체화면 시트에서 화면을 밀어낸다 */
+    animation: sheet-in .25s ease;
+  }
+  .close-window, .event-window, .life-window {
+    width: 100%; max-height: 100dvh; height: 100dvh;
+    display: flex; flex-direction: column;
+    box-shadow: none;
+  }
+  .close-window .window-body,
+  .event-window .window-body,
+  .life-window .window-body {
+    flex: 1; max-height: none;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;                       /* 모달 스크롤이 뒷배경까지 끌고 가지 않게 */
+    padding-bottom: 0;
+  }
+  .close-news { max-height: none; }
+
+  /* 주요 행동 버튼은 스크롤을 따라와 항상 엄지 닿는 곳에 */
+  .close-actions {
+    position: sticky; bottom: 0; z-index: 5;
+    margin: 10px -10px calc(-1 * env(safe-area-inset-bottom));
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    background: #d6d3ce; border-top: 2px groove #fff;
+  }
+  .close-actions button { min-height: 48px; font-size: 15px; flex: 1; }
+
+  /* 인생 허브·이벤트·데이트 선택지 전부 손가락 크기로 */
+  .life-btn, .event-opt, .route-card, .po-cancel, .gobuy-btn, #date-confirm, #event-confirm {
+    min-height: 46px; font-size: 14px; padding: 8px 12px; touch-action: manipulation;
+  }
+  .life-btn { flex: 1 1 calc(50% - 5px); text-align: left; }
+  .life-btn small { display: block; font-size: 11.5px; }
+  .hub-btns { gap: 6px; }
+  .hub-label { flex: 1 1 100%; min-width: 0; }
+  .hub-more > summary, .hub-section > summary { padding: 10px 4px; font-size: 13.5px; }
+
+  /* 탭: 누르기 쉽게 키우고 가로 스크롤 허용 */
+  menu.tabs { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; }
+  menu.tabs li[role=tab] { flex: 0 0 auto; }
+  menu.tabs li[role=tab] a { display: block; padding: 10px 12px; font-size: 14px; }
+
+  /* 타이틀바 닫기 버튼(16x14)은 너무 작다 */
+  .title-bar-controls button { min-width: 34px; min-height: 30px; }
+
+  #sector-filter, #rival-target { min-height: 42px; font-size: 15px; flex: 1 1 100%; }
+  #next-generation { min-height: 46px; font-size: 14px; width: 100%; }
+  .route-card { padding: 10px; }
+  .char-thumb { width: 54px; height: 54px; }
+  .event-desc, .oc-text { font-size: 14px; line-height: 1.6; }
+  .event-opt { font-size: 14px; }
+  .opt-sub { font-size: 12px; }
+  .life-stat { padding: 8px; font-size: 13.5px; }
+  .bgm-group { flex: 1 1 100%; }
+  #bgm-vol { flex: 1; min-height: 34px; }
 }
 .dating-banner {
   display: block;
@@ -366,4 +430,16 @@ body {
 .char-portrait { width:128px; height:128px; object-fit:cover; object-position:top; border:3px ridge #fff; flex:0 0 auto; }
 .life-partner { display:flex; align-items:center; gap:8px; padding:5px; background:#f3e8ef; border:1px solid #aaa; }
 .date-profile { align-items:center; }
+.route-sep { margin:10px 0 4px; padding:3px 6px; background:#dcd6e6; border:1px solid #9a90ad; font-weight:bold; font-size:12px; }
+.route-sep.muted { background:transparent; border:0; font-weight:normal; }
+.route-card.known-card { background:#f2f6ff; border-color:#8fa8d8; }
+.pending-orders { margin:6px 0; padding:6px 8px; background:#fffbe6; border:1px solid #c9b458; font-size:12px; }
+.po-title { font-weight:bold; margin-bottom:4px; }
+.po-row { display:flex; align-items:center; gap:6px; padding:2px 0; flex-wrap:wrap; }
+.po-row .po-cancel { margin-left:auto; padding:1px 8px; font-size:11px; }
+
+/* 배경음악 컨트롤 */
+.bgm-group { display:flex; align-items:center; gap:6px; }
+#bgm-toggle.on { background:#d0ffd0 !important; font-weight:bold; }
+#bgm-vol { width:80px; accent-color:#000080; }
 @media (max-width:600px) { .char-portrait{width:96px;height:96px}.char-thumb{width:48px;height:48px} }

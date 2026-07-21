@@ -7,39 +7,46 @@
  *    happy  : 매달 내 행복 가감
  *    charm  : 데이트 1회당 매력 보정
  *    breakup: (연애 중) 매달 이별할 확률 (없으면 0)
+ *    forgive: 양다리·불륜이 들통났을 때 용서하고 관계를 이어갈 확률
  * ========================================================================= */
 const PERSONALITIES = {
-  frugal:    { key: 'frugal',    name: '알뜰한',     emoji: '🪙', money: +0.15, happy: 0,  charm: 0,  desc: '생활비를 아껴 매달 돈을 보탬' },
-  ambitious: { key: 'ambitious', name: '야망있는',   emoji: '🔥', money: +0.25, happy: -1, charm: 0,  desc: '맞벌이로 소득을 크게 보탬' },
-  homebody:  { key: 'homebody',  name: '집순이',     emoji: '🏠', money: +0.05, happy: +1, charm: 0,  desc: '집에서 알뜰살뜰, 소소한 보탬' },
-  caring:    { key: 'caring',    name: '다정한',     emoji: '🥰', money: 0,     happy: +4, charm: +2, desc: '함께 있으면 행복이 크게 오름' },
-  cold:      { key: 'cold',      name: '무심한',     emoji: '🧊', money: 0,     happy: -3, charm: -1, desc: '데면데면, 행복이 잘 안 오름' },
-  lavish:    { key: 'lavish',    name: '사치스러운', emoji: '💸', money: -0.35, happy: +2, charm: +1, desc: '씀씀이가 커서 매달 지출↑' },
-  free:      { key: 'free',      name: '자유로운',   emoji: '💔', money: -0.10, happy: +3, charm: +3, breakup: 0.12, desc: '매력적이지만 이별 위험 있음' },
+  frugal:    { key: 'frugal',    name: '알뜰한',     emoji: '🪙', money: +0.15, happy: 0,  charm: 0,  forgive: 0.10, desc: '생활비를 아껴 매달 돈을 보탬' },
+  ambitious: { key: 'ambitious', name: '야망있는',   emoji: '🔥', money: +0.25, happy: -1, charm: 0,  forgive: 0.05, desc: '맞벌이로 소득을 크게 보탬' },
+  homebody:  { key: 'homebody',  name: '집순이',     emoji: '🏠', money: +0.05, happy: +1, charm: 0,  forgive: 0.15, desc: '집에서 알뜰살뜰, 소소한 보탬' },
+  caring:    { key: 'caring',    name: '다정한',     emoji: '🥰', money: 0,     happy: +4, charm: +2, forgive: 0.30, desc: '함께 있으면 행복이 크게 오름' },
+  cold:      { key: 'cold',      name: '무심한',     emoji: '🧊', money: 0,     happy: -3, charm: -1, forgive: 0.35, desc: '데면데면, 행복이 잘 안 오름' },
+  lavish:    { key: 'lavish',    name: '사치스러운', emoji: '💸', money: -0.35, happy: +2, charm: +1, forgive: 0.25, desc: '씀씀이가 커서 매달 지출↑' },
+  free:      { key: 'free',      name: '자유로운',   emoji: '💔', money: -0.10, happy: +3, charm: +3, breakup: 0.12, forgive: 0.55, desc: '매력적이지만 이별 위험 있음' },
 };
 
-/* 연애 상대 로스터 — 연애가 시작되면 이 중 한 명이 랜덤 배정 */
+/* 연애 상대 로스터 — 연애가 시작되면 이 중 한 명이 랜덤 배정
+ * gender 는 초상화(assets/characters)의 그림과 반드시 일치시킨다. */
 const CHARACTERS = [
-  { name: '서연', emoji: '👩', job: '디자이너', income: 2800000, personality: 'caring', portrait: 'seoyeon.webp' },
-  { name: '민준', emoji: '👨', job: '변호사', income: 6000000, personality: 'ambitious', portrait: 'minjun.webp' },
-  { name: '지우', emoji: '🧑', job: '백수', income: 0, personality: 'lavish', portrait: 'jiwoo.webp' },
-  { name: '하은', emoji: '👩', job: '간호사', income: 3200000, personality: 'frugal', portrait: 'haeun.webp' },
-  { name: '도윤', emoji: '👨', job: '의사', income: 7000000, personality: 'cold', portrait: 'doyun.webp' },
-  { name: '수빈', emoji: '🧑', job: '유튜버', income: 1500000, personality: 'free', portrait: 'subin.webp' },
-  { name: '예린', emoji: '👩', job: '공무원', income: 2200000, personality: 'homebody', portrait: 'yerin.webp' },
-  { name: '시우', emoji: '👨', job: '개발자', income: 4000000, personality: 'ambitious', portrait: 'siwoo.webp' },
-  { name: '채원', emoji: '👩', job: '승무원', income: 3000000, personality: 'lavish', portrait: 'chaewon.webp' },
-  { name: '건우', emoji: '👨', job: '자영업', income: 2500000, personality: 'frugal', portrait: 'geonwoo.webp' },
-  { name: '유나', emoji: '👩', job: '모델', income: 2000000, personality: 'free', portrait: 'yuna.webp' },
-  { name: '준서', emoji: '🧑', job: '교사', income: 2600000, personality: 'caring', portrait: 'junseo.webp' },
-  { name: '태양', emoji: '👨', job: '사업가', income: 5000000, personality: 'lavish', portrait: 'taeyang.webp' },
-  { name: '보라', emoji: '👩', job: '약사', income: 4500000, personality: 'homebody', portrait: 'bora.webp' },
+  { name: '서연', gender: 'f', emoji: '👩', job: '디자이너', income: 2800000, personality: 'caring', portrait: 'seoyeon.webp' },
+  { name: '민준', gender: 'm', emoji: '👨', job: '변호사', income: 6000000, personality: 'ambitious', portrait: 'minjun.webp' },
+  { name: '지우', gender: 'm', emoji: '👨', job: '백수', income: 0, personality: 'lavish', portrait: 'jiwoo.webp' },
+  { name: '하은', gender: 'f', emoji: '👩', job: '간호사', income: 3200000, personality: 'frugal', portrait: 'haeun.webp' },
+  { name: '도윤', gender: 'm', emoji: '👨', job: '의사', income: 7000000, personality: 'cold', portrait: 'doyun.webp' },
+  { name: '수빈', gender: 'm', emoji: '👨', job: '유튜버', income: 1500000, personality: 'free', portrait: 'subin.webp' },
+  { name: '예린', gender: 'f', emoji: '👩', job: '공무원', income: 2200000, personality: 'homebody', portrait: 'yerin.webp' },
+  { name: '시우', gender: 'm', emoji: '👨', job: '개발자', income: 4000000, personality: 'ambitious', portrait: 'siwoo.webp' },
+  { name: '채원', gender: 'f', emoji: '👩', job: '승무원', income: 3000000, personality: 'lavish', portrait: 'chaewon.webp' },
+  { name: '건우', gender: 'm', emoji: '👨', job: '자영업', income: 2500000, personality: 'frugal', portrait: 'geonwoo.webp' },
+  { name: '유나', gender: 'f', emoji: '👩', job: '모델', income: 2000000, personality: 'free', portrait: 'yuna.webp' },
+  { name: '수아', gender: 'f', emoji: '👩', job: '교사', income: 2600000, personality: 'caring', portrait: 'sua.webp' },
+  { name: '태양', gender: 'm', emoji: '👨', job: '사업가', income: 5000000, personality: 'lavish', portrait: 'taeyang.webp' },
+  { name: '보라', gender: 'f', emoji: '👩', job: '약사', income: 4500000, personality: 'homebody', portrait: 'bora.webp' },
 ];
+
+/* 구버전 세이브 호환 — 이름이 바뀐 인물(초상화 성별과 맞추느라 교체) */
+const CHARACTER_NAME_MIGRATIONS = { '준서': '수아' };
+
+const GENDER_LABEL = { m: '남성', f: '여성' };
 
 /* 스토리 전용 인물 — 일반 랜덤 소개팅 풀에는 들어가지 않는다. */
 const SPECIAL_CHARACTERS = {
-  narae: { id:'narae', name:'나래', emoji:'🧭', age:28, job:'투자교육 매니저', income:4200000, personality:'cold', portrait:'narae-v2-neutral.webp', romanceDifficulty:-25, special:'tutorial' },
-  taesik: { id:'taesik', name:'장태식', emoji:'🦈', age:39, job:'사채 추심 책임자', income:0, personality:'cold', portrait:'taesik-neutral.webp', special:'collector' },
+  narae: { id:'narae', name:'나래', gender:'f', emoji:'👩', age:28, job:'투자교육 매니저', income:4200000, personality:'cold', portrait:'narae-v2-neutral.webp', romanceDifficulty:-25, special:'tutorial' },
+  taesik: { id:'taesik', name:'장태식', gender:'m', emoji:'🦈', age:39, job:'사채 추심 책임자', income:0, personality:'cold', portrait:'taesik-neutral.webp', special:'collector' },
 };
 
 /* 데이트 접근 방식(선택지) — 성공 판정에 mod/보정이 다르게 들어감

@@ -47,6 +47,7 @@
     <div class="control-bar">
       <button id="session-btn" class="session-btn opening">🔔 장 열림</button>
       <span class="phase-badge" id="phase-badge">🔒 장 마감</span>
+      <button id="report-btn" style="display:none">📋 마감 리포트</button>
       <button id="pause-btn">⏸ 일시정지</button>
       <span class="ctl-group">배속:
         <button class="speed-btn active" data-speed="1">1x</button>
@@ -58,6 +59,10 @@
         <button id="chart-candle">캔들</button>
       </span>
       <label class="chk"><input type="checkbox" id="sound-toggle" checked> 효과음</label>
+      <span class="ctl-group bgm-group">
+        <button id="bgm-toggle" title="배경음악 켜기/끄기">🎵 음악 OFF</button>
+        <input type="range" id="bgm-vol" min="0" max="100" value="45" title="음악 볼륨" aria-label="음악 볼륨">
+      </span>
       <label class="chk"><input type="checkbox" id="tts-toggle"> 음성</label>
       <span class="spacer"></span>
       <button id="save-btn">💾 저장</button>
@@ -115,7 +120,8 @@
               <button id="sell-btn" class="btn-sell">매도 (S)</button>
               <button id="sell-max">MAX</button>
             </div>
-            <p class="hint">💡 <strong>금액</strong>란에 원 단위로 넣으면 살 수 있는 수량이 자동 계산됩니다. 보유분 없이 매도하면 <strong>공매도(숏)</strong>.</p>
+            <div id="pending-orders" class="pending-orders" style="display:none"></div>
+            <p class="hint">💡 <strong>금액</strong>란에 원 단위로 넣으면 살 수 있는 수량이 자동 계산됩니다. 보유분 없이 매도하면 <strong>공매도(숏)</strong>. 장 마감 중에는 <strong>예약주문</strong>으로 걸어두면 다음 개장 때 시초가로 체결됩니다.</p>
           </div>
         </div>
       </div>
@@ -179,6 +185,8 @@
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <script src="./js/jobs.js"></script>
   <script src="./js/characters.js"></script>
+  <script src="./js/character_voices.js"></script>
+  <script src="./js/bgm.js"></script>
   <script src="./js/events_life.js"></script>
   <script src="./js/romance_events.js"></script>
   <script src="./js/career_events.js"></script>

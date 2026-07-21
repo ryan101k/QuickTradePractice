@@ -11,7 +11,50 @@ const VOICES={
 };
 const APPROACH_REACTIONS={sincere:'진솔한 대화',flex:'화려한 이벤트',push:'밀고 당기기',listen:'경청',humor:'유머',plan:'꼼꼼한 계획',vulnerable:'솔직한 고민 공유',direct:'분명한 호감 표현'};
 const pick=a=>a[Math.floor(Math.random()*a.length)];
-function dateLine(personality,tier,approach,name){const v=VOICES[personality]||VOICES.caring;const key=tier==='성공'?'good':tier==='보통'?'mid':'bad';return `${name}: ${pick(v[key])} (${APPROACH_REACTIONS[approach]||'대화'}에 대한 반응)`;}
+const CV=()=> (window.QT_VOICES||{}).CHARACTER_VOICES||{};
+
+/* 인물의 목소리 묶음 — 이름으로 찾고, 없으면 성격 기반 기본 목소리로 떨어진다 */
+function voiceOf(person){
+  const name=typeof person==='string'?person:(person&&person.name);
+  return CV()[name]||null;
+}
+
+/* 데이트 결과 대사.
+ *   person   : 상대 객체(또는 성격 문자열 — 구버전 호출 호환)
+ *   opts     : { first: 첫 만남인가, affection: 지금까지 쌓인 호감도 }
+ * 인물 전용 대사가 있으면 그걸 쓰고, 없으면 성격별 기본 대사를 쓴다. */
+function dateLine(person,tier,approach,nameArg,opts){
+  const o=opts||{};
+  const cv=voiceOf(person);
+  const name=(typeof person==='object'&&person&&person.name)||nameArg||'상대';
+  const personality=(typeof person==='object'&&person&&person.personality)||person;
+  const key=tier==='성공'?'good':tier==='보통'?'mid':'bad';
+  let line;
+  if(cv){
+    // 첫 만남이면 인사부터, 사이가 깊고 잘 풀렸으면 속 얘기가 나온다
+    if(o.first&&cv.first&&tier!=='실패') line=cv.first;
+    else if(tier==='성공'&&(o.affection||0)>=60&&cv.deep&&Math.random()<0.6) line=pick(cv.deep);
+    else line=pick(cv[key]||cv.mid||['...']);
+  }else{
+    const v=VOICES[personality]||VOICES.caring;
+    line=pick(v[key]);
+  }
+  return `${name}: ${line} (${APPROACH_REACTIONS[approach]||'대화'}에 대한 반응)`;
+}
+
+/* 상황별 한 줄 — 고백 / 이별 / 근황 */
+function momentLine(person,kind){
+  const cv=voiceOf(person);
+  if(!cv||!cv[kind]) return '';
+  const v=cv[kind];
+  return Array.isArray(v)?pick(v):v;
+}
+
+/* 프로필에 붙는 말투·사연 */
+function profileOf(person){
+  const cv=voiceOf(person);
+  return cv?{style:cv.style,background:cv.background}:null;
+}
 const E=(id,title,desc,pers,options)=>({id:'rom_'+id,cat:'love',emoji:'💬',title,desc,cond:c=>c.rel!=='single'&&(!pers||pers.includes(c.pers)),options});
 const ROMANCE_EVENTS=[
  E('money','데이트 비용 정산','연인이 앞으로 데이트 비용을 어떻게 나눌지 묻습니다.',['frugal','lavish'],[
@@ -49,5 +92,37 @@ ROMANCE_EVENTS.push(
  E('exboundary','전 연인의 흔적','연인의 집에서 전 연인과의 사진과 선물을 발견했습니다.',null,[{text:'정리할 준비가 됐는지 차분히 묻는다',effects:{affection:8},outcome:'과거와 현재를 솔직하게 이야기했다.'},{text:'신경 쓰이지만 시간을 준다',effects:{affection:4,happy:-2},outcome:'연인은 배려를 고마워했다.'},{text:'당장 전부 버리라고 한다',effects:{affection:-13},outcome:'물건보다 통제하려는 태도가 문제가 됐다.'}]),
  E('cohabit','동거 제안','연인이 생활비를 아끼고 더 자주 보기 위해 동거를 제안합니다.',null,[{text:'생활비·집안일·개인시간부터 합의한다',effects:{affection:15,cash:500000},outcome:'낭만보다 규칙부터 정한 것이 오히려 든든했다.'},{text:'한 달 시험 동거를 해본다',effects:{affection:9,happy:5},outcome:'서로의 생활 습관을 현실적으로 확인했다.'},{text:'사랑하면 규칙은 필요 없다고 한다',effects:{affection:-5},outcome:'곧 사소한 생활 습관이 갈등이 됐다.'}])
 );
-root.QT_ROMANCE={VOICES,ROMANCE_EVENTS,dateLine};
+
+/* 인간관계가 쌓인 뒤에야 열리는 이야기들 — 말수와 감정선을 조금 더 길게 잡았다 */
+ROMANCE_EVENTS.push(
+ E('silence','말없는 저녁','“오늘은 그냥 말 안 해도 돼요?” 연인이 소파에 기대 눈을 감습니다. 이런 침묵이 편한 건지 불안한 건지 아직 잘 모르겠습니다.',null,[
+  {text:'옆에 앉아 같이 아무 말도 안 한다',effects:{affection:11,happy:5},outcome:'30분쯤 지나 연인이 먼저 웃으며 말했다. "이래서 좋아요, 우리."'},
+  {text:'무슨 일 있었냐고 조심스럽게 묻는다',effects:{affection:7},outcome:'별일 아니라고 했지만, 물어봐 줘서 고맙다는 말을 덧붙였다.'},
+  {text:'분위기가 어색해 TV를 크게 켠다',effects:{affection:-7,happy:-2},outcome:'침묵을 견디지 못한 쪽은 나였다. 연인은 아무 말 없이 방으로 들어갔다.'}]),
+ E('meetfriends','친구들에게 소개','연인이 “내 친구들 한번 볼래요?”라고 묻습니다. 다들 오래된 사이라 평가가 꽤 매섭다고 합니다.',null,[
+  {text:'긴장을 숨기지 않고 솔직하게 간다',effects:{affection:13,cash:-400000},outcome:'"긴장했다"고 먼저 말한 게 오히려 좋게 보였다. 친구들이 합격점을 줬다.'},
+  {text:'잘 보이려고 완벽하게 준비한다',effects:{affection:6,cash:-1200000},outcome:'무난했지만, 애쓰는 게 보였다는 후기가 돌아왔다.'},
+  {text:'둘만 만나는 게 좋다며 거절한다',effects:{affection:-11},outcome:'연인은 자기 세계에 들일 생각이 없는 거냐고 물었다.'}]),
+ E('exback','전 연인의 연락','새벽에 전 연인에게서 “잘 지내?”라는 메시지가 왔습니다. 지금 사람이 있는데도 손이 잠깐 멈췄습니다.',null,[
+  {text:'읽고 답하지 않는다',effects:{affection:6,happy:-2},outcome:'답하지 않는 것도 하나의 대답이었다.'},
+  {text:'지금 연인에게 먼저 이야기한다',effects:{affection:14},outcome:'"말해줘서 고마워요." 숨기지 않은 것이 오히려 신뢰가 됐다.'},
+  {text:'그냥 안부만 주고받는다',effects:{affection:-9,endRelationshipChance:.1},outcome:'대화는 안부로 시작해 새벽 세 시까지 이어졌다.'}]),
+ E('moneyfight','통장을 본 날','연인이 우연히 내 투자 잔고를 봤습니다. 얼굴이 굳는 게 보입니다.',null,[
+  {text:'전략과 손실 한도를 차분히 설명한다',effects:{affection:10},outcome:'"무모한 게 아니라 계획이 있는 거였네요." 표정이 조금 풀렸다.'},
+  {text:'같이 가계부를 열어 보여준다',effects:{affection:13,happy:-3},outcome:'부끄러웠지만 숨길 게 없다는 게 가장 큰 설득이었다.'},
+  {text:'내 돈인데 무슨 상관이냐고 한다',effects:{affection:-16,endRelationshipChance:.12},outcome:'연인은 "같이 살 생각은 없는 거네요"라고 조용히 말했다.'}]),
+ E('tired','지친 연인의 새벽 전화','새벽 두 시, 연인에게서 전화가 옵니다. 목소리가 잠겨 있습니다.',null,[
+  {text:'택시를 타고 지금 만나러 간다',effects:{cash:-200000,affection:16,happy:-4},outcome:'문 앞에서 마주친 순간 연인이 울음을 터뜨렸다. 아무 말도 필요 없었다.'},
+  {text:'끊지 않고 아침까지 통화한다',effects:{affection:11,happy:-2},outcome:'해가 뜰 때쯤 "이제 잘 수 있을 것 같아요"라는 말이 들렸다.'},
+  {text:'내일 얘기하자고 하고 끊는다',effects:{affection:-13},outcome:'다음 날, 연인은 그 얘기를 다시 꺼내지 않았다.'}]),
+ E('anniversary','기념일을 잊었다','연인이 아무 말도 안 하는 걸 보니, 오늘이 그날이었다는 걸 뒤늦게 알았습니다.',null,[
+  {text:'변명 없이 바로 인정하고 사과한다',effects:{affection:7,happy:-3},outcome:'"화가 난 게 아니라 서운했던 거예요." 대화가 오히려 깊어졌다.'},
+  {text:'당장 오늘 밤 계획을 다시 짠다',effects:{cash:-900000,affection:10},outcome:'급하게 준비한 티는 났지만, 애쓰는 마음은 전해졌다.'},
+  {text:'그런 걸 꼭 챙겨야 하냐고 한다',effects:{affection:-17},outcome:'연인은 달력을 조용히 덮었다.'}]),
+ E('parentmeet','부모님의 반대','연인의 부모님이 내 직업과 재산을 듣고 표정이 굳었다는 이야기를 전해 들었습니다.',null,[
+  {text:'시간을 두고 직접 찾아뵙겠다고 한다',effects:{affection:12,happy:-4},outcome:'연인은 "혼자 싸우게 두지 않아서 고맙다"고 했다.'},
+  {text:'우리 둘의 문제로만 두자고 한다',effects:{affection:4},outcome:'당장은 편했지만, 문제는 그대로 남았다.'},
+  {text:'부모님을 험담한다',effects:{affection:-15},outcome:'연인 앞에서 연인의 가족을 깎아내린 순간, 공기가 얼어붙었다.'}])
+);
+root.QT_ROMANCE={VOICES,ROMANCE_EVENTS,dateLine,momentLine,profileOf,voiceOf};
 })(window);
