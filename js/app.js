@@ -131,6 +131,9 @@ function newLife() {
     social: null,
     justice: null,
     legacy: null,
+    tutorialSeen: false,
+    tutorialMet: false,
+    makjang: false,
     hobbiesDone: 0,
     dates: 0,
     affection: 0,
@@ -550,7 +553,7 @@ function renderCloseReport(day) {
     if (!cur || Math.abs(n.impact) > Math.abs(cur.impact)) seen.set(n.headline, n);
   });
   const totalCnt = seen.size;
-  const news = [...seen.values()].sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact)).slice(0, 15);
+  const news = [...seen.values()].sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact)).slice(0, 6);
   const items = news.length
     ? news.map((n, i) =>
         `<li class="report-news ${n.impact >= 0 ? 'good' : 'bad'}" data-i="${i}">
@@ -717,6 +720,7 @@ function settleMonth() {
     const base = L.partner.income || 1500000;
     const persoMoney = Math.round(base * (per.money || 0) * (married ? 1 : 0.4));  // 성격에 따른 가감
     b.partner = share + persoMoney;
+    L.partner.mood = b.partner < 0 || (per.happy||0) < 0 ? 'sad' : (L.affection||0) >= 60 ? 'happy' : 'neutral';
     S.capital += b.partner;
     L.happy = clamp(L.happy + (per.happy || 0), 0, 100);
     if (b.partner) addNews(`💑 ${nm}(${per.name}) 가계 ${b.partner >= 0 ? '기여 +' : ''}${won(b.partner)}원`, b.partner >= 0 ? 'good' : 'bad');
@@ -900,16 +904,30 @@ function showDebtGameOver() {
   const host = $('life-modal'); if (!host) return;
   host.style.display = 'flex';
   host.innerHTML = `<div class="window event-window">
-    <div class="title-bar"><div class="title-bar-text">☠️ GAME OVER · 사채의 끝</div></div>
+    <div class="title-bar"><div class="title-bar-text">🦈 장태식이 찾아왔다 · 사채의 끝</div></div>
     <div class="window-body">
-      <div class="event-title">🦈 감당할 수 없는 불법 사채</div>
+      <div class="date-profile"><img class="char-portrait" src="${characterPortrait(D.SPECIAL_CHARACTERS.taesik,'angry')}" alt="장태식"><div class="dp-info"><strong>장태식</strong> · 사채 추심 책임자<br><span class="muted">“돈이 없으면 인생을 담보로 갚아. 선택해.”</span></div></div>
+      <div class="event-title">감당할 수 없는 불법 사채</div>
       <div class="event-desc">석 달 넘게 불어난 사채와 추심을 버티지 못했습니다.<br>최종 채무: <strong class="down">${won(S.life.loan)}원</strong></div>
-      <p class="hint">사채는 신용심사 없이 빠르지만 월 10% 복리와 강제 게임오버 위험이 있습니다.</p>
-      <button id="debt-restart">새 인생 시작</button>
+      <p class="hint">여기서 끝낼 수도 있고, 더 위험한 돈과 전과를 안고 ‘막장 인생’으로 계속할 수도 있습니다.</p>
+      <button id="debt-makjang" class="hot">🔥 장태식의 제안 수락 · 막장 인생 시작</button>
+      <button id="debt-restart">☠️ 포기하고 새 인생 시작</button>
     </div></div>`;
+  const makjang=$('debt-makjang');if(makjang)makjang.addEventListener('click',startMakjangLife);
   const restart = $('debt-restart');
   if (restart) restart.addEventListener('click', () => { localStorage.removeItem(LS_KEY); location.reload(); });
   autoSave(); playSound('crash');
+}
+
+function startMakjangLife(){
+  const L=S.life;LOAN.ensure(L);L.makjang=true;L.job='none';CAREER.switchJob(L,'none');L.creditScore=80;L.criminalRecord=(L.criminalRecord||0)+1;L.sharkMonths=0;L.collectionLevel=3;L.happy=12;L.health=Math.min(L.health,55);L.stress=95;
+  L.loans=[{id:'taesik-'+Date.now(),providerId:'shark',name:'장태식의 목숨값',tier:'불법 사채',balance:150000000,monthlyRate:.10,illegal:true}];LOAN.sync(L);S.capital=30000000;S.phase='closed';S.paused=false;
+  LEGACY.push(L,dateInfo(S.day).age,'🔥','장태식의 제안을 받아 막장 인생을 시작했다','justice');closeLifeModal();addNews('🔥 막장 인생 루트 시작 · 현금 3천만원, 사채 1억5천만원, 전과 1범','bad');flashToast('🔥 막장 인생이 시작됐습니다','bad');renderAll();renderMarketPhase();autoSave();
+}
+
+function showTutorial(){
+  const host=$('life-modal');if(!host)return;const n=D.SPECIAL_CHARACTERS.narae;host.style.display='flex';host.innerHTML=`<div class="window event-window legacy-window"><div class="title-bar"><div class="title-bar-text">🧭 나래의 QuickTrade 입문 안내</div></div><div class="window-body"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(n,'happy')}" alt="나래"><div class="dp-info"><strong>나래</strong> · 투자교육 매니저<br><span class="muted">“처음이면 핵심만 짚어드릴게요. 모르는 건 천천히 익혀도 괜찮아요.”</span></div></div><div class="legacy-ledger"><div>🔔 <strong>장 열림 한 번이 한 달</strong>입니다. 장중에 매매하고 마감 뒤 인생 행동을 합니다.</div><div>📈 월급만 믿으면 라이벌을 이기기 어렵습니다. 투자·경력·인맥을 함께 키우세요.</div><div>💳 대출은 신용등급별로 조건이 다르고 사채는 월 10% 복리와 추심 위험이 있습니다.</div><div>⚖️ 불법 공작은 수사와 재판으로 이어집니다. 돈이 많아도 감옥에 갈 수 있습니다.</div><div>💾 모든 선택은 자동 저장되며 죽은 뒤 자녀에게 세대 계승이 가능합니다.</div></div><button id="tutorial-start" class="session-btn opening">💼 설명 고마워 · 직업 선택</button></div></div>`;
+  $('tutorial-start').addEventListener('click',()=>{S.life.tutorialSeen=true;showJobModal(false);autoSave();});
 }
 
 function showDeathScreen(age) {
@@ -1193,14 +1211,23 @@ const ROMANCE_META = {
   lavish:{interests:['쇼핑','파인다이닝','공연'],value:'경험과 즐거움',best:['flex','direct','humor']},
   free:{interests:['페스티벌','여행','클럽'],value:'자유와 자극',best:['humor','push','direct']},
 };
-function characterPortrait(c) {
+function characterPortrait(c, mood) {
   const master = c && D.CHARACTERS.find(x => x.name === c.name);
-  const file = (c && c.portrait) || (master && master.portrait);
-  return file ? `./assets/characters/${file}` : '';
+  const special = c && D.SPECIAL_CHARACTERS && Object.values(D.SPECIAL_CHARACTERS).find(x => x.name === c.name || x.id === c.id);
+  const file = (c && c.portrait) || (master && master.portrait) || (special && special.portrait);
+  const emotion = mood || (c && c.mood) || 'neutral';
+  const stem = file && file.replace(/-(neutral|happy|sad|angry)\.webp$/,'').replace(/\.webp$/,'');
+  const emotionFile = stem ? `${stem}-${emotion}.webp` : file;
+  return emotionFile ? `./assets/characters/${emotionFile}` : '';
 }
 
 // 데이트 상대 프로필 생성 (이름·나이·직업·성격) — 경로(route)에 따라 성향 풀이 다름
 function makeCandidate(route) {
+  if (route && route.fixed && D.SPECIAL_CHARACTERS[route.fixed]) {
+    const fixed=Object.assign({},D.SPECIAL_CHARACTERS[route.fixed]);
+    Object.assign(fixed,ROMANCE_META[fixed.personality]||ROMANCE_META.caring);
+    return fixed;
+  }
   let pool = D.CHARACTERS;
   if (route && Array.isArray(route.pool)) {
     const filtered = D.CHARACTERS.filter(c => route.pool.includes(c.personality));
@@ -1222,6 +1249,7 @@ function dateScore(approach) {
   const meta = ROMANCE_META[(S._dateCandidate || {}).personality] || {};
   s += (meta.best || []).includes(approach.key) ? 14 : -3;
   s += (S._dateRoute && S._dateRoute.scoreMod) || 0;  // 경로 난이도 보정
+  s += (S._dateCandidate && S._dateCandidate.romanceDifficulty) || 0;
   if (approach.flexReward) s += (S.capital >= (approach.cost || 0) + dateBaseCost()) ? approach.flexReward : -15;
   if (approach.variance) s += rand(-approach.variance, approach.variance);
   s += rand(0, 25);                               // 기본 운
@@ -1239,7 +1267,7 @@ function showRouteModal() {
   const host = $('date-host'); if (!host) return;
   const L = S.life;
   const inRel = L.relationship !== 'single' && L.partner;
-  const routes = D.DATE_ROUTES.filter(r => !r.needsJob || (L.job && L.job !== 'none'));   // 사내연애는 직업 있을 때만
+  const routes = D.DATE_ROUTES.filter(r => !r.needsJob || (L.job && L.job !== 'none'));
   S._dateOffers = routes.map(r => ({ route: r, cand: makeCandidate(r) }));
   let cards = '';
   if (inRel) {
@@ -1296,7 +1324,7 @@ function showDateModal(c, route) {
        <div class="window-body">
          <img class="dating-banner compact" src="./assets/dating-lounge.png" alt="레트로 데이트 라운지">
          <div class="date-profile">
-           <img class="char-portrait" src="${characterPortrait(c)}" alt="${c.name}">
+           <img id="date-portrait" class="char-portrait" src="${characterPortrait(c)}" alt="${c.name}">
            <div class="dp-info"><strong>${c.name}</strong> · 만 ${c.age}세<br>
              <span class="muted">${c.job} · ${per.emoji || ''}${per.name || ''}</span><br>
              <span class="muted">관심사 ${(c.interests || []).join(' · ')} · 중요 가치 ${c.value || '신뢰'}</span></div>
@@ -1323,6 +1351,8 @@ function resolveDate(i) {
   if (score >= 70) { tier = '성공'; dCharm = Math.round(rand(12, 22)); dHappy = 10; }
   else if (score >= 45) { tier = '보통'; dCharm = Math.round(rand(4, 9)); dHappy = 3; }
   else { tier = '실패'; dCharm = -Math.round(rand(3, 8)); dHappy = -5; }
+  c.mood = tier === '성공' ? 'happy' : tier === '실패' ? (score < 25 ? 'angry' : 'sad') : 'neutral';
+  const datePortrait=$('date-portrait');if(datePortrait)datePortrait.src=characterPortrait(c,c.mood);
   const scene = pick(D.DATE_LINES[tier] || ['...']);
   const personalityLine = ROMANCE.dateLine(c.personality, tier, a.key, c.name);
   const preference = (c.best || []).includes(a.key) ? '선택한 방식이 상대의 연애 성향과 잘 맞았다.' : '상대는 접근 방식보다 진심을 더 지켜보는 눈치다.';
@@ -1371,6 +1401,7 @@ function startDating(partnerObj) {
   const L = S.life;
   L.relationship = 'dating';
   L.partner = Object.assign({}, partnerObj);
+  L.partner.mood = 'happy';
   L.happy = clamp(L.happy + 15, 0, 100);
   const per = D.PERSONALITIES[L.partner.personality] || {};
   addNews(`💕 ${L.partner.name}(${L.partner.job}·${per.name})님과 연애 시작!`, 'good');
@@ -1574,21 +1605,19 @@ function lifeHubHTML() {
   const pensionBtns = [.05,.09,.15].map(rate=>`<button class="life-btn ${Math.abs(finance.pensionRate-rate)<.001?'hot':''}" data-act="pension" data-rate="${rate}">연금 ${Math.round(rate*100)}%</button>`).join('');
   const contactBtns = social.contacts.map(c=>{const r=SOCIAL.role(c);return `<button class="life-btn" data-act="contact-nurture" data-contact="${c.id}">${r.icon} ${c.name} 만나기 <small>신뢰 ${c.trust} · 호의 ${c.favor} · 300,000</small></button><button class="life-btn" data-act="contact-ask" data-contact="${c.id}">🙏 ${c.name}에게 부탁</button>`}).join('');
   const courtBtns=justice.case?`<span class="muted">${justice.case.crime} · ${justice.case.phase}</span><button class="life-btn" data-act="lawyer" data-tier="public">국선변호인</button><button class="life-btn" data-act="lawyer" data-tier="standard">전문 변호사 <small>5,000,000</small></button><button class="life-btn" data-act="lawyer" data-tier="elite">대형 로펌 <small>20,000,000</small></button>${justice.case.phase==='재판'?'<button class="life-btn" data-act="court" data-strategy="plea">혐의 인정·선처</button><button class="life-btn" data-act="court" data-strategy="contest">무죄 다툼</button><button class="life-btn" data-act="court" data-strategy="cooperate">수사 협조</button>':''}`:'<span class="muted">진행 중인 사건 없음</span>';
+  const treatment=HEALTH.treatmentOffer(L);
+  const quickBtns=`<button class="life-btn" data-act="date">💘 데이트</button><button class="life-btn" data-act="rest">🛌 쉬기 <small>300,000</small></button><button class="life-btn" data-act="career-train">📚 직무교육 <small>700,000</small></button>${treatment?`<button class="life-btn hot" data-act="treat">💊 ${treatment.name} 치료</button>`:''}${L.loan>0?`<button class="life-btn hot" data-act="repay">💳 대출 상환</button>`:''}`;
   return `
     <div class="life-hub">
-      <div class="hub-title">🎬 이번 달 인생 행동 <span class="muted">(현금 결제 · 여러 번 가능)</span></div>
-      <div class="hub-group"><span class="hub-label">🎨 취미</span><div class="hub-btns">${hobbyBtns}</div></div>
-      <div class="hub-group"><span class="hub-label">📈 경력</span><div class="hub-btns"><button class="life-btn" data-act="career-train">📚 직무교육 <small>700,000</small></button>${certBtns}</div></div>
-      <div class="hub-group"><span class="hub-label">🏡 실거주</span><div class="hub-btns">${housingBtns}</div></div>
-      <div class="hub-group"><span class="hub-label">🛡️ 보험·연금</span><div class="hub-btns">${insuranceBtns}${pensionBtns}</div></div>
-      <div class="hub-group"><span class="hub-label">🤝 인맥</span><div class="hub-btns"><button class="life-btn" data-act="contact-meet">🍽️ 업계 모임 참가 <small>500,000</small></button>${contactBtns}</div></div>
-      <div class="hub-group"><span class="hub-label">⚖️ 법정</span><div class="hub-btns">${courtBtns}</div></div>
-      <div class="hub-group"><span class="hub-label">❤️ 건강</span><div class="hub-btns"><button class="life-btn" data-act="checkup">🏥 건강검진 <small>500,000</small></button><button class="life-btn" data-act="treat">💊 치료${HEALTH.treatmentOffer(L) ? ' · '+HEALTH.treatmentOffer(L).name+' '+won(HEALTH.treatmentOffer(L).cost) : ''}</button><button class="life-btn" data-act="rest">🛌 푹 쉬기 <small>300,000</small></button></div></div>
-      <div class="hub-group"><span class="hub-label">💘 연애</span><div class="hub-btns">${relBtns}</div></div>
-      <div class="hub-group"><span class="hub-label">👨‍👩‍👧 가족</span><div class="hub-btns">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👵 부모님 돌봄 <small>1,500,000</small></button></div></div>
-      <div class="hub-group"><span class="hub-label">🏠 부동산</span><div class="hub-btns">${propBtns}</div></div>
-      <div class="hub-group"><span class="hub-label">⚔️ 라이벌</span><div class="hub-btns">${rivalSelect}${rivalBtns}</div></div>
-      <div class="hub-group"><span class="hub-label">💳 금융</span><div class="hub-btns">${loanBtns}<button class="life-btn" data-act="repay">상환${L.loan > 0 ? ' ' + won(L.loan) : ''}</button><button class="life-btn" data-act="changejob">💼 이직</button></div></div>
+      <div class="hub-title">🎬 이번 달에 할 일 <span class="muted">필요한 것만 하고 바로 다음 달로 넘어가세요</span></div>
+      <div class="hub-quick">${quickBtns}</div>
+      <details class="hub-more"><summary>🧰 다른 행동 보기</summary>
+        <details class="hub-section"><summary>🎨 취미·건강·연애</summary><div class="hub-btns">${hobbyBtns}<button class="life-btn" data-act="checkup">🏥 건강검진 <small>500,000</small></button><button class="life-btn" data-act="treat">💊 치료${treatment?' · '+treatment.name+' '+won(treatment.cost):''}</button>${relBtns}</div></details>
+        <details class="hub-section"><summary>📈 경력·주거</summary><div class="hub-btns"><button class="life-btn" data-act="changejob">💼 이직</button><button class="life-btn" data-act="career-train">📚 직무교육</button>${certBtns}${housingBtns}</div></details>
+        <details class="hub-section"><summary>👨‍👩‍👧 가족·인맥</summary><div class="hub-btns">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👵 부모님 돌봄 <small>1,500,000</small></button><button class="life-btn" data-act="contact-meet">🍽️ 업계 모임</button>${contactBtns}</div></details>
+        <details class="hub-section"><summary>💳 금융·보험·부동산</summary><div class="hub-btns">${loanBtns}<button class="life-btn" data-act="repay">상환${L.loan>0?' '+won(L.loan):''}</button>${insuranceBtns}${pensionBtns}${propBtns}</div></details>
+        <details class="hub-section" ${justice.case?'open':''}><summary>⚔️ 라이벌·법정${justice.case?' · 진행 중 사건 있음':''}</summary><div class="hub-btns">${rivalSelect}${rivalBtns}${courtBtns}</div></details>
+      </details>
     </div>`;
 }
 
@@ -2384,7 +2413,7 @@ function boot() {
   toggleChartBtn();
   renderMarketPhase();
   if (!S.life.started) {
-    showJobModal(false);               // 인생 시작 — 직업 선택부터
+    if(!S.life.tutorialSeen)showTutorial();else showJobModal(false);
     flashToast('🎬 QuickTrade Life! 직업을 선택하고 인생을 시작하세요', 'neutral');
   } else if (loaded) {
     flashToast('💾 저장된 인생 불러옴 · 🔔 장 열림으로 이번 달 시작', 'good');

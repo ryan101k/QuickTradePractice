@@ -36,6 +36,12 @@ const CHARACTERS = [
   { name: '보라', emoji: '👩', job: '약사', income: 4500000, personality: 'homebody', portrait: 'bora.webp' },
 ];
 
+/* 스토리 전용 인물 — 일반 랜덤 소개팅 풀에는 들어가지 않는다. */
+const SPECIAL_CHARACTERS = {
+  narae: { id:'narae', name:'나래', emoji:'🧭', age:28, job:'투자교육 매니저', income:4200000, personality:'cold', portrait:'narae-v2-neutral.webp', romanceDifficulty:-25, special:'tutorial' },
+  taesik: { id:'taesik', name:'장태식', emoji:'🦈', age:39, job:'사채 추심 책임자', income:0, personality:'cold', portrait:'taesik-neutral.webp', special:'collector' },
+};
+
 /* 데이트 접근 방식(선택지) — 성공 판정에 mod/보정이 다르게 들어감
  *   mod       : 점수 고정 보정
  *   cost      : 추가 비용 (기본 데이트 비용에 더해짐)
@@ -56,6 +62,7 @@ const DATE_APPROACHES = [
  *   pool: 'any' 또는 성격키 배열 → 그 성향의 상대가 등장
  *   scoreMod: 그 경로에서의 데이트 성공 난이도 보정 */
 const DATE_ROUTES = [
+  { key:'narae', emoji:'☕', name:'나래와 커피', desc:'일과 사생활을 분명히 구분하는 사람', pool:[], fixed:'narae', cost:350000, scoreMod:0 },
   { key: 'app',    emoji: '📱', name: '소개팅 앱', desc: '다양한 사람',           pool: 'any',                              cost: 200000,  scoreMod: 0 },
   { key: 'office', emoji: '🏢', name: '사내연애', desc: '같은 회사 동료',         pool: 'any',                              cost: 100000,  scoreMod: 4,  needsJob: true, office: true },
   { key: 'intro',  emoji: '🤝', name: '지인 소개', desc: '안정적·진중한 사람',    pool: ['frugal', 'homebody', 'caring'],    cost: 300000,  scoreMod: 6 },
