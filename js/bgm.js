@@ -1,18 +1,10 @@
 /* =========================================================================
- *  QuickTrade Life — 배경음악 (칩튠 시퀀서)
+ *  QuickTrade Life — 배경음악 (칩튠 시퀀서 v2.0)
  *
- *  외부 음원 파일 없이 WebAudio 오실레이터로 직접 연주한다.
- *  (98.css 레트로 톤과 맞고, 오프라인·모바일에서도 로딩이 없다)
- *
- *  브라우저 자동재생 정책 때문에 반드시 사용자 조작(클릭/터치) 이후에
- *  start() 가 호출되어야 소리가 난다 — app.js 의 armAudio() 참고.
- *
- *  사용법:
- *    BGM.setEnabled(true); BGM.setVolume(0.5);
- *    BGM.play('market');   // 장중
- *    BGM.play('closed');   // 마감/리포트
- *    BGM.play('date');     // 데이트
- *    BGM.stop();
+ *  [추가된 점]
+ *  - 하이햇(h) 드럼 사운드 추가
+ *  - 풍성한 화음을 위한 톱니파(Sawtooth) 아르페지오(arp) 트랙 지원
+ *  - 상한가(bull), 하한가(bear), 속보(news) 신규 트랙 추가
  * ========================================================================= */
 (function (root) {
   'use strict';
@@ -31,30 +23,72 @@
   }
 
   /* 트랙 정의 — step 은 16분음표 한 칸.
-   *   lead  : 멜로디 (square)
-   *   bass  : 베이스 (triangle)
-   *   drum  : 'k' 킥 · 's' 스네어/하이햇 · '-' 쉼 */
+   *   lead : 멜로디 (square)
+   *   arp  : 화음/분산화음 보조 (sawtooth) - 90년대 특유의 빽빽한 사운드 담당
+   *   bass : 베이스 (triangle)
+   *   drum : 'k' 킥 · 's' 스네어 · 'h' 하이햇 · '-' 쉼 */
   const TRACKS = {
-    // 장중: 가볍게 굴러가는 8비트 — 계속 들어도 지치지 않게 단순하게
+    // 1. 장중 (Market): 가볍게 굴러가는 8비트
     market: {
-      bpm: 124, leadVol: 0.055, bassVol: 0.075, drumVol: 0.05,
+      bpm: 124, leadVol: 0.055, arpVol: 0.02, bassVol: 0.075, drumVol: 0.05,
       lead: [
         'E5','-','B4','-','C5','-','D5','-','E5','D5','C5','-','B4','-','-','-',
         'C5','-','E5','-','A5','-','G5','-','A5','-','G5','E5','-','-','-','-',
         'D5','-','B4','-','C5','-','D5','-','E5','-','C5','-','A4','-','-','-',
         'A4','-','C5','-','E5','-','D5','-','C5','B4','-','-','-','-','-','-',
       ],
+      arp: ['A3','C4','E4','C4', 'G3','B3','D4','B3', 'F3','A3','C4','A3', 'E3','G3','B3','G3'], // 백그라운드에서 빠르게 돌아가는 화음
       bass: [
-        'A2','-','A2','-','E2','-','E2','-','A2','-','A2','-','G2','-','G2','-',
-        'F2','-','F2','-','C3','-','C3','-','G2','-','G2','-','G2','-','-','-',
-        'A2','-','A2','-','E2','-','E2','-','A2','-','A2','-','G2','-','G2','-',
-        'F2','-','F2','-','C3','-','C3','-','E2','-','E2','-','-','-','-','-',
+        'A2','-','-','-','E2','-','-','-','A2','-','-','-','G2','-','-','-',
+        'F2','-','-','-','C3','-','-','-','G2','-','-','-','-','-','E2','-',
       ],
-      drum: 'k-s-k--sk-s-k-s-k-s-k--sk-s-k-s-k-s-k--sk-s-k-s-k-s-k--sk-s-kss'.split(''),
+      drum: 'k-h-s-h-k-h-s-h-k-h-s-h-k-k-s-h-'.split(''), // 하이햇 추가로 찰진 리듬감
     },
-    // 장 마감·리포트: 하루를 정리하는 잔잔한 왈츠풍
+
+    // 2. 상한가/떡상 (Bull Market): 빠르고 희망찬 아케이드 스타일
+    bull: {
+      bpm: 150, leadVol: 0.06, arpVol: 0.03, bassVol: 0.08, drumVol: 0.06,
+      lead: [
+        'C5','-','E5','-','G5','-','C6','-','G5','-','E5','-','G5','-','-','-',
+        'D5','-','F5','-','A5','-','D6','-','A5','-','F5','-','A5','-','-','-',
+        'E5','-','G5','-','B5','-','E6','-','B5','-','G5','-','B5','-','-','-',
+        'F5','E5','F5','G5','A5','-','B5','-','C6','-','-','-','-','-','-','-',
+      ],
+      arp: ['C4','E4','G4','E4', 'D4','F4','A4','F4', 'E4','G4','B4','G4', 'F4','A4','C5','A4'],
+      bass: ['C3','-','C3','C3', 'D3','-','D3','D3', 'E3','-','E3','E3', 'F3','-','G3','-'],
+      drum: 'k-h-s-h-k-h-s-h-'.split(''),
+    },
+
+    // 3. 하한가/파산 (Bear Market): 느리고 우울한 단조
+    bear: {
+      bpm: 75, leadVol: 0.05, arpVol: 0.02, bassVol: 0.07, drumVol: 0.03,
+      lead: [
+        'E5','-','-','-','D#5','-','-','-','D5','-','-','-','C#5','-','-','-',
+        'C5','-','-','-','B4','-','-','-','A#4','-','-','-','A4','-','-','-',
+      ],
+      arp: ['A3','C4','E4','-'],
+      bass: [
+        'A2','-','-','-','-','-','-','-','G#2','-','-','-','-','-','-','-',
+        'G2','-','-','-','-','-','-','-','F#2','-','-','-','-','-','-','-',
+      ],
+      drum: 'k-------s-------'.split(''),
+    },
+
+    // 4. 긴급 뉴스 (News Flash): 타자기/티커 느낌의 긴박한 리듬
+    news: {
+      bpm: 135, leadVol: 0.05, arpVol: 0.03, bassVol: 0.07, drumVol: 0.05,
+      lead: [
+        'A5','A5','-','A5','-','-','A5','A5','-','A5','-','-','A5','-','-','-',
+        'B5','B5','-','B5','-','-','B5','B5','-','B5','-','-','B5','-','-','-',
+      ],
+      arp: ['A3','-','A3','-','E3','-','E3','-'],
+      bass: ['A2','-','A2','-','A2','-','A2','-'],
+      drum: 'h-h-h-h-h-h-h-h-'.split(''), // 티커 머신처럼 하이햇만 연속으로
+    },
+
+    // 5. 장 마감·리포트 (Closed): 기존의 잔잔한 왈츠
     closed: {
-      bpm: 84, leadVol: 0.05, bassVol: 0.06, drumVol: 0,
+      bpm: 84, leadVol: 0.05, arpVol: 0, bassVol: 0.06, drumVol: 0,
       lead: [
         'A4','-','-','-','C5','-','-','-','E5','-','-','-','D5','-','-','-',
         'C5','-','-','-','B4','-','-','-','A4','-','-','-','-','-','-','-',
@@ -69,22 +103,20 @@
       ],
       drum: [],
     },
-    // 데이트: 살짝 들뜬 로맨틱 칩튠
+
+    // 6. 데이트 (Date): 톡톡 튀는 로맨틱 칩튠
     date: {
-      bpm: 100, leadVol: 0.05, bassVol: 0.06, drumVol: 0.03,
+      bpm: 100, leadVol: 0.05, arpVol: 0.02, bassVol: 0.06, drumVol: 0.03,
       lead: [
         'C5','-','E5','-','G5','-','E5','-','F5','-','E5','-','D5','-','-','-',
         'D5','-','F5','-','A5','-','F5','-','G5','-','F5','-','E5','-','-','-',
-        'E5','-','G5','-','C6','-','B5','-','A5','-','G5','-','F5','-','-','-',
-        'D5','-','E5','-','F5','-','E5','-','C5','-','-','-','-','-','-','-',
       ],
+      arp: ['C4','-','G4','-'],
       bass: [
         'C3','-','G2','-','C3','-','G2','-','F2','-','C3','-','G2','-','-','-',
         'D3','-','A2','-','D3','-','A2','-','G2','-','D3','-','G2','-','-','-',
-        'C3','-','G2','-','C3','-','E3','-','F2','-','C3','-','F2','-','-','-',
-        'G2','-','D3','-','G2','-','B2','-','C3','-','-','-','-','-','-','-',
       ],
-      drum: '--s---s---s---s---s---s---s---s---s---s---s---s---s---s---s---s-'.split(''),
+      drum: 'k-h-s-h-k-h-s-h-'.split(''),
     },
   };
 
@@ -92,7 +124,7 @@
   let cur = null, step = 0, nextTime = 0;
   let enabled = false, volume = 0.5, wanted = null;
 
-  const LOOKAHEAD = 0.12;   // 이 시간만큼 미리 스케줄
+  const LOOKAHEAD = 0.12;
   const TICK_MS = 30;
 
   function ensureCtx() {
@@ -106,7 +138,6 @@
     return ctx;
   }
 
-  // 한 음 — 짧은 어택/릴리스를 줘야 '틱' 소리가 안 난다
   function tone(type, f, at, dur, vol) {
     if (!f) return;
     const o = ctx.createOscillator(), g = ctx.createGain();
@@ -118,14 +149,13 @@
     o.start(at); o.stop(at + dur + 0.02);
   }
 
-  // 드럼은 짧은 노이즈 버스트로 흉내
-  function noise(at, dur, vol, lowpass) {
+  function noise(at, dur, vol, freqVal, type = 'lowpass') {
     const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = buf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
     const src = ctx.createBufferSource(); src.buffer = buf;
-    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lowpass;
+    const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freqVal;
     const g = ctx.createGain(); g.gain.value = vol;
     src.connect(f); f.connect(g); g.connect(master);
     src.start(at); src.stop(at + dur);
@@ -133,19 +163,34 @@
 
   function scheduler() {
     if (!cur || !ctx) return;
-    const spb = 60 / cur.bpm / 4;            // 16분음표 1칸 길이(초)
+    const spb = 60 / cur.bpm / 4; 
+    
     while (nextTime < ctx.currentTime + LOOKAHEAD) {
-      const n = cur.lead.length;
-      const i = step % n;
-      tone('square', freq(cur.lead[i]), nextTime, spb * 1.7, cur.leadVol || 0.05);
-      if (cur.bass && cur.bass.length) {
-        tone('triangle', freq(cur.bass[i % cur.bass.length]), nextTime, spb * 2.4, cur.bassVol || 0.06);
+      const i = step; // 무한 반복을 위해 각 배열의 length로 나눈 나머지 사용
+      
+      // 메인 멜로디 (Square)
+      if (cur.lead && cur.lead.length) {
+        tone('square', freq(cur.lead[i % cur.lead.length]), nextTime, spb * 1.5, cur.leadVol || 0.05);
       }
+      
+      // 화음/아르페지오 (Sawtooth - 짧고 경쾌하게 끊어침)
+      if (cur.arp && cur.arp.length) {
+        tone('sawtooth', freq(cur.arp[i % cur.arp.length]), nextTime, spb * 0.8, cur.arpVol || 0.02);
+      }
+      
+      // 베이스 (Triangle)
+      if (cur.bass && cur.bass.length) {
+        tone('triangle', freq(cur.bass[i % cur.bass.length]), nextTime, spb * 2.2, cur.bassVol || 0.06);
+      }
+      
+      // 드럼 (Noise)
       if (cur.drum && cur.drum.length && cur.drumVol) {
         const d = cur.drum[i % cur.drum.length];
-        if (d === 'k') noise(nextTime, 0.09, cur.drumVol * 2.2, 220);
-        else if (d === 's') noise(nextTime, 0.05, cur.drumVol, 6000);
+        if (d === 'k') noise(nextTime, 0.09, cur.drumVol * 2.5, 200, 'lowpass');     // 묵직한 킥
+        else if (d === 's') noise(nextTime, 0.05, cur.drumVol * 1.5, 4000, 'lowpass'); // 타격감 있는 스네어
+        else if (d === 'h') noise(nextTime, 0.02, cur.drumVol * 0.7, 8000, 'highpass'); // 촥촥 감기는 하이햇
       }
+      
       nextTime += spb;
       step++;
     }
@@ -170,7 +215,6 @@
     },
     getVolume() { return volume; },
 
-    /* 트랙 재생. 같은 트랙이면 다시 시작하지 않는다(장면 전환 때 뚝 끊기지 않게). */
     play(name, force) {
       const t = TRACKS[name];
       if (!t) return false;

@@ -1125,6 +1125,11 @@ function maybeLifeEvent() {
     if (childEvent) { showLifeEvent(childEvent); return; }
   }
   const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,charm:L.charm,affection:L.affection||0,pers:L.partner&&L.partner.personality };
+  const jobSpecific = (D.CAREER_EVENTS || []).filter(e => Array.isArray(e.jobs) && e.jobs.includes(L.job) && (!e.cond || e.cond(ctx)));
+  if (jobSpecific.length && Math.random() < 0.65) {
+    showLifeEvent(pick(jobSpecific));
+    return;
+  }
   const pool = (D.LIFE_EVENTS || []).concat(D.ROMANCE_EVENTS || [], D.CAREER_EVENTS || []).filter(e => !e.cond || e.cond(ctx));
   if (pool.length) showLifeEvent(pick(pool));
 }
