@@ -4,14 +4,15 @@
  *  variable : [최소, 최대] 월수입 랜덤 (음수 가능 = 적자)
  *  risk     : 매달 사고가 터질 확률 (고소득일수록 높게 = 하이리스크 하이리턴)
  *  incidents: 사고 풀 { text, cost:[최소,최대] } — 터지면 그 금액만큼 '빚'이 생김
+ *  dateBonus: 데이트 성공 판정에 더해지는 직업(능력) 보정치 (0~25)
  * ========================================================================= */
 const JOBS = [
   {
-    id: 'none', emoji: '🛋️', name: '백수', salary: 0, risk: 0.00,
+    id: 'none', emoji: '🛋️', name: '백수', salary: 0, risk: 0.00, dateBonus: 0, difficulty: 0,
     desc: '무직. 월급 없음 (투자로만 버티기)', incidents: [],
   },
   {
-    id: 'parttime', emoji: '🏪', name: '편의점 알바', salary: 800000, risk: 0.03,
+    id: 'parttime', emoji: '🏪', name: '편의점 알바', salary: 800000, risk: 0.03, dateBonus: 5, difficulty: 8,
     desc: '소소하지만 확실한 시급 · 리스크 낮음',
     incidents: [
       { text: '진상 손님과 시비, 합의금', cost: [200000, 800000] },
@@ -19,7 +20,7 @@ const JOBS = [
     ],
   },
   {
-    id: 'office', emoji: '🏢', name: '회사원', salary: 2500000, risk: 0.05,
+    id: 'office', emoji: '🏢', name: '회사원', salary: 2500000, risk: 0.05, dateBonus: 10, difficulty: 30,
     desc: '평범한 직장인의 삶',
     incidents: [
       { text: '회식 후 대리·병원비 폭탄', cost: [300000, 1500000] },
@@ -27,14 +28,14 @@ const JOBS = [
     ],
   },
   {
-    id: 'civil', emoji: '🏛️', name: '공무원', salary: 2200000, risk: 0.02,
+    id: 'civil', emoji: '🏛️', name: '공무원', salary: 2200000, risk: 0.02, dateBonus: 12, difficulty: 50,
     desc: '철밥통, 가장 안정적',
     incidents: [
       { text: '민원 스트레스로 병가·치료비', cost: [200000, 1000000] },
     ],
   },
   {
-    id: 'dev', emoji: '💻', name: '개발자', salary: 4000000, risk: 0.09,
+    id: 'dev', emoji: '💻', name: '개발자', salary: 4000000, risk: 0.09, dateBonus: 12, difficulty: 45,
     desc: '야근과 맞바꾼 연봉 · 사고 잦음',
     incidents: [
       { text: '배포 사고로 서버 다운, 배상', cost: [2000000, 15000000] },
@@ -43,7 +44,7 @@ const JOBS = [
     ],
   },
   {
-    id: 'doctor', emoji: '⚕️', name: '의사', salary: 7000000, risk: 0.12,
+    id: 'doctor', emoji: '⚕️', name: '의사', salary: 7000000, risk: 0.12, dateBonus: 22, difficulty: 85,
     desc: '고소득이지만 사고 한 방이 큼',
     incidents: [
       { text: '의료사고 소송, 배상금', cost: [30000000, 200000000] },
@@ -52,7 +53,7 @@ const JOBS = [
     ],
   },
   {
-    id: 'youtuber', emoji: '🎥', name: '유튜버', salary: 0, variable: [0, 8000000], risk: 0.15,
+    id: 'youtuber', emoji: '🎥', name: '유튜버', salary: 0, variable: [0, 8000000], risk: 0.15, dateBonus: 18, difficulty: 15,
     desc: '월수입 들쭉날쭉 · 한 방 아니면 폭망',
     incidents: [
       { text: '뒷광고 논란, 손배+수익 정지', cost: [5000000, 40000000] },
@@ -61,7 +62,7 @@ const JOBS = [
     ],
   },
   {
-    id: 'ceo', emoji: '🕴️', name: '사업가', salary: 0, variable: [-5000000, 20000000], risk: 0.18,
+    id: 'ceo', emoji: '🕴️', name: '사업가', salary: 0, variable: [-5000000, 20000000], risk: 0.18, dateBonus: 20, difficulty: 25,
     desc: '초고위험 초고수익 · 적자도 가능',
     incidents: [
       { text: '거래처 부도로 미수금 증발', cost: [10000000, 80000000] },

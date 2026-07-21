@@ -19,7 +19,19 @@ const SECTORS = {
   build:   { name: '건설/중공업', color: '#6b7280' },
   air:     { name: '항공/여행',   color: '#06b6d4' },
   crypto:  { name: '코인/테마',   color: '#eab308' },
+  etf:     { name: 'ETF/지수',    color: '#0ea5e9' },
 };
+
+/* ---------------------------------------------------------------------------
+ *  ETF (지수 추종 상품) — 시장 전체 지수 등락률 × lev 배율로 움직임
+ *  lev: 1(정방향) · 2(레버리지) · -1(인버스) · -2(곱버스)
+ * ------------------------------------------------------------------------- */
+const ETFS = [
+  { name: '코덱스200',       price: 38000, lev: 1 },
+  { name: '코덱스 레버리지', price: 21000, lev: 2 },
+  { name: '코덱스 인버스',   price: 5200,  lev: -1 },
+  { name: '코덱스 곱버스',   price: 3100,  lev: -2 },
+];
 
 /* ---------------------------------------------------------------------------
  *  종목 마스터
@@ -297,11 +309,11 @@ const LIFE_ACHIEVEMENTS = [
 
 /* 전역 노출 */
 window.QT_DATA = {
-  SECTORS, COMPANY_MASTER,
+  SECTORS, COMPANY_MASTER, ETFS,
   EVENTS_COMPANY_GOOD, EVENTS_COMPANY_BAD, EVENTS_SECTOR,
   EVENTS_MARKET, EVENTS_NONE, ACHIEVEMENTS,
   EXPERTS, EXPERT_BULL, EXPERT_BEAR,
   JOBS, HOBBIES, PROPERTIES, LOAN_OPTIONS, RELATIONSHIP, LIFE_ACHIEVEMENTS,
-  CHARACTERS, PERSONALITIES,   // js/characters.js
+  CHARACTERS, PERSONALITIES, DATE_APPROACHES, DATE_ROUTES, DATE_LINES,   // js/characters.js
   LIFE_EVENTS,                 // js/events_life.js
 };

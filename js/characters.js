@@ -35,3 +35,48 @@ const CHARACTERS = [
   { name: '태양', emoji: '👨', job: '사업가',   income: 5000000, personality: 'lavish' },
   { name: '보라', emoji: '👩', job: '약사',     income: 4500000, personality: 'homebody' },
 ];
+
+/* 데이트 접근 방식(선택지) — 성공 판정에 mod/보정이 다르게 들어감
+ *   mod       : 점수 고정 보정
+ *   cost      : 추가 비용 (기본 데이트 비용에 더해짐)
+ *   flexReward: 이 비용을 감당할 현금이 있으면 큰 보정(+), 없으면 역효과(-)
+ *   variance  : 점수에 ±범위 랜덤 (고위험 고수익) */
+const DATE_APPROACHES = [
+  { key: 'sincere', emoji: '💬', label: '진솔하게 대화한다', mod: 12, cost: 0, desc: '무난하고 안정적' },
+  { key: 'flex', emoji: '💳', label: '화려하게 플렉스', mod: 0, cost: 2000000, flexReward: 28, desc: '돈으로 어필, 여유 있으면 강력' },
+  { key: 'push', emoji: '🎭', label: '밀당을 시도한다', mod: 4, cost: 0, variance: 35, desc: '고위험 고수익, 완전 랜덤' },
+];
+
+/* 소개팅 경로(선택지) — 경로마다 만나는 사람의 성향 풀(pool)이 다르다.
+ *   pool: 'any' 또는 성격키 배열 → 그 성향의 상대가 등장
+ *   scoreMod: 그 경로에서의 데이트 성공 난이도 보정 */
+const DATE_ROUTES = [
+  { key: 'app',    emoji: '📱', name: '소개팅 앱', desc: '다양한 사람',           pool: 'any',                              cost: 200000,  scoreMod: 0 },
+  { key: 'office', emoji: '🏢', name: '사내연애', desc: '같은 회사 동료',         pool: 'any',                              cost: 100000,  scoreMod: 4,  needsJob: true, office: true },
+  { key: 'intro',  emoji: '🤝', name: '지인 소개', desc: '안정적·진중한 사람',    pool: ['frugal', 'homebody', 'caring'],    cost: 300000,  scoreMod: 6 },
+  { key: 'hobby',  emoji: '🎨', name: '취미 모임', desc: '취향이 잘 맞는 사람',   pool: ['caring', 'homebody', 'ambitious'], cost: 400000,  scoreMod: 8 },
+  { key: 'club',   emoji: '🍸', name: '클럽/헌팅', desc: '화려하지만 위험한 사람', pool: ['free', 'lavish'],                 cost: 800000,  scoreMod: -6 },
+];
+
+/* 데이트 결과 대사(현실적) — 성공/보통/실패 티어별 랜덤 */
+const DATE_LINES = {
+  '성공': [
+    '대화가 술술 통했다. "다음에 또 봐요"라며 환하게 웃었다.',
+    '취향이 잘 맞아 시간 가는 줄 몰랐다. 2차까지 이어졌다.',
+    '헤어지기 아쉬워 밤늦게까지 이야기를 나눴다.',
+    '자연스럽게 연락처를 주고받았고, 벌써 답장이 왔다.',
+  ],
+  '보통': [
+    '나쁘진 않았지만 특별한 설렘은 없었다.',
+    '무난하게 밥만 먹고 헤어졌다.',
+    '어색하진 않았지만 다음 약속은 못 잡았다.',
+    '"오늘 즐거웠어요" 정도의 인사로 마무리했다.',
+  ],
+  '실패': [
+    '어색한 침묵이 계속 흘렀다.',
+    '대화 주제가 자꾸 끊겨서 진땀을 뺐다.',
+    '"오늘 좀 피곤하네요"라며 일찍 일어섰다.',
+    '연락처도 못 물어보고 그대로 헤어졌다.',
+    '계산할 때 분위기가 급격히 식었다.',
+  ],
+};

@@ -13,6 +13,7 @@
   <div class="close-host" id="market-close" style="display:none"></div>
   <div class="life-modal-host" id="life-modal" style="display:none"></div>
   <div class="event-host" id="life-event" style="display:none"></div>
+  <div class="event-host" id="date-host" style="display:none"></div>
 
   <div class="main-window window">
     <!-- 타이틀 바 -->
@@ -89,6 +90,7 @@
         <div class="window panel trade-panel">
           <div class="title-bar"><div class="title-bar-text">💱 주문</div></div>
           <div class="window-body">
+            <div class="pos-pnl" id="pos-pnl">📌 미보유</div>
             <div class="trade-row lev-row">
               <label>⚡ 신용 레버리지
                 <select id="leverage-select">
@@ -98,11 +100,12 @@
                   <option value="5">5x (풀빚투)</option>
                 </select>
               </label>
-              <span class="lev-hint">배율만큼 매수여력↑ · 하락 시 <strong>반대매매</strong> 주의</span>
+              <span class="lev-hint">신용 배율 · ETF 레버리지(2x·인버스)와는 별개</span>
             </div>
             <div class="trade-row">
               <span class="cost-info up" id="cost-buy">비용: 0원</span>
-              <label>매수량 <input type="number" id="qty-buy" value="1" min="1"></label>
+              <label>수량 <input type="number" id="qty-buy" value="1" min="1"></label>
+              <label>금액 <input type="number" id="amt-buy" placeholder="원" min="0" step="10000"></label>
               <button id="buy-btn" class="btn-buy">매수 (B)</button>
               <button id="buy-max">MAX</button>
             </div>
@@ -112,7 +115,7 @@
               <button id="sell-btn" class="btn-sell">매도 (S)</button>
               <button id="sell-max">MAX</button>
             </div>
-            <p class="hint">💡 보유분이 없을 때 매도하면 <strong>공매도(숏)</strong> 진입됩니다. 하락하면 이익!</p>
+            <p class="hint">💡 <strong>금액</strong>란에 원 단위로 넣으면 살 수 있는 수량이 자동 계산됩니다. 보유분 없이 매도하면 <strong>공매도(숏)</strong>.</p>
           </div>
         </div>
       </div>
