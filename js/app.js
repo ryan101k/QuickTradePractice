@@ -288,6 +288,8 @@ function tick() {
 
   // (B) ETF: 시장 지수 등락률 × 레버리지 배율(인버스는 반대) + 약간의 추적오차
   const indexReturn = idxCount ? idxSum / idxCount : 0;
+  // BGM은 한 틱의 출렁임보다 최근 장 분위기를 따라가게 완충한다.
+  S.bgmMarketTrend = (S.bgmMarketTrend || 0) * 0.72 + indexReturn * 0.28;
   S.stocks.forEach(stock => {
     if (!stock.listed || stock.type !== 'etf') return;
     const lev = stock.lev || 1;
@@ -312,6 +314,8 @@ function tick() {
   S.maxNetWorth = Math.max(S.maxNetWorth, nw);
 
   checkAchievements();
+  // 매 틱 호출해도 같은 트랙이면 bgm.js가 재시작하지 않는다.
+  syncBGM();
   renderAll();
   autoSave();
 
@@ -344,6 +348,7 @@ function delist(stock) {
   // 보유분은 0원 처리
   if (S.owned[stock.name] && S.owned[stock.name].qty > 0) delete S.owned[stock.name];
   playSound('crash');
+  playBGMSting('bankrupt', 5200);
 }
 
 function maybeNewListing() {
@@ -428,6 +433,9 @@ function showBreaking(item, isAlert) {
   S.breaking = { ...item, experts, timer: null };
   renderBreaking();
   playSound(isAlert ? 'crash' : (item.impact >= 0 ? 'buy' : 'sell'));
+  if (isAlert || item.impact <= -0.18) playBGMSting('bankrupt', 4200);
+  else if (item.impact >= 0.18) playBGMSting('jackpot', 4200);
+  else syncBGM();
   S.breaking.timer = setTimeout(closeBreaking, CFG.BREAKING_MS);
 }
 
@@ -435,6 +443,7 @@ function closeBreaking() {
   if (S.breaking && S.breaking.timer) clearTimeout(S.breaking.timer);
   S.breaking = null;
   renderBreaking();
+  syncBGM(true);
 }
 
 function renderBreaking() {
@@ -2899,15 +2908,36 @@ function flashToast(msg, cls) {
 /* ------------------------------------------------------------------ 배경음악 */
 const BGM = window.QT_BGM;
 
-// 지금 화면에 맞는 트랙을 고른다 (데이트 > 마감 리포트 > 장중)
+// 지금 화면에 맞는 트랙을 고른다 (데이트 > 속보 > 마감 > 장중 분위기)
 function bgmScene() {
   const dateOpen = $('date-host') && $('date-host').style.display === 'block';
-  if (dateOpen) return 'date';
-  return S.phase === 'open' ? 'market' : 'closed';
+  if (dateOpen) return 'dreamy';
+  if (S.breaking) return 'news';
+  if (S.phase !== 'open') return 'news';
+
+  const trend = S.bgmMarketTrend || 0;
+  if (trend >= 0.007) return 'market_bull';
+  if (trend <= -0.007) return 'market_bear';
+  return 'market_normal';
 }
-function syncBGM() {
+function syncBGM(force) {
   if (!BGM || !S.bgmOn) return;
+  if (!force && Date.now() < bgmStingUntil) return;
   BGM.play(bgmScene());
+}
+let bgmStingToken = 0;
+let bgmStingUntil = 0;
+function playBGMSting(track, duration) {
+  if (!BGM || !S.bgmOn) return;
+  const token = ++bgmStingToken;
+  bgmStingUntil = Date.now() + (duration || 4200);
+  if (!BGM.play(track, true)) return;
+  setTimeout(() => {
+    if (token === bgmStingToken && BGM.current() === track) {
+      bgmStingUntil = 0;
+      syncBGM(true);
+    }
+  }, duration || 4200);
 }
 function toggleBGM(on) {
   if (!BGM) return;
