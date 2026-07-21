@@ -20,17 +20,19 @@ const PERSONALITIES = {
 };
 
 /* 연애 상대 로스터 — 연애가 시작되면 이 중 한 명이 랜덤 배정
- * gender 는 초상화(assets/characters)의 그림과 반드시 일치시킨다. */
+ * gender 는 초상화(assets/characters)의 그림과 반드시 일치시킨다.
+ * portrait 의 '-neutral' 부분은 표정에 따라 교체된다(characterPortrait 참고).
+ * '-v2-' 는 표정별로 새로 그린 640px 버전이 있는 인물. */
 const CHARACTERS = [
-  { name: '서연', gender: 'f', emoji: '👩', job: '디자이너', income: 2800000, personality: 'caring', portrait: 'seoyeon.webp' },
-  { name: '민준', gender: 'm', emoji: '👨', job: '변호사', income: 6000000, personality: 'ambitious', portrait: 'minjun.webp' },
-  { name: '지우', gender: 'm', emoji: '👨', job: '백수', income: 0, personality: 'lavish', portrait: 'jiwoo.webp' },
-  { name: '하은', gender: 'f', emoji: '👩', job: '간호사', income: 3200000, personality: 'frugal', portrait: 'haeun.webp' },
-  { name: '도윤', gender: 'm', emoji: '👨', job: '의사', income: 7000000, personality: 'cold', portrait: 'doyun.webp' },
-  { name: '수빈', gender: 'm', emoji: '👨', job: '유튜버', income: 1500000, personality: 'free', portrait: 'subin.webp' },
-  { name: '예린', gender: 'f', emoji: '👩', job: '공무원', income: 2200000, personality: 'homebody', portrait: 'yerin.webp' },
-  { name: '시우', gender: 'm', emoji: '👨', job: '개발자', income: 4000000, personality: 'ambitious', portrait: 'siwoo.webp' },
-  { name: '채원', gender: 'f', emoji: '👩', job: '승무원', income: 3000000, personality: 'lavish', portrait: 'chaewon.webp' },
+  { name: '서연', gender: 'f', emoji: '👩', job: '디자이너', income: 2800000, personality: 'caring', portrait: 'seoyeon-v2-neutral.webp' },
+  { name: '민준', gender: 'm', emoji: '👨', job: '변호사', income: 6000000, personality: 'ambitious', portrait: 'minjun-v2-neutral.webp' },
+  { name: '지우', gender: 'm', emoji: '👨', job: '백수', income: 0, personality: 'lavish', portrait: 'jiwoo-v2-neutral.webp' },
+  { name: '하은', gender: 'f', emoji: '👩', job: '간호사', income: 3200000, personality: 'frugal', portrait: 'haeun-v2-neutral.webp' },
+  { name: '도윤', gender: 'm', emoji: '👨', job: '의사', income: 7000000, personality: 'cold', portrait: 'doyun-v2-neutral.webp' },
+  { name: '수빈', gender: 'm', emoji: '👨', job: '유튜버', income: 1500000, personality: 'free', portrait: 'subin-v2-neutral.webp' },
+  { name: '예린', gender: 'f', emoji: '👩', job: '공무원', income: 2200000, personality: 'homebody', portrait: 'yerin-v2-neutral.webp' },
+  { name: '시우', gender: 'm', emoji: '👨', job: '개발자', income: 4000000, personality: 'ambitious', portrait: 'siwoo-v2-neutral.webp' },
+  { name: '채원', gender: 'f', emoji: '👩', job: '승무원', income: 3000000, personality: 'lavish', portrait: 'chaewon-v2-neutral.webp' },
   { name: '건우', gender: 'm', emoji: '👨', job: '자영업', income: 2500000, personality: 'frugal', portrait: 'geonwoo.webp' },
   { name: '유나', gender: 'f', emoji: '👩', job: '모델', income: 2000000, personality: 'free', portrait: 'yuna.webp' },
   { name: '수아', gender: 'f', emoji: '👩', job: '교사', income: 2600000, personality: 'caring', portrait: 'sua.webp' },

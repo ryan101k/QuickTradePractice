@@ -402,6 +402,9 @@ body {
 
   #sector-filter, #rival-target { min-height: 42px; font-size: 15px; flex: 1 1 100%; }
   #next-generation { min-height: 46px; font-size: 14px; width: 100%; }
+
+  .report-open-btn { min-height: 46px; font-size: 14px; }
+  .row-report { min-width: 38px; min-height: 34px; font-size: 14px; opacity: 1; }
   .route-card { padding: 10px; }
   .char-thumb { width: 54px; height: 54px; }
   .event-desc, .oc-text { font-size: 14px; line-height: 1.6; }
@@ -438,8 +441,62 @@ body {
 .po-row { display:flex; align-items:center; gap:6px; padding:2px 0; flex-wrap:wrap; }
 .po-row .po-cancel { margin-left:auto; padding:1px 8px; font-size:11px; }
 
+/* ---------------------------------------------------------------- 기업 리포트 */
+.report-open-btn { width:100%; padding:6px; margin-bottom:8px; cursor:pointer; font-size:12.5px; background:#eef3ff !important; }
+.row-report { margin-left:4px; padding:0 4px; font-size:11px; line-height:1.4; cursor:pointer; opacity:.65; }
+.row-report:hover { opacity:1; }
+.cr-window { box-shadow:6px 6px 0 rgba(0,0,0,.45); }
+.cr-bar { background:linear-gradient(90deg,#0b5c3b,#1f9d6d) !important; animation:none !important; }
+.cr-window .window-body { background:#f6faf8; max-height:82vh; overflow-y:auto; }
+.cr-head { background:#fff; border:2px inset #808080; padding:8px 10px; margin-bottom:8px; }
+.cr-title { display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:15px; }
+.cr-price { margin-top:4px; font-size:14px; }
+.cr-price b { font-size:17px; }
+.cr-sec { border:1px solid #b9cfc4; background:#fff; margin-bottom:6px; }
+.cr-sec > summary { cursor:pointer; font-weight:bold; font-size:12.5px; padding:6px 8px; background:#e6f2ec; }
+.cr-body { padding:8px 10px; font-size:12.5px; line-height:1.55; }
+.cr-meta { color:#555; font-size:11.5px; margin-bottom:4px; }
+.cr-biz { font-weight:bold; margin-bottom:5px; }
+.cr-desc { margin:0 0 6px; color:#333; }
+.cr-tags { display:flex; gap:5px; flex-wrap:wrap; }
+.cr-tag { font-size:11px; background:#e8eefc; border:1px solid #a9bde6; border-radius:10px; padding:1px 7px; color:#2c4a86; }
+.cr-fin { display:grid; grid-template-columns:1fr 1fr; gap:2px 14px; }
+.cr-row { display:flex; justify-content:space-between; gap:8px; border-bottom:1px dotted #ccc; padding:3px 0; }
+.cr-row span { color:#555; }
+.cr-news li { border-bottom:1px dotted #ddd; padding:4px 2px; font-size:12px; }
+.cr-when { color:#888; font-size:11px; margin-right:4px; }
+.cr-senti { font-weight:bold; }
+.cr-senti-desc { color:#555; font-size:11.5px; margin-bottom:6px; }
+.cr-talk li { border-bottom:1px dotted #ddd; padding:6px 2px; }
+.tk-head { font-size:11.5px; }
+.tk-head b { color:#1f4fa8; }
+.tk-like { float:right; color:#888; }
+.tk-text { font-size:12.5px; margin-top:2px; }
+.cr-talk .talk-up { border-left:3px solid #d64545; padding-left:6px; }
+.cr-talk .talk-down { border-left:3px solid #2b6fd6; padding-left:6px; }
+.cr-warn { margin-top:8px; font-size:11px; color:#8a6d00; background:#fffbe6; border:1px solid #d6c05a; padding:5px 7px; }
+
+/* 뉴스 탭 필터 */
+.news-filters { display:flex; gap:4px; flex-wrap:wrap; padding:4px 2px 6px; border-bottom:1px solid #b8c6df; margin-bottom:4px; }
+.nf-btn { font-size:11.5px; padding:3px 7px; cursor:pointer; }
+.nf-btn.active { background:#000080 !important; color:#fff; font-weight:bold; }
+.news-log .news-stock { cursor:pointer; border-bottom:1px dotted #ddd; padding:5px 3px; }
+.news-log .news-stock:hover { background:#eef3ff; }
+.nf-held { font-size:10px; background:#ffe9a8; border:1px solid #d6a01f; border-radius:3px; padding:0 4px; margin-left:4px; }
+
 /* 배경음악 컨트롤 */
 .bgm-group { display:flex; align-items:center; gap:6px; }
 #bgm-toggle.on { background:#d0ffd0 !important; font-weight:bold; }
 #bgm-vol { width:80px; accent-color:#000080; }
+
+/* 모바일 보정 — 위 기본 규칙보다 뒤에 와야 덮어쓸 수 있다 */
+@media (max-width: 560px) {
+  .cr-window .window-body { max-height: none; }
+  .cr-fin { grid-template-columns: 1fr; }
+  .cr-sec > summary { padding: 11px 8px; font-size: 13.5px; }
+  .cr-body, .tk-text { font-size: 13.5px; }
+  .cr-row { padding: 6px 0; }
+  .nf-btn { min-height: 38px; font-size: 13px; padding: 6px 10px; flex: 1 1 auto; }
+  .news-log .news-stock { padding: 9px 4px; font-size: 13px; }
+}
 @media (max-width:600px) { .char-portrait{width:96px;height:96px}.char-thumb{width:48px;height:48px} }

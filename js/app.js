@@ -21,6 +21,7 @@ const CAREER = window.QT_CAREER;
 const ECONOMY = window.QT_ECONOMY;
 const HOUSING = window.QT_HOUSING;
 const LIFE_FINANCE = window.QT_LIFE_FINANCE;
+const COMPANY = window.QT_COMPANY;
 
 /* ------------------------------------------------------------------ 설정 */
 const CFG = {
@@ -84,6 +85,9 @@ const S = {
   sessionNews: [],            // 이번 장에서 발생한 주요 뉴스(마감 리포트용)
   awaitingNextDay: false,     // 마감 후 '다음달 개장' 대기 상태
   pendingOrders: [],          // 장 마감 중 걸어둔 예약주문 [{id, name, side, qty}] — 다음 개장 시초가에 체결
+  companyNews: [],            // 종목별 공시 로그 (기업 리포트·뉴스 탭용)
+  newsSeq: 0,                 // 뉴스 발생 순번 — 일반 뉴스와 공시를 한 줄로 정렬할 때 쓴다
+  newsFilter: 'all',          // 뉴스 탭 필터: all | stock | market | mine | watch
   dayStartNW: CFG.START_CAPITAL, // 개장 시점 순자산(당월 손익 계산용)
   life: null,                 // 인생 상태(직업/행복/관계/부동산/대출) — boot 에서 초기화
   economy: null,              // 장기 경제 국면
@@ -256,6 +260,7 @@ function tick() {
       const nItem = { headline: `${stock.name} — ${stock.pendingIssue.text}`, target: stock.name, impact: stock.pendingIssue.impact };
       S._breakCand.push(nItem);
       S.sessionNews.push(nItem);
+      logCompanyNews(stock.name, stock.pendingIssue.text, stock.pendingIssue.impact);
     }
 
     // 3) 랜덤 노이즈(삼각분포로 0 근처가 잦게) + 추세 + 이슈 + 시장
@@ -2272,6 +2277,148 @@ function changeInfo(stock) {
   return { cur, prev, diff, rate, up: diff >= 0 };
 }
 
+/* ------------------------------------------------------------------ 기업 리포트 */
+
+/* 종목별 공시·뉴스 로그.
+ * 개별 종목 이슈는 마감 리포트용 sessionNews 로만 흘러가고 개장 때마다 비워지므로,
+ * 기업 리포트에서 되짚어 볼 수 있도록 따로 쌓아둔다. */
+function logCompanyNews(name, text, impact) {
+  S.companyNews = S.companyNews || [];
+  S.companyNews.unshift({ name, text, impact, day: S.day, seq: ++S.newsSeq });
+  if (S.companyNews.length > 120) S.companyNews.pop();
+}
+
+// 이 종목의 뉴스 = 개별 공시 로그 + 종목명이 언급된 일반 뉴스
+function newsFor(name) {
+  const own = (S.companyNews || [])
+    .filter(n => n.name === name)
+    .map(n => ({ text: n.text, day: n.day, cls: n.impact > 0 ? 'good' : n.impact < 0 ? 'bad' : 'neutral' }));
+  const mentioned = S.news
+    .filter(n => n.text.indexOf(name) >= 0)
+    .map(n => ({ text: n.text, day: n.day, cls: n.cls }));
+  return own.concat(mentioned).sort((a, b) => b.day - a.day).slice(0, 12);
+}
+
+function fmtEok(v) {
+  const eok = v / 1e8;
+  if (Math.abs(eok) >= 10000) return (eok / 10000).toFixed(1) + '조원';
+  return Math.round(eok).toLocaleString('ko-KR') + '억원';
+}
+
+function showCompanyReport(name) {
+  const host = $('report-host'); if (!host || !COMPANY) return;
+  const stock = S.stocks.find(s => s.name === name && s.listed);
+  if (!stock) { flashToast('상장폐지된 종목입니다', 'neutral'); return; }
+  S._reportName = name;
+
+  const ci = changeInfo(stock);
+  const p = COMPANY.profile(name);
+  const isEtf = stock.type === 'etf';
+  const f = isEtf ? null : COMPANY.financials(stock, ci.cur);
+  const sec = D.SECTORS[stock.sector] || { name: '-', color: '#888' };
+  const senti = COMPANY.sentiment(ci.rate);
+  const talk = isEtf ? [] : COMPANY.posts(stock, ci.rate, S.day, 7);
+  const news = newsFor(name);
+  const pos = S.owned[name];
+
+  const num = (v, suffix, digits) => v == null ? '<span class="muted">N/A</span>' : v.toFixed(digits == null ? 2 : digits) + (suffix || '');
+
+  const finRows = isEtf
+    ? `<div class="cr-row"><span>유형</span><strong>지수추종 ETF · ${levLabel(stock.lev)}</strong></div>
+       <div class="cr-row"><span>설명</span><strong>개별 기업이 아니라 시장 지수를 ${levLabel(stock.lev)}로 추종합니다.</strong></div>`
+    : `<div class="cr-row"><span>시가총액</span><strong>${fmtEok(f.marketCap)}</strong></div>
+       <div class="cr-row"><span>발행주식수</span><strong>${Math.round(f.shares / 1e4).toLocaleString('ko-KR')}만주</strong></div>
+       <div class="cr-row"><span>매출액 <small>(연)</small></span><strong>${fmtEok(f.sales)}</strong></div>
+       <div class="cr-row"><span>영업이익</span><strong class="${f.opProfit >= 0 ? 'up' : 'down'}">${fmtEok(f.opProfit)} <small>(${(f.opMargin * 100).toFixed(1)}%)</small></strong></div>
+       <div class="cr-row"><span>PER</span><strong>${num(f.per, '배')} ${f.loss ? '<small class="down">적자</small>' : ''}</strong></div>
+       <div class="cr-row"><span>PBR</span><strong>${num(f.pbr, '배')}</strong></div>
+       <div class="cr-row"><span>ROE</span><strong class="${f.roe >= 0 ? 'up' : 'down'}">${num(f.roe == null ? null : f.roe * 100, '%', 1)}</strong></div>
+       <div class="cr-row"><span>부채비율</span><strong class="${f.debtRatio > 200 ? 'down' : ''}">${f.debtRatio.toFixed(0)}%</strong></div>
+       <div class="cr-row"><span>외국인 지분</span><strong>${f.foreign.toFixed(1)}%</strong></div>
+       <div class="cr-row"><span>배당수익률</span><strong>${f.divYield ? (f.divYield * 100).toFixed(2) + '%' : '<span class="muted">무배당</span>'}</strong></div>`;
+
+  host.style.display = 'block';
+  host.innerHTML =
+    `<div class="window event-window cr-window">
+       <div class="title-bar cr-bar">
+         <div class="title-bar-text">📄 기업 리포트 · ${name}</div>
+         <div class="title-bar-controls"><button aria-label="Close" id="cr-x"></button></div>
+       </div>
+       <div class="window-body">
+         <div class="cr-head">
+           <div class="cr-title">
+             <span class="tag" style="background:${sec.color}">${sec.name}</span>
+             <strong>${name}</strong>
+             <span class="cap-badge">${(CAP_META[stock.cap] || {}).badge || ''}${(CAP_META[stock.cap] || {}).label || ''}</span>
+           </div>
+           <div class="cr-price">
+             <b class="${ci.up ? 'up' : 'down'}">${won(ci.cur)}원</b>
+             <span class="${ci.up ? 'up' : 'down'}">${ci.up ? '▲' : '▼'} ${pct(ci.rate)}</span>
+             ${pos ? `<span class="muted">· 내 보유 ${pos.qty > 0 ? pos.qty + '주' : '공매도 ' + Math.abs(pos.qty) + '주'}</span>` : ''}
+           </div>
+         </div>
+
+         <details class="cr-sec" open>
+           <summary>🏢 기업 개요</summary>
+           <div class="cr-body">
+             ${isEtf ? '' : `<div class="cr-meta">설립 ${p.since}년 · 임직원 ${p.emp.toLocaleString('ko-KR')}명 · ${p.hq} · 대표 ${p.ceo}</div>`}
+             <div class="cr-biz">${p.biz}</div>
+             <p class="cr-desc">${p.desc}</p>
+             ${p.tags.length ? `<div class="cr-tags">${p.tags.map(t => `<span class="cr-tag">#${t}</span>`).join('')}</div>` : ''}
+           </div>
+         </details>
+
+         <details class="cr-sec" open>
+           <summary>📊 주요 지표 <span class="muted">현재가 기준</span></summary>
+           <div class="cr-body cr-fin">${finRows}</div>
+         </details>
+
+         <details class="cr-sec" open>
+           <summary>📰 실시간 뉴스 <span class="muted">${news.length}건</span></summary>
+           <div class="cr-body">
+             ${news.length
+               ? `<ul class="clean-list cr-news">${news.map(n =>
+                   `<li class="${n.cls}"><span class="cr-when">${n.day}일차</span> ${n.text}</li>`).join('')}</ul>`
+               : '<div class="muted">아직 이 종목에 대한 뉴스가 없습니다.</div>'}
+           </div>
+         </details>
+
+         ${isEtf ? '' : `
+         <details class="cr-sec" open>
+           <summary>💬 종목토론방 <span class="cr-senti ${senti.cls}">${senti.emoji} ${senti.label}</span></summary>
+           <div class="cr-body">
+             <div class="cr-senti-desc">${senti.desc}</div>
+             <ul class="clean-list cr-talk">
+               ${talk.map(t =>
+                 `<li class="talk-${t.mood}">
+                    <div class="tk-head"><b>${t.nick}</b> <span class="muted">${t.min}분 전</span> <span class="tk-like">👍 ${t.like}</span></div>
+                    <div class="tk-text">${t.text}</div>
+                  </li>`).join('')}
+             </ul>
+             <div class="cr-warn">⚠️ 종목토론방 글은 근거 없는 추측일 수 있습니다. 투자 판단은 본인 책임입니다.</div>
+           </div>
+         </details>`}
+
+         <div class="close-actions">
+           <button id="cr-goto" class="session-btn opening">📈 이 종목 거래하기</button>
+           <button id="cr-news">📰 전체 뉴스</button>
+           <button id="cr-close">닫기</button>
+         </div>
+       </div>
+     </div>`;
+
+  const go = $('cr-goto');
+  if (go) go.addEventListener('click', () => { closeCompanyReport(); goBuy(name); });
+  const nb = $('cr-news');
+  if (nb) nb.addEventListener('click', () => { closeCompanyReport(); openNewsTab(); });
+  [$('cr-x'), $('cr-close')].forEach(b => { if (b) b.addEventListener('click', closeCompanyReport); });
+}
+
+function closeCompanyReport() {
+  const h = $('report-host'); if (h) { h.style.display = 'none'; h.innerHTML = ''; }
+  S._reportName = null;
+}
+
 function renderStockList() {
   const el = $('stock-list');
   el.innerHTML = '';
@@ -2294,11 +2441,13 @@ function renderStockList() {
       `<strong>${stock.name}</strong> ` +
       badge +
       `<span class="price ${ci.up ? 'up' : 'down'}">${won(ci.cur)}원</span> ` +
-      `<span class="chg ${ci.up ? 'up' : 'down'}">${ci.up ? '▲' : '▼'} ${pct(ci.rate)}</span>`;
+      `<span class="chg ${ci.up ? 'up' : 'down'}">${ci.up ? '▲' : '▼'} ${pct(ci.rate)}</span>` +
+      `<button class="row-report" data-report="${stock.name}" title="${stock.name} 기업 리포트">📄</button>`;
     li.addEventListener('click', (e) => {
       if (e.target.classList.contains('star')) {
         toggleWatch(stock.name); return;
       }
+      if (e.target.dataset.report) { showCompanyReport(e.target.dataset.report); return; }
       S.selected = idx; renderAll();
     });
     el.appendChild(li);
@@ -2378,23 +2527,77 @@ function renderIssues() {
 }
 
 function addNews(text, cls) {
-  S.news.unshift({ text, cls: cls || 'neutral', day: S.day });
+  S.news.unshift({ text, cls: cls || 'neutral', day: S.day, seq: ++S.newsSeq });
   if (S.news.length > CFG.NEWS_MAX) S.news.pop();
 }
+/* 뉴스 피드 — 일반 뉴스(시장·인생)와 종목 공시를 한 줄로 합쳐 최신순으로 보여준다.
+ * 공시는 클릭하면 그 회사 기업 리포트가 열린다. */
+function newsFeed(filter) {
+  const general = S.news.map(n => ({
+    kind: 'market', text: n.text, cls: n.cls, day: n.day, seq: n.seq || 0,
+  }));
+  const company = (S.companyNews || []).map(n => ({
+    kind: 'stock', name: n.name, text: n.text, day: n.day, seq: n.seq || 0,
+    impact: n.impact, cls: n.impact > 0 ? 'good' : n.impact < 0 ? 'bad' : 'neutral',
+  }));
+  let all = general.concat(company).sort((a, b) => b.seq - a.seq || b.day - a.day);
+
+  if (filter === 'stock') all = all.filter(n => n.kind === 'stock');
+  else if (filter === 'market') all = all.filter(n => n.kind === 'market');
+  else if (filter === 'mine') {
+    const own = Object.keys(S.owned);
+    all = all.filter(n => n.kind === 'stock' ? own.includes(n.name) : own.some(o => n.text.indexOf(o) >= 0));
+  } else if (filter === 'watch') {
+    const watch = Object.keys(S.watchlist).filter(k => S.watchlist[k]);
+    all = all.filter(n => n.kind === 'stock' ? watch.includes(n.name) : watch.some(w => n.text.indexOf(w) >= 0));
+  }
+  return all;
+}
+
 function renderNews() {
   // 티커
   const ticker = $('news-ticker');
-  const latest = S.news.slice(0, 12).map(n => n.text).join('  ◆  ');
+  const latest = newsFeed('all').slice(0, 12)
+    .map(n => n.kind === 'stock' ? `${n.name} — ${n.text}` : n.text).join('  ◆  ');
   ticker.textContent = latest || '장이 열렸습니다. 행운을 빕니다 📈';
+
+  // 필터 버튼 상태
+  document.querySelectorAll('.nf-btn').forEach(b => b.classList.toggle('active', b.dataset.nf === S.newsFilter));
+
   // 로그
   const el = $('news-log');
-  el.innerHTML = '';
-  S.news.slice(0, 30).forEach(n => {
-    const li = document.createElement('li');
-    li.className = n.cls;
-    li.innerHTML = `<span class="muted">[${n.day}일]</span> ${n.text}`;
-    el.appendChild(li);
-  });
+  const list = newsFeed(S.newsFilter).slice(0, 40);
+  if (!list.length) {
+    el.innerHTML = '<li class="muted">해당하는 뉴스가 없습니다.</li>';
+    return;
+  }
+  el.innerHTML = list.map(n => {
+    if (n.kind !== 'stock') {
+      return `<li class="${n.cls}"><span class="muted">[${n.day}일]</span> ${n.text}</li>`;
+    }
+    const arrow = n.impact > 0 ? '▲' : n.impact < 0 ? '▼' : '·';
+    const held = S.owned[n.name] ? '<span class="nf-held">보유</span>' : '';
+    return `<li class="${n.cls} news-stock" data-stock="${n.name}" title="${n.name} 기업 리포트 열기">` +
+      `<span class="muted">[${n.day}일]</span> <strong>${n.name}</strong>${held} ` +
+      `<span class="${n.cls}">${arrow} ${pct(n.impact)}</span><br>${n.text}</li>`;
+  }).join('');
+  el.querySelectorAll('.news-stock').forEach(li =>
+    li.addEventListener('click', () => showCompanyReport(li.dataset.stock)));
+}
+
+function setNewsFilter(f) {
+  S.newsFilter = f;
+  renderNews();
+}
+
+// 오른쪽 패널의 '뉴스' 탭을 열고 그쪽으로 스크롤
+function openNewsTab() {
+  const tab = document.querySelector('.tabs [role="tab"][data-tab="news"]');
+  if (!tab) return;
+  tab.click();
+  renderNews();
+  const pane = document.querySelector('.tab-pane[data-pane="news"]');
+  if (pane && pane.scrollIntoView) pane.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function renderLeaderboard() {
@@ -2686,7 +2889,8 @@ function autoSave() {
       trades: S.trades, realizedPnL: S.realizedPnL, shortsClosed: S.shortsClosed,
       maxNetWorth: S.maxNetWorth, watchlist: S.watchlist,
       loan: S.loan, leverage: S.leverage, usedLeverage: S.usedLeverage, marginCalled: S.marginCalled,
-      awaitingNextDay: S.awaitingNextDay, pendingOrders: S.pendingOrders, life: S.life, economy: S.economy,
+      awaitingNextDay: S.awaitingNextDay, pendingOrders: S.pendingOrders,
+      companyNews: (S.companyNews || []).slice(0, 60), life: S.life, economy: S.economy,
       stocks: S.stocks.map(s => ({ name: s.name, history: s.history.slice(-20), listed: s.listed, trend: s.trend })),
       netWorthHist: S.netWorthHist.slice(-60),
       bots: S.bots.map(b => ({ name: b.name, capital: b.capital, owned: b.owned, jailMonths: b.jailMonths, criminalRecord: b.criminalRecord, monthlyProfit: b.monthlyProfit })),
@@ -2707,6 +2911,7 @@ function loadSave() {
     S.usedLeverage = !!d.usedLeverage; S.marginCalled = !!d.marginCalled;
     S.awaitingNextDay = !!d.awaitingNextDay;   // 저장 시점이 마감 후였다면 개장 버튼이 다음달로
     S.pendingOrders = Array.isArray(d.pendingOrders) ? d.pendingOrders : [];
+    S.companyNews = Array.isArray(d.companyNews) ? d.companyNews : [];
     S.life = Object.assign(newLife(), d.life || {});
     S.economy = ECONOMY.ensure(d.economy);
     LOAN.ensure(S.life); HEALTH.ensure(S.life); FAMILY.ensure(S.life);
@@ -2783,6 +2988,12 @@ function wire() {
   $('pause-btn').addEventListener('click', togglePause);
   $('session-btn').addEventListener('click', () => { S.phase === 'open' ? closeMarket() : openMarket(); });
   $('report-btn').addEventListener('click', reopenReport);
+  $('open-report').addEventListener('click', () => {
+    const s = curStock();
+    if (s) showCompanyReport(s.name);
+  });
+  document.querySelectorAll('.nf-btn').forEach(b =>
+    b.addEventListener('click', () => setNewsFilter(b.dataset.nf)));
   document.querySelectorAll('.speed-btn').forEach(b => b.addEventListener('click', () => setSpeed(+b.dataset.speed)));
   $('sector-filter').addEventListener('change', renderStockList);
   $('leverage-select').addEventListener('change', e => {

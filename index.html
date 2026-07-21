@@ -14,6 +14,7 @@
   <div class="life-modal-host" id="life-modal" style="display:none"></div>
   <div class="event-host" id="life-event" style="display:none"></div>
   <div class="event-host" id="date-host" style="display:none"></div>
+  <div class="event-host" id="report-host" style="display:none"></div>
 
   <div class="main-window window">
     <!-- 타이틀 바 -->
@@ -96,6 +97,7 @@
           <div class="title-bar"><div class="title-bar-text">💱 주문</div></div>
           <div class="window-body">
             <div class="pos-pnl" id="pos-pnl">📌 미보유</div>
+            <button id="open-report" class="report-open-btn">📄 선택 종목 기업 리포트 보기</button>
             <div class="trade-row lev-row">
               <label>⚡ 신용 레버리지
                 <select id="leverage-select">
@@ -142,7 +144,16 @@
             <div class="tab-pane active" data-pane="owned"><ul id="owned-list" class="clean-list"></ul></div>
             <div class="tab-pane" data-pane="life"><div id="life-panel" class="life-panel"></div></div>
             <div class="tab-pane" data-pane="issue"><ul id="issue-list" class="clean-list"></ul></div>
-            <div class="tab-pane" data-pane="news"><ul id="news-log" class="clean-list news-log"></ul></div>
+            <div class="tab-pane" data-pane="news">
+              <div class="news-filters" id="news-filters">
+                <button class="nf-btn active" data-nf="all">전체</button>
+                <button class="nf-btn" data-nf="stock">📄 종목공시</button>
+                <button class="nf-btn" data-nf="market">💹 시장·인생</button>
+                <button class="nf-btn" data-nf="mine">💼 보유</button>
+                <button class="nf-btn" data-nf="watch">⭐ 관심</button>
+              </div>
+              <ul id="news-log" class="clean-list news-log"></ul>
+            </div>
             <div class="tab-pane" data-pane="rank">
               <ul id="leaderboard" class="clean-list leaderboard"></ul>
               <div class="mini-chart-wrap"><span class="mini-label">순자산 추이</span><canvas id="nw-chart"></canvas></div>
@@ -191,6 +202,7 @@
   <script src="./js/romance_events.js"></script>
   <script src="./js/career_events.js"></script>
   <script src="./js/companies.js"></script>
+  <script src="./js/company_reports.js"></script>
   <script src="./js/events_market.js"></script>
   <script src="./js/data.js"></script>
   <script src="./js/portfolio.js"></script>
