@@ -528,7 +528,8 @@ function closeMarket() {
   renderAll();
   renderMarketPhase();
   renderCloseReport(endedDay);          // 마감 리포트(뉴스 골라보기) 표시
-  maybeLifeEvent();                     // 이번 달 선택지 이벤트(있으면 리포트 위로 팝업)
+  if (S._settle && S._settle.incident) showJobIncident(S._settle.incident);
+  else maybeLifeEvent();                // 직업 사고가 없을 때 일반 선택지 이벤트
   autoSave();
 }
 
@@ -588,7 +589,7 @@ function renderCloseReport(day) {
   if (st.salary) settleBits.push(`${st.salary >= 0 ? '월급' : '적자'} <b class="${st.salary >= 0 ? 'up' : 'down'}">${st.salary >= 0 ? '+' : ''}${won(st.salary)}</b>`);
   if (st.rent) settleBits.push(`월세 <b class="up">+${won(st.rent)}</b>`);
   if (st.partner) settleBits.push(`배우자 <b class="${st.partner >= 0 ? 'up' : 'down'}">${st.partner >= 0 ? '+' : ''}${won(st.partner)}</b>`);
-  if (st.incident) settleBits.push(`🚑사고 <b class="down">-${won(st.incident.cost)}</b>`);
+  if (st.incident) settleBits.push(`🚑${st.incident.job} 사고 <b class="down">-${won(st.incident.cost)}</b> <span class="muted">(현금 ${won(st.incident.cashPaid)} · 빚 +${won(st.incident.debtAdded)})</span>`);
   if (st.scandal) {
     const kind = st.scandal.wasMarried ? '불륜' : '양다리';
     settleBits.push(st.scandal.forgiven
@@ -756,8 +757,11 @@ function settleMonth() {
   if (job.risk && job.incidents && job.incidents.length && Math.random() < job.risk) {
     const inc = pick(job.incidents);
     const cost = Math.round(rand(inc.cost[0], inc.cost[1]));
-    LOAN.addDebt(L, cost, `${job.name} 사고채무`);
-    b.incident = { text: inc.text, cost };
+    const cashPaid = Math.min(Math.max(0, S.capital), cost);
+    const debtAdded = Math.max(0, cost - cashPaid);
+    S.capital -= cashPaid;
+    if (debtAdded > 0) LOAN.addDebt(L, debtAdded, `${job.name} 사고채무 · ${inc.text}`);
+    b.incident = { job: job.name, emoji: job.emoji, text: inc.text, cost, cashPaid, debtAdded };
   }
 
   // 5) 연애/결혼 상대의 월간 경제·행복 효과 (직업·성격에 따라 돈을 받거나 잃음)
@@ -851,7 +855,11 @@ function settleMonth() {
   if (b.rent > 0) addNews(`🏠 월세 수입 ${won(b.rent)}원`, 'good');
   if (b.lifeInterest > 0) addNews(`💳 개인 대출이자 ${won(b.lifeInterest)}원 (빚 ${won(L.loan)})`, 'bad');
   if (b.debtResult && b.debtResult.message) addNews(b.debtResult.message, b.debtResult.collectionLevel >= 2 ? 'bad' : 'neutral');
-  if (b.incident) { addNews(`🚑 [${job.name}] ${b.incident.text} — 빚 ${won(b.incident.cost)}원 발생`, 'bad'); flashToast(`🚑 사고! ${b.incident.text}`, 'bad'); playSound('crash'); }
+  if (b.incident) {
+    const debtText = b.incident.debtAdded > 0 ? ` · 부족분 빚 +${won(b.incident.debtAdded)}원` : ' · 추가 빚 없음';
+    addNews(`🚑 [${job.name}] ${b.incident.text} — 총비용 ${won(b.incident.cost)}원 · 현금 ${won(b.incident.cashPaid)}원 지출${debtText}`, 'bad');
+    flashToast(`🚑 직업 사고 발생 · 마감 사건창을 확인하세요`, 'bad'); playSound('crash');
+  }
   S._settle = b;
   RIVALS.settleBots(S.bots).forEach(text => addNews(text, text.includes('+') ? 'good' : 'bad'));
   const attack = RIVALS.attackPlayer(S.bots, Math.max(0, totalWealth()));
@@ -1080,6 +1088,34 @@ function startNextGeneration() {
 /* ---- 선택지 이벤트 (직업/연애/빚/일상) ---- */
 const EVENT_CAT = { job: '직업', love: '연애', debt: '빚', life: '일상', family: '자녀·가족' };
 function resolveAmt(v) { return Array.isArray(v) ? Math.round(rand(v[0], v[1])) : v; }
+
+function showJobIncident(incident) {
+  const host = $('life-event'); if (!host || !incident) return;
+  const debtLine = incident.debtAdded > 0
+    ? `<div class="oc-text down">현금으로 부족한 <b>${won(incident.debtAdded)}원</b>은 ‘${incident.job} 사고채무’로 대출에 추가됐습니다.</div>`
+    : `<div class="oc-text up">비용을 전부 현금으로 처리해 새로 생긴 빚은 없습니다.</div>`;
+  host.style.display = 'block';
+  host.innerHTML =
+    `<div class="window event-window">
+       <div class="title-bar event-bar"><div class="title-bar-text">🚨 장 마감 직업 사고</div></div>
+       <div class="window-body">
+         <div class="event-title">${incident.emoji || '🚑'} ${incident.job} · ${incident.text}</div>
+         <div class="event-desc">이번 달 근무 중 사고가 발생했습니다. 비용이 어떻게 처리됐는지 확인하세요.</div>
+         <div class="legacy-ledger">
+           <div>🧾 총 발생 비용 <b>${won(incident.cost)}원</b></div>
+           <div>💵 보유 현금 지출 <b>${won(incident.cashPaid)}원</b></div>
+           <div>💳 새로 생긴 사고채무 <b class="${incident.debtAdded > 0 ? 'down' : ''}">${won(incident.debtAdded)}원</b></div>
+         </div>
+         ${debtLine}
+         <button id="job-incident-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>
+       </div>
+     </div>`;
+  const confirmBtn = $('job-incident-confirm');
+  if (confirmBtn) confirmBtn.addEventListener('click', () => {
+    host.style.display = 'none'; host.innerHTML = '';
+    maybeLifeEvent();
+  });
+}
 
 function maybeLifeEvent() {
   if (!D.LIFE_EVENTS || Math.random() > LIFE.EVENT_PROB) return;
