@@ -538,7 +538,8 @@ function renderMarketPhase() {
   const open = S.phase === 'open';
   if (open) {
     if (btn) { btn.textContent = '🔴 장 마감'; btn.className = 'session-btn closing'; }
-    if (badge) { badge.textContent = '🟢 장중'; badge.className = 'phase-badge open'; }
+    const left = Math.max(0, CFG.TICKS_PER_DAY - S.sessionTick);
+    if (badge) { badge.textContent = `🟢 장중 · ${left}/${CFG.TICKS_PER_DAY}틱 남음`; badge.className = 'phase-badge open'; }
   } else {
     if (btn) {
       btn.textContent = `🔔 ${S.awaitingNextDay ? S.day + 1 : S.day}일차 개장`;
@@ -701,6 +702,24 @@ function jobIncomeLabel(j) {
   return j.salary ? `월 ${won(j.salary)}원` : '월급 0';
 }
 
+function rollPartnerIncident(L, per) {
+  if (!L.partner || Math.random() >= (per.incident || 0)) return null;
+  const incidents = {
+    frugal:   { text: '공동 지출을 상의 없이 지나치게 줄여 크게 다퉜다.', cash: 300000, affection: -7, happy: -4 },
+    ambitious:{ text: '중요한 기념일보다 일을 택해 관계가 뒷전이 됐다.', cash: 0, affection: -12, happy: -7 },
+    homebody: { text: '연락 없이 늦게 들어온 일을 두고 불안과 오해가 커졌다.', cash: 0, affection: -9, happy: -5 },
+    caring:   { text: '상대를 챙기느라 지친 마음을 숨기다 한꺼번에 터뜨렸다.', cash: 0, affection: -8, happy: -6 },
+    cold:     { text: '힘든 날에도 무심한 태도를 보여 관계가 급격히 식었다.', cash: 0, affection: -13, happy: -8 },
+    lavish:   { text: '상의 없이 큰돈을 써 카드 대금과 신뢰 문제가 생겼다.', cash: -Math.round(rand(1200000, 5000000)), affection: -12, happy: -5 },
+    free:     { text: '밤새 연락이 끊기고 다른 사람과 있었다는 의심을 샀다.', cash: 0, affection: -15, happy: -9 }
+  };
+  const ev = incidents[L.partner.personality] || incidents.caring;
+  S.capital += ev.cash;
+  L.affection = Math.max(0, (L.affection || 0) + ev.affection);
+  L.happy = clamp(L.happy + ev.happy, 0, 100);
+  return ev;
+}
+
 // 월말 정산: 월급 + 월세 + 부동산 시세상승 − 대출이자 − 직업사고 + 연애상대 효과 − 행복감소
 function settleMonth() {
   const L = S.life;
@@ -746,9 +765,9 @@ function settleMonth() {
     const nm = L.partner.name;
     const per = D.PERSONALITIES[L.partner.personality] || {};
     const married = L.relationship === 'married';
-    const share = Math.round((L.partner.income || 0) * (married ? 0.5 : 0.08));   // 소득 분담(맞벌이/데이트)
+    const share = Math.round((L.partner.income || 0) * (married ? 0.5 : 0.08));
     const base = L.partner.income || 1500000;
-    const persoMoney = Math.round(base * (per.money || 0) * (married ? 1 : 0.4));  // 성격에 따른 가감
+    const persoMoney = Math.round(base * (per.money || 0) * (married ? 1 : 0.4));
     b.partner = share + persoMoney;
     L.partner.mood = b.partner < 0 || (per.happy||0) < 0 ? 'sad' : (L.affection||0) >= 60 ? 'happy' : 'neutral';
     S.capital += b.partner;
@@ -760,6 +779,14 @@ function settleMonth() {
       addNews(`💔 ${nm}님과 이별했습니다... (아는 사람으로 남아 다시 만날 수 있어요)`, 'bad');
       flashToast(`💔 ${nm}님과 이별...`, 'bad');
       b.breakup = true;
+    }
+    if (!b.breakup && L.partner) {
+      const incident = rollPartnerIncident(L, per);
+      if (incident) {
+        b.partnerIncident = incident;
+        addNews(`⚡ ${nm}님과의 관계 사고: ${incident.text}${incident.cash < 0 ? ` · ${won(-incident.cash)}원 지출` : ''}`, 'bad');
+        flashToast(`⚡ ${nm}님과 관계 갈등 발생`, 'bad');
+      }
     }
   }
 
@@ -1399,6 +1426,32 @@ function relationTag(L, name) {
   return rec && rec.status === 'ex' ? '전 연인' : '아는 사람';
 }
 
+function relationshipDateLine(L, c) {
+  const tag = relationTag(L, c.name);
+  const per = D.PERSONALITIES[c.personality] || {};
+  if (tag === '배우자') return pick([
+    `결혼 뒤에도 일부러 약속을 잡으니 ${c.name}님이 "이런 시간이 계속 필요했어"라고 말했다.`,
+    `${c.name}님과 생활비와 집안일 얘기까지 마친 뒤에야 편하게 웃을 수 있었다.`
+  ]);
+  if (tag === '연인') return pick([
+    `${c.name}님은 "요즘 우리 사이, 당연하게 여기고 있진 않지?"라고 조심스럽게 물었다.`,
+    `${per.name || '상대'}다운 방식으로 애정을 확인하는 대화가 이어졌다.`
+  ]);
+  if (tag === '몰래 만나는 중') return pick([
+    `${c.name}님은 휴대폰 화면을 뒤집어 놓고 "오늘도 그 사람한텐 비밀이야?"라고 물었다.`,
+    `즐거운 순간에도 들킬지 모른다는 긴장 때문에 대화가 자꾸 끊겼다.`
+  ]);
+  return `${c.name}님과 아직 관계를 정하지 않은 채 서로를 더 알아갔다.`;
+}
+
+function proposalResult(c, rec, tier) {
+  const per = D.PERSONALITIES[c.personality] || {};
+  const affection = rec.affection || 0;
+  if (tier !== '성공' || affection < 55 || (rec.dates || 0) < 2) return { attempted: false };
+  const chance = clamp((per.confess || 0.5) + (affection - 55) / 140, 0.25, 0.92);
+  return { attempted: true, accepted: Math.random() < chance, chance };
+}
+
 // 이미 아는 사람인가 (연인·양다리 상대·명부 등재자)
 function isKnownPerson(L, name) {
   return (L.partner && L.partner.name === name) ||
@@ -1495,7 +1548,8 @@ function showRouteModal() {
   S._dateOffers = routes.filter(r => assigned.has(r.key)).map(r => ({ route: r, cand: assigned.get(r.key) }));
 
   // 이미 아는 사람들 — 연인은 따로, 양다리 상대·전 연인·그냥 아는 사람은 여기에
-  S._dateKnown = L.met.filter(m => !(L.partner && L.partner.name === m.name)).map(candidateFromRecord);
+  const formerPartners = L.met.filter(m => m.status === 'ex');
+  S._dateKnown = L.met.filter(m => m.status !== 'ex' && !(L.partner && L.partner.name === m.name)).map(candidateFromRecord);
 
   let cards = '';
   if (inRel) {
@@ -1511,6 +1565,11 @@ function showRouteModal() {
       return personCardHTML(c, `${tag === '몰래 만나는 중' ? '😈' : tag === '전 연인' ? '💔' : '🙂'} ${tag} · ${stageBadge(c.affection)} <span class="muted">호감도 ${Math.round(c.affection || 0)} · ${c.dates || 0}번 만남${idle}</span>`,
         `data-known="${i}"`, 'known-card');
     }).join('');
+  }
+  if (formerPartners.length) {
+    cards += `<div class="route-sep">💔 전 연인 <span class="muted">헤어진 상대와는 일반 데이트 불가</span></div>`;
+    cards += formerPartners.map(m => personCardHTML(candidateFromRecord(m),
+      `💔 전 연인 · <span class="muted">관계가 끝나 연락할 수 없습니다</span>`, 'disabled', 'known-card ex-card')).join('');
   }
   if (S._dateOffers.length) {
     cards += `<div class="route-sep">💘 새로운 사람 만나기</div>`;
@@ -1625,7 +1684,8 @@ function resolveDate(i) {
     affection: (prevRec && prevRec.affection) || 0,
   });
   const preference = (c.best || []).includes(a.key) ? '선택한 방식이 상대의 연애 성향과 잘 맞았다.' : '상대는 접근 방식보다 진심을 더 지켜보는 눈치다.';
-  const msg = `${scene}<br><br><b>${voiceLine}</b><br>${preference}`;
+  const relationContext = relationshipDateLine(L, c);
+  const msg = `${scene}<br><br><b>${voiceLine}</b><br>${relationContext}<br>${preference}`;
   L.charm = Math.max(0, L.charm + dCharm);
   L.happy = clamp(L.happy + dHappy, 0, 100);
   const withPartner = L.partner && L.partner.name === c.name;
@@ -1652,19 +1712,29 @@ function resolveDate(i) {
 
   let extra = stageNote;
   if (L.relationship === 'single') {
-    if (tier !== '실패' && L.charm >= R.DATING_AT) {
+    const proposal = proposalResult(c, rec, tier);
+    if (proposal.attempted && proposal.accepted) {
       const confess = ROMANCE.momentLine(c, 'confess');
       startDating(c);
-      extra += `<br>💕 <b class="up">${c.name}님과 연애를 시작했어요!</b>${confess ? `<br>${c.name}: ${confess}` : ''}`;
+      extra += `<br>💕 <b class="up">충분히 알아간 끝에 ${c.name}님과 연애를 시작했어요!</b>${confess ? `<br>${c.name}: ${confess}` : ''}`;
+    } else if (proposal.attempted) {
+      rec.affection = Math.max(0, rec.affection - 8);
+      extra += `<br>🫸 <b class="down">${c.name}님은 "좋은 사람이지만 아직 연애할 확신은 없어요"라며 고백을 거절했다.</b>`;
+    } else if (tier === '성공') {
+      extra += `<br>🌱 <span class="muted">호감은 생겼지만 연애를 정하기엔 아직 이르다. 두 번 이상 만나고 호감도 55를 쌓아야 한다.</span>`;
     }
   } else if (!withPartner && tier === '성공') {
     L.lovers = L.lovers || [];
-    if (!L.lovers.some(x => x.name === c.name)) {
+    const alreadyLover = L.lovers.some(x => x.name === c.name);
+    const proposal = proposalResult(c, rec, tier);
+    if (!alreadyLover && proposal.attempted && proposal.accepted) {
       L.lovers.push({ name: c.name, job: c.job, personality: c.personality, age: c.age, emoji: c.emoji, gender: c.gender, portrait: c.portrait });
       rec.status = 'lover';
       extra += `<br>💘 <b class="down">${c.name}님과도 몰래 만나기 시작… 양다리! (발각 주의)</b>`;
-    } else {
+    } else if (alreadyLover) {
       extra += `<br>😈 <span class="down">${c.name}님과 몰래 만남을 이어갔다. (${stageBadge(rec.affection)})</span>`;
+    } else {
+      extra += `<br>🛑 <span class="muted">${c.name}님은 현재 연인이 있다는 사실을 의식하며 선을 그었다.</span>`;
     }
   }
   addNews(`💘 ${c.name}와의 데이트 — ${tier}`, tier === '실패' ? 'bad' : 'good');
@@ -1724,15 +1794,32 @@ function breakUp(charmPenalty, happyPenalty) {
   return name;
 }
 
-// 취미 등으로 매력이 임계치를 넘으면 자동으로 연애 시작(랜덤 상대)
+function doBreakupChoice() {
+  const L = S.life;
+  if (!L.partner || L.relationship === 'single') return;
+  const p = L.partner;
+  const per = D.PERSONALITIES[p.personality] || {};
+  const married = L.relationship === 'married';
+  if (!window.confirm(`${p.name}님과 ${married ? '이혼' : '헤어지기'}로 결정할까요? 관계와 친밀도는 되돌릴 수 없습니다.`)) return;
+  const resisted = Math.random() < (per.breakupResist || 0);
+  const name = breakUp(resisted ? 0.45 : 0.75, resisted ? 30 : 18);
+  let text = `${name}님은 결정을 받아들였고 두 사람의 관계가 끝났다.`;
+  if (resisted) {
+    const fallout = Math.round(rand(800000, married ? 8000000 : 3000000));
+    LOAN.addDebt(L, fallout, married ? '이혼 정리 비용' : '관계 파국 비용');
+    SOCIAL.ensure(L).reputation = Math.max(0, SOCIAL.ensure(L).reputation - 8);
+    text = `${per.name || '상대'} 성향의 ${name}님은 결별을 받아들이지 못했고, 큰 다툼과 주변 소문 끝에 관계가 파국으로 끝났다. 정리 비용 ${won(fallout)}원.`;
+    L.memories = L.memories || [];
+    L.memories.unshift({ day: S.day, name, tier: '관계 파국 엔딩', approach: '결별' });
+  }
+  addNews(`💔 ${text}`, 'bad');
+  flashToast(resisted ? '💥 관계 파국 엔딩' : '💔 관계가 끝났습니다', 'bad');
+  playSound('error'); afterLifeAction();
+}
+
+// 취미·매력 누적만으로는 자동 연애하지 않는다. 연애는 데이트 중 상대별 고백 판정으로만 시작한다.
 function checkRelationship() {
-  const L = S.life, R = D.RELATIONSHIP;
-  if (L.relationship !== 'single' || L.charm < R.DATING_AT) return;
-  // 아는 사람이 있으면 그중 호감도가 가장 높은 사람과, 없으면 새로 만난 사람과 시작
-  const known = ensureMet(L).slice().sort((a, b) => (b.affection || 0) - (a.affection || 0))[0];
-  const who = (known && (known.affection || 0) >= 20 ? candidateFromRecord(known) : null)
-    || makeCandidate() || (known ? candidateFromRecord(known) : null);
-  if (who) startDating(who);
+  return false;
 }
 
 function doMarriage() {
@@ -1916,10 +2003,11 @@ function lifeHubHTML() {
   const canMarry = L.relationship === 'dating' && L.charm >= R.MARRY_AT;
   const perName = L.partner ? (D.PERSONALITIES[L.partner.personality] || {}).name : '';
   const partnerTag = L.partner ? `<span class="muted">${L.partner.emoji || ''}${L.partner.name}·${L.partner.job}·${perName} · </span>` : '';
+  const breakupBtn = L.partner ? `<button class="life-btn hot" data-act="breakup">💔 ${L.relationship === 'married' ? '이혼하기' : '헤어지기'}</button>` : '';
   const relBtns = L.relationship === 'married'
-    ? `<span class="muted">💍 ${L.partner.name}님과 결혼 생활 중</span>`
+    ? `<span class="muted">💍 ${L.partner.name}님과 결혼 생활 중</span>${breakupBtn}`
     : partnerTag + `<button class="life-btn" data-act="date">💘 데이트 <small>${won(R.DATE_COST)}</small></button>` +
-      (canMarry ? `<button class="life-btn hot" data-act="marry">💍 결혼하기 <small>${won(R.WEDDING_COST)}</small></button>` : '');
+      (canMarry ? `<button class="life-btn hot" data-act="marry">💍 결혼하기 <small>${won(R.WEDDING_COST)}</small></button>` : '') + breakupBtn;
   const rivalSelect = `<select id="rival-target">${S.bots.map((b,i)=>`<option value="${i}">${b.name} · ${won(botNetWorth(b))}</option>`).join('')}</select>`;
   const rivalBtns = RIVALS.ACTIONS.map(a=>`<button class="life-btn ${a.illegal?'hot':''}" data-act="rival" data-rival-action="${a.id}" ${L.jailMonths>0?'disabled':''}>${a.label} <small>${won(a.cost)} · ${a.desc}</small></button>`).join('');
   const planBtns = L.relationship==='married'&&!L.familyPlan ? `<button class="life-btn" data-act="family-plan" data-method="birth">👶 출산 계획 <small>5,000,000</small></button><button class="life-btn" data-act="family-plan" data-method="adopt">🫶 입양 신청 <small>12,000,000</small></button>` : '';
@@ -1976,6 +2064,7 @@ function wireLifeHub(host) {
     else if (act === 'rival') doRivalAction(b.dataset.rivalAction, +($('rival-target') ? $('rival-target').value : 0));
     else if (act === 'date') doDate();
     else if (act === 'marry') doMarriage();
+    else if (act === 'breakup') doBreakupChoice();
     else if (act === 'changejob') showJobModal(true);
   }));
 }
@@ -2254,6 +2343,7 @@ function sellMax() {
 
 /* ------------------------------------------------------------------ 렌더 */
 function renderAll() {
+  renderMarketPhase();
   renderStockList();
   renderOwned();
   renderPendingOrders();

@@ -10,13 +10,13 @@
  *    forgive: 양다리·불륜이 들통났을 때 용서하고 관계를 이어갈 확률
  * ========================================================================= */
 const PERSONALITIES = {
-  frugal:    { key: 'frugal',    name: '알뜰한',     emoji: '🪙', money: +0.15, happy: 0,  charm: 0,  forgive: 0.10, desc: '생활비를 아껴 매달 돈을 보탬' },
-  ambitious: { key: 'ambitious', name: '야망있는',   emoji: '🔥', money: +0.25, happy: -1, charm: 0,  forgive: 0.05, desc: '맞벌이로 소득을 크게 보탬' },
-  homebody:  { key: 'homebody',  name: '집순이',     emoji: '🏠', money: +0.05, happy: +1, charm: 0,  forgive: 0.15, desc: '집에서 알뜰살뜰, 소소한 보탬' },
-  caring:    { key: 'caring',    name: '다정한',     emoji: '🥰', money: 0,     happy: +4, charm: +2, forgive: 0.30, desc: '함께 있으면 행복이 크게 오름' },
-  cold:      { key: 'cold',      name: '무심한',     emoji: '🧊', money: 0,     happy: -3, charm: -1, forgive: 0.35, desc: '데면데면, 행복이 잘 안 오름' },
-  lavish:    { key: 'lavish',    name: '사치스러운', emoji: '💸', money: -0.35, happy: +2, charm: +1, forgive: 0.25, desc: '씀씀이가 커서 매달 지출↑' },
-  free:      { key: 'free',      name: '자유로운',   emoji: '💔', money: -0.10, happy: +3, charm: +3, breakup: 0.12, forgive: 0.55, desc: '매력적이지만 이별 위험 있음' },
+  frugal:    { key: 'frugal',    name: '알뜰한',     emoji: '🪙', money: +0.15, happy: 0,  charm: 0,  forgive: 0.10, confess: 0.62, breakupResist: 0.18, incident: 0.08, desc: '생활비를 아끼고 신뢰를 천천히 쌓음' },
+  ambitious: { key: 'ambitious', name: '야망있는',   emoji: '🔥', money: +0.25, happy: -1, charm: 0,  forgive: 0.05, confess: 0.48, breakupResist: 0.32, incident: 0.20, desc: '성장과 성취를 중시해 관계에도 기준이 높음' },
+  homebody:  { key: 'homebody',  name: '집순이',     emoji: '🏠', money: +0.05, happy: +1, charm: 0,  forgive: 0.15, confess: 0.68, breakupResist: 0.42, incident: 0.10, desc: '안정적인 일상과 꾸준한 연락을 중시함' },
+  caring:    { key: 'caring',    name: '다정한',     emoji: '🥰', money: 0,     happy: +4, charm: +2, forgive: 0.30, confess: 0.78, breakupResist: 0.48, incident: 0.08, desc: '배려가 깊지만 배신에는 크게 상처받음' },
+  cold:      { key: 'cold',      name: '무심한',     emoji: '🧊', money: 0,     happy: -3, charm: -1, forgive: 0.35, confess: 0.38, breakupResist: 0.12, incident: 0.18, desc: '독립적이고 감정 표현이 적어 가까워지기 어려움' },
+  lavish:    { key: 'lavish',    name: '사치스러운', emoji: '💸', money: -0.35, happy: +2, charm: +1, forgive: 0.25, confess: 0.58, breakupResist: 0.28, incident: 0.24, desc: '특별한 경험을 원하고 충동적인 사고가 잦음' },
+  free:      { key: 'free',      name: '자유로운',   emoji: '💔', money: -0.10, happy: +3, charm: +3, breakup: 0.12, forgive: 0.55, confess: 0.52, breakupResist: 0.08, incident: 0.30, desc: '매력적이지만 구속을 싫어하고 관계 변동이 큼' },
 };
 
 /* 연애 상대 로스터 — 연애가 시작되면 이 중 한 명이 랜덤 배정
