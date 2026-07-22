@@ -42,12 +42,18 @@ function dateLine(person,tier,approach,nameArg,opts){
   return `${name}: ${line} (${APPROACH_REACTIONS[approach]||'대화'}에 대한 반응)`;
 }
 
-/* 상황별 한 줄 — 고백 / 이별 / 근황 */
+/* 이름 전용 대사가 없는 인물(단역·인맥 등)도 대사를 갖도록 하는 기본 대사 */
+const GENERIC_MOMENTS={
+ confess:['“우리, 사귀어볼래요?”','“자꾸 생각나요. 당신과 만나고 싶어요.”','“이제 우리 사이를 좀 더 분명히 하고 싶어요.”'],
+ parting:['“여기까지인 것 같아요. 잘 지내요.”','“미안해요. 우리, 이제 그만하는 게 좋겠어요.”','“좋은 기억으로 남길게요.”'],
+ news:['요즘 잘 지낸다는 짧은 안부가 왔다.','바쁘게 지내고 있다고 한다.','한동안 연락이 뜸했다가 안부를 물어왔다.'],
+};
+/* 상황별 한 줄 — 고백 / 이별 / 근황. 이름 전용 대사 → 없으면 기본 대사로 떨어진다 */
 function momentLine(person,kind){
   const cv=voiceOf(person);
-  if(!cv||!cv[kind]) return '';
-  const v=cv[kind];
-  return Array.isArray(v)?pick(v):v;
+  if(cv&&cv[kind]){const v=cv[kind];return Array.isArray(v)?pick(v):v;}
+  const g=GENERIC_MOMENTS[kind];
+  return g?pick(g):'';
 }
 
 /* 프로필에 붙는 말투·사연 */

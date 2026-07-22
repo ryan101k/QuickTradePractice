@@ -224,6 +224,25 @@ function pushCandle(stock, changeRate) {
   if (stock.history.length > CFG.HISTORY_LEN) stock.history.shift();
 }
 
+/* ETF 액면병합/분할 — 인버스·곱버스가 저가(3~4원)에서 정수 반올림에 얼어붙는 것 방지.
+ * 가격이 너무 낮으면 병합(가격↑·수량↓), 너무 높으면 분할해 항상 움직일 수 있는 밴드로 되돌린다.
+ * 보유 수량을 반대로 조정하므로 평가금액(가치)은 그대로 보존된다. */
+function maybeRebalanceETF(stock) {
+  const c = stock.history[stock.history.length - 1].c;
+  let mul = 0;
+  if (c < 1000) mul = 8;            // 8:1 병합 → 가격 8배, 수량 1/8
+  else if (c > 300000) mul = 1 / 8; // 1:8 분할 → 가격 1/8, 수량 8배
+  if (!mul) return;
+  stock.history = stock.history.map(hh => ({
+    o: Math.max(1, Math.round(hh.o * mul)), h: Math.max(1, Math.round(hh.h * mul)),
+    l: Math.max(1, Math.round(hh.l * mul)), c: Math.max(1, Math.round(hh.c * mul)),
+  }));
+  const pp = S.owned[stock.name];
+  if (pp) { pp.qty = Math.round(pp.qty / mul); pp.avg = pp.avg * mul; if (pp.qty === 0) delete S.owned[stock.name]; }
+  S.bots.forEach(b => { if (b.owned && b.owned[stock.name] != null) { const q = Math.round(b.owned[stock.name] / mul); if (q <= 0) delete b.owned[stock.name]; else b.owned[stock.name] = q; } });
+  addNews(`🔀 ${stock.name} ${mul > 1 ? `액면병합 ${mul}:1` : `액면분할 1:${Math.round(1 / mul)}`} (가격 정상화)`, 'neutral');
+}
+
 /* ------------------------------------------------------------------ 가격 갱신(핵심) */
 function tick() {
   if (S.paused || S.phase !== 'open') return;
@@ -298,6 +317,7 @@ function tick() {
     const changeRate = clamp(indexReturn * lev + noise, -lim, lim);
     pushCandle(stock, changeRate);
     stock.volume = Math.floor(stock.volume * rand(0.6, 1.5));
+    maybeRebalanceETF(stock);   // 저가/고가 고착 방지 — 액면병합·분할
   });
 
   // 반대매매(마진콜) 체크
@@ -317,6 +337,7 @@ function tick() {
   // 매 틱 호출해도 같은 트랙이면 bgm.js가 재시작하지 않는다.
   syncBGM();
   renderAll();
+  renderSessionProgress();   // 진행 바를 매 틱 갱신
   autoSave();
 
   // 세션 시간이 다 되면 자동 장 마감
@@ -341,15 +362,53 @@ function payDividends() {
   }
 }
 
+const BANKRUPT_CAUSES = [
+  { short: '완전 자본잠식', detail: '수년간 누적된 적자로 자본이 완전히 잠식돼 상장폐지 기준에 걸렸습니다.' },
+  { short: '감사의견 거절', detail: '회계법인이 감사의견을 거절하면서 거래정지 끝에 퇴출됐습니다.' },
+  { short: '대표 횡령·배임', detail: '경영진의 대규모 횡령·배임이 드러나 신뢰를 잃고 무너졌습니다.' },
+  { short: '최종 부도', detail: '만기 어음을 막지 못해 최종 부도 처리됐습니다.' },
+  { short: '분식회계 적발', detail: '매출을 부풀린 분식회계가 적발돼 상장폐지 실질심사에서 퇴출됐습니다.' },
+  { short: '주가 장기 미달', detail: '주가가 오랫동안 액면가를 크게 밑돌아 관리종목을 거쳐 상장폐지됐습니다.' },
+];
+function bankruptcyReason(stock) {
+  const iss = stock.pendingIssue;
+  if (iss && iss.impact != null && iss.impact < -0.1) {
+    return { short: `'${iss.text}' 악재가 결정타`, detail: `가뜩이나 부실하던 회사에 '${iss.text}' 악재까지 겹치며 주가가 완전히 무너져 상장폐지됐습니다.` };
+  }
+  return pick(BANKRUPT_CAUSES);
+}
+
 function delist(stock) {
   stock.listed = false;
-  addNews(`🚨 ${stock.name} 상장폐지! 휴지조각이 되었습니다`, 'bad');
+  const reason = bankruptcyReason(stock);
+  addNews(`🚨 ${stock.name} 상장폐지 · 사유: ${reason.short}`, 'bad');
   flashToast(`🚨 ${stock.name} 상장폐지!`, 'bad');
+  showBankruptcyPopup(stock, reason);
   // 보유분은 0원 처리
   if (S.owned[stock.name] && S.owned[stock.name].qty > 0) delete S.owned[stock.name];
   playSound('crash');
   playBGMSting('bankrupt', 5200);
 }
+
+function showBankruptcyPopup(stock, reason) {
+  const host = $('bankrupt-host'); if (!host) return;
+  const sec = D.SECTORS[stock.sector] || { name: '', color: '#888' };
+  host.style.display = 'block';
+  host.innerHTML =
+    `<div class="window bankrupt-window">
+       <div class="title-bar bankrupt-bar"><div class="title-bar-text">🚨 상장폐지 속보</div>
+         <div class="title-bar-controls"><button aria-label="Close" id="bankrupt-x"></button></div></div>
+       <div class="window-body">
+         <div class="bk-name"><span class="tag" style="background:${sec.color}">${sec.name}</span> <strong>${stock.name}</strong> 상장폐지</div>
+         <div class="bk-reason"><b class="down">사유: ${reason.short}</b><br>${reason.detail}</div>
+         <div class="bk-note">💸 보유 주식은 휴지조각이 되었습니다. 소형주는 늘 이런 위험이 있습니다.</div>
+       </div>
+     </div>`;
+  const x = $('bankrupt-x'); if (x) x.addEventListener('click', closeBankruptcyPopup);
+  clearTimeout(S._bankruptTimer);
+  S._bankruptTimer = setTimeout(closeBankruptcyPopup, 8000);
+}
+function closeBankruptcyPopup() { const h = $('bankrupt-host'); if (h) { h.style.display = 'none'; h.innerHTML = ''; } }
 
 function maybeNewListing() {
   if (Math.random() > 0.35) return;
@@ -568,6 +627,30 @@ function renderMarketPhase() {
   if (reportBtn) reportBtn.style.display = (!open && S.awaitingNextDay) ? '' : 'none';
   renderPendingOrders();
   syncBGM();   // 장중 ↔ 마감 트랙 전환
+  renderSessionProgress();
+}
+
+// 이번 달(장) 진행 상황 바 — 몇 % 지났고 대략 몇 초 남았는지
+function renderSessionProgress() {
+  const bar = $('session-bar'), fill = $('session-bar-fill'), text = $('session-bar-text');
+  if (!bar || !fill || !text) return;
+  const total = CFG.TICKS_PER_DAY;
+  if (S.phase === 'open') {
+    const done = Math.min(total, S.sessionTick);
+    const left = Math.max(0, total - done);
+    const pct = Math.round(done / total * 100);
+    const secLeft = Math.ceil(left * (CFG.TICK_MS / (S.speed || 1)) / 1000);
+    fill.style.width = pct + '%';
+    bar.className = 'session-bar open' + (left <= 3 ? ' ending' : '');
+    text.textContent = S.paused
+      ? `⏸ 일시정지 · ${done}/${total}틱 (${pct}%)`
+      : `🟢 장중 ${pct}% · ${left}틱 남음 (약 ${secLeft}초) · ${dateInfo(S.day).label}`;
+  } else {
+    fill.style.width = '0%';
+    bar.className = 'session-bar';
+    const next = S.awaitingNextDay ? S.day + 1 : S.day;
+    text.textContent = `🔒 장 마감 · 🔔 개장을 눌러 ${dateInfo(next).label} 시작`;
+  }
 }
 
 /* 장 마감 리포트: 그날의 뉴스를 골라서 전문가 진단까지 볼 수 있다 */
@@ -870,7 +953,11 @@ function settleMonth() {
     flashToast(`🚑 직업 사고 발생 · 마감 사건창을 확인하세요`, 'bad'); playSound('crash');
   }
   S._settle = b;
-  RIVALS.settleBots(S.bots).forEach(text => addNews(text, text.includes('+') ? 'good' : 'bad'));
+  // AI 라이벌 동향 — 각자 손익 + 서로 공격(bot-vs-bot) + 나에 대한 공격. 전용 피드에 모아 '라이벌 동향' 창으로 본다
+  S.rivalFeed = S.rivalFeed || [];
+  const rivalNews = [];
+  RIVALS.settleBots(S.bots).forEach(t => rivalNews.push(t));
+  RIVALS.botsFight(S.bots).forEach(t => rivalNews.push(t));
   const attack = RIVALS.attackPlayer(S.bots, Math.max(0, totalWealth()));
   if (attack) {
     if (!attack.caught && attack.loss > 0) {
@@ -879,9 +966,15 @@ function settleMonth() {
       if (attack.loss > cashLoss) LOAN.addDebt(L, attack.loss - cashLoss, '라이벌 공작 피해채무');
       L.happy = clamp(L.happy - 5, 0, 100);
     }
+    rivalNews.push(`⚔️ [나 대상] ${attack.message}`);
     addNews(`⚔️ ${attack.message}`, attack.caught ? 'good' : 'bad');
     flashToast(`⚔️ ${attack.message}`, attack.caught ? 'good' : 'bad');
   }
+  rivalNews.forEach(t => S.rivalFeed.unshift({ day: S.day, text: t }));
+  if (S.rivalFeed.length > 50) S.rivalFeed.length = 50;
+  // 봇별 순자산 추이 기록 (라이벌 차트용)
+  S.bots.forEach(b => { b.nwHist = b.nwHist || []; b.nwHist.push(Math.round(botNetWorth(b))); if (b.nwHist.length > 48) b.nwHist.shift(); });
+  S._myNwHist = S._myNwHist || []; S._myNwHist.push(Math.round(netWorthClean())); if (S._myNwHist.length > 48) S._myNwHist.shift();
   const housingResult = HOUSING.monthly(L, ECONOMY.livingMultiplier(S.economy));
   if (housingResult.expense > 0) {
     const paid=Math.min(Math.max(0,S.capital),housingResult.expense);S.capital-=paid;
@@ -1032,9 +1125,68 @@ function startMakjangLife(){
 }
 
 function showTutorial(){
-  const host=$('life-modal');if(!host)return;const n=D.SPECIAL_CHARACTERS.narae;host.style.display='flex';host.innerHTML=`<div class="window event-window legacy-window"><div class="title-bar"><div class="title-bar-text">🧭 나래의 QuickTrade 입문 안내</div></div><div class="window-body"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(n,'happy')}" alt="나래"><div class="dp-info"><strong>나래</strong> · 투자교육 매니저<br><span class="muted">“처음이면 핵심만 짚어드릴게요. 모르는 건 천천히 익혀도 괜찮아요.”</span></div></div><div class="legacy-ledger"><div>🔔 <strong>장 열림 한 번이 한 달</strong>입니다. 장중에 매매하고 마감 뒤 인생 행동을 합니다.</div><div>📈 월급만 믿으면 라이벌을 이기기 어렵습니다. 투자·경력·인맥을 함께 키우세요.</div><div>💳 대출은 신용등급별로 조건이 다르고 사채는 월 10% 복리와 추심 위험이 있습니다.</div><div>⚖️ 불법 공작은 수사와 재판으로 이어집니다. 돈이 많아도 감옥에 갈 수 있습니다.</div><div>💾 모든 선택은 자동 저장되며 죽은 뒤 자녀에게 세대 계승이 가능합니다.</div></div><button id="tutorial-start" class="session-btn opening">💼 설명 고마워 · 직업 선택</button></div></div>`;
+  const host=$('life-modal');if(!host)return;const n=D.SPECIAL_CHARACTERS.narae;host.style.display='flex';host.innerHTML=`<div class="window event-window legacy-window"><div class="title-bar"><div class="title-bar-text">🧭 나래의 QuickTrade 입문 안내</div></div><div class="window-body"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(n,'happy')}" alt="나래"><div class="dp-info"><strong>나래</strong> · 투자교육 매니저<br><span class="muted">“처음이면 핵심만 짚어드릴게요. 모르는 건 천천히 익혀도 괜찮아요.”</span></div></div><div class="legacy-ledger"><div>🔔 <strong>장 열림 한 번이 한 달</strong>입니다. 장중에 매매하고 마감 뒤 인생 행동을 합니다.</div><div>📈 월급만 믿으면 라이벌을 이기기 어렵습니다. 투자·경력·인맥을 함께 키우세요.</div><div>💳 대출은 신용등급별로 조건이 다르고 사채는 월 10% 복리와 추심 위험이 있습니다.</div><div>⚖️ 불법 공작은 수사와 재판으로 이어집니다. 돈이 많아도 감옥에 갈 수 있습니다.</div><div>💾 모든 선택은 자동 저장되며 죽은 뒤 자녀에게 세대 계승이 가능합니다.</div></div><div class="close-actions"><button id="tutorial-guide">📖 기능 자세히 보기</button><button id="tutorial-start" class="session-btn opening">💼 직업 선택하고 시작</button></div><p class="hint">언제든 상단 <b>📖 도움말</b> 버튼으로 가이드를 다시 볼 수 있어요.</p></div></div>`;
   $('tutorial-start').addEventListener('click',()=>{S.life.tutorialSeen=true;showJobModal(false);autoSave();});
+  const more=$('tutorial-guide'); if(more) more.addEventListener('click',()=>{S.life.tutorialSeen=true;showGameGuide();autoSave();});
 }
+
+// 언제든 열 수 있는 종합 게임 가이드
+function showGameGuide() {
+  const host = $('life-modal'); if (!host) return;
+  const sec = (icon, title, body) => `<details class="guide-sec"><summary>${icon} ${title}</summary><div class="guide-inner">${body}</div></details>`;
+  const body =
+    sec('⏱', '기본 흐름 — 한 달이 한 판', `
+      • <b>🔔 장 열림 = 한 달</b>. 개장하면 20틱 동안 장이 돌고, 위쪽 <b>진행 바</b>로 남은 시간을 볼 수 있어요.<br>
+      • 시간이 다 되면 자동 <b>장 마감</b>(또는 버튼으로 조기 마감) → <b>마감 리포트</b>에서 뉴스 보고 인생 행동을 합니다.<br>
+      • 장중엔 거래에 집중, 마감 뒤엔 취미·연애·인맥·부동산 등 인생을 꾸리세요. 나이는 12개월마다 한 살씩 듭니다.`) +
+    sec('💱', '주문·차트 — 거래의 핵심', `
+      • <b>매수/매도</b>는 수량 또는 <b>금액</b>으로 주문(금액 넣으면 수량 자동 계산). 마감 중엔 <b>예약주문</b>이 됩니다.<br>
+      • 보유분 없이 매도하면 <b>공매도(숏)</b> — 하락하면 이익.<br>
+      • 차트엔 <b>내 평단가</b>(주황 점선)·<b>최고가</b>(빨강)·<b>최저가</b>(파랑) 기준선과 위쪽 시세 스트립(현재가·수익률)이 표시됩니다.<br>
+      • <b>⚡ 신용 레버리지</b>(2~5배)로 매수여력을 늘릴 수 있지만, 하락 시 <b>반대매매</b> 위험이 있어요.`) +
+    sec('📊', 'ETF — 레버리지·인버스', `
+      • 개별 종목 말고 <b>시장 지수를 배율로 추종</b>하는 상품입니다.<br>
+      • <b>레버리지 2x</b>(지수의 2배로 상승/하락), <b>인버스</b>(지수와 반대), <b>곱버스 2x인버스</b>(반대로 2배).<br>
+      • 가격이 너무 낮아지면 실제처럼 <b>액면병합</b>돼 정상 가격대로 되돌아갑니다.`) +
+    sec('📈', '뉴스·기업·파산', `
+      • 뉴스에 뜬 <b>기업을 클릭</b>하면 재무·토론방이 담긴 <b>기업 리포트</b>가 열리고, '거래하기'로 그 차트로 이동합니다.<br>
+      • 큰 사건은 <b>긴급속보</b>로 뜨고 전문가들이 엇갈린 전망을 냅니다(참고만!).<br>
+      • 소형주는 <b>상장폐지(파산)</b> 위험이 있고, 폐지되면 <b>사유 팝업</b>이 뜹니다. 보유분은 휴지조각이 돼요.`) +
+    sec('💼', '직업·경력·이직', `
+      • 시작 시 <b>직업</b>을 고르면 매달 <b>월급</b>이 들어옵니다. 고소득 직업일수록 <b>사고 리스크</b>(→빚)가 큽니다.<br>
+      • <b>이직</b>은 직업마다 <b>합격 확률</b>이 다르고(현재 경력 vs 목표 난이도), 성공/실패로 갈립니다.<br>
+      • 직무교육·자격증으로 능력을 키우면 <b>승진</b>과 이직에 유리합니다.`) +
+    sec('💘', '연애·결혼', `
+      • 데이트는 <b>소개팅 경로</b>(앱·지인·사내·취미·클럽)마다 만나는 사람이 달라요. 경로마다 비용도 다릅니다.<br>
+      • 같은 사람을 여러 번 만나 <b>호감도</b>를 쌓으면 연애로 발전 — <b>성격에 따라</b> 상대가 먼저 고백하거나 내가 고백합니다(수락/거절 선택 가능).<br>
+      • 연애 중 새 사람을 만나면 <b>양다리</b>가 되고, 걸리면 이별·위자료·해고 위험!<br>
+      • <b>이별/이혼</b>은 성격에 따라 순탄하거나 파국이 되며, 헤어진 상대는 <b>전 연인</b>으로 남아 <b>재회</b>를 노릴 수 있어요.`) +
+    sec('🤝', '인맥', `
+      • <b>업계 모임</b>으로 인맥(선배·은행원·변호사·기자 등)을 만들고, <b>만나기</b>로 신뢰를 쌓아요.<br>
+      • 신뢰 30·호의 1이 쌓이면 <b>부탁</b>으로 역할별 혜택을 받습니다 — 경력 조언·신용 개선·법적 방패·평판 등.`) +
+    sec('⚖️', '라이벌·재판', `
+      • <b>AI 라이벌</b> 7명과 순자산 경쟁 — 랭킹 탭에서 <b>순자산 경쟁 차트</b>·라이벌 동향(서로 공격·손익·수감)·봇 보유 종목을 볼 수 있어요.<br>
+      • 나도 라이벌에게 <b>경쟁 행동</b>(합법 분석/영입, 불법 음해/시세조작)을 할 수 있지만, 불법은 <b>수사→재판</b>으로 이어집니다.<br>
+      • 재판은 <b>수사→기소→재판</b> 단계로 진행 — 변호사를 선임하고 재판 단계에서 <b>전략</b>을 고르면 무죄·감형 확률이 오릅니다.`) +
+    sec('🏠', '인생 경영', `
+      • <b>부동산</b> 매입 → 월세·시세차익. <b>취미</b>로 행복·매력을 올리고, <b>대출/사채</b>로 자금을 융통(사채는 위험!).<br>
+      • <b>보험·연금·세금</b>이 매달 정산되고, <b>결혼</b> 후엔 <b>출산·입양</b>으로 자녀를 키웁니다(교육·유대).<br>
+      • 사망하면 <b>자녀에게 세대 계승</b>이 가능하고, 모든 진행은 자동 저장됩니다.`);
+  host.style.display = 'flex';
+  host.innerHTML =
+    `<div class="window event-window guide-window">
+       <div class="title-bar life-bar"><div class="title-bar-text">📖 QuickTrade Life 게임 가이드</div>
+         <div class="title-bar-controls"><button aria-label="Close" id="guide-x"></button></div></div>
+       <div class="window-body guide-body">
+         <p class="guide-intro">각 항목을 눌러 펼쳐 보세요. 언제든 상단 <b>📖 도움말</b>로 다시 열 수 있어요.</p>
+         ${body}
+         <button id="guide-close" class="session-btn opening">닫기</button>
+       </div>
+     </div>`;
+  const x = $('guide-x'); if (x) x.addEventListener('click', closeGuide);
+  const c = $('guide-close'); if (c) c.addEventListener('click', closeGuide);
+}
+function closeGuide() { const h = $('life-modal'); if (h) { h.style.display = 'none'; h.innerHTML = ''; } }
 
 function showDeathScreen(age) {
   if (S.timer) { clearInterval(S.timer); S.timer = null; }
@@ -1375,7 +1527,14 @@ function characterPortrait(c, mood) {
   const emotion = mood || (c && c.mood) || 'neutral';
   const stem = file && file.replace(/-(neutral|happy|sad|angry)\.webp$/,'').replace(/\.webp$/,'');
   const emotionFile = stem ? `${stem}-${emotion}.webp` : file;
-  return emotionFile ? `./assets/characters/${emotionFile}` : '';
+  return emotionFile ? `./assets/characters/${emotionFile}` : emojiAvatar(c);
+}
+
+// 초상화 파일이 없는 인물(인맥·단역 등)은 이모지 아바타로 대체 — 깨진 이미지 방지
+function emojiAvatar(c) {
+  const emoji = (c && (c.emoji || c.icon)) || '🙂';
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><rect width='96' height='96' rx='10' fill='#dfe6f2'/><text x='48' y='66' font-size='54' text-anchor='middle'>${emoji}</text></svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 }
 
 /* 구버전 세이브 보정 — 초상화 성별을 맞추며 바뀐 이름을 따라가고, 로스터의 성별·초상화를 다시 붙인다 */
@@ -1528,7 +1687,8 @@ function makeCandidate(route, exclude) {
   const fresh = pool.filter(c => !isKnownPerson(L, c.name) && !taken.includes(c.name));
   if (!fresh.length) return null;   // 로스터를 다 만났다 — 새로 소개받을 사람 없음
   const c = Object.assign({}, pick(fresh));
-  c.age = 23 + Math.floor(Math.random() * 18);   // 만 23~40세
+  const pAge = dateInfo(S.day).age;              // 플레이어 또래 위주로 만난다
+  c.age = clamp(pAge + Math.round(rand(-5, 6)), 19, 55);
   Object.assign(c, ROMANCE_META[c.personality] || ROMANCE_META.caring);
   if (route && route.office) c.job = '사내 동료';  // 사내연애: 같은 회사 동료
   return c;
@@ -1616,10 +1776,15 @@ function showRouteModal() {
         `data-known="${i}"`, 'known-card');
     }).join('');
   }
-  if (formerPartners.length) {
-    cards += `<div class="route-sep">💔 전 연인 <span class="muted">헤어진 상대와는 일반 데이트 불가</span></div>`;
-    cards += formerPartners.map(m => personCardHTML(candidateFromRecord(m),
-      `💔 전 연인 · <span class="muted">관계가 끝나 연락할 수 없습니다</span>`, 'disabled', 'known-card ex-card')).join('');
+  S._dateEx = formerPartners.map(candidateFromRecord);
+  if (formerPartners.length && L.relationship === 'single') {
+    cards += `<div class="route-sep">💔 전 연인 <span class="muted">비용 ${won(D.RELATIONSHIP.DATE_COST)} · 다시 만나 재회를 노려볼 수 있어요</span></div>`;
+    cards += S._dateEx.map((c, i) => personCardHTML(c,
+      `💔 전 연인 · ${stageBadge(c.affection)} <span class="muted">호감도 ${Math.round(c.affection || 0)} · 재회 시도</span>`, `data-ex="${i}"`, 'known-card ex-card')).join('');
+  } else if (formerPartners.length) {
+    cards += `<div class="route-sep">💔 전 연인 <span class="muted">연애 중엔 전 연인과 만날 수 없어요</span></div>`;
+    cards += S._dateEx.map(c => personCardHTML(c,
+      `💔 전 연인 · <span class="muted">지금은 연락할 수 없습니다</span>`, 'disabled', 'known-card ex-card')).join('');
   }
   if (S._dateOffers.length) {
     cards += `<div class="route-sep">💘 새로운 사람 만나기</div>`;
@@ -1653,6 +1818,12 @@ function showRouteModal() {
     if (b.dataset.known != null) {
       S._dateRoute = null;
       S._dateCandidate = S._dateKnown[+b.dataset.known];
+      showDateModal(S._dateCandidate, null);
+      return;
+    }
+    if (b.dataset.ex != null) {
+      S._dateRoute = null;
+      S._dateCandidate = S._dateEx[+b.dataset.ex];
       showDateModal(S._dateCandidate, null);
       return;
     }
@@ -1715,6 +1886,7 @@ function resolveDate(i) {
   const L = S.life, R = D.RELATIONSHIP;
   const c = S._dateCandidate, a = D.DATE_APPROACHES[i];
   if (!c || !a) return;
+  S._romance = null;   // 이번 데이트의 연애 선택 대기 상태 초기화
   const cost = dateBaseCost() + (a.cost || 0);
   if (S.capital < cost) { flashToast('💸 현금이 부족합니다', 'bad'); playSound('error'); return; }
   S.capital -= cost;
@@ -1761,15 +1933,22 @@ function resolveDate(i) {
   }
 
   let extra = stageNote;
+  const perC = D.PERSONALITIES[c.personality] || {};
   if (L.relationship === 'single') {
-    const proposal = proposalResult(c, rec, tier);
-    if (proposal.attempted && proposal.accepted) {
-      const confess = ROMANCE.momentLine(c, 'confess');
-      startDating(c);
-      extra += `<br>💕 <b class="up">충분히 알아간 끝에 ${c.name}님과 연애를 시작했어요!</b>${confess ? `<br>${c.name}: ${confess}` : ''}`;
-    } else if (proposal.attempted) {
-      rec.affection = Math.max(0, rec.affection - 8);
-      extra += `<br>🫸 <b class="down">${c.name}님은 "좋은 사람이지만 아직 연애할 확신은 없어요"라며 고백을 거절했다.</b>`;
+    // 연애 여부는 플레이어가 선택. 상대 성격에 따라 '먼저 고백(적극)' vs '내가 고백(소극)'이 갈린다
+    const eligible = (tier === '성공' && (rec.affection || 0) >= 55 && (rec.dates || 0) >= 2);
+    if (eligible) {
+      const forward = perC.forward === true || (perC.confess != null ? perC.confess >= 0.6 : false);
+      if (forward) {
+        extra += `<br>💗 <b class="up">${c.name}님이 "우리 이제 사귈래요?"라며 먼저 고백했어요!</b>`;
+        S._romance = { name: c.name, forward: true, html:
+          `<div class="romance-choice"><button id="romance-accept" class="life-btn hot">💕 받아준다</button><button id="romance-decline" class="life-btn">🙅 거절한다</button></div>` };
+      } else {
+        const ch = clamp((perC.confess != null ? perC.confess : 0.5) + ((rec.affection || 0) - 55) / 140, 0.25, 0.92);
+        extra += `<br>💗 <b>${c.name}님과 사귀고 싶다면 지금 고백해볼 수 있어요.</b> <span class="muted">(${perC.name || ''} 성향 · 성공 확률 약 ${Math.round(ch * 100)}%)</span>`;
+        S._romance = { name: c.name, forward: false, chance: ch, html:
+          `<div class="romance-choice"><button id="romance-confess" class="life-btn hot">💌 고백한다</button><button id="romance-skip" class="life-btn">⏳ 아직 아니다</button></div>` };
+      }
     } else if (tier === '성공') {
       extra += `<br>🌱 <span class="muted">호감은 생겼지만 연애를 정하기엔 아직 이르다. 두 번 이상 만나고 호감도 55를 쌓아야 한다.</span>`;
     }
@@ -1794,18 +1973,58 @@ function resolveDate(i) {
   const ow = host.querySelector('.event-options'); if (ow) ow.innerHTML = '';
   const ca = host.querySelector('.close-actions'); if (ca) ca.remove();   // 결과가 나오면 '다른 사람 고르기'는 감춘다
   const changes = [`매력 ${dCharm >= 0 ? '+' : ''}${dCharm}`, `행복 ${dHappy >= 0 ? '+' : ''}${dHappy}`, `현금 -${won(cost)}`];
-  $('date-outcome').innerHTML =
-    `<div class="oc-text"><b class="${tier === '실패' ? 'down' : 'up'}">[${tier}]</b> ${msg}${extra}</div>` +
-    `<div class="oc-changes">${changes.join(' · ')}</div>` +
-    `<button id="date-confirm" class="session-btn opening">확인</button>`;
-  const cf = $('date-confirm'); if (cf) cf.addEventListener('click', closeDateModal);
+  const base = `<div class="oc-text"><b class="${tier === '실패' ? 'down' : 'up'}">[${tier}]</b> ${msg}${extra}</div>` +
+    `<div class="oc-changes">${changes.join(' · ')}</div>`;
+  if (S._romance && S._romance.html) {
+    // 연애 시작 여부를 플레이어가 선택
+    $('date-outcome').innerHTML = base + S._romance.html;
+    wireRomanceChoice(c);
+  } else {
+    $('date-outcome').innerHTML = base + `<button id="date-confirm" class="session-btn opening">확인</button>`;
+    const cf = $('date-confirm'); if (cf) cf.addEventListener('click', closeDateModal);
+  }
+  renderCapital(); renderLifePanel(); checkAchievements(); autoSave();
+}
+
+function wireRomanceChoice(c) {
+  const acc = $('romance-accept'), dec = $('romance-decline'), con = $('romance-confess'), skip = $('romance-skip');
+  if (acc) acc.addEventListener('click', () => romanceResolve('accept'));
+  if (dec) dec.addEventListener('click', () => romanceResolve('decline'));
+  if (con) con.addEventListener('click', () => romanceResolve('confess'));
+  if (skip) skip.addEventListener('click', () => romanceResolve('skip'));
+}
+
+function romanceResolve(kind) {
+  const c = S._dateCandidate; if (!c) return;
+  const rec = rememberPerson(c);
+  let resultHTML = '';
+  if (kind === 'accept') {
+    startDating(c);
+    resultHTML = `💕 <b class="up">${c.name}님의 고백을 받아 연애를 시작했어요!</b>`;
+  } else if (kind === 'decline') {
+    rec.affection = Math.max(0, (rec.affection || 0) - 15);
+    resultHTML = `🙅 <span class="muted">${c.name}님의 고백을 정중히 거절했다. 사이가 조금 어색해졌다.</span>`;
+  } else if (kind === 'confess') {
+    const ok = Math.random() < ((S._romance && S._romance.chance) || 0.5);
+    if (ok) { startDating(c); resultHTML = `💕 <b class="up">고백 성공! ${c.name}님과 연애를 시작했어요!</b>`; }
+    else { rec.affection = Math.max(0, (rec.affection || 0) - 8); resultHTML = `🫸 <b class="down">${c.name}님이 "아직 그런 사이는 아닌 것 같아요"라며 거절했다.</b>`; playSound('error'); }
+  } else {
+    resultHTML = `⏳ <span class="muted">다음 기회를 기다리기로 했다.</span>`;
+  }
+  S._romance = null;
+  const out = $('date-outcome');
+  const rc = out.querySelector('.romance-choice'); if (rc) rc.remove();
+  const div = document.createElement('div'); div.className = 'oc-text'; div.style.marginTop = '6px'; div.innerHTML = resultHTML;
+  out.appendChild(div);
+  const btn = document.createElement('button'); btn.id = 'date-confirm'; btn.className = 'session-btn opening'; btn.textContent = '확인';
+  btn.addEventListener('click', closeDateModal); out.appendChild(btn);
   renderCapital(); renderLifePanel(); checkAchievements(); autoSave();
 }
 
 function closeDateModal() {
   const h = $('date-host'); if (h) { h.style.display = 'none'; h.innerHTML = ''; }
   syncBGM();   // 데이트 트랙 → 원래 장면 트랙으로
-  S._dateCandidate = null; S._dateRoute = null; S._dateOffers = null;
+  S._dateCandidate = null; S._dateRoute = null; S._dateOffers = null; S._romance = null;
   if (S.phase === 'closed' && $('market-close') && $('market-close').style.display === 'block') renderCloseReport(S.day);
 }
 
@@ -1847,24 +2066,74 @@ function breakUp(charmPenalty, happyPenalty) {
 function doBreakupChoice() {
   const L = S.life;
   if (!L.partner || L.relationship === 'single') return;
-  const p = L.partner;
+  showBreakupModal();
+}
+
+function showBreakupModal() {
+  const L = S.life, p = L.partner; if (!p) return;
   const per = D.PERSONALITIES[p.personality] || {};
   const married = L.relationship === 'married';
-  if (!window.confirm(`${p.name}님과 ${married ? '이혼' : '헤어지기'}로 결정할까요? 관계와 친밀도는 되돌릴 수 없습니다.`)) return;
+  const host = $('life-event'); if (!host) return;
+  const assets = Math.max(0, totalWealth());
+  const alimony = married ? Math.round(assets * rand(0.15, 0.35)) : Math.round(rand(300000, 2500000));
+  S._breakupPreview = { married, alimony };
+  const resistNote = (per.breakupResist || 0) >= 0.4
+    ? `${per.name || '이'} 성향이라 순순히 놓아주지 않을 가능성이 높아요. 큰 다툼·추가 비용 위험!`
+    : `${per.name || '이'} 성향이라 비교적 담담히 받아들일 가능성이 커요.`;
+  host.style.display = 'block';
+  host.innerHTML =
+    `<div class="window event-window">
+       <div class="title-bar event-bar"><div class="title-bar-text">💔 ${married ? '이혼 절차' : '이별 결정'}</div></div>
+       <div class="window-body">
+         <div class="date-profile"><img class="char-portrait" src="${characterPortrait(p, 'sad')}" alt="${p.name}">
+           <div class="dp-info"><strong>${p.emoji || ''}${p.name}</strong> · ${p.job}<br><span class="muted">${per.emoji || ''}${per.name || ''} · 친밀도 ${Math.max(0, L.affection || 0)}</span></div></div>
+         <div class="event-desc">${married ? `이혼하면 재산분할·위자료로 <b class="down">약 ${won(alimony)}원</b>이 나가고, 주변에 소문이 날 수 있어요.` : `헤어지면 그동안 쌓은 친밀도가 사라져요.`} 정말 진행할까요?<br><span class="muted">${resistNote}</span><br><span class="muted">헤어진 뒤에도 '전 연인'으로 남아 나중에 재회를 시도할 수 있어요.</span></div>
+         <div class="event-options">
+           <button class="event-opt" id="breakup-go">💔 ${married ? '이혼한다' : '헤어진다'}</button>
+           <button class="event-opt" id="breakup-cancel">↩ 다시 생각한다</button>
+         </div>
+         <div class="event-outcome" id="breakup-outcome"></div>
+       </div>
+     </div>`;
+  const go = $('breakup-go'); if (go) go.addEventListener('click', confirmBreakup);
+  const cancel = $('breakup-cancel'); if (cancel) cancel.addEventListener('click', closeBreakupModal);
+}
+
+function confirmBreakup() {
+  const L = S.life, p = L.partner; if (!p) return closeBreakupModal();
+  const per = D.PERSONALITIES[p.personality] || {};
+  const married = L.relationship === 'married';
   const resisted = Math.random() < (per.breakupResist || 0);
-  const name = breakUp(resisted ? 0.45 : 0.75, resisted ? 30 : 18);
-  let text = `${name}님은 결정을 받아들였고 두 사람의 관계가 끝났다.`;
+  let cost = (S._breakupPreview && S._breakupPreview.alimony) || 0;
+  let text;
   if (resisted) {
-    const fallout = Math.round(rand(800000, married ? 8000000 : 3000000));
-    LOAN.addDebt(L, fallout, married ? '이혼 정리 비용' : '관계 파국 비용');
+    cost += Math.round(rand(1000000, married ? 8000000 : 3000000));
     SOCIAL.ensure(L).reputation = Math.max(0, SOCIAL.ensure(L).reputation - 8);
-    text = `${per.name || '상대'} 성향의 ${name}님은 결별을 받아들이지 못했고, 큰 다툼과 주변 소문 끝에 관계가 파국으로 끝났다. 정리 비용 ${won(fallout)}원.`;
     L.memories = L.memories || [];
-    L.memories.unshift({ day: S.day, name, tier: '관계 파국 엔딩', approach: '결별' });
+    L.memories.unshift({ day: S.day, name: p.name, tier: '관계 파국 엔딩', approach: '결별' });
+    text = `${per.name || '상대'} 성향의 ${p.name}님은 결별을 받아들이지 못했고, 큰 다툼과 주변 소문 끝에 관계가 파국으로 끝났다.`;
+  } else {
+    text = `${p.name}님은 눈물을 훔치면서도 결정을 받아들였다. 두 사람은 마지막 인사를 나눴다.`;
   }
-  addNews(`💔 ${text}`, 'bad');
-  flashToast(resisted ? '💥 관계 파국 엔딩' : '💔 관계가 끝났습니다', 'bad');
-  playSound('error'); afterLifeAction();
+  if (cost > 0) { const paid = Math.min(Math.max(0, S.capital), cost); S.capital -= paid; if (cost > paid) LOAN.addDebt(L, cost - paid, married ? '이혼 위자료·정리비용' : '관계 정리 비용'); }
+  const name = breakUp(resisted ? 0.45 : 0.75, resisted ? 30 : 18);   // 상대는 '전 연인'으로 명부에 남는다
+  addNews(`💔 ${married ? '이혼' : '이별'} · ${text} 정리 비용 ${won(cost)}원`, 'bad');
+  playSound('error');
+  const out = $('breakup-outcome');
+  const optWrap = $('life-event').querySelector('.event-options'); if (optWrap) optWrap.innerHTML = '';
+  out.innerHTML =
+    `<div class="oc-text">💔 ${text}</div>` +
+    `<div class="oc-changes">정리 비용 -${won(cost)}${resisted ? ' · 평판 -8' : ''} · 매력·행복 감소</div>` +
+    `<div class="oc-text muted" style="margin-top:4px">${name}님은 이제 '전 연인'으로 남았어요. 소개팅 화면에서 다시 만나 재회를 노려볼 수 있어요.</div>` +
+    `<button id="breakup-confirm" class="session-btn opening">확인</button>`;
+  const cf = $('breakup-confirm'); if (cf) cf.addEventListener('click', closeBreakupModal);
+  renderCapital(); renderLifePanel(); checkAchievements(); autoSave();
+}
+
+function closeBreakupModal() {
+  const h = $('life-event'); if (h) { h.style.display = 'none'; h.innerHTML = ''; }
+  S._breakupPreview = null;
+  if (S.phase === 'closed' && $('market-close') && $('market-close').style.display === 'block') renderCloseReport(S.day);
 }
 
 // 취미·매력 누적만으로는 자동 연애하지 않는다. 연애는 데이트 중 상대별 고백 판정으로만 시작한다.
@@ -2068,8 +2337,8 @@ function lifeHubHTML() {
     ? `<button class="life-btn hot" data-act="insurance-cancel" data-policy="${p.id}">${p.icon} ${p.name} 해지 <small>월 ${won(p.premium)}</small></button>`
     : `<button class="life-btn" data-act="insurance" data-policy="${p.id}">${p.icon} ${p.name} <small>${p.desc} · 월 ${won(p.premium)}</small></button>`).join('');
   const pensionBtns = [.05,.09,.15].map(rate=>`<button class="life-btn ${Math.abs(finance.pensionRate-rate)<.001?'hot':''}" data-act="pension" data-rate="${rate}">연금 ${Math.round(rate*100)}%</button>`).join('');
-  const contactBtns = social.contacts.map(c=>{const r=SOCIAL.role(c);return `<button class="life-btn" data-act="contact-nurture" data-contact="${c.id}">${r.icon} ${c.name} 만나기 <small>신뢰 ${c.trust} · 호의 ${c.favor} · 300,000</small></button><button class="life-btn" data-act="contact-ask" data-contact="${c.id}">🙏 ${c.name}에게 부탁</button>`}).join('');
-  const courtBtns=justice.case?`<span class="muted">${justice.case.crime} · ${justice.case.phase}</span><button class="life-btn" data-act="lawyer" data-tier="public">국선변호인</button><button class="life-btn" data-act="lawyer" data-tier="standard">전문 변호사 <small>5,000,000</small></button><button class="life-btn" data-act="lawyer" data-tier="elite">대형 로펌 <small>20,000,000</small></button>${justice.case.phase==='재판'?'<button class="life-btn" data-act="court" data-strategy="plea">혐의 인정·선처</button><button class="life-btn" data-act="court" data-strategy="contest">무죄 다툼</button><button class="life-btn" data-act="court" data-strategy="cooperate">수사 협조</button>':''}`:'<span class="muted">진행 중인 사건 없음</span>';
+  const contactBtns = social.contacts.map(c=>{const r=SOCIAL.role(c);const ready=c.trust>=30&&c.favor>=1;return `<button class="life-btn" data-act="contact-nurture" data-contact="${c.id}">${r.icon} ${c.name} 만나기 <small>신뢰 ${c.trust}/30 · 호의 ${c.favor} · 300,000</small></button><button class="life-btn ${ready?'hot':''}" data-act="contact-ask" data-contact="${c.id}" ${ready?'':'disabled'}>🙏 ${r.benefit} 부탁 <small>${ready?'가능':'신뢰30·호의1 필요'}</small></button>`}).join('');
+  const courtBtns=justice.case?`<div class="court-status">⚖️ <b>${justice.case.crime}</b> · <b class="down">${justice.case.phase}</b> 단계 · ${justice.case.months}개월 남음<br><span class="muted">${justice.case.phase==='수사'?'변호사를 미리 선임하면 유리합니다':justice.case.phase==='기소'?'변호사 등급이 불기소 확률에 영향':'⚠️ 재판 전략 3가지 중 하나를 꼭 선택하세요'}</span></div><button class="life-btn" data-act="lawyer" data-tier="public">국선변호인</button><button class="life-btn" data-act="lawyer" data-tier="standard">전문 변호사 <small>5,000,000</small></button><button class="life-btn" data-act="lawyer" data-tier="elite">대형 로펌 <small>20,000,000</small></button>${justice.case.phase==='재판'?'<button class="life-btn" data-act="court" data-strategy="plea">혐의 인정·선처</button><button class="life-btn" data-act="court" data-strategy="contest">무죄 다툼</button><button class="life-btn" data-act="court" data-strategy="cooperate">수사 협조</button>':''}`:'<span class="muted">진행 중인 사건 없음</span>';
   const treatment=HEALTH.treatmentOffer(L);
   const quickBtns=`<button class="life-btn" data-act="date">💘 데이트</button><button class="life-btn" data-act="rest">🛌 쉬기 <small>300,000</small></button><button class="life-btn" data-act="career-train">📚 직무교육 <small>700,000</small></button>${treatment?`<button class="life-btn hot" data-act="treat">💊 ${treatment.name} 치료</button>`:''}${L.loan>0?`<button class="life-btn hot" data-act="repay">💳 대출 상환</button>`:''}`;
   return `
@@ -2745,23 +3014,81 @@ function renderLeaderboard() {
   el.innerHTML = '';
   const players = [
     { name: '🧑 나(You)', value: netWorthClean(), me: true },
-    ...S.bots.map(b => ({ name: b.name, value: botNetWorth(b) })),
+    ...S.bots.map(b => ({ name: b.name, value: botNetWorth(b), profit: b.monthlyProfit || 0, jail: b.jailMonths || 0, crime: b.criminalRecord || 0, bot: b })),
   ].sort((a, b) => b.value - a.value);
   players.forEach((p, i) => {
     const li = document.createElement('li');
     const medal = ['🥇', '🥈', '🥉', '4️⃣'][i] || (i + 1);
     const plRate = (p.value - CFG.START_CAPITAL) / CFG.START_CAPITAL;
-    li.className = p.me ? 'me' : '';
+    li.className = p.me ? 'me' : 'bot-row';
+    let tail = '';
+    if (!p.me) {
+      const flags = (p.jail > 0 ? ` <span class="down">⛓️수감 ${p.jail}개월</span>` : '') + (p.crime > 0 ? ` <span class="muted">🚨전과 ${p.crime}</span>` : '');
+      tail = ` <span class="${p.profit >= 0 ? 'up' : 'down'}">전월 ${p.profit >= 0 ? '+' : ''}${won(p.profit)}</span>${flags} <span class="muted bot-toggle">▼ 보유</span>`;
+    }
     li.innerHTML = `${medal} <strong>${p.name}</strong> ${won(p.value)}원 ` +
-      `<span class="${plRate >= 0 ? 'up' : 'down'}">(${pct(plRate)})</span>`;
+      `<span class="${plRate >= 0 ? 'up' : 'down'}">(${pct(plRate)})</span>${tail}`;
+    if (!p.me) {
+      const detail = document.createElement('div');
+      detail.className = 'bot-detail'; detail.style.display = 'none';
+      detail.innerHTML = botHoldingsHTML(p.bot);
+      li.addEventListener('click', () => {
+        const openNow = detail.style.display !== 'none';
+        detail.style.display = openNow ? 'none' : 'block';
+        const tog = li.querySelector('.bot-toggle'); if (tog) tog.textContent = openNow ? '▼ 보유' : '▲ 접기';
+      });
+      li.appendChild(detail);
+    }
     el.appendChild(li);
   });
   // 내 순위 저장
   S._rank = players.findIndex(p => p.me) + 1;
+  renderRivalFeed();
+  renderBotNwChart();
+}
+
+// 봇이 지금 무엇을 들고 있는지 — 현금 + 보유 종목(평가액 순)
+function botHoldingsHTML(bot) {
+  if (!bot) return '';
+  const holds = Object.keys(bot.owned || {}).map(name => {
+    const s = S.stocks.find(x => x.name === name);
+    const price = s ? s.history[s.history.length - 1].c : 0;
+    return { name, qty: bot.owned[name], val: bot.owned[name] * price, listed: !!(s && s.listed) };
+  }).filter(h => h.qty > 0).sort((a, b) => b.val - a.val);
+  const cashLine = `💵 현금 ${won(bot.capital)}`;
+  if (!holds.length) return `<div class="bd-inner">${cashLine}<div class="muted">보유 종목 없음 (현금·사업 위주)</div></div>`;
+  const rows = holds.slice(0, 10).map(h =>
+    `<div class="bd-row"><span>${h.listed ? '' : '🚫'}${h.name}</span><span>${h.qty.toLocaleString('ko-KR')}주 · ${won(h.val)}</span></div>`).join('');
+  return `<div class="bd-inner">${cashLine}<div class="bd-title">📦 보유 종목 ${holds.length}개</div>${rows}</div>`;
+}
+
+// 라이벌 동향 창 — AI들이 서로 뭘 하는지(공격·손익·수감) 로그로 보여준다
+function renderRivalFeed() {
+  const el = $('rival-feed');
+  if (!el) return;
+  const feed = S.rivalFeed || [];
+  if (!feed.length) { el.innerHTML = '<li class="muted" style="cursor:default">아직 라이벌 동향이 없습니다. 장을 마감하면 갱신됩니다.</li>'; return; }
+  el.innerHTML = feed.slice(0, 30).map(f => {
+    const cls = /타격|손실|적발|수감|사고/.test(f.text) ? 'bad' : (/대박|횡재|막아냈|\+/.test(f.text) ? 'good' : 'neutral');
+    return `<li class="${cls}" style="cursor:default"><span class="muted">[${dateInfo(f.day).label}]</span> ${f.text}</li>`;
+  }).join('');
 }
 
 /* ------------------------------------------------------------------ 차트 */
-let priceChart, pieChart, nwChart;
+let priceChart, pieChart, nwChart, rivalsNwChart;
+
+// 종목의 현재가·최고가·최저가·내 평단가·수익률
+function priceStats(stock) {
+  const h = stock.history;
+  const cur = h[h.length - 1].c;
+  const hi = Math.max(...h.map(x => x.h));
+  const lo = Math.min(...h.map(x => x.l));
+  const pos = S.owned[stock.name];
+  const avg = pos && pos.qty !== 0 ? pos.avg : null;
+  const qty = pos ? pos.qty : 0;
+  const plRate = avg != null ? (qty > 0 ? (cur - avg) / avg : (avg - cur) / avg) : null;
+  return { cur, hi, lo, avg, qty, plRate };
+}
 
 function renderChart() {
   const stock = curStock();
@@ -2770,22 +3097,22 @@ function renderChart() {
   const h = stock.history;
   const labels = h.map((_, i) => i);
   const sec = D.SECTORS[stock.sector];
+  const st = priceStats(stock);
+  const flat = v => labels.map(() => v);
+  renderQuoteStrip(stock, st);
 
   if (S.chartMode === 'line') {
-    const data = h.map(x => x.c);
+    // 실제 차트처럼 — 종가 + 최고가/최저가 + 내 평단가 기준선
+    const datasets = [{ label: stock.name, data: h.map(x => x.c), borderColor: sec.color, backgroundColor: sec.color + '22', fill: true, tension: 0.25, pointRadius: 0, borderWidth: 2 }];
+    datasets.push({ label: `최고가 ${won(st.hi)}`, data: flat(st.hi), borderColor: 'rgba(214,31,31,0.55)', borderDash: [3, 3], pointRadius: 0, borderWidth: 1, fill: false });
+    datasets.push({ label: `최저가 ${won(st.lo)}`, data: flat(st.lo), borderColor: 'rgba(31,79,214,0.55)', borderDash: [3, 3], pointRadius: 0, borderWidth: 1, fill: false });
+    if (st.avg != null) datasets.push({ label: `내 평단가 ${won(st.avg)}`, data: flat(st.avg), borderColor: '#f59e0b', borderDash: [7, 3], pointRadius: 0, borderWidth: 2, fill: false });
     if (!priceChart || priceChart.config.type !== 'line') {
       if (priceChart) priceChart.destroy();
-      priceChart = new Chart(ctx, {
-        type: 'line',
-        data: { labels, datasets: [{ label: stock.name, data, borderColor: sec.color, backgroundColor: sec.color + '22', fill: true, tension: 0.25, pointRadius: 0, borderWidth: 2 }] },
-        options: chartOpts(stock.name),
-      });
+      priceChart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: chartOpts(stock.name) });
     } else {
       priceChart.data.labels = labels;
-      priceChart.data.datasets[0].data = data;
-      priceChart.data.datasets[0].label = stock.name;
-      priceChart.data.datasets[0].borderColor = sec.color;
-      priceChart.data.datasets[0].backgroundColor = sec.color + '22';
+      priceChart.data.datasets = datasets;
       priceChart.update('none');
     }
   } else {
@@ -2799,6 +3126,20 @@ function renderChart() {
       options: chartOpts(stock.name),
     });
   }
+}
+
+// 차트 위 실시간 시세 스트립 — 현재가·최고·최저·평단·수익률
+function renderQuoteStrip(stock, st) {
+  const el = $('quote-strip'); if (!el || !stock) return;
+  st = st || priceStats(stock);
+  const prev = stock.history.length > 1 ? stock.history[stock.history.length - 2].c : st.cur;
+  const diff = st.cur - prev, rate = prev ? diff / prev : 0;
+  let posInfo = '';
+  if (st.avg != null) {
+    const cls = st.plRate >= 0 ? 'up' : 'down';
+    posInfo = ` · 평단 <b>${won(st.avg)}</b> · 수익률 <b class="${cls}">${pct(st.plRate)}</b> · ${Math.abs(st.qty)}주${st.qty < 0 ? '(숏)' : ''}`;
+  }
+  el.innerHTML = `현재가 <b class="${diff >= 0 ? 'up' : 'down'}">${won(st.cur)}</b> <span class="${diff >= 0 ? 'up' : 'down'}">${diff >= 0 ? '▲' : '▼'}${pct(rate)}</span> · 최고 <b class="up">${won(st.hi)}</b> · 최저 <b class="down">${won(st.lo)}</b>${posInfo}`;
 }
 
 function chartOpts(title) {
@@ -2854,6 +3195,33 @@ function renderNetWorthChart() {
     nwChart.data.datasets[0].borderColor = color;
     nwChart.data.datasets[0].backgroundColor = color + '22';
     nwChart.update('none');
+  }
+}
+
+// 나 vs 라이벌 순자산 경쟁 — 여러 선을 겹쳐 누가 앞서는지 한눈에
+function renderBotNwChart() {
+  const cvs = $('rivals-nw-chart'); if (!cvs) return;
+  const ctx = cvs.getContext('2d');
+  const palette = ['#f59e0b', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
+  const lines = [];
+  const myHist = S._myNwHist || [];
+  if (myHist.length) lines.push({ label: '🧑 나', data: myHist, borderColor: '#111', borderWidth: 2.5, pointRadius: 0, tension: 0.25, fill: false });
+  S.bots.forEach((b, i) => {
+    if (b.nwHist && b.nwHist.length) lines.push({ label: b.name, data: b.nwHist, borderColor: palette[i % palette.length], borderWidth: 1.5, pointRadius: 0, tension: 0.25, fill: false });
+  });
+  const maxLen = lines.reduce((m, l) => Math.max(m, l.data.length), 0);
+  const labels = Array.from({ length: maxLen }, (_, i) => i);
+  // 길이 맞추기 (앞을 null 로 패딩)
+  lines.forEach(l => { while (l.data.length < maxLen) l.data.unshift(null); });
+  const opts = { responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { display: true, labels: { font: { size: 9 }, boxWidth: 10 } } },
+    scales: { y: { ticks: { callback: v => won(v), font: { size: 9 } } }, x: { display: false } } };
+  if (!rivalsNwChart) {
+    rivalsNwChart = new Chart(ctx, { type: 'line', data: { labels, datasets: lines }, options: opts });
+  } else {
+    rivalsNwChart.data.labels = labels;
+    rivalsNwChart.data.datasets = lines;
+    rivalsNwChart.update('none');
   }
 }
 
@@ -3175,6 +3543,7 @@ function wire() {
   $('save-btn').addEventListener('click', () => { autoSave(); flashToast('💾 저장 완료', 'good'); });
   $('share-btn').addEventListener('click', shareURL);
   $('reset-btn').addEventListener('click', hardReset);
+  const gb = $('guide-btn'); if (gb) gb.addEventListener('click', showGameGuide);
 
   // 키보드 단축키
   document.addEventListener('keydown', e => {

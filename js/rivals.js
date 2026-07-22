@@ -21,10 +21,31 @@
   function settleBots(bots){
     const news=[];
     bots.forEach(b=>{
-      if(b.jailMonths>0){b.jailMonths--;b.monthlyProfit=0;return;}
-      const profit=Math.round(b.income*rand(.65,1.75)*b.skill); b.capital+=profit;b.monthlyProfit=profit;
-      if(Math.random()<.10){const windfall=Math.round(rand(-3000000,12000000)*b.skill);b.capital+=windfall;news.push(`${b.name} 부업·사업 손익 ${windfall>=0?'+':''}${windfall.toLocaleString('ko-KR')}원`);}
+      if(b.jailMonths>0){b.jailMonths--;b.monthlyProfit=0;news.push(`⛓️ ${b.name} 수감 중 (${b.jailMonths+1}개월째)`);return;}
+      const salary=Math.round(b.income*rand(.7,1.2));
+      // 투자 성과 — 실력이 높으면 우상향 드리프트, 하지만 손실도 난다(쭉 오르기만 하지 않게)
+      const drift=(b.skill-1)*0.02;
+      const trade=Math.round(b.capital*(rand(-0.11,0.11)+drift));
+      const profit=salary+trade; b.capital=Math.max(0,b.capital+profit); b.monthlyProfit=profit;
+      if(trade<=-Math.max(300000,b.capital*0.07)) news.push(`📉 ${b.name} 투자 손실 ${trade.toLocaleString('ko-KR')}원`);
+      else if(trade>=Math.max(300000,b.capital*0.09)) news.push(`📈 ${b.name} 투자 대박 +${trade.toLocaleString('ko-KR')}원`);
+      if(Math.random()<.06){const windfall=Math.round(rand(-9000000,11000000)*b.skill);b.capital=Math.max(0,b.capital+windfall);news.push(`${windfall>=0?'💰':'💥'} ${b.name} ${windfall>=0?'뜻밖의 횡재 +':'사고로 손실 '}${windfall.toLocaleString('ko-KR')}원`);}
     }); return news;
+  }
+  // 라이벌끼리 서로 공격 — 공격성에 비례, 불법이면 적발·수감 위험
+  function botsFight(bots){
+    const news=[], live=bots.filter(b=>b.jailMonths<=0);
+    live.forEach(att=>{
+      if(Math.random()>att.aggression*0.55)return;
+      const targets=live.filter(t=>t!==att&&t.jailMonths<=0);if(!targets.length)return;
+      const target=pick(targets), illegal=att.aggression>0.4&&Math.random()<0.5;
+      if(illegal&&Math.random()<0.28){att.jailMonths=Math.ceil(rand(2,6));att.criminalRecord=(att.criminalRecord||0)+1;news.push(`🚨 ${att.name}의 ${target.name} 대상 불법 공작이 적발돼 수감됐습니다`);return;}
+      if(Math.random()>0.6){news.push(`🛡️ ${target.name}가 ${att.name}의 견제를 막아냈습니다`);return;}
+      const dmg=Math.round(Math.max(200000,target.capital*rand(0.02,illegal?0.09:0.045)));
+      target.capital=Math.max(0,target.capital-dmg);att.capital+=Math.round(dmg*(illegal?0.5:0.2));
+      news.push(`⚔️ ${att.name} → ${target.name} ${illegal?'불법 공작':'경쟁 견제'} 타격 ${dmg.toLocaleString('ko-KR')}원`);
+    });
+    return news;
   }
   function act(player,target,actionId){
     const a=ACTIONS.find(x=>x.id===actionId);if(!a||!target)return{ok:false,message:'대상을 찾을 수 없습니다.'};
@@ -42,11 +63,11 @@
     return{ok:true,success,cash:player.cash,damage,message:success?`${target.name}에 타격 ${damage.toLocaleString('ko-KR')}원`:'공작이 실패했습니다.'};
   }
   function attackPlayer(bots,playerWorth){
-    const candidates=bots.filter(b=>b.jailMonths<=0&&Math.random()<b.aggression*.12);if(!candidates.length)return null;
+    const candidates=bots.filter(b=>b.jailMonths<=0&&Math.random()<b.aggression*.30);if(!candidates.length)return null;
     const attacker=pick(candidates),illegal=attacker.aggression>.4&&Math.random()<.55;
     if(illegal&&Math.random()<.30){attacker.jailMonths=Math.ceil(rand(2,6));attacker.criminalRecord++;return{attacker,caught:true,loss:0,message:`${attacker.name}의 불법 공작이 적발되어 수감됐습니다.`};}
     const loss=Math.round(Math.max(100000,playerWorth*rand(.01,illegal?.08:.035)));
     return{attacker,caught:false,illegal,loss,message:`${attacker.name}의 ${illegal?'불법 공작':'경쟁 견제'}로 ${loss.toLocaleString('ko-KR')}원 피해`};
   }
-  root.QT_RIVALS={PERSONAS,ACTIONS,createBots,settleBots,act,attackPlayer};
+  root.QT_RIVALS={PERSONAS,ACTIONS,createBots,settleBots,botsFight,act,attackPlayer};
 })(window);

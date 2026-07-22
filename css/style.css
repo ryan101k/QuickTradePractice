@@ -55,6 +55,61 @@ body {
 .ticker-viewport:hover .ticker-text { animation-play-state: paused; }
 @keyframes ticker { from { transform: translate(0, -50%); } to { transform: translate(-100%, -50%); } }
 
+/* ---------------------------------------------------------------- 장 진행 바 */
+.session-bar {
+  position: relative; height: 22px; margin-top: 4px;
+  border: 2px inset #808080; background: #d8d8d8; overflow: hidden;
+  display: flex; align-items: center;
+}
+.session-bar-fill {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+  background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width .25s linear;
+}
+.session-bar.ending .session-bar-fill { background: linear-gradient(90deg, #e67e22, #d61f1f); }
+.session-bar-text {
+  position: relative; z-index: 1; width: 100%; text-align: center;
+  font-size: 12px; font-weight: bold; color: #111; text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+  font-family: 'MS Sans Serif', 'Malgun Gothic', sans-serif;
+}
+
+/* 라이벌 동향 피드 */
+.rival-feed-wrap { margin-top: 6px; border-top: 1px solid #ccc; padding-top: 4px; }
+.rival-feed { max-height: 150px; overflow-y: auto; border: 1px inset #808080; background: #fff; }
+.rival-feed li { font-size: 11.5px; padding: 3px 6px; }
+
+/* 연애 시작 선택 버튼 */
+.romance-choice { display: flex; gap: 8px; margin-top: 8px; }
+.romance-choice .life-btn { flex: 1; padding: 8px; }
+
+/* 재판 상태 안내 */
+.court-status { width: 100%; font-size: 12.5px; background: #fff4f4; border: 1px solid #d6a0a0; border-radius: 3px; padding: 6px 8px; margin-bottom: 4px; }
+
+/* 게임 가이드 */
+.guide-window { width: min(600px, 96vw); }
+.guide-body { max-height: 80vh; overflow-y: auto; }
+.guide-intro { font-size: 12.5px; color: #444; margin: 0 0 8px; }
+.guide-sec { border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 6px; background: #fff; }
+.guide-sec > summary { cursor: pointer; padding: 8px 10px; font-weight: bold; font-size: 13.5px; background: #eef2ff; border-radius: 4px; }
+.guide-sec[open] > summary { border-bottom: 1px solid #cbd5e1; border-radius: 4px 4px 0 0; }
+.guide-inner { padding: 9px 11px; font-size: 12.5px; line-height: 1.75; }
+.guide-inner b { color: #1a1a1a; }
+#guide-close { width: 100%; margin-top: 8px; padding: 9px; }
+
+/* 차트 위 시세 스트립 */
+.quote-strip { font-size: 12px; padding: 3px 8px; background: #101418; color: #e6e6e6; border: 2px inset #808080; text-align: center; font-family: 'Consolas', monospace; }
+.quote-strip b { font-weight: bold; }
+.quote-strip .up { color: #ff6b6b; }
+.quote-strip .down { color: #6ba7ff; }
+
+/* 상장폐지(파산) 사유 팝업 */
+.bankrupt-host { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); z-index: 10002; width: min(460px, 94vw); animation: breaking-in .3s ease; }
+.bankrupt-window { box-shadow: 6px 6px 0 rgba(0,0,0,.5); }
+.bankrupt-bar { background: linear-gradient(90deg, #7a1f1f, #d61f1f) !important; animation: breaking-flash 1s steps(2) infinite; }
+.bankrupt-window .window-body { background: #fff7f7; padding: 12px; }
+.bk-name { font-size: 15px; margin-bottom: 8px; }
+.bk-reason { font-size: 13px; line-height: 1.5; background: #fff; border: 1px inset #808080; padding: 8px; }
+.bk-note { font-size: 12px; color: #666; margin-top: 8px; }
+
 /* ---------------------------------------------------------------- 상태바 */
 .status-strip {
   display: flex; flex-wrap: wrap; gap: 6px;
@@ -131,6 +186,13 @@ body {
 .news-log li { cursor: default; }
 .leaderboard li { cursor: default; font-size: 13px; }
 .leaderboard li.me { background: #fffbcc; font-weight: bold; }
+.leaderboard li.bot-row { cursor: pointer; }
+.leaderboard li.bot-row:hover { background: #eef; }
+.bot-toggle { font-size: 11px; }
+.bot-detail { margin-top: 4px; }
+.bd-inner { background: #f6f8ff; border: 1px inset #808080; padding: 5px 7px; font-size: 11.5px; font-weight: normal; }
+.bd-title { font-weight: bold; margin: 3px 0 2px; }
+.bd-row { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; border-bottom: 1px dotted #ddd; }
 .ach-header { padding: 5px 7px; font-weight: bold; background: #ececec; font-size: 12px; }
 .ach { cursor: default; opacity: 0.55; }
 .ach.done { opacity: 1; background: #f0fff0; }

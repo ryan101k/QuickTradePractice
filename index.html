@@ -14,6 +14,7 @@
   <div class="life-modal-host" id="life-modal" style="display:none"></div>
   <div class="event-host" id="life-event" style="display:none"></div>
   <div class="event-host" id="date-host" style="display:none"></div>
+  <div class="bankrupt-host" id="bankrupt-host" style="display:none"></div>
   <div class="event-host" id="report-host" style="display:none"></div>
 
   <div class="main-window window">
@@ -31,6 +32,12 @@
     <div class="news-ticker-bar">
       <span class="ticker-label">📰 실시간</span>
       <div class="ticker-viewport"><div id="news-ticker" class="ticker-text">장이 열렸습니다…</div></div>
+    </div>
+
+    <!-- 장 진행 표시 바 (모바일에서도 항상 보이게) -->
+    <div class="session-bar" id="session-bar">
+      <div class="session-bar-fill" id="session-bar-fill"></div>
+      <span class="session-bar-text" id="session-bar-text">🔒 장 마감 · 개장을 눌러 이번 달을 시작하세요</span>
     </div>
 
     <!-- 상단 상태바 -->
@@ -66,6 +73,7 @@
       </span>
       <label class="chk"><input type="checkbox" id="tts-toggle"> 음성</label>
       <span class="spacer"></span>
+      <button id="guide-btn">📖 도움말</button>
       <button id="save-btn">💾 저장</button>
       <button id="share-btn">🔗 공유</button>
       <button id="reset-btn">🗑 초기화</button>
@@ -89,6 +97,7 @@
       <div class="col col-center">
         <div class="window panel">
           <div class="title-bar"><div class="title-bar-text">📊 <span id="sel-name">차트</span> · <span id="sel-price">-</span></div></div>
+          <div class="quote-strip" id="quote-strip"></div>
           <div class="window-body chart-body"><canvas id="price-chart"></canvas></div>
         </div>
 
@@ -156,7 +165,12 @@
             </div>
             <div class="tab-pane" data-pane="rank">
               <ul id="leaderboard" class="clean-list leaderboard"></ul>
-              <div class="mini-chart-wrap"><span class="mini-label">순자산 추이</span><canvas id="nw-chart"></canvas></div>
+              <div class="mini-chart-wrap"><span class="mini-label">🏁 나 vs 라이벌 순자산 경쟁</span><canvas id="rivals-nw-chart"></canvas></div>
+              <div class="rival-feed-wrap">
+                <div class="mini-label">⚔️ 라이벌 동향 (서로 공격·손익·수감)</div>
+                <ul id="rival-feed" class="clean-list rival-feed"></ul>
+              </div>
+              <div class="mini-chart-wrap"><span class="mini-label">내 순자산 추이</span><canvas id="nw-chart"></canvas></div>
             </div>
             <div class="tab-pane" data-pane="ach">
               <div class="ach-header">달성 <span id="ach-count">0/0</span></div>
