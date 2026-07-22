@@ -160,7 +160,27 @@ ROMANCE_EVENTS.push(
  J('flight','엇갈리는 비행 일정','승무원인 연인이 장거리 비행에서 돌아오는 날과 내 일정이 계속 엇갈립니다.',['승무원'],[
   {text:'공항에 마중 나가 함께 쉰다',effects:{cash:-160000,affection:13,happy:3},outcome:'화려한 데이트보다 익숙한 얼굴이 더 반가운 날이었다.'},
   {text:'다음 달 스케줄을 같이 맞춘다',effects:{affection:9},outcome:'불규칙한 일정 속에서도 둘만의 시간을 먼저 확보했다.'},
-  {text:'연락이 안 된다며 의심한다',effects:{affection:-16,endRelationshipChance:.08},outcome:'비행 중 연락할 수 없다는 설명도 의심 앞에서는 소용없었다.'}])
+  {text:'연락이 안 된다며 의심한다',effects:{affection:-16,endRelationshipChance:.08},outcome:'비행 중 연락할 수 없다는 설명도 의심 앞에서는 소용없었다.'}]),
+ J('creative_deadline','공연과 마감이 겹친 주','연주자·편집자·게임 기획자인 연인이 중요한 공연이나 출시 마감으로 예민해져 있습니다.',['연주자','편집자','게임 기획자'],[
+  {text:'끝날 때까지 생활을 조용히 돕는다',effects:{cash:-200000,affection:13,happy:2},outcome:'성과보다 버티는 시간을 알아준 것이 고마웠다고 했다.'},
+  {text:'일 얘기 없는 짧은 산책을 제안한다',effects:{affection:9,happy:5},outcome:'한 시간 동안 머리를 비우고 다시 웃을 수 있었다.'},
+  {text:'내 일정이 더 중요하다고 다툰다',effects:{affection:-14,guilt:6},outcome:'서로 지친 상태에서 누가 더 힘든지만 겨루게 됐다.'}]),
+ J('research','공동 연구의 갈등','연구원인 연인이 자신의 성과를 상사가 가로채려 한다며 고민을 털어놓습니다.',['연구원'],[
+  {text:'자료와 기여 기록부터 정리한다',effects:{affection:12,morality:4},outcome:'감정적으로 맞서기 전에 자신을 지킬 근거를 확보했다.'},
+  {text:'내 인맥을 통해 조용히 조언을 구한다',effects:{cash:-300000,affection:8},outcome:'외부 전문가의 시선이 해결 방향을 찾는 데 도움이 됐다.'},
+  {text:'상사의 약점을 퍼뜨리자고 한다',effects:{affection:-7,morality:-10,guilt:8},outcome:'연인은 자신도 같은 방식의 사람이 되고 싶지는 않다고 했다.'}]),
+ J('service','몸을 쓰는 직업의 피로','파티시에·트레이너인 연인이 손목과 허리 통증을 숨긴 채 계속 일하려 합니다.',['파티시에','트레이너'],[
+  {text:'병원 예약과 휴무를 함께 잡는다',effects:{cash:-250000,affection:14},outcome:'쉬는 것도 직업을 오래 지키는 방법이라는 말에 고개를 끄덕였다.'},
+  {text:'이번 주 집안일을 대신 맡는다',effects:{affection:10,happy:-2},outcome:'말보다 실제로 줄어든 부담을 더 고마워했다.'},
+  {text:'젊으니 참을 수 있다고 한다',effects:{affection:-15},outcome:'연인은 자신의 통증이 가볍게 취급됐다고 느꼈다.'}]),
+ J('narae_live','나래의 야간 투자 강의','나래가 초보 투자자를 위한 야간 강의에 함께 와달라고 합니다. 연인으로서가 아니라 동료처럼 냉정한 피드백을 원합니다.',['투자교육 매니저'],[
+  {text:'실패 경험까지 솔직하게 이야기한다',effects:{affection:14,morality:4},outcome:'수익 자랑보다 실패를 말한 태도를 나래가 오래 기억했다.'},
+  {text:'강의 자료와 사례를 함께 검토한다',effects:{affection:10,happy:3},outcome:'새벽까지 일했지만 서로의 전문성을 존중하게 됐다.'},
+  {text:'내 수익률을 과장해 홍보한다',effects:{cash:1200000,affection:-16,morality:-12,guilt:8},outcome:'강의는 흥했지만 나래는 사람을 속이는 교육은 하지 않겠다고 화를 냈다.'}]),
+ J('narae_boundary','교육과 연애의 경계','수강생들이 나래와 내 관계를 눈치챘다는 소문이 돌았습니다.',['투자교육 매니저'],[
+  {text:'수업과 사생활을 명확히 분리한다',effects:{affection:12,morality:5},outcome:'불편해도 원칙을 세운 선택에 나래가 안도했다.'},
+  {text:'공개할 시점을 둘이 정한다',effects:{affection:9},outcome:'숨기거나 과시하지 않고 서로 준비될 때 말하기로 했다.'},
+  {text:'홍보에 이용하자고 한다',effects:{cash:1800000,affection:-18,morality:-10},outcome:'나래는 관계를 상품으로 만들 생각이 없다며 자리를 떴다.'}])
 );
 root.QT_ROMANCE={VOICES,ROMANCE_EVENTS,dateLine,momentLine,profileOf,voiceOf};
 })(window);

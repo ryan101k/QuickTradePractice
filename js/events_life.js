@@ -333,5 +333,79 @@ LIFE_EVENTS.push(
       { text: '신용회복위원회에 상담을 신청한다', effects: { happy: 8 }, outcome: '혼자 감당할 문제가 아니라는 걸 알게 됐다.' },
       { text: '번호를 계속 차단한다', effects: { happy: -8, debt: 1000000 }, outcome: '연체 가산금만 늘었다.' },
     ],
+  },
+
+  /* ---------------- 도덕성과 죄책감 ---------------- */
+  {
+    id:'moral_wallet',cat:'social',emoji:'👛',title:'주인 없는 지갑',desc:'현금과 신분증이 든 지갑을 발견했습니다. 주변에는 보는 사람이 없습니다.',
+    options:[
+      {text:'경찰서에 그대로 맡긴다',effects:{morality:8,guilt:-5,happy:3},outcome:'며칠 뒤 주인에게서 감사 연락이 왔다.'},
+      {text:'현금만 챙기고 지갑은 둔다',effects:{cash:600000,morality:-12,guilt:10},outcome:'당장은 이득이었지만 신분증 사진이 자꾸 떠올랐다.'},
+      {text:'못 본 척 지나간다',effects:{morality:-2},outcome:'관여하지 않았지만 마음 한편이 불편했다.'}
+    ]
+  },
+  {
+    id:'moral_blame',cat:'job',emoji:'📎',title:'동료에게 책임 넘기기',desc:'내 실수로 생긴 문제가 아직 누구 책임인지 밝혀지지 않았습니다.',
+    cond:c=>c.job!=='none',options:[
+      {text:'내 실수라고 먼저 말한다',effects:{morality:9,guilt:-12,happy:-2},outcome:'질책은 받았지만 동료의 신뢰는 지켰다.'},
+      {text:'말없이 수습부터 한다',effects:{morality:3,guilt:-4},outcome:'밤늦게까지 일해 문제를 겨우 막았다.'},
+      {text:'신입의 실수처럼 꾸민다',effects:{morality:-16,guilt:18,happy:2},outcome:'나는 빠져나왔지만 신입이 대신 고개를 숙였다.'}
+    ]
+  },
+  {
+    id:'moral_tip',cat:'market',emoji:'🤫',title:'공개 전 정보',desc:'지인이 아직 발표되지 않은 회사 내부 정보를 조용히 알려줬습니다.',
+    options:[
+      {text:'거래하지 않고 대화를 끝낸다',effects:{morality:10,guilt:-6},outcome:'놓친 수익보다 지킨 원칙이 오래 남았다.'},
+      {text:'소액만 몰래 거래한다',effects:{cash:1800000,morality:-12,guilt:12},outcome:'수익은 났지만 알림이 울릴 때마다 가슴이 철렁했다.'},
+      {text:'정보를 다른 사람에게도 판다',effects:{cash:5000000,morality:-24,guilt:22},outcome:'돈과 함께 위험한 공범 관계도 생겼다.'}
+    ]
+  },
+  {
+    id:'moral_confession',cat:'love',emoji:'🌫️',title:'잠들지 못한 밤',desc:'최근 했던 거짓말과 선택이 계속 떠오릅니다. 가까운 사람에게 말할지 고민됩니다.',
+    cond:c=>c.guilt>=35,options:[
+      {text:'사실과 책임을 모두 인정한다',effects:{morality:7,guilt:-22,affection:-3},outcome:'관계는 흔들렸지만 더 큰 거짓말은 멈췄다.'},
+      {text:'좋은 일로 만회하려 한다',effects:{cash:-500000,morality:4,guilt:-10},outcome:'선행은 도움이 됐지만 사과를 대신할 수는 없었다.'},
+      {text:'상대가 예민한 탓으로 돌린다',effects:{morality:-10,guilt:8,affection:-12},outcome:'죄책감을 피하려다 다툼만 더 커졌다.'}
+    ]
+  },
+  {
+    id:'moral_low_offer',cat:'social',emoji:'🌓',title:'쉬운 돈의 제안',desc:'누군가 책임질 사람은 따로 있다며 서류에 이름만 빌려달라고 합니다.',
+    cond:c=>c.morality<40,options:[
+      {text:'이제라도 선을 긋고 거절한다',effects:{morality:12,guilt:-8},outcome:'늦었지만 반복되는 선택을 끊었다.'},
+      {text:'조건을 더 올려 받는다',effects:{cash:4000000,morality:-15,guilt:10},outcome:'쉽게 번 돈만큼 빠져나오기 어려워졌다.'},
+      {text:'연인이나 친구에게 대신 부탁한다',effects:{morality:-18,guilt:16,affection:-10},outcome:'내 위험을 가까운 사람에게 떠넘겼다.'}
+    ]
+  },
+  {
+    id:'narae_review',cat:'market',emoji:'🧭',title:'나래의 거래 복기',desc:'나래가 최근 거래 기록을 펼쳐 놓고 묻습니다. “왜 샀는지 한 문장으로 설명할 수 있어요?”',cond:c=>c.naraeKnown,
+    options:[
+      {text:'손실 거래까지 전부 복기한다',effects:{happy:-2,morality:4},outcome:'아픈 기록을 피하지 않자 반복되는 실수가 보이기 시작했다.'},
+      {text:'매수 기준과 손절 기준을 새로 적는다',effects:{happy:4},outcome:'다음 거래에서 확인할 짧은 원칙표가 생겼다.'},
+      {text:'운이 나빴을 뿐이라고 넘긴다',effects:{guilt:4},outcome:'나래는 차트를 덮으며 같은 실수는 운이 아니라고 말했다.'}
+    ]
+  },
+  {
+    id:'narae_sponsor',cat:'social',emoji:'📚',title:'무료 교육 후원',desc:'나래가 빚투 피해자를 위한 무료 투자교육을 열자고 제안합니다.',cond:c=>c.naraeKnown,
+    options:[
+      {text:'교육비를 후원한다',effects:{cash:-1500000,morality:10,guilt:-8,happy:5},outcome:'누군가가 같은 실수를 피했다는 후기가 도착했다.'},
+      {text:'내 실패 사례만 제공한다',effects:{morality:6,guilt:-4},outcome:'돈 대신 솔직한 경험이 좋은 교재가 됐다.'},
+      {text:'수익이 안 된다며 거절한다',effects:{morality:-3},outcome:'나래는 짧게 알겠다며 혼자 준비를 이어갔다.'}
+    ]
+  },
+  {
+    id:'taesik_collection_job',cat:'debt',emoji:'🦈',title:'장태식의 수금 동행',desc:'장태식이 채무 일부를 깎아주는 대신 다른 채무자를 찾아가는 길에 동행하라고 합니다.',cond:c=>c.hasShark||c.makjang,
+    options:[
+      {text:'거절하고 정식 상환계획을 요구한다',effects:{debt:-500000,morality:8,guilt:-5,happy:-3},outcome:'태식은 비웃었지만 협상 내용을 문서로 남겼다.'},
+      {text:'말만 전달하고 위협에는 가담하지 않는다',effects:{debt:-2000000,morality:-8,guilt:10},outcome:'직접 손대진 않았지만 상대의 겁먹은 표정이 남았다.'},
+      {text:'적극적으로 수금을 돕는다',effects:{debt:-6000000,cash:2000000,morality:-22,guilt:20},outcome:'빚은 줄었지만 이제 장태식 쪽 사람이라는 소문이 돌기 시작했다.'}
+    ]
+  },
+  {
+    id:'taesik_loyalty',cat:'debt',emoji:'🔥',title:'장태식의 충성 시험',desc:'장태식이 위험한 돈가방을 하룻밤만 맡아달라고 합니다. 이유는 알려주지 않습니다.',cond:c=>c.makjang,
+    options:[
+      {text:'가방을 열지 않고 돌려준다',effects:{cash:3000000,morality:-6,guilt:5},outcome:'태식은 약속을 지킨 값이라며 돈을 던졌다.'},
+      {text:'경찰에 신고한다',effects:{morality:16,guilt:-12,happy:-5},outcome:'위험한 관계를 끊을 기회가 생겼지만 보복 가능성도 남았다.'},
+      {text:'일부를 빼돌린다',effects:{cash:12000000,morality:-18,guilt:15,happy:-8},outcome:'당장은 들키지 않았지만 태식의 의심이 시작됐다.'}
+    ]
   }
 );

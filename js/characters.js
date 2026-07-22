@@ -17,6 +17,7 @@ const PERSONALITIES = {
   cold:      { key: 'cold',      name: '무심한',     emoji: '🧊', money: 0,     happy: -3, charm: -1, forgive: 0.35, confess: 0.38, breakupResist: 0.12, incident: 0.18, desc: '독립적이고 감정 표현이 적어 가까워지기 어려움' },
   lavish:    { key: 'lavish',    name: '사치스러운', emoji: '💸', money: -0.35, happy: +2, charm: +1, forgive: 0.25, confess: 0.58, breakupResist: 0.28, incident: 0.24, desc: '특별한 경험을 원하고 충동적인 사고가 잦음' },
   free:      { key: 'free',      name: '자유로운',   emoji: '💔', money: -0.10, happy: +3, charm: +3, breakup: 0.12, forgive: 0.55, confess: 0.52, breakupResist: 0.08, incident: 0.30, desc: '매력적이지만 구속을 싫어하고 관계 변동이 큼' },
+  obsessive: { key: 'obsessive', name: '불안정 애착', emoji: '🫀', money: -0.08, happy: +2, charm: +3, forgive: 0.70, confess: 0.88, breakupResist: 0.75, incident: 0.38, desc: '버림받는 것을 두려워해 애정과 통제가 함께 커짐' },
 };
 
 /* 연애 상대 로스터 — 연애가 시작되면 이 중 한 명이 랜덤 배정
@@ -24,20 +25,26 @@ const PERSONALITIES = {
  * portrait 의 '-neutral' 부분은 표정에 따라 교체된다(characterPortrait 참고).
  * '-v2-' 는 표정별로 새로 그린 640px 버전이 있는 인물. */
 const CHARACTERS = [
-  { name: '서연', gender: 'f', emoji: '👩', job: '디자이너', income: 2800000, personality: 'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.30, portrait: 'seoyeon-v2-neutral.webp' },
-  { name: '민준', gender: 'm', emoji: '👨', job: '변호사', income: 6000000, personality: 'ambitious', moneyStyle:'support', datingMoneyRate:.08, marriedShareRate:.45, portrait: 'minjun-v2-neutral.webp' },
+  { name: '서연', gender: 'f', emoji: '👩', job: '디자이너', income: 8000000, personality: 'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.30, portrait: 'seoyeon-v2-neutral.webp' },
+  { name: '민준', gender: 'm', emoji: '👨', job: '변호사', income: 18000000, personality: 'ambitious', moneyStyle:'support', datingMoneyRate:.08, marriedShareRate:.45, portrait: 'minjun-v2-neutral.webp' },
   { name: '지우', gender: 'm', emoji: '👨', job: '백수', income: 0, personality: 'lavish', moneyStyle:'dependent', datingMoneyFlat:-700000, marriedShareRate:0, portrait: 'jiwoo-v2-neutral.webp' },
-  { name: '하은', gender: 'f', emoji: '👩', job: '간호사', income: 3200000, personality: 'frugal', moneyStyle:'support', datingMoneyRate:.04, marriedShareRate:.38, portrait: 'haeun-v2-neutral.webp' },
-  { name: '도윤', gender: 'm', emoji: '👨', job: '의사', income: 7000000, personality: 'cold', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.35, portrait: 'doyun-v2-neutral.webp' },
-  { name: '수빈', gender: 'm', emoji: '👨', job: '유튜버', income: 1500000, personality: 'free', moneyStyle:'dependent', datingMoneyRate:-.12, marriedShareRate:.12, portrait: 'subin-v2-neutral.webp' },
-  { name: '예린', gender: 'f', emoji: '👩', job: '공무원', income: 2200000, personality: 'homebody', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.34, portrait: 'yerin-v2-neutral.webp' },
-  { name: '시우', gender: 'm', emoji: '👨', job: '개발자', income: 4000000, personality: 'ambitious', moneyStyle:'support', datingMoneyRate:.05, marriedShareRate:.42, portrait: 'siwoo-v2-neutral.webp' },
-  { name: '채원', gender: 'f', emoji: '👩', job: '승무원', income: 3000000, personality: 'lavish', moneyStyle:'dependent', datingMoneyRate:-.08, marriedShareRate:.20, portrait: 'chaewon-v2-neutral.webp' },
-  { name: '건우', gender: 'm', emoji: '👨', job: '자영업', income: 2500000, personality: 'frugal', moneyStyle:'support', datingMoneyRate:.03, marriedShareRate:.32, portrait: 'geonwoo-v2-neutral.webp' },
-  { name: '유나', gender: 'f', emoji: '👩', job: '모델', income: 2000000, personality: 'free', moneyStyle:'dependent', datingMoneyRate:-.12, marriedShareRate:.15, portrait: 'yuna-v2-neutral.webp' },
-  { name: '수아', gender: 'f', emoji: '👩', job: '교사', income: 2600000, personality: 'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.33, portrait: 'sua-v2-neutral.webp' },
-  { name: '태양', gender: 'm', emoji: '👨', job: '사업가', income: 5000000, personality: 'lavish', moneyStyle:'dependent', datingMoneyRate:-.10, marriedShareRate:.18, portrait: 'taeyang-v2-neutral.webp' },
-  { name: '보라', gender: 'f', emoji: '👩', job: '약사', income: 4500000, personality: 'homebody', moneyStyle:'support', datingMoneyRate:.05, marriedShareRate:.40, portrait: 'bora-v2-neutral.webp' },
+  { name: '하은', gender: 'f', emoji: '👩', job: '간호사', income: 9000000, personality: 'frugal', moneyStyle:'support', datingMoneyRate:.04, marriedShareRate:.38, portrait: 'haeun-v2-neutral.webp' },
+  { name: '도윤', gender: 'm', emoji: '👨', job: '의사', income: 22000000, personality: 'cold', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.35, portrait: 'doyun-v2-neutral.webp' },
+  { name: '수빈', gender: 'm', emoji: '👨', job: '유튜버', income: 7000000, personality: 'free', moneyStyle:'dependent', datingMoneyRate:-.12, marriedShareRate:.12, portrait: 'subin-v2-neutral.webp' },
+  { name: '예린', gender: 'f', emoji: '👩', job: '공무원', income: 7000000, personality: 'homebody', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.34, portrait: 'yerin-v2-neutral.webp' },
+  { name: '시우', gender: 'm', emoji: '👨', job: '개발자', income: 12000000, personality: 'ambitious', moneyStyle:'support', datingMoneyRate:.05, marriedShareRate:.42, portrait: 'siwoo-v2-neutral.webp' },
+  { name: '채원', gender: 'f', emoji: '👩', job: '승무원', income: 10000000, personality: 'lavish', moneyStyle:'dependent', datingMoneyRate:-.08, marriedShareRate:.20, portrait: 'chaewon-v2-neutral.webp' },
+  { name: '건우', gender: 'm', emoji: '👨', job: '자영업', income: 9000000, personality: 'frugal', moneyStyle:'support', datingMoneyRate:.03, marriedShareRate:.32, portrait: 'geonwoo-v2-neutral.webp' },
+  { name: '유나', gender: 'f', emoji: '👩', job: '모델', income: 11000000, personality: 'free', moneyStyle:'dependent', datingMoneyRate:-.12, marriedShareRate:.15, portrait: 'yuna-v2-neutral.webp' },
+  { name: '수아', gender: 'f', emoji: '👩', job: '교사', income: 7500000, personality: 'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.33, portrait: 'sua-v2-neutral.webp' },
+  { name: '태양', gender: 'm', emoji: '👨', job: '사업가', income: 25000000, personality: 'lavish', moneyStyle:'dependent', datingMoneyRate:-.10, marriedShareRate:.18, portrait: 'taeyang-v2-neutral.webp' },
+  { name: '보라', gender: 'f', emoji: '👩', job: '약사', income: 13000000, personality: 'homebody', moneyStyle:'support', datingMoneyRate:.05, marriedShareRate:.40, portrait: 'bora-v2-neutral.webp' },
+  { name:'다은', gender:'f', emoji:'👩‍🍳', job:'파티시에', income:8000000, personality:'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.32, portrait:'mob-office-neutral.png' },
+  { name:'혜진', gender:'f', emoji:'👩‍🔬', job:'연구원', income:12000000, personality:'cold', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.38, portrait:'mob-office-neutral.png' },
+  { name:'소희', gender:'f', emoji:'🎻', job:'연주자', income:8500000, personality:'free', moneyStyle:'dependent', datingMoneyRate:-.05, marriedShareRate:.20, portrait:'mob-creative-neutral.png' },
+  { name:'아린', gender:'f', emoji:'📚', job:'편집자', income:9000000, personality:'homebody', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.35, portrait:'mob-office-neutral.png' },
+  { name:'나영', gender:'f', emoji:'🏋️‍♀️', job:'트레이너', income:10000000, personality:'ambitious', moneyStyle:'support', datingMoneyRate:.03, marriedShareRate:.36, portrait:'mob-creative-neutral.png' },
+  { name:'미래', gender:'f', emoji:'🎮', job:'게임 기획자', income:11000000, personality:'frugal', moneyStyle:'support', datingMoneyRate:.03, marriedShareRate:.37, portrait:'mob-creative-neutral.png' },
 ];
 
 /* 구버전 세이브 호환 — 이름이 바뀐 인물(초상화 성별과 맞추느라 교체) */
@@ -47,8 +54,11 @@ const GENDER_LABEL = { m: '남성', f: '여성' };
 
 /* 스토리 전용 인물 — 일반 랜덤 소개팅 풀에는 들어가지 않는다. */
 const SPECIAL_CHARACTERS = {
-  narae: { id:'narae', name:'나래', gender:'f', emoji:'👩', age:28, job:'투자교육 매니저', income:4200000, personality:'cold', portrait:'narae-v2-neutral.webp', romanceDifficulty:-25, special:'tutorial' },
+  narae: { id:'narae', name:'나래', gender:'f', emoji:'👩', age:28, job:'투자교육 매니저', income:12000000, personality:'cold', portrait:'narae-v2-neutral.webp', romanceDifficulty:-25, special:'tutorial' },
   taesik: { id:'taesik', name:'장태식', gender:'m', emoji:'🦈', age:39, job:'사채 추심 책임자', income:0, personality:'cold', portrait:'taesik-v2-neutral.webp', special:'collector' },
+  yujin: { id:'yujin', name:'강유진', gender:'f', emoji:'👮‍♀️', age:29, job:'경찰관', income:10500000, personality:'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.36, special:'police', actionOnly:true, portrait:'yujin-neutral.png' },
+  sera: { id:'sera', name:'윤세라', gender:'f', emoji:'🖤', age:25, job:'프리랜서 일러스트레이터', income:7500000, personality:'obsessive', moneyStyle:'dependent', datingMoneyRate:-.06, marriedShareRate:.18, special:'obsessive', actionOnly:true, obsession:18, portrait:'sera-neutral.png' },
+  chaerin: { id:'chaerin', name:'한채린', gender:'f', emoji:'👑', age:27, job:'재벌가 전략실 이사', income:60000000, personality:'ambitious', moneyStyle:'support', datingMoneyRate:.10, marriedShareRate:.50, special:'heiress', actionOnly:true, portrait:'chaerin-neutral.png' },
 };
 
 /* 데이트 접근 방식(선택지) — 성공 판정에 mod/보정이 다르게 들어감

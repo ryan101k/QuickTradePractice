@@ -122,6 +122,8 @@ function newLife() {
     sharkMonths: 0,          // 불법 사채 유지 개월
     jailMonths: 0,           // 수감 잔여 개월
     criminalRecord: 0,       // 적발 횟수
+    morality: 60,            // 도덕성 0~100
+    guilt: 0,                // 죄책감 0~100
     health: 82,               // 건강 0~100
     stress: 22,               // 스트레스 0~100
     fitness: 10,              // 체력·운동 습관
@@ -342,6 +344,7 @@ function tick() {
 
   // 장중에 인맥·연인·지인이 도움(팁·응원)을 준다
   maybeIntraHelp();
+  maybeObsessionIntrusion();
 
   runBots();
 
@@ -576,6 +579,17 @@ function showHelpCard(person, html, onAction, actionLabel) {
 }
 function closeHelpCard() { const h = $('help-host'); if (h) { h.style.display = 'none'; h.innerHTML = ''; } S._helpActive = false; autoResumeFromPopup(); }
 
+function maybeObsessionIntrusion(){
+  if(S.phase!=='open'||S._helpActive||!S.life||S._obsessionIntrudedDay===S.day)return;
+  const target=(S.life.met||[]).filter(r=>(r.obsession||0)>=45&&r.status!=='ex').sort((a,b)=>(b.obsession||0)-(a.obsession||0))[0];
+  if(!target||Math.random()>(target.obsession>=85?.10:target.obsession>=70?.065:.035))return;
+  S._obsessionIntrudedDay=S.day;const level=target.obsession||0;
+  let line=level>=85?'“왜 주문창은 보고 내 메시지는 안 봐요? 지금 어디인지 화면 보여줘요.”':level>=70?'“회사 앞이에요. 놀라게 하려고 말 안 했어요. 잠깐 내려올 거죠?”':'“장중인 건 아는데… 지금 누구랑 있는지만 알려주면 안 돼요?”';
+  if(level>=85&&S.pendingOrders&&S.pendingOrders.length){const lost=S.pendingOrders.shift();line+=` 확인을 요구하는 전화가 이어지는 사이 예약 주문 하나가 취소됐습니다${lost&&lost.name?` (${lost.name})`:''}.`;}
+  S.life.stress=clamp((S.life.stress||0)+(level>=85?8:4),0,100);
+  showHelpCard(target,`📱 <b>${target.name}</b> <span class="down">· 집착 ${Math.round(level)}</span><br>${line}<br><span class="down">스트레스 +${level>=85?8:4}</span>`);
+}
+
 /* ---- 장중 팝업이 뜨면 자동 일시정지, 닫히면 재개 (읽는 동안 틱이 안 흐르게) ---- */
 function anyIntraPopupOpen() {
   if (S.breaking) return true;
@@ -715,7 +729,7 @@ function closeMarket() {
   renderAll();
   renderMarketPhase();
   renderCloseReport(endedDay);          // 마감 리포트(뉴스 골라보기) 표시
-  const terminalEvent = S._settle && (S._settle.died || S._settle.debtGameOver);
+  const terminalEvent = S._settle && (S._settle.died || S._settle.debtGameOver || S._settle.captivity);
   if (!terminalEvent) {
     if (S._settle && S._settle.incident) showJobIncident(S._settle.incident);
     else showNextImportantEvent();      // 중요 사건을 모두 확인한 뒤 일반 선택지 이벤트
@@ -900,6 +914,7 @@ function dateInfo(dayNum) {
   const month = ((m - 1) % 12) + 1;
   return { age, year: yearsPassed + 1, month, label: `만 ${age}세 · ${month}월` };
 }
+function partnerIncomeNow(p){const years=Math.floor(Math.max(0,S.day-1)/12);return Math.round((p&&p.income||0)*Math.min(8,Math.pow(1.045,years)));}
 
 function jobOf() { return D.JOBS.find(j => j.id === (S.life && S.life.job)) || D.JOBS[0]; }
 
@@ -990,7 +1005,7 @@ function settleMonth() {
     const nm = L.partner.name;
     const per = D.PERSONALITIES[L.partner.personality] || {};
     const married = L.relationship === 'married';
-    const income = L.partner.income || 0;
+    const income = partnerIncomeNow(L.partner);
     const relationRate = married ? (L.partner.marriedShareRate == null ? .3 : L.partner.marriedShareRate) : (L.partner.datingMoneyRate || 0);
     const flat = married ? 0 : (L.partner.datingMoneyFlat || 0);
     const personalityCost = married ? Math.round(Math.max(0, -(per.money || 0)) * Math.max(income, 1500000) * .25) : 0;
@@ -1074,6 +1089,8 @@ function settleMonth() {
 
   // 5-2) 인간관계 유지 — 오래 안 만나면 사이가 식고, 가끔 근황이 들려온다
   updateRelationships(L);
+  if (updateObsession(L)) b.captivity = true;
+  updateMoralityState(L);
 
   // 6) 행복 자연 감소
   L.happy = clamp(L.happy - LIFE.HAPPY_DECAY, 0, 100);
@@ -1621,7 +1638,7 @@ function maybeLifeEvent() {
     const childEvent = CHILD_EVENTS.make(L);
     if (childEvent) { showLifeEvent(childEvent); return; }
   }
-  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,charm:L.charm,affection:L.affection||0,pers:L.partner&&L.partner.personality,partnerJob:L.partner&&L.partner.job };
+  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,charm:L.charm,affection:L.affection||0,pers:L.partner&&L.partner.personality,partnerJob:L.partner&&L.partner.job,morality:L.morality==null?60:L.morality,guilt:L.guilt||0,makjang:!!L.makjang,hasShark:(L.loans||[]).some(x=>x.illegal),naraeKnown:!!L.tutorialMet };
   const jobSpecific = (D.CAREER_EVENTS || []).filter(e => Array.isArray(e.jobs) && e.jobs.includes(L.job) && (!e.cond || e.cond(ctx)));
   if (jobSpecific.length && Math.random() < 0.65) {
     showLifeEvent(pick(jobSpecific));
@@ -1675,6 +1692,8 @@ function applyEventEffects(eff) {
   if (eff.happy != null) { L.happy = clamp(L.happy + eff.happy, 0, 100); changes.push(`행복 ${eff.happy >= 0 ? '+' : ''}${eff.happy}`); }
   if (eff.charm != null) { L.charm = Math.max(0, L.charm + eff.charm); changes.push(`매력 ${eff.charm >= 0 ? '+' : ''}${eff.charm}`); }
   if (eff.affection != null) { L.affection = Math.max(0, (L.affection || 0) + eff.affection); changes.push(`친밀도 ${eff.affection >= 0 ? '+' : ''}${eff.affection}`); }
+  if (eff.morality != null) { changeMorality(eff.morality); changes.push(`도덕성 ${eff.morality >= 0 ? '+' : ''}${eff.morality}`); }
+  if (eff.guilt != null) { L.guilt=clamp((L.guilt||0)+eff.guilt,0,100);changes.push(`죄책감 ${eff.guilt>=0?'+':''}${eff.guilt}`); }
   if (eff.endRelationshipChance && L.relationship !== 'single') {
     // 성격이 너그럽거나 친밀도가 높으면 같은 잘못에도 관계가 안 깨질 수 있다
     const per = D.PERSONALITIES[(L.partner || {}).personality] || {};
@@ -1880,8 +1899,9 @@ function characterPortrait(c, mood) {
   const special = c && D.SPECIAL_CHARACTERS && Object.values(D.SPECIAL_CHARACTERS).find(x => x.name === c.name || x.id === c.id);
   const file = (c && c.portrait) || (master && master.portrait) || (special && special.portrait);
   const emotion = mood || (c && c.mood) || 'neutral';
-  const stem = file && file.replace(/-(neutral|happy|sad|angry)\.webp$/,'').replace(/\.webp$/,'');
-  const emotionFile = stem ? `${stem}-${emotion}.webp` : file;
+  const emotionMatch = file && file.match(/^(.*)-(neutral|happy|sad|angry)\.(webp|png)$/i);
+  if (file && !emotionMatch) return `./assets/characters/${file}`;
+  const emotionFile = emotionMatch ? `${emotionMatch[1]}-${emotion}.${emotionMatch[3]}` : file;
   return emotionFile ? `./assets/characters/${emotionFile}` : emojiAvatar(c);
 }
 
@@ -1905,6 +1925,8 @@ function migrateLifePeople(L) {
       p.datingMoneyRate = master.datingMoneyRate || 0; p.datingMoneyFlat = master.datingMoneyFlat || 0;
       p.marriedShareRate = master.marriedShareRate;
     }
+    const special = D.SPECIAL_CHARACTERS && Object.values(D.SPECIAL_CHARACTERS).find(x=>x.name===p.name);
+    if(special){p.gender=special.gender;p.emoji=special.emoji;p.portrait=special.portrait;p.special=special.special;p.moneyStyle=special.moneyStyle;p.datingMoneyRate=special.datingMoneyRate||0;p.marriedShareRate=special.marriedShareRate;if(!Number.isFinite(p.obsession))p.obsession=special.obsession||0;}
     return p;
   };
   if (!Array.isArray(L.met)) L.met = [];
@@ -1932,13 +1954,65 @@ function rememberPerson(c, status) {
   let rec = met.find(m => m.name === c.name);
   if (!rec) {
     rec = { name: c.name, gender: c.gender, emoji: c.emoji, job: c.job, age: c.age,
-            income: c.income, personality: c.personality, portrait: c.portrait,
-            affection: 0, dates: 0, status: 'acquaintance', firstDay: S.day };
+            income: c.income, personality: c.personality, portrait: c.portrait, special:c.special, moneyStyle:c.moneyStyle,
+            datingMoneyRate:c.datingMoneyRate||0, datingMoneyFlat:c.datingMoneyFlat||0, marriedShareRate:c.marriedShareRate,
+            affection: 0, trust: 0, obsession: c.obsession || 0, dates: 0, status: 'acquaintance', firstDay: S.day };
     met.push(rec);
   }
   if (status) rec.status = status;
   rec.lastDay = S.day;
   return rec;
+}
+
+function meetSpecialPerson(id) {
+  const c = D.SPECIAL_CHARACTERS && D.SPECIAL_CHARACTERS[id];
+  if (!c) return;
+  const host = $('life-event'); if (!host) return;
+  S._specialMeet = c;
+  const intro = id === 'yujin' ? '사건 상담을 마친 뒤, 강유진이 명함 뒷면에 개인 번호를 적어 건넸습니다. “업무 때문 아니어도 연락해요.”'
+    : id === 'sera' ? '새벽 고민방에서 몇 시간 대화한 윤세라가 말합니다. “오늘 나간 뒤에도… 갑자기 사라지진 않을 거죠?”'
+    : '비공개 모임에서 한채린이 먼저 잔을 내려놓습니다. “돈 말고도 흥미로운 사람인지 궁금하네요.”';
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${c.emoji} 특별한 만남</div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="${c.name}"><div><strong>${c.name} · ${c.age}세 · ${c.job}</strong><br><span class="muted">${(D.PERSONALITIES[c.personality]||{}).name}</span></div></div><div class="event-desc">${intro}</div><div class="event-options"><button class="event-opt" data-special-rel="friend">친구로 연락을 이어간다</button><button class="event-opt" data-special-rel="acquaintance">필요할 때만 연락한다</button><button class="event-opt" data-special-rel="casual">서로 가볍게 만나자고 한다</button></div></div></div>`;
+  host.querySelectorAll('[data-special-rel]').forEach(b=>b.addEventListener('click',()=>resolveSpecialMeet(b.dataset.specialRel)));
+}
+function resolveSpecialMeet(status) {
+  const c=S._specialMeet;if(!c)return;
+  const rec=rememberPerson(c,status);rec.affection=status==='friend'?22:status==='casual'?28:10;rec.trust=status==='friend'?12:4;
+  if(c.special==='obsessive') rec.obsession=(rec.obsession||18)+(status==='casual'?14:status==='friend'?5:0);
+  addNews(`${c.emoji} ${c.name}님과 ${status==='friend'?'친구가':status==='casual'?'가벼운 관계가':'연락하는 사이가'} 됐습니다`,'neutral');
+  const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}S._specialMeet=null;afterLifeAction('인맥');
+}
+
+function showPersonRequest(name) {
+  const rec=metRecord(S.life,name);if(!rec)return;
+  const host=$('life-event');if(!host)return;S._requestPerson=rec;
+  host.style.display='block';host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🙏 ${rec.name}에게 요구하기</div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(rec)}" alt="${rec.name}"><div><strong>${rec.name} · ${relationTag(S.life,rec.name)}</strong><br><span class="muted">호감 ${Math.round(rec.affection||0)} · 신뢰 ${Math.round(rec.trust||0)} · 집착 ${Math.round(rec.obsession||0)}</span></div></div><div class="event-desc">부탁은 관계를 현실적으로 바꿉니다. 가까운 사이라도 모든 요구를 받아주지는 않습니다.</div><div class="event-options"><button class="event-opt" data-request="money">급한 돈을 부탁한다</button><button class="event-opt" data-request="help">직업상 도움을 부탁한다</button><button class="event-opt" data-request="secret">내 비밀을 지켜달라고 한다</button><button class="event-opt" data-request="alibi">거짓 알리바이를 요구한다</button><button class="event-opt" data-request="boundary">관계의 선과 연락 빈도를 정한다</button></div></div></div>`;
+  host.querySelectorAll('[data-request]').forEach(b=>b.addEventListener('click',()=>resolvePersonRequest(b.dataset.request)));
+}
+function resolvePersonRequest(kind) {
+  const r=S._requestPerson;if(!r)return;const per=D.PERSONALITIES[r.personality]||{};
+  let text='',tone='neutral';const closeness=(r.affection||0)+(r.trust||0);
+  if(kind==='money'){
+    const willing=r.moneyStyle==='support'||r.special==='heiress';const ok=willing&&closeness>=35;
+    if(ok){const amt=r.special==='heiress'?5000000:Math.max(300000,Math.round((r.income||2000000)*.35));S.capital+=amt;r.trust=Math.max(0,(r.trust||0)-8);text=`${won(amt)}원을 보내주면서도 다음에는 먼저 상의해 달라고 했습니다.`;tone='good';}
+    else{r.affection=Math.max(0,(r.affection||0)-(r.personality==='frugal'?10:6));text='“우리 사이와 돈 문제는 별개였으면 해요.” 부탁을 거절했습니다.';tone='bad';}
+  } else if(kind==='help'){
+    if(closeness>=28){const c=CAREER.ensure(S.life);c.skill=Math.min(100,c.skill+5);c.reputation=Math.min(100,c.reputation+3);r.trust=(r.trust||0)+4;text=`${r.job}으로서 아는 정보와 사람을 연결해 줬습니다. 직무능력과 평판이 올랐습니다.`;tone='good';}
+    else{r.affection=Math.max(0,(r.affection||0)-3);text='아직 책임질 만큼 가까운 사이는 아니라며 정중히 선을 그었습니다.';}
+  } else if(kind==='secret'){
+    r.trust=(r.trust||0)+(per.forgive>=.3?7:3);r.affection=(r.affection||0)+2;if(r.personality==='obsessive')r.obsession=(r.obsession||0)+9;text='비밀을 지켜주겠다고 약속했습니다. 대신 둘만 아는 것이 하나 더 생겼습니다.';
+  } else if(kind==='boundary'){
+    const high=(r.obsession||0)>=70;r.obsession=Math.max(0,(r.obsession||0)-(high?18:10));r.trust=Math.min(100,(r.trust||0)+5);r.affection=Math.max(0,(r.affection||0)-(r.personality==='obsessive'?8:1));
+    text=high?'처음에는 격하게 불안해했지만, 연락 규칙과 도움을 요청할 사람을 함께 정했습니다. 집착이 위험 단계에서 조금 내려갔습니다.':'서로 가능한 연락과 불가능한 요구를 분명하게 합의했습니다.';tone='good';
+  } else {
+    if(r.special==='police'){r.affection=Math.max(0,(r.affection||0)-25);r.trust=Math.max(0,(r.trust||0)-30);changeMorality(-18,'거짓 알리바이를 요구했습니다');JUSTICE.openCase(S.life,'위증 교사 미수',.35,0,3000000);text='“지금 나한테 범죄를 부탁한 거예요?” 유진은 대화를 기록하고 자리를 떠났습니다.';tone='bad';}
+    else if(closeness>=65||r.personality==='obsessive'){r.trust=Math.max(0,(r.trust||0)-12);r.obsession=(r.obsession||0)+(r.personality==='obsessive'?16:4);changeMorality(-14,'타인에게 거짓 알리바이를 요구했습니다');text='요구를 받아들였지만, 두 사람 사이에 위험한 비밀과 의존이 생겼습니다.';tone='bad';}
+    else{r.affection=Math.max(0,(r.affection||0)-18);text='선을 넘었다며 거절했습니다. 관계가 크게 멀어졌습니다.';tone='bad';}
+  }
+  if(r.personality==='obsessive'&&!['alibi','boundary'].includes(kind))r.obsession=Math.min(100,(r.obsession||0)+(kind==='money'?5:3));
+  addNews(`🙏 ${r.name}에게 한 요구: ${text}`,tone);flashToast(text,tone);
+  const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}S._requestPerson=null;afterLifeAction('인맥');
 }
 
 /* 호감도 단계 — 사람마다 따로 쌓인다 (어색한 사이 → 알아가는 중 → 썸 → 진지한 사이 → 깊은 사이) */
@@ -1987,12 +2061,63 @@ function updateRelationships(L) {
   }
 }
 
+function updateObsession(L) {
+  let captivity=false;
+  ensureMet(L).forEach(r=>{
+    if(r.personality!=='obsessive')return;
+    const active=(L.partner&&L.partner.name===r.name)||['casual','friend'].includes(r.status);
+    if(!active)return;
+    const before=r.obsession||0;
+    const neglect=Math.max(0,(r.idleMonths||0)-1);
+    r.obsession=Math.min(100,before+(r.status==='casual'?5:r.status==='friend'?1:3)+neglect*2);
+    if(before<45&&r.obsession>=45)queueImportantEvent({type:'love',icon:'📱',title:`${r.name}의 확인`,desc:'답장이 늦자 부재중 전화와 메시지가 반복해서 쌓였습니다.',detail:'집착이 관심의 수준을 넘어 통제로 변하기 시작했습니다. 요구를 들어주거나 애매한 관계를 유지하면 더 빨리 올라갈 수 있습니다.',tone:'bad'});
+    if(before<70&&r.obsession>=70)queueImportantEvent({type:'love',icon:'🚪',title:`${r.name}가 집 앞에 왔다`,desc:'알려준 적 없는 일정과 장소를 알고 기다리고 있었습니다.',detail:'관계를 분명히 정리하거나 주변 사람에게 도움을 구해야 할 위험 단계입니다.',tone:'bad'});
+    if(r.obsession>=95&&!L.captivityEnding){L.captivityEnding=true;captivity=true;setTimeout(()=>showCaptivityEnding(r),650);}
+  });
+  return captivity;
+}
+
+function changeMorality(delta,reason){
+  const L=S.life;if(!L)return;L.morality=clamp((L.morality==null?60:L.morality)+delta,0,100);
+  if(delta<0)L.guilt=clamp((L.guilt||0)+Math.ceil(-delta*.7),0,100);
+  if(reason)addNews(`${delta>=0?'🕊️':'🌓'} ${reason} · 도덕성 ${delta>=0?'+':''}${delta}`,delta>=0?'good':'bad');
+}
+function moralityLabel(v){return v>=80?'원칙적':v>=60?'양심적':v>=40?'현실적':v>=20?'이기적':'비정한';}
+function obsessionLabel(v){return v>=90?'위험한 통제':v>=70?'통제적':v>=45?'불안 집착':v>=20?'의존적':'안정적';}
+function updateMoralityState(L){
+  L.morality=L.morality==null?60:L.morality;L.guilt=L.guilt||0;
+  if(L.morality>=70)L.guilt=Math.max(0,L.guilt-4);
+  if(L.morality<40){
+    const per=D.PERSONALITIES[(L.partner||{}).personality]||{};
+    const sensitivity=['caring','frugal','homebody'].includes(per.key)?7:['free','lavish'].includes(per.key)?2:4;
+    L.guilt=clamp(L.guilt+sensitivity,0,100);
+    if(L.partner&&L.guilt>=45&&Math.random()<.35){
+      if(per.key==='obsessive'){
+        const r=metRecord(L,L.partner.name);if(r)r.obsession=clamp((r.obsession||0)+7,0,100);
+        queueImportantEvent({type:'love',icon:'🖤',title:`${L.partner.name}의 뒤틀린 안심`,desc:'잘못을 털어놓자 상대는 비난하는 대신 “이제 나한테 약점이 생겼네요”라고 말했습니다.',detail:'죄책감은 줄지 않았고 상대의 집착이 증가했습니다.',tone:'bad'});
+      }else{
+        L.affection=Math.max(0,(L.affection||0)-sensitivity);L.stress=clamp((L.stress||0)+5,0,100);
+        queueImportantEvent({type:'love',icon:'⚡',title:`${L.partner.name}와 도덕성 갈등`,desc:`${per.name||'상대'} 성향의 연인은 최근 선택들을 더는 모른 척하기 어렵다고 말했습니다.`,detail:`친밀도 -${sensitivity} · 스트레스 +5 · 죄책감 ${Math.round(L.guilt)}`,tone:'bad'});
+      }
+    }
+  }
+  if(L.guilt>=80){L.happy=clamp(L.happy-6,0,100);L.stress=clamp(L.stress+8,0,100);addNews('🌫️ 쌓인 죄책감 때문에 잠을 이루지 못했습니다','bad');}
+}
+
+function showCaptivityEnding(r){
+  if(S.timer){clearInterval(S.timer);S.timer=null;}S.phase='closed';S.paused=true;
+  const host=$('life-modal');if(!host)return;host.style.display='flex';
+  host.innerHTML=`<div class="window event-window"><div class="title-bar"><div class="title-bar-text">🔒 배드엔딩 · 닫힌 방</div></div><div class="window-body"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(r,'sad')}" alt="${r.name}"><div><strong>${r.name}</strong><br><span class="down">집착 ${Math.round(r.obsession||100)}/100</span></div></div><div class="event-title">“이제 아무도 우리 사이를 방해하지 못해.”</div><div class="event-desc">가벼운 관계와 반복된 비밀, 통제 요구를 방치한 끝에 일상이 완전히 끊겼습니다. 이것은 사랑의 결말이 아니라 관계의 경고를 무시한 결과입니다.</div><button id="captivity-restart" class="hot">🔁 새 인생 시작</button></div></div>`;
+  const b=$('captivity-restart');if(b)b.addEventListener('click',()=>{localStorage.removeItem(LS_KEY);location.reload();});autoSave();playSound('crash');
+}
+
 // 지금 이 사람과 어떤 사이인가 — 명부 카드에 붙는 배지
 function relationTag(L, name) {
   if (L.partner && L.partner.name === name) return L.relationship === 'married' ? '배우자' : '연인';
   if ((L.lovers || []).some(x => x.name === name)) return '몰래 만나는 중';
   const rec = metRecord(L, name);
-  return rec && rec.status === 'ex' ? '전 연인' : '아는 사람';
+  if (!rec) return '아는 사람';
+  return rec.status === 'ex' ? '전 연인' : rec.status === 'friend' ? '친구' : rec.status === 'casual' ? '가벼운 관계' : '아는 사람';
 }
 
 function relationshipDateLine(L, c) {
@@ -2155,7 +2280,7 @@ function personCardHTML(c, head, attrs, cls) {
   const prof = ROMANCE.profileOf(c);
   return `<button class="route-card ${cls || ''}" ${attrs}>
        <div class="rc-head">${head}</div>
-       <div class="rc-person"><img class="char-thumb" src="${characterPortrait(c)}" alt="${c.name}"><span><strong>${c.emoji || ''}${c.name}</strong>${g ? ` · ${g}` : ''}${age} · ${c.job}<br>${per.emoji || ''}${per.name || ''}${prof ? ` <span class="muted">· 🗣️ ${prof.style}</span>` : ''}</span></div>
+       <div class="rc-person"><img class="char-thumb" src="${characterPortrait(c)}" alt="${c.name}"><span><strong>${c.emoji || ''}${c.name}</strong>${g ? ` · ${g}` : ''}${age} · ${c.job} · 월 ${won(partnerIncomeNow(c))}<br>${per.emoji || ''}${per.name || ''}${prof ? ` <span class="muted">· 🗣️ ${prof.style}</span>` : ''}</span></div>
      </button>`;
 }
 
@@ -2377,15 +2502,16 @@ function resolveDate(i) {
       if (forward) {
         extra += `<br>💗 <b class="up">${c.name}님이 "우리 이제 사귈래요?"라며 먼저 고백했어요!</b>`;
         S._romance = { name: c.name, forward: true, html:
-          `<div class="romance-choice"><button id="romance-accept" class="life-btn hot">💕 받아준다</button><button id="romance-decline" class="life-btn">🙅 거절한다</button></div>` };
+          `<div class="romance-choice"><button id="romance-accept" class="life-btn hot">💕 받아준다</button><button id="romance-friend" class="life-btn">🤝 친구로 지낸다</button><button id="romance-casual" class="life-btn">🌙 가볍게 만난다</button><button id="romance-decline" class="life-btn">🙅 거절한다</button></div>` };
       } else {
         const ch = clamp((perC.confess != null ? perC.confess : 0.5) + ((rec.affection || 0) - 55) / 140, 0.25, 0.92);
         extra += `<br>💗 <b>${c.name}님과 사귀고 싶다면 지금 고백해볼 수 있어요.</b> <span class="muted">(${perC.name || ''} 성향 · 성공 확률 약 ${Math.round(ch * 100)}%)</span>`;
         S._romance = { name: c.name, forward: false, chance: ch, html:
-          `<div class="romance-choice"><button id="romance-confess" class="life-btn hot">💌 고백한다</button><button id="romance-skip" class="life-btn">⏳ 아직 아니다</button></div>` };
+          `<div class="romance-choice"><button id="romance-confess" class="life-btn hot">💌 고백한다</button><button id="romance-friend" class="life-btn">🤝 친구가 된다</button><button id="romance-casual" class="life-btn">🌙 가볍게 만난다</button><button id="romance-skip" class="life-btn">⏳ 아직 아니다</button></div>` };
       }
     } else if (tier === '성공') {
-      extra += `<br>🌱 <span class="muted">호감은 생겼지만 연애를 정하기엔 아직 이르다. 두 번 이상 만나고 호감도 55를 쌓아야 한다.</span>`;
+      extra += `<br>🌱 <span class="muted">연애를 정하기엔 아직 이르지만, 친구로 관계를 정할 수 있습니다.</span>`;
+      S._romance={name:c.name,forward:false,html:`<div class="romance-choice"><button id="romance-friend" class="life-btn">🤝 친구가 된다</button>${(rec.dates||0)>=2?'<button id="romance-casual" class="life-btn">🌙 가볍게 만난다</button>':''}<button id="romance-skip" class="life-btn">⏳ 더 알아본다</button></div>`};
     }
   } else if (!withPartner && tier === '성공') {
     L.lovers = L.lovers || [];
@@ -2393,6 +2519,7 @@ function resolveDate(i) {
     const proposal = proposalResult(c, rec, tier);
     if (!alreadyLover && proposal.attempted && proposal.accepted) {
       L.lovers.push({ name: c.name, job: c.job, personality: c.personality, age: c.age, emoji: c.emoji, gender: c.gender, portrait: c.portrait });
+      changeMorality(-12,'연인 몰래 다른 관계를 시작했습니다');
       rec.status = 'lover';
       extra += `<br>💘 <b class="down">${c.name}님과도 몰래 만나기 시작… 양다리! (발각 주의)</b>`;
     } else if (alreadyLover) {
@@ -2423,11 +2550,13 @@ function resolveDate(i) {
 }
 
 function wireRomanceChoice(c) {
-  const acc = $('romance-accept'), dec = $('romance-decline'), con = $('romance-confess'), skip = $('romance-skip');
+  const acc = $('romance-accept'), dec = $('romance-decline'), con = $('romance-confess'), skip = $('romance-skip'), friend=$('romance-friend'), casual=$('romance-casual');
   if (acc) acc.addEventListener('click', () => romanceResolve('accept'));
   if (dec) dec.addEventListener('click', () => romanceResolve('decline'));
   if (con) con.addEventListener('click', () => romanceResolve('confess'));
   if (skip) skip.addEventListener('click', () => romanceResolve('skip'));
+  if (friend) friend.addEventListener('click', () => romanceResolve('friend'));
+  if (casual) casual.addEventListener('click', () => romanceResolve('casual'));
 }
 
 function romanceResolve(kind) {
@@ -2444,6 +2573,13 @@ function romanceResolve(kind) {
     const ok = Math.random() < ((S._romance && S._romance.chance) || 0.5);
     if (ok) { startDating(c); resultHTML = `💕 <b class="up">고백 성공! ${c.name}님과 연애를 시작했어요!</b>`; }
     else { rec.affection = Math.max(0, (rec.affection || 0) - 8); resultHTML = `🫸 <b class="down">${c.name}님이 "아직 그런 사이는 아닌 것 같아요"라며 거절했다.</b>`; playSound('error'); }
+  } else if (kind === 'friend') {
+    rec.status='friend';rec.trust=Math.min(100,(rec.trust||0)+12);rec.affection=Math.max(15,(rec.affection||0)-4);
+    resultHTML=`🤝 <b>${c.name}님과 연애 대신 가까운 친구가 되기로 했습니다.</b>`;
+  } else if (kind === 'casual') {
+    rec.status='casual';rec.trust=Math.max(0,(rec.trust||0)-3);rec.affection=Math.max(20,rec.affection||0);
+    if(rec.personality==='obsessive')rec.obsession=Math.min(100,(rec.obsession||0)+18);
+    resultHTML=`🌙 <b>${c.name}님과 서로 책임을 약속하지 않는 가벼운 관계를 시작했습니다.</b><br><span class="muted">성격에 따라 한쪽은 이 관계를 다르게 받아들일 수 있습니다.</span>`;
   } else {
     resultHTML = `⏳ <span class="muted">다음 기회를 기다리기로 했다.</span>`;
   }
@@ -2635,6 +2771,8 @@ function doRivalAction(actionId, targetIndex) {
   S.capital = player.cash;
   S.life.jailMonths = player.jailMonths;
   S.life.criminalRecord = player.criminalRecord;
+  const rivalAction=RIVALS.ACTIONS.find(a=>a.id===actionId);
+  if(rivalAction&&rivalAction.illegal)changeMorality(-16,`${rivalAction.label} 행동을 선택했습니다`);
   if (result.detected) {
     S.life.jailMonths=oldJail;S.life.criminalRecord=oldRecord;
     const action=RIVALS.ACTIONS.find(a=>a.id===actionId);
@@ -2653,7 +2791,7 @@ function doRivalAction(actionId, targetIndex) {
 const MONTHLY_ACTION_GROUPS = {
   date:'데이트', hobby:'취미', rest:'휴식',
   'career-train':'경력', cert:'경력', changejob:'경력',
-  'contact-meet':'인맥', 'contact-nurture':'인맥', 'contact-ask':'인맥',
+  'contact-meet':'인맥', 'contact-nurture':'인맥', 'contact-ask':'인맥', 'meet-special':'인맥', 'person-request':'인맥',
   rival:'라이벌', marry:'가족', 'child-bond':'가족', 'child-edu':'가족', 'parent-care':'가족', 'family-plan':'가족'
 };
 const LIFE_ACTIONS_PER_MONTH = 3;
@@ -2711,7 +2849,9 @@ function renderLifePanel() {
     const g = (D.GENDER_LABEL || {})[L.partner.gender] || '';
     const prof = ROMANCE.profileOf(L.partner);
     const moneyLabel = L.partner.moneyStyle === 'support' ? '필요할 때 지원' : L.partner.moneyStyle === 'dependent' ? '지출 유발' : '각자 관리';
-    partnerRow = `<div class="life-partner"><img class="char-thumb" src="${characterPortrait(L.partner)}" alt="${L.partner.name}"><strong>${L.partner.name}${g ? ` (${g})` : ''} · ${L.partner.job} · ${stageBadge(L.affection)}<br><span class="muted">${per.emoji || ''}${per.name || ''} · 💰 ${moneyLabel} · 용서 성향 ${Math.round((per.forgive || 0) * 100)}%${prof ? `<br>🗣️ ${prof.style}` : ''}</span></strong></div>`;
+    const partnerRec=metRecord(L,L.partner.name),obs=partnerRec&&partnerRec.obsession||0;
+    const personalityNow=obs>=45?`${obsessionLabel(obs)}로 변화`:per.name||'';
+    partnerRow = `<div class="life-partner"><img class="char-thumb" src="${characterPortrait(L.partner)}" alt="${L.partner.name}"><strong>${L.partner.name}${g ? ` (${g})` : ''} · ${L.partner.job} · ${stageBadge(L.affection)}<br><span class="muted">${per.emoji || ''}${personalityNow} · 💰 ${moneyLabel} · 용서 성향 ${Math.round((per.forgive || 0) * 100)}%${prof ? `<br>🗣️ ${prof.style}` : ''}</span></strong></div>`;
   }
   if (L.lovers && L.lovers.length) {
     partnerRow += `<div class="life-stat"><span>양다리 😈</span><strong class="down">${L.lovers.map(x => (x.emoji || '💔') + x.name).join(', ')} <span class="muted">(발각 주의!)</span></strong></div>`;
@@ -2719,7 +2859,7 @@ function renderLifePanel() {
   const met = ensureMet(L);
   if (met.length) {
     partnerRow += `<div class="life-stat"><span>아는 사람 📇</span><strong>${met.length}명</strong></div>` +
-      `<div class="life-props">${met.map(m => `${m.emoji || '🙂'}<b>${m.name}</b> ${relationTag(L, m.name)} · ${stageBadge(m.affection)} ${Math.round(m.affection || 0)}${m.idleMonths >= 3 ? ` <span class="muted">(${m.idleMonths}개월째 연락 없음)</span>` : ''}`).join('<br>')}</div>`;
+      `<div class="life-props">${met.map(m => `${m.emoji || '🙂'}<b>${m.name}</b> ${relationTag(L, m.name)} · ${stageBadge(m.affection)} ${Math.round(m.affection || 0)} · 신뢰 ${Math.round(m.trust||0)}${m.obsession ? ` · <span class="${m.obsession>=70?'down':'muted'}">집착 ${Math.round(m.obsession)}(${obsessionLabel(m.obsession)})</span>` : ''}${m.idleMonths >= 3 ? ` <span class="muted">(${m.idleMonths}개월째 연락 없음)</span>` : ''}`).join('<br>')}</div>`;
   }
   el.innerHTML =
     `<div class="life-stat"><span>나이/시점</span><strong>${info.label}</strong></div>
@@ -2744,6 +2884,8 @@ function renderLifePanel() {
      <div class="life-stat"><span>행복도</span><strong>${hearts} ${Math.round(L.happy)}/100</strong></div>
      <div class="life-stat"><span>건강</span><strong class="${L.health < 35 ? 'down' : ''}">❤️ ${Math.round(L.health)}/100</strong></div>
      <div class="life-stat"><span>스트레스</span><strong class="${L.stress > 70 ? 'down' : ''}">🧠 ${Math.round(L.stress)}/100</strong></div>
+     <div class="life-stat"><span>도덕성</span><strong class="${(L.morality==null?60:L.morality)<30?'down':''}">🕊️ ${Math.round(L.morality==null?60:L.morality)}/100 · ${moralityLabel(L.morality==null?60:L.morality)}</strong></div>
+     <div class="life-stat"><span>죄책감</span><strong class="${(L.guilt||0)>=60?'down':''}">🌫️ ${Math.round(L.guilt||0)}/100</strong></div>
      <div class="life-stat"><span>체력</span><strong>🏃 ${Math.round(L.fitness)}/100</strong></div>
      <div class="life-stat"><span>세대</span><strong>🌳 ${L.generation}대</strong></div>
      <div class="life-stat"><span>주인공</span><strong>${L.playerName}</strong></div>
@@ -2806,6 +2948,13 @@ function lifeHubHTML() {
     : `<button class="life-btn" data-act="insurance" data-policy="${p.id}">${p.icon} ${p.name} <small>${p.desc} · 월 ${won(p.premium)}</small></button>`).join('');
   const pensionBtns = [.05,.09,.15].map(rate=>`<button class="life-btn ${Math.abs(finance.pensionRate-rate)<.001?'hot':''}" data-act="pension" data-rate="${rate}">연금 ${Math.round(rate*100)}%</button>`).join('');
   const contactBtns = social.contacts.map(c=>{const r=SOCIAL.role(c);const ready=c.trust>=30&&c.favor>=1;return `<button class="life-btn" data-act="contact-nurture" data-contact="${c.id}">${r.icon} ${c.name} 만나기 <small>신뢰 ${c.trust}/30 · 호의 ${c.favor} · 300,000</small></button><button class="life-btn ${ready?'hot':''}" data-act="contact-ask" data-contact="${c.id}" ${ready?'':'disabled'}>🙏 ${r.benefit} 부탁 <small>${ready?'가능':'신뢰30·호의1 필요'}</small></button>`}).join('');
+  const specialMet = id => ensureMet(L).some(m => m.special === id);
+  const specialMeetBtns = [
+    (!specialMet('police') && (justice.case || L.criminalRecord > 0)) ? '<button class="life-btn" data-act="meet-special" data-special="yujin">👮‍♀️ 경찰서에서 상담한다 <small>사건이 만든 인연</small></button>' : '',
+    (!specialMet('obsessive') && (L.stress >= 45 || L.happy <= 55)) ? '<button class="life-btn" data-act="meet-special" data-special="sera">🌙 심야 고민방에 접속한다 <small>불안한 밤의 인연</small></button>' : '',
+    (!specialMet('heiress') && (social.reputation >= 25 || totalWealth() >= 30000000)) ? '<button class="life-btn" data-act="meet-special" data-special="chaerin">🥂 비공개 자산가 모임에 간다 <small>평판 25 또는 재산 3천만</small></button>' : ''
+  ].join('');
+  const personalBtns = ensureMet(L).filter(m=>['friend','casual','partner'].includes(m.status)).map(m=>`<button class="life-btn" data-act="person-request" data-person="${m.name}">🙏 ${m.name}에게 요구하기 <small>${relationTag(L,m.name)} · 호감 ${Math.round(m.affection||0)}${m.obsession?` · 집착 ${Math.round(m.obsession)}`:''}</small></button>`).join('');
   const courtBtns=justice.case?`<div class="court-status">⚖️ <b>${justice.case.crime}</b> · <b class="down">${justice.case.phase}</b> 단계 · ${justice.case.months}개월 남음<br><span class="muted">${justice.case.phase==='수사'?'변호사를 미리 선임하면 유리합니다':justice.case.phase==='기소'?'변호사 등급이 불기소 확률에 영향':'⚠️ 재판 전략 3가지 중 하나를 꼭 선택하세요'}</span></div><button class="life-btn" data-act="lawyer" data-tier="public">국선변호인</button><button class="life-btn" data-act="lawyer" data-tier="standard">전문 변호사 <small>5,000,000</small></button><button class="life-btn" data-act="lawyer" data-tier="elite">대형 로펌 <small>20,000,000</small></button>${justice.case.phase==='재판'?'<button class="life-btn" data-act="court" data-strategy="plea">혐의 인정·선처</button><button class="life-btn" data-act="court" data-strategy="contest">무죄 다툼</button><button class="life-btn" data-act="court" data-strategy="cooperate">수사 협조</button>':''}`:'<span class="muted">진행 중인 사건 없음</span>';
   const treatment=HEALTH.treatmentOffer(L);
   const actionUsed = lifeActionCount();
@@ -2822,7 +2971,7 @@ function lifeHubHTML() {
       <details class="hub-more"><summary>🧰 다른 행동 보기</summary>
         <details class="hub-section"><summary>🎨 취미·건강·연애</summary><div class="hub-btns">${hobbyBtns}<button class="life-btn" data-act="checkup">🏥 건강검진 <small>500,000</small></button><button class="life-btn" data-act="treat">💊 치료${treatment?' · '+treatment.name+' '+won(treatment.cost):''}</button>${relBtns}</div></details>
         <details class="hub-section"><summary>📈 경력·거주지 이동</summary><div class="hub-note">🏠 거주지는 내가 실제로 사는 곳입니다. 보증금·월 주거비·가족 수용인원에 영향을 줍니다.</div><div class="hub-btns"><button class="life-btn" data-act="changejob">💼 이직</button><button class="life-btn" data-act="career-train">📚 직무교육</button>${certBtns}${housingBtns}</div></details>
-        <details class="hub-section"><summary>👨‍👩‍👧 가족·인맥</summary><img class="hub-scene-banner" src="${lifeSceneImage('network')}" alt="업계 인맥 모임 장면"><div class="hub-btns">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👵 부모님 돌봄 <small>1,500,000</small></button><button class="life-btn" data-act="contact-meet">🍽️ 업계 모임</button>${contactBtns}</div></details>
+        <details class="hub-section"><summary>👨‍👩‍👧 가족·인맥</summary><img class="hub-scene-banner" src="${lifeSceneImage('network')}" alt="업계 인맥 모임 장면"><div class="hub-btns">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👵 부모님 돌봄 <small>1,500,000</small></button><button class="life-btn" data-act="contact-meet">🍽️ 업계 모임</button>${specialMeetBtns}${personalBtns}${contactBtns}</div></details>
         <details class="hub-section"><summary>💳 금융·보험·투자용 부동산</summary><img class="hub-scene-banner" src="${lifeSceneImage('property')}" alt="부동산 계약 장면"><div class="hub-note">🏢 투자용 부동산은 거주지가 아니라 월세 수입과 시세차익을 노리는 자산입니다.</div><div class="hub-btns">${loanBtns}<button class="life-btn" data-act="repay">상환${L.loan>0?' '+won(L.loan):''}</button>${insuranceBtns}${pensionBtns}${propBtns}</div></details>
         <details class="hub-section" ${justice.case?'open':''}><summary>⚔️ 라이벌·법정${justice.case?' · 진행 중 사건 있음':''}</summary>${justice.case?`<img class="hub-scene-banner" src="${lifeSceneImage('court')}" alt="법정 심리 장면">`:''}<div class="hub-btns">${rivalSelect}${rivalBtns}${courtBtns}</div></details>
       </details>
@@ -2862,6 +3011,8 @@ function wireLifeHub(host) {
     else if (act === 'contact-meet') meetContact();
     else if (act === 'contact-nurture') nurtureContact(b.dataset.contact);
     else if (act === 'contact-ask') askContact(b.dataset.contact);
+    else if (act === 'meet-special') meetSpecialPerson(b.dataset.special);
+    else if (act === 'person-request') showPersonRequest(b.dataset.person);
     else if (act === 'lawyer') hireCourtLawyer(b.dataset.tier);
     else if (act === 'court') chooseCourtStrategy(b.dataset.strategy);
     else if (act === 'rival') doRivalAction(b.dataset.rivalAction, +($('rival-target') ? $('rival-target').value : 0));
