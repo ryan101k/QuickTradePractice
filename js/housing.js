@@ -10,10 +10,13 @@ const HOMES=[
  {id:'premium',icon:'🌇',name:'고급 주상복합',deposit:200000000,rent:3500000,manage:900000,capacity:5,health:7,stress:-7,charm:12,education:8,commute:0,desc:'최상급 편의시설과 사회적 체면'},
  {id:'mansion',icon:'🏰',name:'대저택',deposit:800000000,rent:8000000,manage:2500000,capacity:8,health:9,stress:-8,charm:20,education:10,commute:5,desc:'가문을 상징하는 최고급 주거'},
 ];
-function ensure(life){if(!life.housing||!HOMES.some(h=>h.id===life.housing.id))life.housing={id:'parents',depositPaid:0,months:0};return life.housing;}
+const TENURES={monthly:{id:'monthly',icon:'🧾',name:'월세'},jeonse:{id:'jeonse',icon:'🔑',name:'전세'},owned:{id:'owned',icon:'🏠',name:'매매'}};
+function ensure(life){if(!life.housing||!HOMES.some(h=>h.id===life.housing.id))life.housing={id:'parents',tenure:'monthly',depositPaid:0,assetValue:0,months:0};if(!life.housing.tenure)life.housing.tenure='monthly';return life.housing;}
 function home(life){return HOMES.find(h=>h.id===ensure(life).id)||HOMES[0];}
-function move(life,id){const target=HOMES.find(h=>h.id===id);if(!target)return null;const current=ensure(life),refund=Math.round((current.depositPaid||0)*.97);life.housing={id,depositPaid:target.deposit,months:0};return{target,refund,cost:target.deposit};}
-function monthly(life,livingMultiplier=1){const h=home(life);life.housing.months++;const expense=Math.round((h.rent+h.manage)*livingMultiplier);return{home:h,expense,health:h.health,stress:h.stress,charm:h.charm,education:h.education,commute:h.commute};}
+function quote(h,tenure){const price=Math.max(10000000,Math.round(h.deposit*4+h.rent*80));if(tenure==='owned')return{upfront:price,monthly:h.manage,assetValue:price};if(tenure==='jeonse')return{upfront:Math.round(price*.62),monthly:h.manage,assetValue:Math.round(price*.62)};return{upfront:h.deposit,monthly:h.rent+h.manage,assetValue:h.deposit};}
+function assetValue(life){const hs=ensure(life);return Math.max(0,hs.assetValue||hs.depositPaid||0);}
+function move(life,id,tenure='monthly'){const target=HOMES.find(h=>h.id===id);if(!target||!TENURES[tenure])return null;const current=ensure(life),refund=Math.round(assetValue(life)*(current.tenure==='owned'?.98:1)),q=quote(target,tenure);life.housing={id,tenure,depositPaid:tenure==='owned'?0:q.upfront,assetValue:q.assetValue,months:0};return{target,tenure,refund,cost:q.upfront,quote:q};}
+function monthly(life,livingMultiplier=1){const h=home(life),hs=ensure(life),q=quote(h,hs.tenure);hs.months++;if(hs.tenure==='owned'){const rate=1+(Math.random()-.45)*.006;hs.assetValue=Math.max(q.upfront*.65,Math.round((hs.assetValue||q.assetValue)*rate));}const expense=Math.round(q.monthly*livingMultiplier);return{home:h,tenure:hs.tenure,expense,health:h.health,stress:h.stress,charm:h.charm,education:h.education,commute:h.commute};}
 function canAddChild(life){return (life.children||[]).length+(life.familyPlan?1:0)<home(life).capacity;}
-root.QT_HOUSING={HOMES,ensure,home,move,monthly,canAddChild};
+root.QT_HOUSING={HOMES,TENURES,ensure,home,quote,assetValue,move,monthly,canAddChild};
 })(window);

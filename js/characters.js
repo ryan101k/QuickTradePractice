@@ -10,14 +10,14 @@
  *    forgive: 양다리·불륜이 들통났을 때 용서하고 관계를 이어갈 확률
  * ========================================================================= */
 const PERSONALITIES = {
-  frugal:    { key: 'frugal',    name: '알뜰한',     emoji: '🪙', money: +0.15, happy: 0,  charm: 0,  forgive: 0.10, confess: 0.62, breakupResist: 0.18, incident: 0.08, desc: '생활비를 아끼고 신뢰를 천천히 쌓음' },
-  ambitious: { key: 'ambitious', name: '야망있는',   emoji: '🔥', money: +0.25, happy: -1, charm: 0,  forgive: 0.05, confess: 0.48, breakupResist: 0.32, incident: 0.20, desc: '성장과 성취를 중시해 관계에도 기준이 높음' },
-  homebody:  { key: 'homebody',  name: '집순이',     emoji: '🏠', money: +0.05, happy: +1, charm: 0,  forgive: 0.15, confess: 0.68, breakupResist: 0.42, incident: 0.10, desc: '안정적인 일상과 꾸준한 연락을 중시함' },
-  caring:    { key: 'caring',    name: '다정한',     emoji: '🥰', money: 0,     happy: +4, charm: +2, forgive: 0.30, confess: 0.78, breakupResist: 0.48, incident: 0.08, desc: '배려가 깊지만 배신에는 크게 상처받음' },
-  cold:      { key: 'cold',      name: '무심한',     emoji: '🧊', money: 0,     happy: -3, charm: -1, forgive: 0.35, confess: 0.38, breakupResist: 0.12, incident: 0.18, desc: '독립적이고 감정 표현이 적어 가까워지기 어려움' },
-  lavish:    { key: 'lavish',    name: '사치스러운', emoji: '💸', money: -0.35, happy: +2, charm: +1, forgive: 0.25, confess: 0.58, breakupResist: 0.28, incident: 0.24, desc: '특별한 경험을 원하고 충동적인 사고가 잦음' },
-  free:      { key: 'free',      name: '자유로운',   emoji: '💔', money: -0.10, happy: +3, charm: +3, breakup: 0.12, forgive: 0.55, confess: 0.52, breakupResist: 0.08, incident: 0.30, desc: '매력적이지만 구속을 싫어하고 관계 변동이 큼' },
-  obsessive: { key: 'obsessive', name: '불안정 애착', emoji: '🫀', money: -0.08, happy: +2, charm: +3, forgive: 0.70, confess: 0.88, breakupResist: 0.75, incident: 0.38, desc: '버림받는 것을 두려워해 애정과 통제가 함께 커짐' },
+  frugal:    { key: 'frugal',    name: '알뜰한',     emoji: '🪙', money: +0.15, happy: 0,  charm: 0,  forgive: 0.10, confess: 0.62, breakupResist: 0.18, incident: 0.08, chastity:78, desc: '생활비를 아끼고 신뢰를 천천히 쌓음' },
+  ambitious: { key: 'ambitious', name: '야망있는',   emoji: '🔥', money: +0.25, happy: -1, charm: 0,  forgive: 0.05, confess: 0.48, breakupResist: 0.32, incident: 0.20, chastity:70, desc: '성장과 성취를 중시해 관계에도 기준이 높음' },
+  homebody:  { key: 'homebody',  name: '집순이',     emoji: '🏠', money: +0.05, happy: +1, charm: 0,  forgive: 0.15, confess: 0.68, breakupResist: 0.42, incident: 0.10, chastity:88, desc: '안정적인 일상과 꾸준한 연락을 중시함' },
+  caring:    { key: 'caring',    name: '다정한',     emoji: '🥰', money: 0,     happy: +4, charm: +2, forgive: 0.30, confess: 0.78, breakupResist: 0.48, incident: 0.08, chastity:82, desc: '배려가 깊지만 배신에는 크게 상처받음' },
+  cold:      { key: 'cold',      name: '무심한',     emoji: '🧊', money: 0,     happy: -3, charm: -1, forgive: 0.35, confess: 0.38, breakupResist: 0.12, incident: 0.18, chastity:48, desc: '독립적이고 감정 표현이 적어 가까워지기 어려움' },
+  lavish:    { key: 'lavish',    name: '사치스러운', emoji: '💸', money: -0.35, happy: +2, charm: +1, forgive: 0.25, confess: 0.58, breakupResist: 0.28, incident: 0.24, chastity:32, desc: '특별한 경험을 원하고 충동적인 사고가 잦음' },
+  free:      { key: 'free',      name: '자유로운',   emoji: '💔', money: -0.10, happy: +3, charm: +3, breakup: 0.12, forgive: 0.55, confess: 0.52, breakupResist: 0.08, incident: 0.30, chastity:24, desc: '매력적이지만 구속을 싫어하고 관계 변동이 큼' },
+  obsessive: { key: 'obsessive', name: '불안정 애착', emoji: '🫀', money: -0.08, happy: +2, charm: +3, forgive: 0.70, confess: 0.88, breakupResist: 0.75, incident: 0.38, chastity:68, desc: '버림받는 것을 두려워해 애정과 통제가 함께 커짐' },
 };
 
 /* 연애 상대 로스터 — 연애가 시작되면 이 중 한 명이 랜덤 배정
@@ -56,9 +56,9 @@ const GENDER_LABEL = { m: '남성', f: '여성' };
 const SPECIAL_CHARACTERS = {
   narae: { id:'narae', name:'나래', gender:'f', emoji:'👩', age:28, job:'투자교육 매니저', income:12000000, personality:'cold', portrait:'narae-v2-neutral.webp', romanceDifficulty:-25, special:'tutorial' },
   taesik: { id:'taesik', name:'장태식', gender:'m', emoji:'🦈', age:39, job:'사채 추심 책임자', income:0, personality:'cold', portrait:'taesik-v2-neutral.webp', special:'collector' },
-  yujin: { id:'yujin', name:'강유진', gender:'f', emoji:'👮‍♀️', age:29, job:'경찰관', income:10500000, personality:'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.36, special:'police', actionOnly:true, portrait:'yujin-neutral.png' },
-  sera: { id:'sera', name:'윤세라', gender:'f', emoji:'🖤', age:25, job:'프리랜서 일러스트레이터', income:7500000, personality:'obsessive', moneyStyle:'dependent', datingMoneyRate:-.06, marriedShareRate:.18, special:'obsessive', actionOnly:true, obsession:18, portrait:'sera-neutral.png' },
-  chaerin: { id:'chaerin', name:'한채린', gender:'f', emoji:'👑', age:27, job:'재벌가 전략실 이사', income:60000000, personality:'ambitious', moneyStyle:'support', datingMoneyRate:.10, marriedShareRate:.50, special:'heiress', actionOnly:true, portrait:'chaerin-neutral.png' },
+  yujin: { id:'yujin', name:'강유진', gender:'f', emoji:'👮‍♀️', age:29, job:'경찰관', income:10500000, personality:'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.36, special:'police', actionOnly:true, obsession:0, obsessionGrowth:0, portrait:'yujin-neutral.png' },
+  sera: { id:'sera', name:'윤세라', gender:'f', emoji:'🖤', age:25, job:'프리랜서 일러스트레이터', income:7500000, personality:'obsessive', moneyStyle:'dependent', datingMoneyRate:-.06, marriedShareRate:.18, special:'obsessive', actionOnly:true, obsession:55, obsessionGrowth:8, portrait:'sera-neutral.png' },
+  chaerin: { id:'chaerin', name:'한채린', gender:'f', emoji:'👑', age:27, job:'재벌가 전략실 이사', income:60000000, personality:'ambitious', moneyStyle:'support', datingMoneyRate:.10, marriedShareRate:.50, special:'heiress', actionOnly:true, obsession:0, obsessionGrowth:0, portrait:'chaerin-neutral.png' },
 };
 
 /* 데이트 접근 방식(선택지) — 성공 판정에 mod/보정이 다르게 들어감
@@ -81,12 +81,15 @@ const DATE_APPROACHES = [
  *   pool: 'any' 또는 성격키 배열 → 그 성향의 상대가 등장
  *   scoreMod: 그 경로에서의 데이트 성공 난이도 보정 */
 const DATE_ROUTES = [
-  { key:'narae', emoji:'☕', name:'나래와 커피', desc:'일과 사생활을 분명히 구분하는 사람', pool:[], fixed:'narae', cost:350000, scoreMod:0 },
-  { key: 'app',    emoji: '📱', name: '소개팅 앱', desc: '다양한 사람',           pool: 'any',                              cost: 200000,  scoreMod: 0 },
+  { key:'narae', emoji:'☕', name:'나래와 커피', desc:'일과 사생활을 분명히 구분하는 사람', pool:[], fixed:'narae', cost:350000, scoreMod:0,scene:'./assets/event-narae-market-crash.png' },
+  { key: 'street', emoji: '🚶', name: '번화가 산책', desc: '우연히 마주치는 다양한 사람', pool:'any', cost:120000, scoreMod:-2 },
   { key: 'office', emoji: '🏢', name: '사내연애', desc: '같은 회사 동료',         pool: 'any',                              cost: 100000,  scoreMod: 4,  needsJob: true, office: true },
   { key: 'intro',  emoji: '🤝', name: '지인 소개', desc: '안정적·진중한 사람',    pool: ['frugal', 'homebody', 'caring'],    cost: 300000,  scoreMod: 6 },
   { key: 'hobby',  emoji: '🎨', name: '취미 모임', desc: '취향이 잘 맞는 사람',   pool: ['caring', 'homebody', 'ambitious'], cost: 400000,  scoreMod: 8 },
   { key: 'club',   emoji: '🍸', name: '클럽/헌팅', desc: '화려하지만 위험한 사람', pool: ['free', 'lavish'],                 cost: 800000,  scoreMod: -6 },
+  { key:'police_scene',emoji:'👮‍♀️',name:'경찰서 민원실',desc:'사건이나 전과가 있을 때 강유진과 마주치는 특별 장면',pool:[],fixed:'yujin',cost:0,scoreMod:-5,scene:'./assets/event-yujin-rain-rescue.png',condition:l=>!!((l.justice&&l.justice.case)||l.criminalRecord)},
+  { key:'sera_scene',emoji:'🌙',name:'심야 전시 골목',desc:'스트레스가 높은 밤 윤세라와 마주치는 특별 장면',pool:[],fixed:'sera',cost:180000,scoreMod:3,scene:'./assets/event-sera-doorstep.png',condition:l=>(l.stress||0)>=45},
+  { key:'chaerin_scene',emoji:'🥂',name:'빌딩 경매 설명회',desc:'자산이나 평판을 쌓으면 한채린이 먼저 말을 거는 특별 장면',pool:[],fixed:'chaerin',cost:500000,scoreMod:-8,scene:'./assets/event-chaerin-contract.png',condition:l=>((l.social&&l.social.reputation)||0)>=25||(l.properties||[]).length>0},
 ];
 
 /* 데이트 결과 대사(현실적) — 성공/보통/실패 티어별 랜덤 */

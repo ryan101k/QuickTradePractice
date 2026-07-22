@@ -182,5 +182,15 @@ ROMANCE_EVENTS.push(
   {text:'공개할 시점을 둘이 정한다',effects:{affection:9},outcome:'숨기거나 과시하지 않고 서로 준비될 때 말하기로 했다.'},
   {text:'홍보에 이용하자고 한다',effects:{cash:1800000,affection:-18,morality:-10},outcome:'나래는 관계를 상품으로 만들 생각이 없다며 자리를 떴다.'}])
 );
+ROMANCE_EVENTS.push(
+ {id:'family_premarital_pregnancy',cat:'family',emoji:'🤰',title:'예상하지 못한 임신',desc:'결혼을 약속하기 전, 두 사람에게 임신 소식이 찾아왔습니다. 관계와 양육을 어떻게 책임질지 함께 결정해야 합니다.',cond:c=>c.rel==='dating'&&!c.familyPlan&&Math.random()<.18,options:[
+  {text:'함께 책임지고 아이를 맞는다',effects:{familyOrigin:'premarital',affection:14,happy:4},outcome:'두 사람은 결혼 여부와 별개로 공동 양육 계획부터 세웠다.'},
+  {text:'결혼과 양육 계획을 함께 논의한다',effects:{familyOrigin:'premarital',affection:8,cash:-2000000},outcome:'서두르지 않고 주거·재정·혼인 문제를 하나씩 정리했다.'},
+  {text:'상대의 결정을 존중하며 관계를 다시 생각한다',effects:{affection:-8,happy:-6},outcome:'쉽지 않은 대화 끝에 각자의 의사와 현실을 확인했다.'}]},
+ {id:'family_affair_child',cat:'family',emoji:'🍼',title:'숨길 수 없는 소식',desc:'몰래 만나던 상대에게서 임신 소식이 왔습니다. 아이는 연애 관계와 별개의 책임이지만, 비밀은 현재 관계를 무너뜨릴 수 있습니다.',cond:c=>c.hasLovers&&!c.familyPlan&&Math.random()<.24,options:[
+  {text:'사실을 공개하고 양육 책임을 진다',effects:{familyOrigin:'affair',affection:-24,morality:8,guilt:-8},outcome:'큰 갈등이 시작됐지만 아이의 존재와 책임을 숨기지는 않았다.'},
+  {text:'아이를 인정하되 당장은 비밀로 한다',effects:{familyOrigin:'affair',familySecret:true,cash:-3000000,morality:-15,guilt:22},outcome:'생활비를 보내기 시작했지만 비밀이 언제 드러날지 모른다.'},
+  {text:'법률 상담 후 친자·양육 협의를 진행한다',effects:{familyOrigin:'affair',cash:-5000000,morality:4},outcome:'감정적인 약속 대신 친자 확인과 양육 협의를 문서로 남겼다.'}]}
+);
 root.QT_ROMANCE={VOICES,ROMANCE_EVENTS,dateLine,momentLine,profileOf,voiceOf};
 })(window);

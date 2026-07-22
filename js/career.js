@@ -6,6 +6,12 @@ const CERTS=[
  {id:'language',name:'외국어',icon:'🌐',cost:1200000,skill:10,salary:.04},
  {id:'finance',name:'재무·회계',icon:'🧾',cost:1800000,skill:12,salary:.05},
  {id:'leadership',name:'리더십',icon:'🎯',cost:2500000,skill:15,salary:.06},
+ {id:'coding',name:'소프트웨어 실무',icon:'⌨️',cost:2200000,skill:14,salary:.06,ability:'시장 데이터 해석'},
+ {id:'realestate',name:'부동산 자산관리',icon:'🏙️',cost:3000000,skill:13,salary:.05,ability:'건물 유지비 절감'},
+ {id:'law',name:'계약·법무',icon:'⚖️',cost:3500000,skill:14,salary:.06,ability:'세력전 법적 방어'},
+ {id:'negotiation',name:'협상 전문가',icon:'🤝',cost:2800000,skill:12,salary:.05,ability:'인맥·세력 교섭'},
+ {id:'security',name:'위기관리·보안',icon:'🛡️',cost:4000000,skill:16,salary:.07,ability:'공작 피해 경감'},
+ {id:'media',name:'미디어 전략',icon:'📣',cost:2600000,skill:11,salary:.05,ability:'평판과 정치 속보 분석'},
 ];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function ensure(life){if(!life.career)life.career={jobId:life.job||'none',months:0,level:0,skill:5,reputation:30,performance:50,certifications:[]};if(!Array.isArray(life.career.certifications))life.career.certifications=[];return life.career;}
@@ -16,5 +22,6 @@ function monthly(life,job,ctx){const c=ensure(life);if(c.jobId!==job.id)switchJo
 return{promotion,bonus,career:c};}
 function train(life){const c=ensure(life);c.skill=clamp(c.skill+6,0,100);c.performance=clamp(c.performance+3,0,100);return c;}
 function certify(life,id){const cert=CERTS.find(x=>x.id===id),c=ensure(life);if(!cert||c.certifications.includes(id))return null;c.certifications.push(id);c.skill=clamp(c.skill+cert.skill,0,100);c.reputation=clamp(c.reputation+4,0,100);return cert;}
-root.QT_CAREER={RANKS,CERTS,ensure,switchJob,rank,salary,monthly,train,certify};
+function abilities(life){return ensure(life).certifications.map(id=>CERTS.find(x=>x.id===id)).filter(x=>x&&x.ability).map(x=>({icon:x.icon,name:x.ability}));}
+root.QT_CAREER={RANKS,CERTS,ensure,switchJob,rank,salary,monthly,train,certify,abilities};
 })(window);

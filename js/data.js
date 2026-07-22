@@ -278,10 +278,24 @@ const HOBBIES = [
 // 부동산: 매입가(price)만큼 현금 지불, 매달 월세(rent) 수입, 매달 조금씩 시세 상승
 const PROPERTIES = [
   { id: 'oneroom',  emoji: '🏠', name: '원룸',       price: 50000000,   rent: 400000 },
+  { id: 'parking',  emoji: '🅿️', name: '소형 주차장', price: 90000000, rent: 650000 },
   { id: 'officetel',emoji: '🏨', name: '오피스텔',   price: 150000000,  rent: 900000 },
+  { id: 'warehouse',emoji: '📦', name: '도심 창고', price: 220000000, rent: 1350000 },
   { id: 'apart',    emoji: '🏬', name: '아파트',     price: 300000000,  rent: 1500000 },
+  { id: 'clinic',   emoji: '🏥', name: '병원 상가', price: 420000000, rent: 2600000 },
   { id: 'store',    emoji: '🏪', name: '상가',       price: 500000000,  rent: 3000000 },
+  { id: 'hotel',    emoji: '🏨', name: '소형 호텔', price: 900000000, rent: 6200000 },
+  { id: 'factory',  emoji: '🏭', name: '산업단지 공장', price: 1300000000, rent: 8500000 },
   { id: 'building', emoji: '🏢', name: '꼬마빌딩',   price: 2000000000, rent: 12000000 },
+];
+
+// 주식과 별개로 매달 현금흐름을 만드는 자산. 수익률이 높을수록 변동·유지비 위험도 크다.
+const PASSIVE_ASSETS = [
+  { id:'deposit', emoji:'🏦', name:'정기예금', price:10000000, monthlyIncome:28000, variance:0, maintenance:0, resaleRate:1, desc:'원금 보전형 · 기준금리에 따라 이자 변동' },
+  { id:'bond', emoji:'📜', name:'우량 회사채 묶음', price:30000000, monthlyIncome:105000, variance:.12, maintenance:0, resaleRate:.97, desc:'안정적인 이자 · 경기 침체 때 소폭 감액 가능' },
+  { id:'vending', emoji:'🥤', name:'무인 자판기 운영권', price:25000000, monthlyIncome:310000, variance:.35, maintenance:70000, resaleRate:.72, desc:'매출 변동 큼 · 매달 관리비 발생' },
+  { id:'solar', emoji:'☀️', name:'소형 태양광 지분', price:70000000, monthlyIncome:620000, variance:.18, maintenance:80000, resaleRate:.82, desc:'발전 수익 · 날씨와 정비 상태 영향' },
+  { id:'royalty', emoji:'🎼', name:'콘텐츠 저작권 지분', price:150000000, monthlyIncome:1500000, variance:.55, maintenance:50000, resaleRate:.65, desc:'흥행하면 크지만 수입 편차와 원금 손실 위험' },
 ];
 
 // 개인 대출: 프리셋 금액 (매달 이자 LIFE_LOAN_INTEREST 만큼 빚 증가)
@@ -313,7 +327,7 @@ window.QT_DATA = {
   EVENTS_COMPANY_GOOD, EVENTS_COMPANY_BAD, EVENTS_SECTOR,
   EVENTS_MARKET, EVENTS_NONE, ACHIEVEMENTS,
   EXPERTS, EXPERT_BULL, EXPERT_BEAR,
-  JOBS, HOBBIES, PROPERTIES, LOAN_OPTIONS, RELATIONSHIP, LIFE_ACHIEVEMENTS,
+  JOBS, HOBBIES, PROPERTIES, PASSIVE_ASSETS, LOAN_OPTIONS, RELATIONSHIP, LIFE_ACHIEVEMENTS,
   CHARACTERS, SPECIAL_CHARACTERS, PERSONALITIES, DATE_APPROACHES, DATE_ROUTES,   // js/characters.js
   CHARACTER_NAME_MIGRATIONS, GENDER_LABEL,
   // 장면 묘사·호감도 단계는 js/character_voices.js 에서 (없으면 구버전 DATE_LINES 로 폴백)
