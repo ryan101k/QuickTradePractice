@@ -130,5 +130,37 @@ ROMANCE_EVENTS.push(
   {text:'우리 둘의 문제로만 두자고 한다',effects:{affection:4},outcome:'당장은 편했지만, 문제는 그대로 남았다.'},
   {text:'부모님을 험담한다',effects:{affection:-15},outcome:'연인 앞에서 연인의 가족을 깎아내린 순간, 공기가 얼어붙었다.'}])
 );
+/* 연인의 실제 직업 때문에 생기는 선택 사건 */
+const J=(id,title,desc,jobs,options)=>({id:'rom_job_'+id,cat:'love',emoji:'💼',title,desc,cond:c=>c.rel!=='single'&&jobs.includes(c.partnerJob),options});
+ROMANCE_EVENTS.push(
+ J('medical','갑작스러운 당직','연인이 병원 응급 당직 때문에 약속을 취소했습니다. 지친 목소리로 미안하다고 합니다.',['의사','간호사','약사'],[
+  {text:'식사를 챙겨 병원 앞에 둔다',effects:{cash:-180000,affection:14,happy:3},outcome:'“이런 날 이해해주는 사람이 있다는 게 정말 크네요.” 늦은 밤 감사 인사가 왔다.'},
+  {text:'다음 휴무일을 함께 확인한다',effects:{affection:9},outcome:'서운함보다 현실적인 다음 약속을 정하자 연인의 표정이 놓였다.'},
+  {text:'일과 나 중 하나를 고르라고 한다',effects:{affection:-17,endRelationshipChance:.12},outcome:'연인은 환자를 두고 나올 수는 없다며 전화를 끊었다.'}]),
+ J('legal','민감한 사건','변호사인 연인이 큰 사건을 맡았습니다. 자세한 내용은 말할 수 없고 한동안 연락도 뜸할 거라고 합니다.',['변호사'],[
+  {text:'비밀유지 의무를 존중한다',effects:{affection:13},outcome:'캐묻지 않는 신뢰가 연인에게 큰 위로가 됐다.'},
+  {text:'바쁜 기간의 연락 규칙만 정한다',effects:{affection:9},outcome:'짧게라도 하루 한 번 안부를 주고받기로 했다.'},
+  {text:'나한테도 말 못 하냐며 추궁한다',effects:{affection:-15},outcome:'연인은 자신의 직업 윤리를 이해받지 못했다고 느꼈다.'}]),
+ J('creator','콘텐츠 출연 제안','유튜버·모델인 연인이 커플 콘텐츠에 함께 출연하자고 합니다. 수익은 있지만 사생활이 공개됩니다.',['유튜버','모델'],[
+  {text:'공개 범위와 수익 배분을 정한다',effects:{cash:900000,affection:10},outcome:'촬영 전에 선을 정한 덕분에 수익과 관계를 모두 지켰다.'},
+  {text:'얼굴 없이 목소리만 출연한다',effects:{cash:250000,affection:6},outcome:'부담 없는 선에서 연인의 일을 응원했다.'},
+  {text:'상의 없이 영상을 올린다',effects:{cash:500000,affection:-16,endRelationshipChance:.1},outcome:'조회수는 올랐지만 연인은 사생활을 이용당했다고 느꼈다.'}]),
+ J('business','사업 자금 부탁','사업가·자영업자인 연인이 현금 흐름이 막혔다며 운영자금을 빌려달라고 합니다.',['사업가','자영업'],[
+  {text:'차용증을 쓰고 일부만 빌려준다',effects:{cash:-1200000,affection:8},outcome:'감정과 돈을 분리해 최소한의 안전장치를 만들었다.'},
+  {text:'장부를 함께 보고 다른 방법을 찾는다',effects:{affection:11},outcome:'돈을 바로 주는 대신 비용을 줄일 방법을 찾아냈다.'},
+  {text:'사랑을 믿고 큰돈을 건넨다',effects:{cash:-5000000,affection:5,happy:-5},outcome:'고마워했지만 돈이 돌아올지는 사업 결과에 달렸다.'}]),
+ J('office','퇴근 후의 거리','개발자·디자이너인 연인이 마감 때문에 며칠째 밤늦게 퇴근하고 있습니다.',['개발자','디자이너'],[
+  {text:'야식을 들고 가되 방해하지 않는다',effects:{cash:-220000,affection:12},outcome:'짧게 얼굴만 봤지만 가장 필요한 방식의 응원이었다고 말했다.'},
+  {text:'마감 뒤 하루를 비워 달라고 한다',effects:{affection:8},outcome:'끝이 보이는 기다림이 되자 서운함이 줄었다.'},
+  {text:'답장이 늦을 때마다 따진다',effects:{affection:-13,happy:-3},outcome:'업무 스트레스가 관계의 싸움으로 번졌다.'}]),
+ J('public','미리 정하는 휴일','공무원·교사인 연인이 정해진 휴가에 맞춰 미리 여행 계획을 세우자고 합니다.',['공무원','교사'],[
+  {text:'예산과 일정을 함께 확정한다',effects:{cash:-500000,affection:12,happy:5},outcome:'몇 달 뒤의 계획이 둘 사이에 안정감을 만들었다.'},
+  {text:'가까운 곳으로 짧게 다녀온다',effects:{cash:-180000,affection:7,happy:3},outcome:'거창하지 않아도 일정이 맞는 시간이 반가웠다.'},
+  {text:'그때 가서 정하자고 미룬다',effects:{affection:-7},outcome:'연인은 매번 자신만 관계를 계획하는 기분이라고 말했다.'}]),
+ J('flight','엇갈리는 비행 일정','승무원인 연인이 장거리 비행에서 돌아오는 날과 내 일정이 계속 엇갈립니다.',['승무원'],[
+  {text:'공항에 마중 나가 함께 쉰다',effects:{cash:-160000,affection:13,happy:3},outcome:'화려한 데이트보다 익숙한 얼굴이 더 반가운 날이었다.'},
+  {text:'다음 달 스케줄을 같이 맞춘다',effects:{affection:9},outcome:'불규칙한 일정 속에서도 둘만의 시간을 먼저 확보했다.'},
+  {text:'연락이 안 된다며 의심한다',effects:{affection:-16,endRelationshipChance:.08},outcome:'비행 중 연락할 수 없다는 설명도 의심 앞에서는 소용없었다.'}])
+);
 root.QT_ROMANCE={VOICES,ROMANCE_EVENTS,dateLine,momentLine,profileOf,voiceOf};
 })(window);

@@ -84,6 +84,14 @@ body {
 /* 재판 상태 안내 */
 .court-status { width: 100%; font-size: 12.5px; background: #fff4f4; border: 1px solid #d6a0a0; border-radius: 3px; padding: 6px 8px; margin-bottom: 4px; }
 
+/* 장중 도움 카드 (인맥·연인·지인) */
+.help-host { position: fixed; left: 14px; bottom: 14px; z-index: 9990; width: min(340px, 88vw); animation: breaking-in .3s ease; }
+.help-card { position: relative; display: flex; gap: 9px; align-items: flex-start; background: #fffef7; border: 2px solid #b8860b; border-radius: 6px; box-shadow: 4px 4px 0 rgba(0,0,0,.35); padding: 9px 10px; }
+.help-av { width: 46px; height: 46px; border-radius: 6px; object-fit: cover; border: 1px solid #ccc; flex-shrink: 0; }
+.help-body { font-size: 12.5px; line-height: 1.5; flex: 1; min-width: 0; }
+.help-go { margin-top: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; background: #ffe0e0; font-weight: bold; }
+.help-x { position: absolute; top: 3px; right: 5px; border: none; background: transparent; cursor: pointer; font-size: 13px; color: #888; }
+
 /* 게임 가이드 */
 .guide-window { width: min(600px, 96vw); }
 .guide-body { max-height: 80vh; overflow-y: auto; }
@@ -94,6 +102,31 @@ body {
 .guide-inner { padding: 9px 11px; font-size: 12.5px; line-height: 1.75; }
 .guide-inner b { color: #1a1a1a; }
 #guide-close { width: 100%; margin-top: 8px; padding: 9px; }
+.guide-glossary { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+.guide-glossary > div { display:flex; flex-direction:column; gap:2px; padding:6px 8px; border:1px solid #bbc5d8; background:#f8faff; }
+.guide-glossary b { color:#000080; }
+.guide-glossary span { color:#555; }
+
+/* 나래의 실제 화면 강조형 튜토리얼 */
+.tutorial-coach-host { position:fixed; inset:0; z-index:10003; pointer-events:none; }
+.tutorial-coach-window {
+  position:absolute; left:50%; bottom:12px; transform:translateX(-50%);
+  width:min(620px, calc(100vw - 18px)); pointer-events:auto;
+  box-shadow:6px 6px 0 rgba(0,0,0,.5);
+}
+.tutorial-coach-window .window-body { padding:10px; background:#fffdf5; }
+.tutorial-coach-talk { display:flex; align-items:center; gap:10px; }
+.tutorial-coach-talk > div { flex:1; min-width:0; }
+.tutorial-coach-talk strong { font-size:14px; color:#000080; }
+.tutorial-coach-talk p { margin:3px 0 0; font-size:12.5px; line-height:1.5; }
+.tutorial-coach-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:8px; }
+.tutorial-focus {
+  position:relative !important; z-index:10002 !important;
+  outline:4px solid #ffd400 !important; outline-offset:3px;
+  box-shadow:0 0 0 7px rgba(255,120,0,.45), 0 0 22px 10px rgba(255,220,0,.65) !important;
+  animation:tutorial-pulse .9s ease-in-out infinite alternate;
+}
+@keyframes tutorial-pulse { from { filter:brightness(1); } to { filter:brightness(1.25); } }
 
 /* 차트 위 시세 스트립 */
 .quote-strip { font-size: 12px; padding: 3px 8px; background: #101418; color: #e6e6e6; border: 2px inset #808080; text-align: center; font-family: 'Consolas', monospace; }
@@ -106,6 +139,8 @@ body {
 .bankrupt-window { box-shadow: 6px 6px 0 rgba(0,0,0,.5); }
 .bankrupt-bar { background: linear-gradient(90deg, #7a1f1f, #d61f1f) !important; animation: breaking-flash 1s steps(2) infinite; }
 .bankrupt-window .window-body { background: #fff7f7; padding: 12px; }
+.bankrupt-window .window-body { max-height: 78vh; overflow-y: auto; }
+.bankrupt-window .life-scene-banner { max-height: 180px; }
 .bk-name { font-size: 15px; margin-bottom: 8px; }
 .bk-reason { font-size: 13px; line-height: 1.5; background: #fff; border: 1px inset #808080; padding: 8px; }
 .bk-note { font-size: 12px; color: #666; margin-top: 8px; }
@@ -335,6 +370,9 @@ body {
 /* ETF 레버리지 배지 */
 .lev-badge { font-size: 10.5px; font-weight: bold; color: #fff; background: #0ea5e9; border-radius: 3px; padding: 0 5px; }
 .lev-badge.inv { background: #1f4fd6; }
+.lev-badge.macro { background: #8b6f20; }
+.macro-summary { margin-top: 6px; padding: 6px 8px; background: #fff9d8; border: 1px solid #c8ad53; line-height: 1.45; }
+.macro-summary small { color: #62551f; }
 
 /* 주문: 실시간 평가손익 */
 .pos-pnl { background: #f4f7ff; border: 2px inset #808080; padding: 6px 8px; font-size: 12.5px; margin-bottom: 8px; }
@@ -353,6 +391,17 @@ body {
 .route-list { display: flex; flex-direction: column; gap: 7px; }
 .route-card { text-align: left; padding: 8px 10px; cursor: pointer; border: 2px outset #fff; background: #fff5fa; }
 .route-card:hover { background: #ffe6f2; }
+.date-company-window .dating-banner { max-height: 190px; object-fit: cover; }
+.companion-card .rc-person, .solo-card .rc-person { color: #465166; font-size: 12px; }
+.life-btn.month-used { opacity: .52; filter: grayscale(.45); }
+.hub-note { margin: 4px 2px 7px; padding: 6px 8px; background: #fffbe6; border: 1px solid #c9b86a; font-size: 11px; line-height: 1.45; }
+.month-action-status { display:flex; flex-wrap:wrap; gap:4px; margin:5px 0 7px; }
+.month-action-status span { padding:2px 6px; border:1px solid #888; background:#fff; font-size:10px; }
+.month-action-status span.done { background:#dfe8df; color:#536153; text-decoration:line-through; }
+.life-time-progress { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin:7px 0; }
+.life-time-progress span { padding:6px 4px; border:2px inset #fff; background:#eef3ff; text-align:center; font-size:11px; font-weight:bold; }
+.life-time-progress span.used { background:#d8dfd8; color:#607060; text-decoration:line-through; }
+.life-time-progress span.current { background:#fff5c9; color:#5d4a00; }
 .rc-head { font-size: 13px; font-weight: bold; }
 .rc-person { font-size: 12.5px; margin-top: 3px; }
 .route-card.partner-card { background: #eafff0; border-color: #6ac48a; }
@@ -411,6 +460,13 @@ body {
   .control-bar .ctl-group { flex: 1 1 100%; justify-content: space-between; }
   .breaking-host { top: 8px; }
   .breaking-headline { font-size: 15px; }
+  .guide-glossary { grid-template-columns:1fr; }
+  .tutorial-coach-window { bottom:6px; width:calc(100vw - 10px); }
+  .tutorial-coach-talk { align-items:flex-start; }
+  .tutorial-coach-talk .char-thumb { width:48px; height:48px; }
+  .tutorial-coach-talk p { font-size:12px; }
+  .tutorial-coach-actions { display:grid; grid-template-columns:1fr 1fr 1.25fr; }
+  .tutorial-coach-actions button { min-height:40px; padding:6px 4px; }
 
   /* --- 모달을 화면에 꽉 채우는 시트로: 작은 화면에서 잘리지 않게 --- */
   .close-host, .event-host, .life-modal-host {
@@ -487,6 +543,44 @@ body {
   image-rendering: pixelated;
 }
 .dating-banner.compact { max-height: 145px; }
+.dating-banner.date-scene {
+  aspect-ratio: 16 / 9;
+  max-height: none;
+  object-fit: cover;
+  background: #171a28;
+}
+.dating-banner.date-scene.compact { max-height: 180px; }
+.dating-banner.date-scene.result-revealed { animation: date-scene-reveal .38s ease-out; }
+@keyframes date-scene-reveal {
+  from { opacity: .25; filter: brightness(.65); }
+  to { opacity: 1; filter: brightness(1); }
+}
+.life-scene-banner,
+.hub-scene-banner {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  object-position: center;
+  border: 2px inset #fff;
+  background: #171a28;
+  image-rendering: pixelated;
+}
+.life-scene-banner { max-height: 230px; margin: 0 0 10px; }
+.hub-scene-banner { max-height: 155px; margin: 6px 0 8px; }
+.important-event-detail {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid #888;
+  background: #fffbe6;
+  line-height: 1.45;
+}
+.important-event-count { margin: 5px 0 8px; color: #666; font-size: 11px; text-align: right; }
+.important-event-window .session-btn { width: 100%; }
+@media (max-width: 600px) {
+  .life-scene-banner { max-height: 180px; }
+  .hub-scene-banner { max-height: 125px; }
+}
 .expert .ex-name small { display:block; color:#666; font-weight:normal; margin-top:2px; }
 .expert .ex-cmt { line-height:1.45; }
 .expert .ex-cmt b { color:#444; }

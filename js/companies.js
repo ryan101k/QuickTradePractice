@@ -6,6 +6,7 @@ const SECTORS = {
   battery: { name: '2차전지', color: '#14b8a6' }, food: { name: '식음료/유통', color: '#f97316' },
   build: { name: '건설/중공업', color: '#6b7280' }, air: { name: '항공/여행', color: '#06b6d4' },
   crypto: { name: '디지털자산/테마', color: '#eab308' }, etf: { name: 'ETF/지수', color: '#0ea5e9' },
+  macro: { name: '금·채권·달러', color: '#8b6f20' },
 };
 
 const ETFS = [
@@ -13,6 +14,9 @@ const ETFS = [
   { name: 'QX 코리아200 레버리지', price: 21000, lev: 2 },
   { name: 'QX 코리아200 인버스', price: 5200, lev: -1 },
   { name: 'QX 코리아200 선물인버스2X', price: 3100, lev: -2 },
+  { name: 'QX 금현물', price: 15800, type: 'macro', sector: 'macro', asset: 'gold', icon: '🥇', desc: '물가·위기에는 강해질 수 있고 높은 금리에는 약해질 수 있는 안전자산' },
+  { name: 'QX 국채10년', price: 11200, type: 'macro', sector: 'macro', asset: 'bond', icon: '📜', desc: '시장금리가 내려가면 기존 채권 가격이 오르고 금리가 오르면 내려가는 장기채' },
+  { name: 'QX 달러선물', price: 13600, type: 'macro', sector: 'macro', asset: 'usd', icon: '💵', desc: '긴축·위기 때 안전자산 선호로 강해질 수 있는 달러 자산' },
 ];
 
 // 모두 가상의 회사입니다. 실존 상장사와의 혼동을 피하면서 산업·규모별 인상을 살렸습니다.
