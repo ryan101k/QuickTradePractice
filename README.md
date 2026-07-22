@@ -146,11 +146,13 @@ js/legacy.js               연대기와 세대 계승
 
 ### PC
 
-![PC 화면](https://github.com/user-attachments/assets/ae6ccd26-206a-49a1-8ddb-896afdc0882c)
+<img width="1090" height="928" alt="114" src="https://github.com/user-attachments/assets/4d720d64-72be-4825-b3fa-d77a9095fca7" /><img width="548" height="815" alt="344 210641" src="https://github.com/user-attachments/assets/cf0ad6da-2c96-4c60-89da-76afa6903c58" />
 
-### 모바일
+<img width="556" height="824" alt="346210849" src="https://github.com/user-attachments/assets/8c83f915-77e9-49f2-bc4c-9581fe398682" />
+<img width="552" height="681" alt="3552 210829" src="https://github.com/user-attachments/assets/884a5d3d-b966-475a-bb85-b37570a485f4" />
 
-![모바일 화면](https://github.com/user-attachments/assets/bf8990ad-0b9a-4445-a06d-e471dcb86c1e)
+
+
 
 ## 주의
 
