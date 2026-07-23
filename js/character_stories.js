@@ -27,7 +27,11 @@ const ARCS={
  '한채린':['낮춰진 의자','후계 경쟁','계약서 없는 관계','복종을 애정으로 여기던 상속녀가 대등함 또는 완전한 지배를 선택한다.']
 };
 const MIN=[18,42,68];
-function get(name){const a=ARCS[name];if(!a)return null;return{name,theme:a[3],chapters:a.slice(0,3).map((title,i)=>({index:i,title,min:MIN[i],desc:[`처음으로 ${a[3]}`,`숨겨둔 문제가 관계 앞에 드러났습니다. ${a[3]}`,`지금까지의 선택이 결말을 만듭니다. ${a[3]}`][i],choices:[
+function get(name){const a=ARCS[name];if(!a)return null;return{name,theme:a[3],chapters:a.slice(0,3).map((title,i)=>({index:i,title,min:MIN[i],desc:[
+  `‘${title}’ — 관계가 알아가는 사이로 접어들자, ${name}이(가) 평소엔 보이지 않던 얼굴을 당신에게만 꺼냈습니다. ${a[3]} 그 시작을 당신과 나눕니다. 여기서 어떻게 반응하느냐가 두 사람의 결을 정합니다.`,
+  `‘${title}’ — 사이가 깊어지자 그동안 미뤄둔 문제가 결국 두 사람 앞에 드러났습니다. ${name}은(는) 당신이 어느 편에 설지 지켜보고 있습니다. ${a[3]} 이번 선택은 쌓아온 신뢰를 시험합니다.`,
+  `‘${title}’ — 지금까지의 선택들이 모여 마지막 장면을 만듭니다. ${name}이(가) 정면으로 당신에게 결말을 묻습니다. ${a[3]} 여기서의 답이 두 사람이 어떤 사이로 남을지를 결정합니다.`
+][i],choices:[
   {id:'support',text:'상대의 선택을 존중하며 함께 해결한다',affection:9,trust:10,obsession:-3,tone:'good'},
   {id:'lead',text:'내가 해결책을 정하고 따라오라고 한다',affection:i===2?-8:-3,trust:-5,obsession:5,tone:'neutral'},
   {id:'avoid',text:'지금은 관여하지 않고 거리를 둔다',affection:-9,trust:-7,obsession:7,tone:'bad'}

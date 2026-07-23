@@ -1184,6 +1184,7 @@ function settleMonth() {
 
   // 5-2) 인간관계 유지 — 오래 안 만나면 사이가 식고, 가끔 근황이 들려온다
   updateRelationships(L);
+  queueAvailableStories(L);
   if (updateObsession(L)) b.captivity = true;
   updateMoralityState(L);
 
@@ -1713,6 +1714,10 @@ function showNextImportantEvent() {
   const queue = S._importantEvents || [];
   const event = queue.shift();
   if (!event) { maybeLifeEvent(); return; }
+  if (event.story && event.personName) {
+    const rec = metRecord(S.life, event.personName);
+    if (rec && STORIES.get(event.personName) && STORIES.next(rec)) { S._storyFromQueue = true; showCharacterStory(event.personName); return; }
+  }
   const host = $('life-event'); if (!host) return;
   const tone = event.tone === 'good' ? 'up' : event.tone === 'bad' ? 'down' : '';
   host.style.display = 'block';
@@ -1899,6 +1904,7 @@ function doHobby(id) {
   else if (id === 'travel' || id === 'game') HEALTH.rest(S.life);
   flashToast(`${h.emoji} ${h.name}! 행복 +${h.happy}${h.charm ? ` 매력 +${h.charm}` : ''}`, 'good');
   checkRelationship(); afterLifeAction('취미');
+  maybeActivityEncounter(id);
 }
 
 function doHealthCheckup() {
@@ -1924,6 +1930,7 @@ function doTreatment() {
 function doRestMonth() {
   S.capital -= Math.min(Math.max(0,S.capital),300000);
   HEALTH.rest(S.life); flashToast('🛌 충분히 쉬어 스트레스가 줄었습니다', 'good'); afterLifeAction('휴식');
+  maybeActivityEncounter('rest');
 }
 
 function doFamilyPlan(method) {
@@ -2129,6 +2136,47 @@ function resolveSpecialMeet(status) {
   const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}S._specialMeet=null;afterLifeAction('인맥');
 }
 
+/* 외출·취미 활동 중 자연스럽게 사람을 만나는 시스템 —
+ * 활동마다 그 자리에 어울리는 성향의 사람과 우연히 마주친다. */
+const HOBBY_MEET = {
+  game:   { emoji:'🎮', pool:['homebody','cold','frugal'],  scene:'온라인 길드 정기모임에서 같은 팀이 되어' },
+  food:   { emoji:'🍽️', pool:['caring','lavish','free'],    scene:'웨이팅이 긴 맛집에서 합석하게 되어' },
+  gym:    { emoji:'🏋️', pool:['ambitious','free','caring'],  scene:'같은 시간대에 운동하다 스팟을 도와주며' },
+  study:  { emoji:'📚', pool:['ambitious','cold','frugal'],  scene:'자기계발 스터디 뒤풀이 자리에서' },
+  travel: { emoji:'✈️', pool:['free','lavish','caring'],     scene:'여행지 게스트하우스 라운지에서' },
+  rest:   { emoji:'🌿', pool:['homebody','caring','frugal'], scene:'쉬는 날 동네를 산책하다가' },
+};
+function maybeActivityEncounter(id) {
+  const meet = HOBBY_MEET[id]; if (!meet) return;
+  const host = $('life-event'); if (host && host.style.display === 'block') return;  // 다른 이벤트가 이미 떠 있으면 양보
+  const L = S.life;
+  if (Math.random() > (L.partner ? 0.2 : 0.42)) return;   // 활동마다 낮은 확률로만 인연이 생긴다
+  const c = makeCandidate({ pool: meet.pool }, []); if (!c) return;   // 정말 처음 보는 사람만
+  S._activityMeet = { c, scene: meet.scene, emoji: meet.emoji };
+  showActivityEncounter();
+}
+function showActivityEncounter() {
+  const m = S._activityMeet; if (!m) return; const c = m.c;
+  const host = $('life-event'); if (!host) return;
+  const per = D.PERSONALITIES[c.personality] || {};
+  host.style.display = 'block';
+  host.innerHTML = `<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${m.emoji} 활동 중 만난 사람</div><div class="title-bar-controls"><button aria-label="Close" id="ameet-x"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="${c.name}"><div><strong>${c.name} · ${c.age}세 · ${c.job}</strong><br><span class="muted">${per.emoji || ''}${per.name || ''}</span></div></div><div class="event-desc">${m.scene} ${c.name}와(과) 자연스럽게 이야기를 나눴습니다. <span class="muted">${per.desc || ''}</span></div><div class="event-options"><button class="event-opt" data-ameet="friend">😊 친구로 연락을 이어간다</button><button class="event-opt" data-ameet="acquaintance">🤝 필요할 때만 연락하는 사이로</button><button class="event-opt" data-ameet="casual">🔥 가볍게 만나보자고 한다</button><button class="event-opt" id="ameet-skip">그냥 인사만 하고 헤어진다</button></div></div></div>`;
+  host.querySelectorAll('[data-ameet]').forEach(b => b.addEventListener('click', () => resolveActivityEncounter(b.dataset.ameet)));
+  [$('ameet-x'), $('ameet-skip')].forEach(b => { if (b) b.addEventListener('click', closeActivityEncounter); });
+}
+function closeActivityEncounter() { const h = $('life-event'); if (h) { h.style.display = 'none'; h.innerHTML = ''; } S._activityMeet = null; }
+function resolveActivityEncounter(status) {
+  const m = S._activityMeet; if (!m) return; const c = m.c;
+  const rec = rememberPerson(c, status);
+  rec.affection = Math.max(rec.affection || 0, status === 'friend' ? 14 : status === 'casual' ? 18 : 6);
+  rec.trust = Math.max(rec.trust || 0, status === 'friend' ? 8 : 3);
+  if (status === 'casual') rec.obsession = Math.min(100, (rec.obsession || 0) + (c.personality === 'obsessive' ? 14 : 6));
+  pushPersonMessage(S.life, c, status === 'casual' ? '오늘 재밌었어요. 또 편하게 봐요.' : '연락처 저장했어요. 다음에 또 봬요!', false);
+  addNews(`${m.emoji} ${c.name}님과 ${status === 'friend' ? '친구가' : status === 'casual' ? '가벼운 사이가' : '아는 사이가'} 됐습니다`, 'good');
+  flashToast(`${m.emoji} ${c.name}님과 인연이 생겼습니다`, 'good');
+  closeActivityEncounter(); renderLifePanel(); autoSave();
+}
+
 function showPersonRequest(name) {
   const rec=metRecord(S.life,name);if(!rec)return;
   const host=$('life-event');if(!host)return;S._requestPerson=rec;
@@ -2186,7 +2234,24 @@ function showCharacterStory(name){
   host.querySelectorAll('[data-story-choice]').forEach(b=>b.addEventListener('click',()=>resolveCharacterStory(b.dataset.storyChoice)));
   [$('story-x'),$('story-close')].forEach(b=>{if(b)b.addEventListener('click',closeCharacterStory);});
 }
-function closeCharacterStory(){const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}S._storyPerson=null;}
+function closeCharacterStory(){const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}S._storyPerson=null;if(S._storyFromQueue){S._storyFromQueue=false;showNextImportantEvent();}}
+/* 호감도 조건이 충족되면 개인 스토리를 클릭 없이 자동으로 꺼내 온다 —
+ * 챕터마다 한 번만 제시하고, 미뤄두면 인맥 목록의 📖 버튼으로 다시 볼 수 있다. */
+function queueAvailableStories(L){
+  ensureMet(L).forEach(m=>{
+    const active=(L.partner&&L.partner.name===m.name)||['friend','casual','partner','polycule','lover'].includes(m.status);
+    if(!active)return;
+    const st=STORIES.get(m.name);if(!st)return;
+    const chapter=STORIES.next(m);if(!chapter)return;              // 호감도 조건 충족 & 미완결
+    const state=STORIES.ensure(m);
+    if((state.offeredChapter==null?-1:state.offeredChapter)>=state.chapter)return;  // 이번 챕터는 이미 자동 제시함
+    state.offeredChapter=state.chapter;
+    queueImportantEvent({type:'love',story:true,personName:m.name,scene:characterEventScene(m.name),icon:'📖',
+      title:`${m.name}와의 이야기 · ${chapter.title}`,
+      desc:`${m.name}와(과)의 사이가 깊어지자, 지금까지 보이지 않던 사정이 드러나기 시작했습니다.`,
+      detail:`호감 ${Math.round(m.affection||0)} · ‘${st.theme}’ — 확인하면 ${m.name}의 개인 스토리 ${chapter.index+1}장이 바로 시작됩니다.`,tone:'neutral'});
+  });
+}
 function resolveCharacterStory(choice){
   const r=S._storyPerson,result=r&&STORIES.apply(r,choice);if(!result)return;
   markMonthAction('인맥');
@@ -3453,10 +3518,11 @@ function lifeHubHTML() {
   const pensionBtns = [.05,.09,.15].map(rate=>`<button class="life-btn ${Math.abs(finance.pensionRate-rate)<.001?'hot':''}" data-act="pension" data-rate="${rate}">연금 ${Math.round(rate*100)}%</button>`).join('');
   const contactBtns = social.contacts.map(c=>{const r=SOCIAL.role(c);const ready=c.trust>=30&&c.favor>=1;return `<button class="life-btn" data-act="contact-nurture" data-contact="${c.id}">${r.icon} ${c.name} 만나기 <small>신뢰 ${c.trust}/30 · 호의 ${c.favor} · 300,000</small></button><button class="life-btn ${ready?'hot':''}" data-act="contact-ask" data-contact="${c.id}" ${ready?'':'disabled'}>🙏 ${r.benefit} 부탁 <small>${ready?'가능':'신뢰30·호의1 필요'}</small></button>`}).join('');
   const specialMet = id => ensureMet(L).some(m => m.special === id);
+  const sctx = specialRouteContext(L);
   const specialMeetBtns = [
-    (!specialMet('police') && (justice.case || L.criminalRecord > 0)) ? '<button class="life-btn" data-act="meet-special" data-special="yujin">👮‍♀️ 경찰서에서 상담한다 <small>사건이 만든 인연</small></button>' : '',
-    (!specialMet('obsessive') && (L.stress >= 45 || L.happy <= 55)) ? '<button class="life-btn" data-act="meet-special" data-special="sera">🌙 심야 고민방에 접속한다 <small>불안한 밤의 인연</small></button>' : '',
-    (!specialMet('heiress') && (social.reputation >= 25 || totalWealth() >= 30000000)) ? '<button class="life-btn" data-act="meet-special" data-special="chaerin">🥂 비공개 자산가 모임에 간다 <small>평판 25 또는 재산 3천만</small></button>' : ''
+    (!specialMet('police') && (justice.case || L.criminalRecord > 0 || sctx.attacked)) ? '<button class="life-btn" data-act="meet-special" data-special="yujin">👮‍♀️ 경찰서에서 상담한다 <small>공격·사건·전과가 만든 인연</small></button>' : '',
+    (!specialMet('obsessive') && L.stress >= 45) ? '<button class="life-btn" data-act="meet-special" data-special="sera">🌙 심야 고민방에 접속한다 <small>스트레스 높은 밤의 인연</small></button>' : '',
+    (!specialMet('heiress') && sctx.heiressValue >= 30000000) ? `<button class="life-btn" data-act="meet-special" data-special="chaerin">🥂 주주총회 리셉션에 참석한다 <small>${sctx.heiressCompany || '대장주'} 주식 3천만↑ 보유</small></button>` : ''
   ].join('');
   const personalBtns = ensureMet(L).filter(m=>['friend','casual','partner','polycule','lover'].includes(m.status)).map(m=>{const st=STORIES.get(m.name),next=st&&STORIES.next(m),state=st&&STORIES.ensure(m),sig=CHAR_TRAITS&&CHAR_TRAITS.label(m);return`<button class="life-btn" data-act="person-request" data-person="${m.name}">🙏 ${m.name}에게 부탁하기 <small>${relationTag(L,m.name)} · 호감 ${Math.round(m.affection||0)}${sig?` · ${sig}`:''}</small></button>${st?`<button class="life-btn ${next?'hot':''}" data-act="character-story" data-person="${m.name}">📖 ${m.name} 개인 스토리 <small>${state.completed?'완결':next?`${state.chapter+1}장 진행 가능`:`${state.chapter+1}장 · 호감 ${st.chapters[state.chapter].min} 필요`}</small></button>`:''}`;}).join('');
   const courtBtns=justice.case?`<div class="court-status">⚖️ <b>${justice.case.crime}</b> · <b class="down">${justice.case.phase}</b> 단계 · ${justice.case.months}개월 남음<br><span class="muted">${justice.case.phase==='수사'?'변호사를 미리 선임하면 유리합니다':justice.case.phase==='기소'?'변호사 등급이 불기소 확률에 영향':'⚠️ 재판 전략 3가지 중 하나를 꼭 선택하세요'}</span></div><button class="life-btn" data-act="lawyer" data-tier="public">국선변호인</button><button class="life-btn" data-act="lawyer" data-tier="standard">전문 변호사 <small>5,000,000</small></button><button class="life-btn" data-act="lawyer" data-tier="elite">대형 로펌 <small>20,000,000</small></button>${justice.case.phase==='재판'?'<button class="life-btn" data-act="court" data-strategy="plea">혐의 인정·선처</button><button class="life-btn" data-act="court" data-strategy="contest">무죄 다툼</button><button class="life-btn" data-act="court" data-strategy="cooperate">수사 협조</button>':''}`:'<span class="muted">진행 중인 사건 없음</span>';
@@ -3469,7 +3535,7 @@ function lifeHubHTML() {
     <div class="life-hub">
       <div class="hub-title">🎬 ${weekLabel} <span class="muted">주요 행동 ${actionUsed}/${LIFE_ACTIONS_PER_MONTH} · 남은 자유시간 ${actionLeft}회</span></div>
       <div class="life-time-progress" aria-label="이번 달 자유시간 사용 현황">${Array.from({length:LIFE_ACTIONS_PER_MONTH},(_,i)=>`<span class="${i<actionUsed?'used':i===actionUsed?'available current':'available'}">${i<actionUsed?'✓':i+1+'주차'}</span>`).join('')}</div>
-      <div class="hub-note">외출·취미·휴식·경력·인맥·가족·라이벌 중 서로 다른 행동을 최대 3회 선택하세요. 외출 장소와 현재 조건에 따라 만나는 인물과 특별 장면이 달라집니다.</div>
+      <div class="hub-note">외출·취미·휴식·경력·인맥·가족·라이벌 중 서로 다른 행동을 최대 3회 선택하세요. 게임·맛집·헬스·여행·휴식 같은 활동 중에도 취향이 맞는 사람을 우연히 만날 수 있고, 외출 장소와 현재 조건에 따라 만나는 인물과 특별 장면이 달라집니다.</div>
       <div class="month-action-status">${['데이트','취미','휴식','경력','인맥','가족','라이벌'].map(g=>`<span class="${monthActionUsed(g)?'done':''}">${monthActionUsed(g)?'✓':'○'} ${g}</span>`).join('')}</div>
       <div class="hub-quick">${quickBtns}</div>
       <details class="hub-more"><summary>🧰 다른 행동 보기</summary>
