@@ -2,18 +2,11 @@
 (function(root){'use strict';
 const ARCS={
  '서연':['마감 뒤의 빈 작업실','표절 시비','둘만의 전시회','일과 사랑 사이에서 자기 이름을 지키려 한다.'],
- '민준':['승소 뒤의 침묵','양심과 의뢰인','사무실의 공동 열쇠','성공만 좇던 변호사가 관계와 원칙 사이를 선택한다.'],
- '지우':['밀린 공과금','마지막 허세','처음 번 월급','의존과 허세를 내려놓고 스스로 서는 법을 배운다.'],
  '하은':['끝나지 않는 야간근무','병동의 민원','쉬어도 되는 날','모두를 돌보느라 자신을 잊은 사람이 도움을 받는 법을 배운다.'],
- '도윤':['수술실 밖의 얼굴','의료 분쟁','처음 꺼낸 약한 말','완벽한 의사라는 가면 뒤의 두려움을 인정한다.'],
- '수빈':['조회수 0의 밤','악성 폭로 영상','카메라를 끈 여행','관계까지 콘텐츠로 만들 것인지 진짜 자신으로 남을지 선택한다.'],
  '예린':['정해진 하루','가족의 결혼 압박','둘만의 생활표','안정된 계획 속에 타인의 기대가 아닌 자기 삶을 넣는다.'],
- '시우':['새벽 배포','창업 제안','로그아웃한 주말','성과와 번아웃 사이에서 함께 사는 리듬을 찾는다.'],
  '채원':['엇갈린 비행','승객의 오해','돌아올 집','화려한 이동 생활 속에서 머물 곳과 사람을 선택한다.'],
- '건우':['비어가는 가게','동업자의 배신','다시 켠 간판','실패를 숨기지 않고 삶과 사업을 다시 세운다.'],
  '유나':['화보 속 가짜 연인','외모 악플','렌즈 밖의 얼굴','보이는 이미지가 아닌 실제 자신을 사랑받고 싶어 한다.'],
  '수아':['교실의 소문','학부모 민원','졸업식의 약속','다정함 때문에 모든 책임을 떠안지 않는 법을 배운다.'],
- '태양':['화려한 투자 발표','현금흐름 위기','작은 회사의 새 출발','과시와 확장 대신 신뢰할 수 있는 성공을 선택한다.'],
  '보라':['정확한 하루','가족 약국의 빚','늦은 밤의 처방전','안정만 지키던 사람이 자신의 욕망을 말하기 시작한다.'],
  '다은':['무너진 케이크','가게 독립 제안','두 사람의 첫 메뉴','남을 위한 달콤함 뒤에 숨긴 자기 꿈을 꺼낸다.'],
  '혜진':['사라진 연구 데이터','성과 가로채기','공동 저자','감정을 배제하던 연구원이 신뢰와 연대를 실험한다.'],
@@ -25,10 +18,22 @@ const ARCS={
  '강유진':['보호라는 감시','내부 비리 제보','반납한 위치추적기','지키고 싶은 마음이 통제가 되지 않도록 선을 배운다.'],
  '윤세라':['새벽의 부재중 전화','잠긴 작업실','열어둔 문','버림받을 공포를 사랑으로 포장하지 않는 결말을 찾는다.'],
  '한채린':['낮춰진 의자','후계 경쟁','계약서 없는 관계','복종을 애정으로 여기던 상속녀가 대등함 또는 완전한 지배를 선택한다.'],
- '장태식':['목숨값 장부','비어 있는 수금 칸','찢어진 차용증','돈으로만 사람을 재단하던 추심업자가 의리와 지배 사이에서 자기 규칙을 드러낸다.']
 };
-const MIN=[18,42,68];
-const C=(id,text,preview,affection,trust,obsession,tone,reaction,effects)=>({id,text,preview,affection,trust,obsession,tone,reaction,effects});
+/* 남성 인물의 사건 개요. 연애 개인 스토리에서는 제외하고
+ * 라이벌·세력·언론·특별 아군 이벤트가 이 개요를 소비한다. */
+const WORLD_ARCS={
+ '민준':{side:'ally',role:'legal',chapters:['첫 무료 변론','증거가 사라진 밤','세력의 고문 계약'],theme:'돈보다 의뢰인의 생존을 먼저 보는 법률 참모가 된다.'},
+ '도윤':{side:'ally',role:'medical',chapters:['응급실의 익명 환자','조직원 의료 기록','도시 밖 비상 진료소'],theme:'세력의 폭력성을 낮추면서도 사람을 살리는 의료망을 만든다.'},
+ '시우':{side:'ally',role:'intel',chapters:['이상 접속 로그','경쟁 세력의 백도어','꺼지지 않는 상황실'],theme:'감시와 방어의 선을 지키는 정보 책임자가 된다.'},
+ '건우':{side:'ally',role:'operations',chapters:['막힌 물류 창고','납품업체의 배신','사람이 남는 장부'],theme:'돈이 아니라 신뢰로 거점과 구성원을 연결한다.'},
+ '지우':{side:'neutral',role:'broker',chapters:['값싼 제보','두 군데에 판 정보','마지막 구매자'],theme:'돈 되는 편에 붙는 정보상이 거래와 배신 사이를 오간다.'},
+ '수빈':{side:'rival',role:'media',chapters:['썸네일 속 내 이름','조작된 생방송','꺼지지 않는 카메라'],theme:'여론과 폭로를 무기로 세력의 약점을 파고든다.'},
+ '태양':{side:'rival',role:'leader',chapters:['대규모 공개매수','내부 인재 사냥','태양캐피탈 포위전'],theme:'돈과 평판으로 경쟁 세력을 흡수하는 핵심 라이벌이다.'},
+ '장태식':{side:'enemy',role:'collector',chapters:['목숨값 장부','비어 있는 수금 칸','찢어진 차용증'],theme:'빚과 공포로 움직이는 추심 세력의 수장이다.'},
+ '한태석':{side:'special',role:'guardian',chapters:['세 번의 거절','감옥 문 앞의 약속','사람으로 갚는 빚'],theme:'친해지기는 어렵지만 인정한 사람은 끝까지 책임지는 대협형 특별 아군이다.'}
+};
+const MIN=[18,42,68,78,88];
+const C=(id,text,preview,affection,trust,obsession,tone,reaction,effects,trait)=>({id,text,preview,affection,trust,obsession,tone,reaction,effects,trait});
 const SPECIAL={
  '나래':[
   {desc:'나래가 위험 고지를 충분히 이해하지 못한 수강생의 큰 손실을 알게 됐습니다. 환불 규정만 보면 책임은 없지만, 나래는 빈 강의실에 남아 같은 문장을 몇 번이나 고쳐 읽습니다.',speaker:'약관에는 다 써 있었어요. 그런데 그 사람이 정말 이해했다고 말할 수 있을까요?',choices:[
@@ -63,6 +68,16 @@ const SPECIAL={
    C('lead','추적기는 내가 보관하고 필요할 때만 허락한다','권한의 방향만 바뀌고 관계의 통제는 남는다',-2,-6,7,'neutral','누가 쥐고 있든 통제는 통제예요. 우리가 배운 게 그게 전부인가요?',{}),
    C('avoid','대답하지 않고 추적기를 버린다','문제는 끝내지만 두려움을 함께 다루지 않는다',-9,-9,5,'bad','물건은 버릴 수 있어도, 왜 그랬는지는 남아 있어요.',{})
   ]}
+  ,{title:'새벽 두 시의 호출',desc:'새벽 두 시, 라이벌의 협박 문자를 받은 당신이 경찰서가 아니라 유진의 개인 번호를 바라봅니다. 유진은 근무 중인데도 첫 진동에 전화를 받았습니다. 당신이 혼자 해결하지 못했다는 사실에 걱정보다 안도하는 자신을 숨기지 못합니다.',speaker:'말해요. 지금 어디예요? …잘했어요. 다른 사람 말고 나한테 전화한 거.',choices:[
+   C('depend','“혼자서는 못 버티겠어. 지금 와줘”라고 매달린다','유진의 구원 욕구를 직접 선택한다',12,9,8,'neutral','그 말 다시 해봐요. 내가 필요하다고. 그러면 어디든 갈게요.',{},'depend'),
+   C('boundary','증거만 전달하고 공식 절차로 만나자고 한다','도움을 청하되 유진 개인에게 종속되지는 않는다',8,13,-4,'good','도망치지 않고 신고해줘서 고마워요. 이번에는 내가 절차를 지킬게요.',{morality:3},'boundary'),
+   C('complicity','순찰 기록에서 내 동선을 지워달라고 부탁한다','보호를 대가로 유진의 원칙을 시험한다',3,-6,11,'bad','이게 잘못인 걸 아는데도… 당신이 잡혀가는 것보단 내가 더러워지는 게 나아요.',{morality:-8,guilt:4},'complicity')
+  ]}
+  ,{title:'나를 부르는 사람',desc:'유진은 비상연락망 첫 줄에 자기 이름을 적어둔 종이를 내밉니다. 신고보다 먼저 자신을 부르라는 뜻인지, 가장 위험할 때만 부르라는 뜻인지 마지막으로 정해야 합니다.',speaker:'나는 누군가에게 필요한 사람이면 버틸 수 있어요. 문제는… 당신이 나 없이도 괜찮아지는 날이 무섭다는 거예요.',choices:[
+   C('depend','평온한 날에도 유진이 없으면 불안하다고 고백한다','서로의 결핍을 숨기지 않는 의존 관계를 택한다',15,9,12,'neutral','괜찮아요. 혼자 괜찮아질 필요 없어요. 내가 계속 필요하게 해줄게요.',{},'depend'),
+   C('boundary','위기에는 부르되 평소의 선택은 각자 지키자고 한다','구원과 일상을 분리하는 관계를 만든다',11,16,-8,'good','부르면 달려갈게요. 부르지 않은 날까지 들여다보지는 않을게요.',{},'boundary'),
+   C('complicity','법보다 서로를 먼저 지키자는 비밀 약속을 한다','연인과 경찰의 선을 함께 지운다',7,-2,15,'bad','그 약속, 나중에 후회해도 못 돌려줘요. 이제 나는 당신 편부터 들 테니까.',{morality:-10},'complicity')
+  ]}
  ],
  '윤세라':[
   {desc:'새벽에 부재중 전화가 열두 통 쌓였습니다. 세라는 별일 아니었다고 말하지만, 답이 없던 두 시간 동안 버려졌다고 확신했다고 털어놓습니다.',speaker:'전화 한 번이면 괜찮아졌을 텐데. 내가 그 한 번도 받을 가치가 없나 싶었어요.',choices:[
@@ -80,6 +95,16 @@ const SPECIAL={
    C('lead','열쇠를 내가 관리하면 괜찮다고 말한다','불안과 통제가 공존하는 의존 관계를 택한다',3,-8,16,'neutral','그 열쇠, 절대 다른 사람에게 주면 안 돼요. 이제 정말 우리 둘뿐이에요.',{}),
    C('avoid','다시는 돌아오지 않겠다고 선언한다','관계를 끝내지만 세라가 결말을 받아들이는 데 시간이 필요하다',-20,-15,8,'bad','알겠어요. 이번에는 따라가지 않을게요. 오늘은.',{})
   ]}
+  ,{title:'세 개의 빈 의자',desc:'세라의 작업실에는 당신 앞의 빈 의자가 세 개 놓여 있습니다. 세라는 혼자 감시하면 자신이 나쁜 사람이 되지만, 당신을 절대 놓치지 않을 다른 사람들이 함께라면 그것을 “보호”라고 부를 수 있지 않겠느냐고 묻습니다.',speaker:'나 혼자라서 무서운 거면… 나처럼 당신을 놓치기 싫은 사람이 더 있으면 괜찮아지는 거 아닌가요?',choices:[
+   C('anchor','세 사람이 아니라 상담자와 친구를 연락망에 넣자고 한다','불안을 여러 안전한 관계에 분산한다',9,14,-9,'good','싫지만… 당신이 돌아오는 데 도움이 된다면 이름을 적을게요.',{},'anchor'),
+   C('fuse','유진과 채린도 당신을 놓치지 못한다고 알려준다','위험한 세 사람의 결핍을 하나의 망으로 묶는다',13,5,12,'neutral','그 둘도 같은 눈을 한다는 거 알아요. 마음에는 안 들지만, 잃어버리지는 않겠네요.',{},'fuse'),
+   C('sever','의자와 기록을 전부 버리라고 명령한다','표면은 치우지만 버림받을 공포를 다시 자극한다',-10,-12,14,'bad','알겠어요. 보이는 건 다 버릴게요. 안 보이는 데 기억하면 되니까.',{},'sever')
+  ]}
+  ,{title:'돌아오는 시간',desc:'세라는 잠금장치 대신 귀가 시간표와 비상 연락 카드를 내놓습니다. 문은 열려 있지만, 당신이 돌아올 이유를 약속으로 만들지 다른 사람들의 감시로 만들지 결정해야 합니다.',speaker:'몇 시에 돌아오는지만 말해줘요. 늦으면 누구부터 찾아가야 하는지도. 그러면 문은 안 잠글게요.',choices:[
+   C('anchor','늦을 때 한 번 연락하고 기다릴 한계를 정한다','예측 가능한 약속으로 불안을 다룬다',14,16,-12,'good','시간이 지나도 끝이 있다는 걸 알면… 기다릴 수 있어요.',{},'anchor'),
+   C('fuse','세 사람에게 집·휴대전화·동선을 모두 공유한다','문 대신 사람으로 이루어진 감옥을 선택한다',16,7,18,'bad','이제 내가 잠들어도 다른 누군가가 보고 있겠네요. 완벽해요.',{},'fuse'),
+   C('sever','어디에도 돌아오겠다고 약속하지 않는다','관계를 끊고 외부 보호를 요청한다',-18,-15,-5,'neutral','당신이 약속하지 않으면, 나는 확인하고 싶어져요. 그래도 오늘은 참아볼게요.',{},'sever')
+  ]}
  ],
  '한채린':[
   {desc:'채린이 모임에서 당신 의자를 자기 자리보다 낮게 준비했습니다. 사소한 실수처럼 웃지만, 주변 사람들은 두 사람의 서열을 이미 이해한 표정입니다.',speaker:'기분 나빴어요? 내 옆에 앉게 한 것만으로 충분히 특별 대우한 건데.',choices:[
@@ -96,6 +121,16 @@ const SPECIAL={
    C('support','각자의 재산과 자유를 보장하는 공동 합의서를 새로 쓴다','보호 장치는 두되 소유가 아닌 동반 관계를 택한다',14,15,-8,'good','처음으로 계약서가 족쇄가 아니라 서로를 지키는 문서처럼 보여요.',{}),
    C('lead','내게 더 유리한 조건으로 바꿔 서명한다','채린의 방식으로 채린을 이기며 권력 관계를 굳힌다',2,-7,12,'neutral','결국 당신도 가격을 정했네요. 비싸서 마음에 들어요.',{cash:12000000,morality:-4}),
    C('avoid','어떤 약속도 부담스럽다며 계약서를 두고 떠난다','소유되지는 않지만 관계의 책임도 거절한다',-15,-13,5,'bad','계약이 싫은 게 아니라, 나와 남는 게 싫었던 거군요.',{})
+  ]}
+  ,{title:'던져진 계약서',desc:'채린이 준비한 새 계약서는 당신의 생활비와 거처, 실패했을 때의 퇴로까지 완벽하게 보장합니다. 당신이 서류를 읽고 테이블 너머로 던지자 경호원들이 움직이지만, 채린만 작게 웃습니다.',speaker:'다들 내 조건을 더 얻으려고 고개를 숙이는데, 당신은 내가 준 걸 내 얼굴에 던지네요. 계속해봐요.',choices:[
+   C('command','경호원을 물리고 내 말부터 들으라고 반말로 명령한다','채린이 원하는 무례와 긴장을 정확히 건드린다',14,5,9,'neutral','그 표정으로 한 번 더 명령해봐요. 이번엔 내가 정말 들을 수도 있으니까.',{},'command'),
+   C('equal','계약을 찢지 않고 대등한 조건으로 고쳐준다','힘겨루기를 협상으로 바꾼다',10,14,-5,'good','재미는 덜하지만 오래 볼 사람의 방식이네요.',{},'equal'),
+   C('conspire','보장 금액을 두 배로 올리면 채린의 더러운 일도 맡겠다고 한다','관계를 권력 거래로 굳힌다',6,-3,12,'bad','그래요. 착한 척하지 않는 사람은 적어도 가격을 정하기 쉽죠.',{cash:10000000,morality:-9},'conspire')
+  ]}
+  ,{title:'아무도 없는 회의실',desc:'후계전에서 이긴 밤, 채린은 텅 빈 회의실의 상석을 당신에게 내줍니다. 밖에서는 모두가 채린의 지시를 기다리지만, 문이 닫힌 뒤 누구의 말을 따를지는 둘만 아는 비밀입니다.',speaker:'밖에서는 내가 모든 걸 결정해요. 여기서는… 당신이 감히 나한테 뭘 시킬 수 있는지 보고 싶네요.',choices:[
+   C('command','오늘은 일도 경호도 끄고 내 옆에 가만히 있으라고 명령한다','권력이 아니라 당신의 말에만 굴복하는 사적 관계를 택한다',16,10,10,'neutral','세상에서 제일 비싼 시간을 그렇게 낭비하라고요? …좋아요. 더 막 대해봐요.',{},'command'),
+   C('equal','상석을 비우고 같은 쪽에 나란히 앉는다','공적 권력과 사적 관계를 분리한다',12,16,-7,'good','내 자리를 탐내지 않는 사람이라서, 옆자리를 줄 수 있겠네요.',{},'equal'),
+   C('conspire','채린의 이름으로 경쟁 세력을 삼킬 계획을 지시한다','서로의 잔혹함을 사업으로 만든다',8,-4,14,'bad','이제야 내 돈을 어떻게 써야 하는지 아는 사람이 생겼네요.',{cash:15000000,morality:-12,guilt:5},'conspire')
   ]}
  ],
  '장태식':[
@@ -126,24 +161,41 @@ function baseChoices(i){
 }
 function get(name){
  const a=ARCS[name];if(!a)return null;const authored=SPECIAL[name];
- return{name,theme:a[3],chapters:a.slice(0,3).map((title,i)=>{
-  const scene=authored&&authored[i];
-  return{index:i,title,min:MIN[i],
+ const titles=a.slice(0,3),chapterCount=authored?authored.length:3;
+ return{name,theme:a[3],chapters:Array.from({length:chapterCount},(_,i)=>{
+  const scene=authored&&authored[i],title=(scene&&scene.title)||titles[i]||`${i+1}장`;
+  return{index:i,title,min:MIN[i]||Math.min(96,68+(i-2)*10),
    desc:scene&&scene.desc||[`‘${title}’에서 ${name}이(가) 남들에게 감춰온 사정을 처음 이야기합니다. ${a[3]} 아직은 해결보다 당신의 반응이 더 중요한 순간입니다.`,`‘${title}’가 현실의 문제로 번졌습니다. 첫 장에서 보여준 태도를 ${name}도 기억하고 있습니다. ${a[3]} 이번 선택은 말이 아니라 행동으로 남습니다.`,`‘${title}’ 앞에서 두 사람은 더는 결정을 미룰 수 없습니다. 지난 선택들이 만든 신뢰와 거리 위에서 ${a[3]} 어떤 관계로 남을지 정해야 합니다.`][i],
    speaker:scene&&scene.speaker||['이 얘기를 누구에게 해야 할지 오래 망설였어요. 당신이라면 끝까지 들어줄 것 같았어요.','전에 했던 말, 아직 기억해요? 이번에는 말로만 끝나지 않을 것 같아요.','좋은 말 말고 솔직한 답을 듣고 싶어요. 우리는 앞으로 어떤 사이예요?'][i],
    choices:scene&&scene.choices||baseChoices(i)};
  })};
 }
-function ensure(rec){if(!rec.story)rec.story={chapter:0,completed:false,history:[]};if(!Array.isArray(rec.story.history))rec.story.history=[];return rec.story;}
+function ensure(rec){if(!rec.story)rec.story={chapter:0,completed:false,history:[],traits:{}};if(!Array.isArray(rec.story.history))rec.story.history=[];if(!rec.story.traits||typeof rec.story.traits!=='object')rec.story.traits={};const expanded=(SPECIAL[rec.name]||[]).length;if(rec.story.completed&&expanded>(rec.story.chapter||0)){rec.story.completed=false;rec.story.ending=null;rec.story.offeredChapter=Math.min(rec.story.offeredChapter==null?-1:rec.story.offeredChapter,(rec.story.chapter||0)-1);}return rec.story;}
 function next(rec){const s=get(rec.name),state=ensure(rec);if(!s||state.completed)return null;const ch=s.chapters[state.chapter];return ch&&(rec.affection||0)>=ch.min?ch:null;}
-function context(rec,ch){const state=ensure(rec),prev=state.history[state.history.length-1];if(!prev)return'이번 장면이 두 사람의 첫 번째 갈림길입니다.';const labels={support:'그때 당신은 곁에 남아 함께 결정했습니다.',lead:'그때 당신은 문제를 대신 결정했습니다.',avoid:'그때 당신은 관계에서 한걸음 물러났습니다.'};return`${labels[prev.choice]||'이전 선택의 결과가 아직 두 사람 사이에 남아 있습니다.'} ${ch.index+1}장은 그 기억에서 이어집니다.`;}
+function context(rec,ch){const state=ensure(rec),prev=state.history[state.history.length-1];if(!prev)return'이번 장면이 두 사람의 첫 번째 갈림길입니다.';const labels={support:'그때 당신은 곁에 남아 함께 결정했습니다.',lead:'그때 당신은 문제를 대신 결정했습니다.',avoid:'그때 당신은 관계에서 한걸음 물러났습니다.',depend:'그때 당신은 혼자 버티지 않고 상대에게 매달렸습니다.',boundary:'그때 당신은 도움과 통제의 선을 분명히 했습니다.',complicity:'그때 당신은 원칙보다 서로를 먼저 택했습니다.',command:'그때 당신은 상대의 권력 앞에서도 거칠게 명령했습니다.',equal:'그때 당신은 힘겨루기 대신 같은 자리를 골랐습니다.',conspire:'그때 당신은 상대의 어두운 권력과 손을 잡았습니다.',anchor:'그때 당신은 기다림에 끝이 있는 약속을 만들었습니다.',fuse:'그때 당신은 여러 사람의 감시와 보호를 하나로 묶었습니다.',sever:'그때 당신은 관계를 끊어 불안을 끝내려 했습니다.'};return`${labels[prev.choice]||'이전 선택의 결과가 아직 두 사람 사이에 남아 있습니다.'} ${ch.index+1}장은 그 기억에서 이어집니다.`;}
 function withJosa(name,batchim,plain){const code=(name.charCodeAt(name.length-1)||0)-0xac00;return`${name}${code>=0&&code<=11171&&code%28?batchim:plain}`;}
 function endingFor(name,state){
+ const traits=state.traits||{};
+ if(name==='강유진'){
+  if((traits.depend||0)>=2)return{route:'dangerous_dependence',title:'강유진 · 필요해지는 사람',text:'당신이 무너질 때마다 유진을 먼저 불렀고, 유진은 당신이 혼자 설 수 없도록 보호를 일상으로 만들었습니다. 다정한 구조와 의존의 경계가 흐려진 관계입니다.'};
+  if((traits.complicity||0)>=2)return{route:'accomplice',title:'강유진 · 제복 안의 공범',text:'법과 보호를 서로의 편의를 위해 비틀었습니다. 유진은 당신을 지키기 위해 자신이 지키던 선까지 함께 넘었습니다.'};
+  return{route:'equal',title:'강유진 · 불러주는 사람',text:'감시가 아니라 요청을 기다리는 법을 배웠습니다. 위기에는 가장 먼저 달려오되, 평온한 날에는 문 밖에서 기다리는 관계입니다.'};
+ }
+ if(name==='한채린'){
+  if((traits.command||0)>=2)return{route:'private_submission',title:'한채린 · 왕관을 내려놓는 방',text:'세상 모두가 떠받드는 채린에게 당신만은 명령하고 비웃고 물러서지 않았습니다. 채린은 오직 둘만 있는 곳에서 그 무례를 가장 확실한 애정으로 받아들입니다.'};
+  if((traits.conspire||0)>=2)return{route:'boardroom_pair',title:'한채린 · 같은 테이블의 포식자',text:'서로의 약점을 쥔 채 같은 편이 됐습니다. 사랑보다 거래에 가깝지만 누구도 이 계약을 먼저 끝내지 못합니다.'};
+  return{route:'equal',title:'한채린 · 값을 매기지 않은 자리',text:'복종도 소유도 아닌 대등한 자리를 만들었습니다. 채린은 여전히 시험하지만, 당신의 대답을 돈으로 사지는 않습니다.'};
+ }
+ if(name==='윤세라'){
+  if((traits.fuse||0)>=2)return{route:'shared_cage',title:'윤세라 · 문이 필요 없는 방',text:'열쇠보다 확실한 습관과 사람들로 서로를 묶었습니다. 문은 열려 있지만 세라는 당신이 떠날 가능성 자체를 생활에서 지워버렸습니다.'};
+  if((traits.anchor||0)>=2)return{route:'anchored',title:'윤세라 · 돌아올 시간을 아는 사람',text:'세라는 불안을 숨기지 않고 기다릴 시간을 말하는 법을 배웠습니다. 위험은 사라지지 않았지만 약속을 확인하는 방식은 달라졌습니다.'};
+  return{route:'distance',title:'윤세라 · 열어둔 문 너머',text:'당신은 세라를 혼자 구원할 수 없음을 인정했습니다. 세라는 따라가지 않겠다는 약속을 하루씩 지키기 시작합니다.'};
+ }
  const count={support:0,lead:0,avoid:0};state.history.forEach(h=>{if(count[h.choice]!=null)count[h.choice]++;});
  if(count.support>=2)return{route:'equal',title:`${withJosa(name,'과','와')} 나란히 걷는 관계`,text:'문제를 대신 해결하거나 외면하지 않고 함께 감당했습니다. 두 사람은 자유와 책임을 나누는 관계로 남습니다.'};
  if(count.lead>=2)return{route:'control',title:`${withJosa(name,'과','와')} 기울어진 관계`,text:'위기마다 한 사람이 결정을 독점했습니다. 관계는 이어지지만 애정과 통제의 경계가 오래 흔들립니다.'};
  return{route:'distance',title:`${withJosa(name,'과','와')} 남은 거리`,text:'중요한 순간마다 거리를 두었습니다. 서로를 미워하지는 않지만, 깊어질 수 있었던 관계는 조심스러운 기억으로 남습니다.'};
 }
-function apply(rec,choiceId){const s=get(rec.name),state=ensure(rec),ch=s&&s.chapters[state.chapter];if(!ch)return null;const c=ch.choices.find(x=>x.id===choiceId);if(!c)return null;rec.affection=Math.max(0,Math.min(100,(rec.affection||0)+c.affection));rec.trust=Math.max(0,Math.min(100,(rec.trust||0)+c.trust));rec.obsession=Math.max(0,Math.min(100,(rec.obsession||0)+c.obsession));state.history.push({chapter:state.chapter,title:ch.title,choice:choiceId});state.chapter++;state.completed=state.chapter>=s.chapters.length;if(state.completed)state.ending=endingFor(rec.name,state);return{story:s,chapter:ch,choice:c,completed:state.completed,ending:state.ending||null};}
-root.QT_CHARACTER_STORIES={ARCS,SPECIAL,get,ensure,next,context,apply};
+function apply(rec,choiceId){const s=get(rec.name),state=ensure(rec),ch=s&&s.chapters[state.chapter];if(!ch)return null;const c=ch.choices.find(x=>x.id===choiceId);if(!c)return null;rec.affection=Math.max(0,Math.min(100,(rec.affection||0)+c.affection));rec.trust=Math.max(0,Math.min(100,(rec.trust||0)+c.trust));rec.obsession=Math.max(0,Math.min(100,(rec.obsession||0)+c.obsession));if(c.trait)state.traits[c.trait]=(state.traits[c.trait]||0)+1;state.history.push({chapter:state.chapter,title:ch.title,choice:choiceId,trait:c.trait||null});state.chapter++;state.completed=state.chapter>=s.chapters.length;if(state.completed)state.ending=endingFor(rec.name,state);return{story:s,chapter:ch,choice:c,completed:state.completed,ending:state.ending||null};}
+root.QT_CHARACTER_STORIES={ARCS,WORLD_ARCS,SPECIAL,get,ensure,next,context,apply};
 })(window);

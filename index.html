@@ -106,7 +106,7 @@
         <div class="window panel trade-panel">
           <div class="title-bar"><div class="title-bar-text">💱 주문</div></div>
           <div class="window-body">
-            <div class="pos-pnl" id="pos-pnl">📌 미보유</div>
+            <div class="pos-pnl position-summary is-empty" id="pos-pnl" role="status" aria-live="polite">📌 미보유</div>
             <button id="open-report" class="report-open-btn">📄 선택 종목 기업 리포트 보기</button>
             <div class="orderbook" id="orderbook" title="호가창 · 클릭하면 지정가로 입력됩니다"></div>
             <div class="trade-row lev-row">
@@ -216,7 +216,7 @@
           • 매매엔 <strong>수수료 0.015%</strong>, 매도엔 <strong>거래세 0.18%</strong>가 붙습니다. 대형 우량주는 <strong>배당금</strong>도 나옵니다.<br>
           • ⚡ <strong>신용 레버리지</strong>(2~5배)로 매수여력을 늘릴 수 있어요. 대신 <strong>이자(일 0.4%)</strong>가 붙고, 자기자본이 부족해지면 <strong>반대매매(마진콜)</strong>로 강제청산됩니다.<br>
           • 🚨 큰 뉴스는 <strong>긴급속보</strong> 창으로 뜨고, <strong>전문가 3인</strong>이 상승/하락 전망을 냅니다 — 서로 엇갈리니 참고만 하세요! (티커에 마우스를 올리면 멈춥니다)<br>
-          • <strong>AI 라이벌</strong> 3명과 순자산 경쟁! 저장은 브라우저에 자동으로 됩니다.
+          • <strong>AI 경쟁 세력</strong> 7곳과 순자산·보유자산·공격 관계를 경쟁합니다. 저장은 브라우저에 자동으로 됩니다.
         </p>
         <p class="credit">원작: ryan101k · 리뉴얼: QuickTrade Pro v2.0</p>
       </div>
@@ -230,11 +230,15 @@
   <script src="./js/character_voices.js"></script>
   <script src="./js/character_dialogue.js"></script>
   <script src="./js/chat_lines.js"></script>
+  <script src="./js/voice.js"></script>
   <script src="./js/bgm.js"></script>
   <script src="./js/events_life.js"></script>
   <script src="./js/romance_events.js"></script>
   <script src="./js/character_stories.js"></script>
   <script src="./js/character_traits.js"></script>
+  <script src="./js/character_cross_events.js"></script>
+  <script src="./js/dangerous_trio.js"></script>
+  <script src="./js/origin_story.js"></script>
   <script src="./js/career_events.js"></script>
   <script src="./js/companies.js"></script>
   <script src="./js/company_reports.js"></script>

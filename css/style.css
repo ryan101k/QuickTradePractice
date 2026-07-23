@@ -85,6 +85,12 @@ body {
 .chat-list { display:flex; flex-direction:column; gap:6px; }
 .chat-contact { width:100%; text-align:left; padding:7px; display:grid; grid-template-columns:38px 1fr auto; gap:7px; align-items:center; }
 .chat-contact img { width:36px; height:36px; object-fit:cover; image-rendering:auto; }
+.contact-avatar { width:36px; height:36px; display:grid; place-items:center; border:2px outset #fff; background:#f4ead7; font-size:22px; }
+.social-chat-contact { background:#fffaf0; }
+.chat-group-title { margin-top:4px; padding:4px 6px; background:#303b4d; color:#fff; font-size:11px; font-weight:bold; }
+.contact-chat-head { display:flex; align-items:center; gap:9px; padding:8px; background:#fff6df; border:2px inset #fff; }
+.contact-chat-head > span { width:48px; height:48px; display:grid; place-items:center; background:#fff; border:2px outset #fff; font-size:29px; }
+.contact-chat-head small { color:#555; }
 .chat-contact .chat-preview { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#555; font-size:11px; }
 .chat-unread { min-width:18px; height:18px; border-radius:9px; background:#c22; color:#fff; text-align:center; line-height:18px; font-weight:bold; }
 .chat-room { display:flex; flex-direction:column; gap:6px; }
@@ -92,9 +98,17 @@ body {
 .chat-log { min-height:220px; max-height:330px; overflow:auto; padding:7px; background:#d9e8d4; border:2px inset #fff; }
 .chat-bubble { max-width:84%; margin:5px 0; padding:6px 8px; border:1px solid #777; background:#fff; box-shadow:1px 1px #888; }
 .chat-bubble.mine { margin-left:auto; background:#fff59d; }
+.bubble-tts { margin-left:6px; padding:0 4px; border:1px solid #bbb; background:#eef4ff; cursor:pointer; font-size:11px; line-height:1.4; vertical-align:middle; }
+.bubble-tts:hover { background:#d6e6ff; }
 .chat-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; }
 .relation-preview { margin-top:8px; padding:8px; border:2px inset #fff; background:#f4f4f4; }
 .faction-status { padding:7px; margin-bottom:6px; background:#111; color:#9cff9c; border:2px inset #aaa; }
+.faction-members { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; margin:5px 0; }
+.faction-member { display:flex; align-items:center; gap:6px; min-width:0; padding:5px; background:#eef3ff; border:2px inset #fff; }
+.faction-member img { width:42px; height:42px; object-fit:cover; flex:0 0 42px; }
+.faction-member span { min-width:0; }
+.faction-member b,.faction-member small { display:block; }
+.faction-member small { color:#555; font-size:10.5px; line-height:1.35; }
 
 /* 연애 시작 선택 버튼 */
 .romance-choice { display: flex; gap: 8px; margin-top: 8px; }
@@ -402,6 +416,14 @@ body {
 .life-bar { background: linear-gradient(90deg, #7a1fd6, #d61f7a) !important; }
 .life-window .window-body { background: #fbf7ff; padding: 10px; max-height: 82vh; overflow-y: auto; }
 .life-intro { font-size: 12.5px; color: #444; margin: 2px 0 8px; }
+.origin-choice { gap:3px; }
+.origin-choice > span { font-size:12px; line-height:1.45; }
+.origin-choice > small { color:#6b4c7b; font-size:10.5px; }
+.origin-selected { padding:6px 8px; margin-bottom:7px; background:#fff1bd; border:1px solid #bc9825; font-weight:bold; }
+.origin-timeline { display:grid; grid-template-columns:1fr auto 1fr auto 1fr; align-items:stretch; gap:5px; margin:8px 0 12px; }
+.origin-timeline div { display:flex; flex-direction:column; justify-content:center; align-items:center; gap:4px; min-height:70px; padding:6px; background:#fff; border:2px outset #fff; text-align:center; font-size:20px; }
+.origin-timeline div b { font-size:11px; line-height:1.3; }
+.origin-timeline i { align-self:center; font-size:17px; font-style:normal; }
 .job-list { border: 1px inset #808080; background: #fff; }
 .job-row { display: flex; align-items: center; gap: 10px; }
 .job-row:hover { background: #f0e6ff; }
@@ -422,7 +444,28 @@ body {
 .macro-summary small { color: #62551f; }
 
 /* 주문: 실시간 평가손익 */
-.pos-pnl { background: #f4f7ff; border: 2px inset #808080; padding: 6px 8px; font-size: 12.5px; margin-bottom: 8px; }
+.pos-pnl { background: #f4f7ff; border: 2px inset #808080; padding: 7px 9px; font-size: 12.5px; margin-bottom: 8px; }
+.position-summary { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:5px 10px; align-items:center; }
+.position-summary.position-profit { background:#edf9f0; border-color:#4b9b61; }
+.position-summary.position-loss { background:#fff0f0; border-color:#bc5757; }
+.position-name { display:flex; align-items:center; gap:6px; min-width:0; }
+.position-name > span { padding:1px 5px; background:#283447; color:#fff; border-radius:3px; font-size:10px; }
+.position-name strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+.position-name small { color:#555; white-space:nowrap; }
+.position-return { text-align:right; }
+.position-return small { display:block; color:#555; font-size:9.5px; line-height:1.1; }
+.position-return strong { display:block; font-size:17px; line-height:1.15; }
+.position-numbers { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:5px 12px; padding-top:4px; border-top:1px solid rgba(70,70,70,.25); }
+.position-numbers span { white-space:nowrap; font-size:11px; }
+.owned-position { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:3px 8px; padding:7px 8px !important; cursor:pointer; border-left:4px solid #888; }
+.owned-position.profit { border-left-color:#d43a3a; background:#fff7f7; }
+.owned-position.loss { border-left-color:#3271c8; background:#f4f8ff; }
+.owned-main { display:flex; gap:5px; align-items:center; min-width:0; }
+.owned-main strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.owned-main > span:last-child { font-size:11px; color:#666; white-space:nowrap; }
+.owned-rate { font-size:14px; text-align:right; }
+.owned-detail { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:2px 9px; font-size:10.5px; color:#555; }
+.owned-detail b { margin-left:auto; }
 .trade-row #amt-buy { width: 92px; }
 
 /* 전문가 리포트 → 구매하러 가기 */
@@ -488,6 +531,17 @@ body {
 .story-track i.done { background: #58a86b; }
 .story-track i.ready { background: #f0b52f; animation: story-ready 1.4s ease-in-out infinite; }
 @keyframes story-ready { 50% { filter: brightness(1.28); } }
+.faction-operation-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin:8px 0; }
+.faction-operation-summary span { display:flex; justify-content:space-between; gap:8px; padding:7px 8px; background:#eef3ff; border:2px inset #fff; font-size:11.5px; }
+.faction-recruit-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin:8px 0; }
+.faction-recruit-card { display:flex; align-items:center; gap:8px; min-width:0; padding:7px; text-align:left; background:#f4f7ff; border:2px outset #fff; cursor:pointer; }
+.faction-recruit-card:hover:not(:disabled) { background:#fff5cc; }
+.faction-recruit-card.locked { filter:grayscale(.55); opacity:.62; }
+.faction-recruit-card img { width:64px; height:64px; object-fit:cover; flex:0 0 64px; }
+.faction-recruit-card span,.faction-recruit-card small,.faction-recruit-card em { display:block; min-width:0; }
+.faction-recruit-card small { margin:2px 0; color:#555; font-size:10.5px; }
+.faction-recruit-card em { color:#666; font-size:10.5px; font-style:normal; line-height:1.35; }
+.leader-avatar { width:24px; height:24px; object-fit:cover; vertical-align:middle; margin:0 3px; border:1px solid #888; }
 
 /* ---------------------------------------------------------------- 반응형 */
 @media (max-width: 1100px) {
@@ -500,6 +554,7 @@ body {
   body { padding: 3px; padding-bottom: env(safe-area-inset-bottom); }
   .status-strip .stat { min-width: 46%; flex: 1 1 46%; }
   .stat-val { font-size: 13px; }
+  .faction-members,.faction-recruit-grid { grid-template-columns:1fr; }
 
   /* 모바일: 주문 버튼을 크고 확실히 누를 수 있게 */
   .trade-row { gap: 6px; align-items: stretch; flex-wrap: wrap; }
@@ -523,6 +578,20 @@ body {
   /* 진행 바를 화면 상단에 고정 — 스크롤해도 남은 시간이 항상 보여 '갑자기 장마감'을 막는다 */
   .session-bar { position: sticky; top: 0; z-index: 60; height: 30px; margin-top: 3px; box-shadow: 0 3px 6px rgba(0,0,0,.35); }
   .session-bar-text { font-size: 12.5px; }
+
+  /* 주문을 내려보는 동안에도 매입 대비 손익이 호가창 위에 남는다. */
+  .position-summary {
+    position: sticky; top: 32px; z-index: 55;
+    margin: 0 -1px 7px; padding: 9px 10px;
+    box-shadow: 0 3px 7px rgba(0,0,0,.32);
+  }
+  .position-return strong { font-size: 20px; }
+  .position-numbers { justify-content:space-between; gap:4px 8px; }
+  .position-numbers span { font-size:11.5px; }
+  .orderbook { max-height: 138px; }
+  .owned-position { padding:9px 8px !important; }
+  .owned-rate { font-size:16px; }
+  .faction-operation-summary { grid-template-columns:1fr; }
 
   /* 세로 길이 줄이기 (한 화면에 더 많이 보이게) */
   .col-left .scroll { height: 180px; }
@@ -657,9 +726,85 @@ body {
 }
 .important-event-count { margin: 5px 0 8px; color: #666; font-size: 11px; text-align: right; }
 .important-event-window .session-btn { width: 100%; }
+.cross-cast {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px;
+  margin:8px 0;
+}
+.cross-person {
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  min-width:0;
+  padding:7px;
+  border:1px solid #8e88a8;
+  background:#f7f3ff;
+}
+.cross-person img { width:64px; height:78px; object-fit:cover; object-position:top; border:2px ridge #fff; flex:0 0 auto; }
+.cross-person > div { min-width:0; }
+.cross-person small { display:block; color:#666; margin-top:2px; }
+.cross-person p { margin:5px 0 0; line-height:1.4; color:#352c54; }
+.captivity-ending-window { max-width:620px; }
+.captivity-rescue-box {
+  margin:9px 0;
+  padding:8px;
+  border:1px solid #6b5a74;
+  background:#f2edf6;
+}
+.captivity-rescue-box > b { display:block; margin-bottom:6px; }
+.captivity-rescue-box button small { display:block; margin-top:2px; color:#666; }
+.captivity-glitch { animation:captivity-glitch .15s steps(2,end) 4; }
+.sera-return-button { width:100%; margin-top:9px; animation:sera-return 1.3s ease-in-out infinite alternate; }
+.sera-loop-window { box-shadow:0 0 0 4px #210a2b, 0 0 28px #a2116f; }
+.sera-loop-window .event-title { color:#67003f; }
+.trio-route-window { max-width:720px; }
+.trio-cast {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+  margin:8px 0;
+}
+.trio-person {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-width:0;
+  padding:6px;
+  border:1px solid #4c334e;
+  background:linear-gradient(135deg,#f3edf4,#ddd4df);
+}
+.trio-person img { width:52px; height:64px; object-fit:cover; object-position:top; border:2px ridge #fff; }
+.trio-person b,.trio-person small { display:block; }
+.trio-person small { color:#665b68; }
+.trio-requirements { display:grid; gap:6px; margin:8px 0; }
+.trio-requirement { display:grid; grid-template-columns:120px 1fr; gap:3px 8px; padding:7px; border:1px solid #8e7b90; background:#eee8ef; }
+.trio-requirement.ready { border-color:#397044; background:#edf7ef; }
+.trio-requirement small { grid-column:2; color:#666; }
+.trio-dialogues { display:grid; gap:5px; margin:8px 0; }
+.trio-dialogue { display:flex; gap:8px; align-items:flex-start; padding:6px; border-left:4px solid #4c334e; background:#f4eff5; }
+.trio-dialogue img { width:48px; height:55px; object-fit:cover; object-position:top; flex:0 0 auto; }
+.trio-dialogue p { margin:2px 0 0; line-height:1.4; }
+.trio-meter { display:flex; justify-content:space-between; align-items:center; padding:5px 8px; margin-bottom:7px; border:1px inset #aaa; background:#e9e2eb; }
+@keyframes captivity-glitch {
+  0% { transform:translateX(-3px); filter:hue-rotate(0deg); }
+  50% { transform:translateX(4px); filter:hue-rotate(80deg); }
+  100% { transform:translateX(0); filter:none; }
+}
+@keyframes sera-return {
+  from { box-shadow:0 0 2px #5d073b; }
+  to { box-shadow:0 0 13px #e036a1; }
+}
 @media (max-width: 600px) {
   .life-scene-banner { max-height: 180px; }
   .hub-scene-banner { max-height: 125px; }
+  .cross-cast { grid-template-columns:1fr; }
+  .cross-person img { width:54px; height:66px; }
+  .trio-cast { grid-template-columns:repeat(3,1fr); }
+  .trio-person { display:block; text-align:center; }
+  .trio-person img { width:100%; height:76px; }
+  .trio-requirement { grid-template-columns:1fr; }
+  .trio-requirement small { grid-column:1; }
 }
 .expert .ex-name small { display:block; color:#666; font-weight:normal; margin-top:2px; }
 .expert .ex-cmt { line-height:1.45; }
