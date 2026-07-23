@@ -1443,6 +1443,7 @@ function showDebtGameOver() {
 function startMakjangLife(){
   const L=S.life;LOAN.ensure(L);L.makjang=true;L.job='none';CAREER.switchJob(L,'none');L.creditScore=80;L.criminalRecord=(L.criminalRecord||0)+1;L.sharkMonths=0;L.collectionLevel=3;L.happy=12;L.health=Math.min(L.health,55);L.stress=95;
   L.loans=[{id:'taesik-'+Date.now(),providerId:'shark',name:'장태식의 목숨값',tier:'불법 사채',balance:150000000,monthlyRate:.10,illegal:true}];LOAN.sync(L);S.capital=30000000;S.phase='closed';S.paused=false;
+  const taesik=rememberPerson(Object.assign({},D.SPECIAL_CHARACTERS.taesik),'friend');taesik.affection=Math.max(18,taesik.affection||0);taesik.trust=Math.max(0,taesik.trust||0);
   LEGACY.push(L,dateInfo(S.day).age,'🔥','장태식의 제안을 받아 막장 인생을 시작했다','justice');closeLifeModal();addNews('🔥 막장 인생 루트 시작 · 현금 3천만원, 사채 1억5천만원, 전과 1범','bad');flashToast('🔥 막장 인생이 시작됐습니다','bad');renderAll();renderMarketPhase();autoSave();
 }
 
@@ -2221,6 +2222,7 @@ function resolvePersonRequest(kind) {
 
 const CHARACTER_EVENT_SCENES={
   '나래':'event-narae-market-crash.png','강유진':'event-yujin-rain-rescue.png','윤세라':'event-sera-doorstep.png','한채린':'event-chaerin-contract.png',
+  '장태식':'life-debt-crisis.png',
   '서연':'event-seoyeon-repair.png','하은':'event-haeun-hospital.png','예린':'event-yerin-rain.png','채원':'event-chaewon-airport.png','유나':'event-yuna-backstage.png','수아':'event-sua-classroom.png','보라':'event-bora-pharmacy.png',
   '다은':'event-daeun-cake.png','혜진':'event-hyejin-blackout.png','소희':'event-sohee-backstage.png','아린':'event-arin-first-snow.png','나영':'event-nayoung-wrist.png','미래':'event-mirae-launch.png'
 };
@@ -2230,7 +2232,8 @@ function showCharacterStory(name){
   const r=metRecord(S.life,name),story=r&&STORIES.get(name),chapter=r&&STORIES.next(r);if(!r||!story)return;
   if(!chapter){flashToast(STORIES.ensure(r).completed?'📖 이 인물의 개인 스토리를 모두 봤습니다':`🔒 다음 스토리는 호감도 ${story.chapters[STORIES.ensure(r).chapter].min} 필요`,'neutral');return;}
   const host=$('life-event');if(!host)return;S._storyPerson=r;host.style.display='block';
-  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">📖 ${r.name} 개인 스토리 ${chapter.index+1}/3</div><div class="title-bar-controls"><button aria-label="Close" id="story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${characterEventScene(r.name)}" alt="${r.name} 특별 이벤트 장면"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(r,chapter.index===1?'sad':'neutral')}" alt="${r.name}"><div><strong>${chapter.title}</strong><br><span class="muted">${story.theme}</span></div></div><div class="event-desc">${chapter.desc}</div><div class="event-options">${chapter.choices.map(c=>`<button class="event-opt" data-story-choice="${c.id}">${c.text}</button>`).join('')}<button class="event-opt" id="story-close">나중에 결정한다</button></div><div class="event-outcome" id="story-outcome"></div></div></div>`;
+  const continuity=STORIES.context?STORIES.context(r,chapter):'';
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">📖 ${r.name} 개인 스토리 ${chapter.index+1}/3</div><div class="title-bar-controls"><button aria-label="Close" id="story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${characterEventScene(r.name)}" alt="${r.name} 특별 이벤트 장면"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(r,chapter.index===1?'sad':'neutral')}" alt="${r.name}"><div><strong>${chapter.title}</strong><br><span class="muted">${story.theme}</span></div></div>${continuity?`<div class="story-continuity">🧷 ${continuity}</div>`:''}<div class="event-desc">${chapter.desc}</div>${chapter.speaker?`<div class="story-dialogue"><b>${r.name}</b> “${chapter.speaker}”</div>`:''}<div class="event-options">${chapter.choices.map(c=>`<button class="event-opt" data-story-choice="${c.id}">${c.text}${c.preview?`<span class="opt-sub">${c.preview}</span>`:''}</button>`).join('')}<button class="event-opt" id="story-close">지금은 답하지 않는다</button></div><div class="event-outcome" id="story-outcome"></div></div></div>`;
   host.querySelectorAll('[data-story-choice]').forEach(b=>b.addEventListener('click',()=>resolveCharacterStory(b.dataset.storyChoice)));
   [$('story-x'),$('story-close')].forEach(b=>{if(b)b.addEventListener('click',closeCharacterStory);});
 }
@@ -2254,12 +2257,14 @@ function queueAvailableStories(L){
 }
 function resolveCharacterStory(choice){
   const r=S._storyPerson,result=r&&STORIES.apply(r,choice);if(!result)return;
-  markMonthAction('인맥');
+  if(!S._storyFromQueue)markMonthAction('인맥');
   const out=$('story-outcome'),opts=out&&out.parentElement.querySelector('.event-options');if(opts)opts.innerHTML='';
   const storyScene=result.choice.tone==='good'?'storyGood':result.choice.tone==='bad'?'storyBad':'storyNeutral';
   const authored=window.QT_CHARACTER_DIALOGUE&&QT_CHARACTER_DIALOGUE.line(r,storyScene);
-  const reaction=authored||(result.choice.tone==='good'?'당신이 자기 편이라는 사실을 오래 기억하겠다고 했습니다.':result.choice.tone==='bad'?'필요할 때 외면당한 일을 쉽게 잊지 못할 것 같습니다.':'당신의 방식에 동의하진 않지만 결과를 지켜보기로 했습니다.');
-  out.innerHTML=`<div class="oc-text"><b class="${result.choice.tone==='good'?'up':result.choice.tone==='bad'?'down':''}">${r.name}의 반응:</b> “${reaction}”${result.completed?'<br><b>📕 개인 스토리 완결</b>':''}</div><div class="oc-changes">호감 ${result.choice.affection>=0?'+':''}${result.choice.affection} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust} · 집착 ${result.choice.obsession>=0?'+':''}${result.choice.obsession}</div><button id="story-confirm" class="session-btn opening">확인</button>`;
+  const reaction=result.choice.reaction||authored||(result.choice.tone==='good'?'당신이 자기 편이라는 사실을 오래 기억하겠다고 했습니다.':result.choice.tone==='bad'?'필요할 때 외면당한 일을 쉽게 잊지 못할 것 같습니다.':'당신의 방식에 동의하진 않지만 결과를 지켜보기로 했습니다.');
+  const lifeChanges=result.choice.effects?applyEventEffects(result.choice.effects):[];
+  const ending=result.completed&&result.ending?`<div class="story-ending"><b>📕 ${result.ending.title}</b><br>${result.ending.text}</div>`:'';
+  out.innerHTML=`<div class="oc-text"><b class="${result.choice.tone==='good'?'up':result.choice.tone==='bad'?'down':''}">${r.name}의 반응:</b> “${reaction}”${result.completed?'<br><b>개인 스토리 완결</b>':''}</div><div class="oc-changes">호감 ${result.choice.affection>=0?'+':''}${result.choice.affection} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust} · 집착 ${result.choice.obsession>=0?'+':''}${result.choice.obsession}${lifeChanges.length?` · ${lifeChanges.join(' · ')}`:''}</div>${ending}<button id="story-confirm" class="session-btn opening">확인</button>`;
   pushPersonMessage(S.life,r,reaction,false);addNews(`📖 ${r.name} 개인 스토리 · ${result.chapter.title}`,result.choice.tone);$('story-confirm').addEventListener('click',closeCharacterStory);renderLifePanel();autoSave();
 }
 
@@ -3467,6 +3472,16 @@ function renderLifePanel() {
 }
 
 /* ---- 마감 리포트에 들어갈 '이번 달 행동' 허브 ---- */
+function storyProgressHTML(L) {
+  const rows=ensureMet(L).filter(r=>STORIES.get(r.name)&&['friend','casual','partner','polycule','lover'].includes(r.status)).map(r=>{
+    const story=STORIES.get(r.name),state=STORIES.ensure(r),next=STORIES.next(r);
+    const title=state.completed?(state.ending&&state.ending.title||'완결'):story.chapters[state.chapter].title;
+    const bars=story.chapters.map((_,i)=>`<i class="${i<state.chapter?'done':i===state.chapter&&next?'ready':''}"></i>`).join('');
+    return `<div class="story-progress-card"><strong>${r.emoji||'📖'} ${r.name}</strong><div><div class="story-track" aria-label="${r.name} 개인 스토리 ${state.chapter}/3">${bars}</div><small>${state.completed?`완결 · ${title}`:next?`${state.chapter+1}장 진행 가능 · ${title}`:`${state.chapter+1}장 ${title} · 호감 ${story.chapters[state.chapter].min} 필요`}</small></div></div>`;
+  });
+  return rows.length?`<div class="story-progress-list"><div class="hub-title">📖 이어지는 인물 이야기</div>${rows.slice(0,5).join('')}</div>`:'';
+}
+
 function lifeHubHTML() {
   const L = S.life, R = D.RELATIONSHIP;
   LOAN.ensure(L);
@@ -3536,6 +3551,7 @@ function lifeHubHTML() {
       <div class="hub-title">🎬 ${weekLabel} <span class="muted">주요 행동 ${actionUsed}/${LIFE_ACTIONS_PER_MONTH} · 남은 자유시간 ${actionLeft}회</span></div>
       <div class="life-time-progress" aria-label="이번 달 자유시간 사용 현황">${Array.from({length:LIFE_ACTIONS_PER_MONTH},(_,i)=>`<span class="${i<actionUsed?'used':i===actionUsed?'available current':'available'}">${i<actionUsed?'✓':i+1+'주차'}</span>`).join('')}</div>
       <div class="hub-note">외출·취미·휴식·경력·인맥·가족·라이벌 중 서로 다른 행동을 최대 3회 선택하세요. 게임·맛집·헬스·여행·휴식 같은 활동 중에도 취향이 맞는 사람을 우연히 만날 수 있고, 외출 장소와 현재 조건에 따라 만나는 인물과 특별 장면이 달라집니다.</div>
+      ${storyProgressHTML(L)}
       <div class="month-action-status">${['데이트','취미','휴식','경력','인맥','가족','라이벌'].map(g=>`<span class="${monthActionUsed(g)?'done':''}">${monthActionUsed(g)?'✓':'○'} ${g}</span>`).join('')}</div>
       <div class="hub-quick">${quickBtns}</div>
       <details class="hub-more"><summary>🧰 다른 행동 보기</summary>

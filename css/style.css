@@ -476,6 +476,18 @@ body {
 .oc-text { font-size: 13px; margin-bottom: 4px; }
 .oc-changes { font-size: 13px; font-weight: bold; margin-bottom: 8px; }
 #event-confirm { width: 100%; padding: 8px; }
+.story-continuity { margin: 6px 0 10px; padding: 7px 9px; background: #edf3ff; border-left: 4px solid #4768b2; font-size: 12px; line-height: 1.5; }
+.story-dialogue { margin: 7px 0 10px; padding: 8px 10px; background: #fff; border: 1px solid #d4b7c7; font-size: 13px; line-height: 1.55; }
+.story-ending { margin-top: 8px; padding: 8px 10px; background: #fff3c9; border: 2px solid #c99f29; line-height: 1.5; }
+.story-progress-list { margin: 7px 0; display: grid; gap: 5px; }
+.story-progress-card { display: grid; grid-template-columns: minmax(72px, auto) 1fr; gap: 5px 9px; padding: 7px 8px; background: #f8f3ff; border: 1px solid #b9a7d3; font-size: 11.5px; }
+.story-progress-card strong { align-self: center; }
+.story-progress-card small { color: #555; }
+.story-track { display: flex; gap: 3px; align-items: center; }
+.story-track i { flex: 1; height: 7px; background: #ddd; border: 1px solid #999; }
+.story-track i.done { background: #58a86b; }
+.story-track i.ready { background: #f0b52f; animation: story-ready 1.4s ease-in-out infinite; }
+@keyframes story-ready { 50% { filter: brightness(1.28); } }
 
 /* ---------------------------------------------------------------- 반응형 */
 @media (max-width: 1100px) {
@@ -597,6 +609,8 @@ body {
   .life-stat { padding: 8px; font-size: 13.5px; }
   .bgm-group { flex: 1 1 100%; }
   #bgm-vol { flex: 1; min-height: 34px; }
+
+  .story-progress-card { grid-template-columns: 76px 1fr; }
 }
 .dating-banner {
   display: block;
