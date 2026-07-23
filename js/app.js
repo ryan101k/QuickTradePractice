@@ -34,7 +34,7 @@ const COMPANY = window.QT_COMPANY;
 const CFG = {
   START_CAPITAL: 1000000,   // 시작 자본금
   TICK_MS: 4500,            // 기본 1배속 틱 간격(ms) — 템포를 낮춰 덜 정신없게
-  DAILY_LIMIT: 0.30,        // 상한가/하한가 ±30%
+  DAILY_LIMIT: 0.30,        // ETF·특수자산 비상 한도(일반주는 시총별 월간 한도 사용)
   FEE_RATE: 0.00015,        // 매매 수수료 0.015%
   TAX_RATE: 0.0018,         // 매도 거래세 0.18%
   HISTORY_LEN: 60,          // 종목 히스토리 보관 길이
@@ -45,8 +45,10 @@ const CFG = {
   MAINT_MARGIN: 0.25,       // 유지증거금율 (자기자본/롱평가액) 미만 시 반대매매
   SHORT_MAX_LEVERAGE: 2.0,  // 순자산 대비 최대 공매도 노출
   SHORT_MAINT_MARGIN: 0.30, // 숏 유지증거금율
-  BREAKING_MIN: 0.12,       // 이 이상 |impact| 회사 이슈면 긴급속보 대상
-  NEWS_MIN: 0.06,           // 이 이상 |impact| 회사 이슈는 뉴스 로그·기업 리포트에 기록
+  BREAKING_MIN: 0.07,       // 실제 반영 충격이 이 이상이면 긴급속보 대상
+  NEWS_MIN: 0.025,          // 실제 반영 충격이 이 이상이면 뉴스·기업 리포트에 기록
+  MARKET_CIRCUIT: -0.08,    // 시장 평균이 시초가 대비 -8%면 서킷브레이커
+  CIRCUIT_TICKS: 2,         // 서킷브레이커 정지 틱
   BREAKING_MS: 11000,       // 긴급속보 자동 닫힘(ms)
   BREAKING_INSESSION_PROB: 0.03, // 장중 속보 등장 확률(아주 가끔). 나머지 뉴스는 마감 리포트에서 몰아 봄
   INTRA_HELP_PROB: 0.05,         // 장중 인맥·연인·지인이 도움을 주는 확률(틱당)
@@ -54,9 +56,10 @@ const CFG = {
 };
 
 const CAP_META = {
-  large: { label: '대형', sigma: 0.018, issueMul: 0.5, badge: '🏛️' },
-  mid:   { label: '중형', sigma: 0.032, issueMul: 1.0, badge: '🏢' },
-  small: { label: '소형', sigma: 0.055, issueMul: 1.5, badge: '🎲' },
+  // sigma는 '틱당', sessionLimit은 한 달(20틱) 전체 한도다.
+  large: { label: '대형', sigma: 0.0022, issueMul: 0.16, tickLimit: 0.018, sessionLimit: 0.08, issueChance: 0.05, badge: '🏛️' },
+  mid:   { label: '중형', sigma: 0.0038, issueMul: 0.27, tickLimit: 0.032, sessionLimit: 0.13, issueChance: 0.08, badge: '🏢' },
+  small: { label: '소형', sigma: 0.0065, issueMul: 0.42, tickLimit: 0.055, sessionLimit: 0.20, issueChance: 0.12, badge: '🎲' },
   etf:   { label: 'ETF',  sigma: 0.010, issueMul: 0.0, badge: '📊' },
   macro: { label: '경제자산', sigma: 0.008, issueMul: 0.0, badge: '🌐' },
 };
@@ -103,6 +106,9 @@ const S = {
   dayStartNW: CFG.START_CAPITAL, // 개장 시점 순자산(당월 손익 계산용)
   life: null,                 // 인생 상태(직업/행복/관계/부동산/대출) — boot 에서 초기화
   economy: null,              // 장기 경제 국면
+  circuitBreakerTicks: 0,     // 시장 급락 시 남은 거래정지 틱
+  circuitBreakerTriggered: false,
+  marketSessionReturn: 0,
 };
 
 /* 인생 모드 설정 */
@@ -202,8 +208,11 @@ function buildStocks() {
   const normal = D.COMPANY_MASTER.map(m => ({
     ...m,
     history: [{ o: m.price, h: m.price, l: m.price, c: m.price }],
-    trend: rand(-0.004, 0.004),   // 완만한 개별 추세(드리프트)
+    trend: rand(-0.0008, 0.0008), // 완만한 개별 추세(월간 누적)
     pendingIssue: null,
+    issueCooldown: Math.floor(rand(1, 5)),
+    sessionOpen: m.price,
+    viTicks: 0,
     volume: Math.floor(rand(1e5, 1e7)),
     delistCounter: 0,
     listed: true,
@@ -228,14 +237,31 @@ function buildBots() {
 
 /* ------------------------------------------------------------------ 이벤트 배정 */
 function rollIssue(stock) {
-  // 30% 확률로 별일 없음, 나머지는 회사/섹터 이벤트 풀에서 선택
+  // 종목마다 3~6틱에 한 번만 확인하고, 시총별 확률을 통과해야 실제 이슈가 생긴다.
+  const meta = CAP_META[stock.cap] || CAP_META.mid;
+  if (Math.random() > meta.issueChance) return null;
   const pool = [];
-  D.EVENTS_NONE.forEach(e => pool.push(e));
   D.EVENTS_COMPANY_GOOD.forEach(e => pool.push({ ...e, type: 'good' }));
   D.EVENTS_COMPANY_BAD.forEach(e => pool.push({ ...e, type: 'bad' }));
   D.EVENTS_SECTOR.filter(e => e.sector === stock.sector)
     .forEach(e => pool.push({ ...e, type: e.impact >= 0 ? 'good' : 'bad' }));
-  return weightedPick(pool);
+  return pool.length ? weightedPick(pool) : null;
+}
+
+function boundedStockChange(stock, rawRate, meta) {
+  const prev = stock.history[stock.history.length - 1].c;
+  const open = stock.sessionOpen || prev;
+  const tickRate = clamp(rawRate, -meta.tickLimit, meta.tickLimit);
+  let projected = prev * (1 + tickRate);
+  const low = open * (1 - meta.sessionLimit);
+  const high = open * (1 + meta.sessionLimit);
+  projected = clamp(projected, low, high);
+  const rate = projected / prev - 1;
+  return {
+    rate,
+    vi: Math.abs(rawRate) > meta.tickLimit + 0.00001,
+    limitHit: projected <= low + 1 || projected >= high - 1,
+  };
 }
 
 // OHLC 캔들 한 개 기록 (일반주/ETF 공용)
@@ -276,12 +302,26 @@ function tick() {
   S.sessionTick++;
   S._breakCand = [];   // 이번 틱 긴급속보 후보
 
-  // 시장 전체 이벤트: 약 6% 확률로 발생
-  S.marketEvent = Math.random() < 0.06 ? weightedPick(D.EVENTS_MARKET) : null;
-  const marketImpact = S.marketEvent ? S.marketEvent.impact : 0;
+  // 시장 전체 거래정지는 시간이 흐르는 동안 가격·주문 체결을 멈춘다.
+  if (S.circuitBreakerTicks > 0) {
+    S.circuitBreakerTicks--;
+    if (S.circuitBreakerTicks === 0) {
+      addNews('🔔 서킷브레이커 해제 · 거래가 재개됩니다', 'neutral');
+      flashToast('🔔 거래 재개', 'neutral');
+    }
+    renderAll();
+    renderSessionProgress();
+    autoSave();
+    if (S.sessionTick >= CFG.TICKS_PER_DAY) closeMarket();
+    return;
+  }
+
+  // 시장 전체 돌발 뉴스도 드물게 발생하며, 원래 충격의 35%만 실제 가격에 반영한다.
+  S.marketEvent = Math.random() < 0.035 ? weightedPick(D.EVENTS_MARKET) : null;
+  const marketImpact = S.marketEvent ? S.marketEvent.impact * 0.35 : 0;
   if (S.marketEvent) {
     addNews(S.marketEvent.text, S.marketEvent.type === 'good' ? 'good' : 'bad');
-    const mItem = { headline: S.marketEvent.text, target: '시장 전체', impact: S.marketEvent.impact, market: true };
+    const mItem = { headline: S.marketEvent.text, target: '시장 전체', impact: marketImpact, market: true };
     S._breakCand.push(mItem);
     S.sessionNews.push(mItem);   // 마감 리포트에 기록
   }
@@ -292,36 +332,67 @@ function tick() {
     if (!stock.listed || stock.type === 'etf' || stock.type === 'macro') return;   // 지수·경제자산은 아래에서 별도 처리
     const meta = CAP_META[stock.cap];
 
+    if ((stock.viTicks || 0) > 0) {
+      stock.viTicks--;
+      pushCandle(stock, 0);
+      idxCount++;
+      return;
+    }
+
     // 1) 대기 중이던 이슈를 이번 틱에 반영
     let issueImpact = 0;
     if (stock.pendingIssue && stock.pendingIssue.impact) {
       issueImpact = stock.pendingIssue.impact * meta.issueMul;
     }
 
-    // 2) 다음 틱용 새 이슈 배정
-    stock.pendingIssue = rollIssue(stock);
+    // 2) 다음 틱용 새 이슈 배정 — 매 틱이 아니라 쿨다운 뒤에만 확인
+    stock.pendingIssue = null;
+    stock.issueCooldown = Number.isFinite(stock.issueCooldown) ? stock.issueCooldown - 1 : 0;
+    if (stock.issueCooldown <= 0) {
+      stock.pendingIssue = rollIssue(stock);
+      stock.issueCooldown = Math.round(rand(4, 8));
+    }
     const iss = stock.pendingIssue;
     if (iss && iss.impact) {
-      const mag = Math.abs(iss.impact);
+      const effectiveImpact = iss.impact * meta.issueMul;
+      const mag = Math.abs(effectiveImpact);
       // 어느 정도 의미 있는 공시는 기업 리포트·뉴스 로그에 남긴다(피드를 풍부하게)
-      if (mag >= CFG.NEWS_MIN) logCompanyNews(stock.name, iss.text, iss.impact);
+      if (mag >= CFG.NEWS_MIN) logCompanyNews(stock.name, iss.text, effectiveImpact);
       // 큰 이슈만 긴급속보 후보 + 마감 리포트 헤드라인 (미리 베팅 기회)
       if (mag >= CFG.BREAKING_MIN) {
-        const nItem = { headline: `${stock.name} — ${iss.text}`, target: stock.name, impact: iss.impact };
+        const nItem = { headline: `${stock.name} — ${iss.text}`, target: stock.name, impact: effectiveImpact };
         S._breakCand.push(nItem);
         S.sessionNews.push(nItem);
       }
     }
 
-    // 3) 랜덤 노이즈(삼각분포로 0 근처가 잦게) + 추세 + 이슈 + 시장
+    // 3) 경기·섹터 방향은 월간 목표로 잡고 20틱에 나눠 누적한다.
     const noise = (Math.random() + Math.random() - 1) * meta.sigma * stock.vol;
-    let changeRate = stock.trend + noise + issueImpact + marketImpact + ECONOMY.stockImpact(S.economy, stock.sector);
+    const economyTrend = ECONOMY.stockImpact(S.economy, stock.sector) * 2.4 / CFG.TICKS_PER_DAY;
+    const factionFlow = (stock.factionFlowTicks || 0) > 0 ? (stock.factionFlowRate || 0) : 0;
+    const rawRate = stock.trend + noise + issueImpact + marketImpact + economyTrend + factionFlow;
+    const bounded = boundedStockChange(stock, rawRate, meta);
+    const changeRate = bounded.rate;
+    if ((stock.factionFlowTicks || 0) > 0) {
+      stock.factionFlowTicks--;
+      if (stock.factionFlowTicks <= 0) stock.factionFlowRate = 0;
+    }
 
-    // 4) 상한가/하한가 제한
-    changeRate = clamp(changeRate, -CFG.DAILY_LIMIT, CFG.DAILY_LIMIT);
+    if (bounded.vi && stock.viAnnouncedDay !== S.day) {
+      stock.viAnnouncedDay = S.day;
+      stock.viTicks = 1;
+      if ((S.viNewsCount || 0) < 3) {
+        S.viNewsCount = (S.viNewsCount || 0) + 1;
+        logCompanyNews(stock.name, `변동성 완화장치 발동 · ${meta.label}주 틱 한도 ${pct(meta.tickLimit)}`, 0);
+      }
+    }
+    if (bounded.limitHit && stock.limitAnnouncedDay !== S.day) {
+      stock.limitAnnouncedDay = S.day;
+      logCompanyNews(stock.name, `${meta.label}주 월간 가격제한폭 ${pct(meta.sessionLimit)} 도달`, changeRate);
+    }
 
     // 5) 추세는 서서히 평균회귀 + 가끔 방향 전환
-    stock.trend = stock.trend * 0.95 + rand(-0.002, 0.002);
+    stock.trend = clamp(stock.trend * 0.985 + rand(-0.00018, 0.00018), -0.0015, 0.0015);
 
     pushCandle(stock, changeRate);
     stock.volume = Math.floor(stock.volume * rand(0.6, 1.5));
@@ -338,6 +409,22 @@ function tick() {
 
   // (B) ETF: 시장 지수 등락률 × 레버리지 배율(인버스는 반대) + 약간의 추적오차
   const indexReturn = idxCount ? idxSum / idxCount : 0;
+  const ordinaryStocks = S.stocks.filter(stock => stock.listed && stock.type !== 'etf' && stock.type !== 'macro');
+  S.marketSessionReturn = ordinaryStocks.length
+    ? ordinaryStocks.reduce((sum, stock) => {
+        const now = stock.history[stock.history.length - 1].c;
+        return sum + (now / (stock.sessionOpen || now) - 1);
+      }, 0) / ordinaryStocks.length
+    : 0;
+  if (!S.circuitBreakerTriggered && S.marketSessionReturn <= CFG.MARKET_CIRCUIT) {
+    S.circuitBreakerTriggered = true;
+    S.circuitBreakerTicks = CFG.CIRCUIT_TICKS;
+    const cb = { headline:'시장 급락으로 서킷브레이커 발동', target:'시장 전체', impact:S.marketSessionReturn, market:true };
+    S.sessionNews.push(cb);
+    addNews(`⛔ 서킷브레이커 발동 · 시장 평균 ${pct(S.marketSessionReturn)} · ${CFG.CIRCUIT_TICKS}틱 거래정지`, 'bad');
+    flashToast('⛔ 서킷브레이커 · 거래 일시 정지', 'bad');
+    playSound('error');
+  }
   // BGM은 한 틱의 출렁임보다 최근 장 분위기를 따라가게 완충한다.
   S.bgmMarketTrend = (S.bgmMarketTrend || 0) * 0.72 + indexReturn * 0.28;
   S.stocks.forEach(stock => {
@@ -625,6 +712,7 @@ function maybeObsessionIntrusion(){
 function anyIntraPopupOpen() {
   if (S.breaking) return true;
   if (S._helpActive) return true;
+  if (S._factionTradeCall) return true;
   const bk = $('bankrupt-host');
   if (bk && bk.style.display === 'block') return true;
   return false;
@@ -724,9 +812,27 @@ function openMarket() {
   S.paused = false;
   S.sessionTick = 0;
   S.sessionNews = [];
+  S.circuitBreakerTicks = 0;
+  S.circuitBreakerTriggered = false;
+  S.marketSessionReturn = 0;
+  S.viNewsCount = 0;
+  S.stocks.forEach(stock => {
+    if (!stock.listed) return;
+    stock.sessionOpen = stock.history[stock.history.length - 1].c;
+    stock.viTicks = 0;
+    stock.viAnnouncedDay = null;
+    stock.limitAnnouncedDay = null;
+  });
   S.dayStartNW = netWorthClean();
   closeReport();                        // 마감 리포트 닫기
   addNews(`📅 ${S.day}일차 개장`, 'neutral');
+  const outlook = ECONOMY.outlook(S.economy);
+  const sectorNames = ids => ids.map(id => (D.SECTORS[id] || {}).name || id).join('·');
+  const strong = sectorNames(outlook.strong.slice(0, 2));
+  const weak = sectorNames(outlook.weak.slice(0, 2));
+  const outlookText = `${outlook.text}${strong ? ` · 강세 ${strong}` : ''}${weak ? ` · 약세 ${weak}` : ''}`;
+  addNews(`📰 월간 경제전망 — ${outlookText}`, outlook.monthlyMarket >= 0 ? 'good' : 'bad');
+  S.sessionNews.push({ headline:outlookText, target:'경제 국면', impact:outlook.monthlyMarket, market:true });
   flashToast(`🔔 ${S.day}일차 장 개장! 행운을 빕니다`, 'good');
   playSound('buy');
   setSpeed(S.speed);                    // 타이머 시작
@@ -734,6 +840,7 @@ function openMarket() {
   renderMarketPhase();
   runPendingOrders();                   // 마감 중 걸어둔 예약주문을 시초가로 체결
   renderAll();
+  maybeFactionTradeCall();              // 조직이 있으면 공동 매매 작전 연락이 올 수 있다
 }
 
 function closeMarket() {
@@ -791,7 +898,12 @@ function renderMarketPhase() {
   if (open) {
     if (btn) { btn.textContent = '🔴 장 마감'; btn.className = 'session-btn closing'; }
     const left = Math.max(0, CFG.TICKS_PER_DAY - S.sessionTick);
-    if (badge) { badge.textContent = `🟢 장중 · ${left}/${CFG.TICKS_PER_DAY}틱 남음`; badge.className = 'phase-badge open'; }
+    if (badge) {
+      badge.textContent = S.circuitBreakerTicks > 0
+        ? `⛔ 서킷브레이커 · ${S.circuitBreakerTicks}틱 뒤 재개`
+        : `🟢 장중 · ${left}/${CFG.TICKS_PER_DAY}틱 남음 · 시장 ${pct(S.marketSessionReturn || 0)}`;
+      badge.className = 'phase-badge open';
+    }
   } else {
     if (btn) {
       btn.textContent = S.life && !S.life.started
@@ -828,7 +940,9 @@ function renderSessionProgress() {
     fill.style.width = pct + '%';
     const alert = S._autoPaused && anyIntraPopupOpen();
     bar.className = 'session-bar open' + (left <= 3 ? ' ending' : '') + (alert ? ' alert' : '');
-    text.textContent = alert
+    text.textContent = S.circuitBreakerTicks > 0
+      ? `⛔ 서킷브레이커 · ${S.circuitBreakerTicks}틱 뒤 거래 재개 · 시장 ${pct(S.marketSessionReturn || 0)}`
+      : alert
       ? `🔔 알림 도착! 확인하세요 · ⏸ 정지됨 (${done}/${total}틱)`
       : S.paused
         ? `⏸ 일시정지 · ${done}/${total}틱 (${pct}%)`
@@ -869,7 +983,6 @@ function renderCloseReport(day) {
   if (st.salary) settleBits.push(`${st.salary >= 0 ? '월급' : '적자'} <b class="${st.salary >= 0 ? 'up' : 'down'}">${st.salary >= 0 ? '+' : ''}${won(st.salary)}</b>`);
   if (st.rent) settleBits.push(`월세 <b class="up">+${won(st.rent)}</b>`);
   if (st.passive) settleBits.push(`자동수입 <b class="up">+${won(st.passive)}</b>`);
-  if (st.factionFund) settleBits.push(`세력운용 <b class="${st.factionFund >= 0 ? 'up' : 'down'}">${st.factionFund >= 0 ? '+' : ''}${won(st.factionFund)}</b>`);
   if (st.factionBiz) settleBits.push(`조직원 수입 <b class="up">+${won(st.factionBiz)}</b>`);
   if (st.factionUpkeep) settleBits.push(`조직 운영비 <b class="down">-${won(st.factionUpkeep)}</b>`);
   if (st.partner) settleBits.push(`연인·배우자 <b class="${st.partner >= 0 ? 'up' : 'down'}">${st.partner >= 0 ? '+' : ''}${won(st.partner)}</b>`);
@@ -993,8 +1106,8 @@ function totalWealth() {
     const item = D.PASSIVE_ASSETS.find(x => x.id === a.id);
     return s + (item ? Math.round(item.price * item.resaleRate) : 0);
   }, 0);
-  const factionFund = (L.faction && L.faction.fund) || 0;
-  return netWorthClean() + propVal + passiveVal + factionFund + HOUSING.assetValue(L) - L.loan;
+  // 세력 운영 투자는 회수할 수 없는 조직 인프라 비용이므로 개인 순자산에 포함하지 않는다.
+  return netWorthClean() + propVal + passiveVal + HOUSING.assetValue(L) - L.loan;
 }
 
 // 축하 연출(canvas-confetti) — 라이브러리 없으면 조용히 무시
@@ -1064,17 +1177,6 @@ function settleMonth() {
     b.passive += Math.max(0, gross - (asset.maintenance || 0));
   });
   if (b.passive > 0) S.capital += b.passive;
-
-  // 2-1) 세력 위탁 자금 운용 — 단계가 높을수록 안정적이고 수익률이 높은 패시브 수익 (복리로 불어남)
-  if (L.faction && L.faction.level && (L.faction.fund || 0) > 0) {
-    const lvl = L.faction.level;
-    const meanRate = 0.012 + lvl * 0.006;                 // 기대 수익률 (월)
-    const vol = Math.max(0.008, 0.05 - lvl * 0.008);      // 변동성 (단계 높을수록 안정)
-    const rate = meanRate + rand(-vol, vol);
-    const gain = Math.round(L.faction.fund * rate);
-    L.faction.fund = Math.max(0, L.faction.fund + gain);  // 복리로 재투자
-    b.factionFund = gain;
-  }
 
   // 2-2) 세력 조직원 정산 — 실제 구성원이 만든 수입과 급여·운영비를 함께 처리한다.
   if (L.faction && L.faction.level) {
@@ -1209,7 +1311,6 @@ function settleMonth() {
   else if (b.salary < 0) addNews(`📉 ${job.name} 적자 ${won(b.salary)}원`, 'bad');
   if (b.rent > 0) addNews(`🏠 월세 수입 ${won(b.rent)}원`, 'good');
   if (b.passive > 0) addNews(`💸 주식 외 자동수입 ${won(b.passive)}원 입금`, 'good');
-  if (b.factionFund) addNews(`💼 세력 위탁 운용 ${b.factionFund >= 0 ? '수익 +' : '손실 '}${won(b.factionFund)}원 (총 ${won(L.faction.fund)})`, b.factionFund >= 0 ? 'good' : 'bad');
   if (b.factionBiz) addNews(`🏢 세력 조직원 사업 수입 +${won(b.factionBiz)}원`, 'good');
   if (b.factionUpkeep) addNews(`👥 조직원 급여·운영비 -${won(b.factionUpkeep)}원`, 'neutral');
   if (b.lifeInterest > 0) addNews(`💳 개인 대출이자 ${won(b.lifeInterest)}원 (빚 ${won(L.loan)})`, 'bad');
@@ -2000,7 +2101,12 @@ function maybeLifeEvent() {
     const childEvent = CHILD_EVENTS.make(L);
     if (childEvent) { showLifeEvent(childEvent); return; }
   }
-  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,charm:L.charm,affection:L.affection||0,pers:L.partner&&L.partner.personality,partnerJob:L.partner&&L.partner.job,partnerName:L.partner&&L.partner.name,hasLovers:!!(L.lovers&&L.lovers.length),familyPlan:!!L.familyPlan,morality:L.morality==null?60:L.morality,guilt:L.guilt||0,makjang:!!L.makjang,hasShark:(L.loans||[]).some(x=>x.illegal),naraeKnown:!!L.tutorialMet };
+  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,charm:L.charm,affection:L.affection||0,pers:L.partner&&L.partner.personality,partnerJob:L.partner&&L.partner.job,partnerName:L.partner&&L.partner.name,hasLovers:!!(L.lovers&&L.lovers.length),familyPlan:!!L.familyPlan,morality:L.morality==null?60:L.morality,guilt:L.guilt||0,makjang:!!L.makjang,hasShark:(L.loans||[]).some(x=>x.illegal),naraeKnown:!!L.tutorialMet,seraKnown:!!metRecord(L,'윤세라') };
+  const seraIntro = (D.LIFE_EVENTS || []).find(e => e.id === 'life_rainy_canvas');
+  if (!ctx.seraKnown && seraIntro && Math.random() < 0.32) {
+    showLifeEvent(seraIntro);
+    return;
+  }
   const jobSpecific = (D.CAREER_EVENTS || []).filter(e => Array.isArray(e.jobs) && e.jobs.includes(L.job) && (!e.cond || e.cond(ctx)));
   if (jobSpecific.length && Math.random() < 0.65) {
     showLifeEvent(pick(jobSpecific));
@@ -2056,6 +2162,15 @@ function applyEventEffects(eff) {
   if (eff.affection != null) { L.affection = Math.max(0, (L.affection || 0) + eff.affection); changes.push(`친밀도 ${eff.affection >= 0 ? '+' : ''}${eff.affection}`); }
   if (eff.morality != null) { changeMorality(eff.morality); changes.push(`도덕성 ${eff.morality >= 0 ? '+' : ''}${eff.morality}`); }
   if (eff.guilt != null) { L.guilt=clamp((L.guilt||0)+eff.guilt,0,100);changes.push(`죄책감 ${eff.guilt>=0?'+':''}${eff.guilt}`); }
+  if (eff.meetSera && !metRecord(L, '윤세라')) {
+    const rec = rememberPerson(Object.assign({}, D.SPECIAL_CHARACTERS.sera), 'friend');
+    rec.affection = Math.max(rec.affection || 0, 22);
+    rec.trust = Math.max(rec.trust || 0, 12);
+    rec.obsession = Math.max(rec.obsession || 0, 55);
+    pushPersonMessage(L, rec, '아까 정말 고마웠어요. 잘 들어갔죠? 답장 늦어도 괜찮아요. 기다리는 건 잘하니까.', false);
+    changes.push('🖤 <b>윤세라와 친구가 되고 연락처가 생김</b>');
+    addNews('☔ 빗속에서 윤세라를 도운 뒤 연락을 이어가게 됐습니다', 'good');
+  }
   if (eff.familyOrigin && !L.familyPlan) {
     const other=eff.familyOrigin==='affair'&&L.lovers&&L.lovers.length?L.lovers[0].name:(L.partner&&L.partner.name);
     const result=FAMILY.startPlan(L,'birth',{origin:eff.familyOrigin,otherParent:other,secret:!!eff.familySecret});
@@ -2346,7 +2461,7 @@ function meetSpecialPerson(id) {
   S._specialMeet = c;
   const intro = id === 'yujin' ? '사건 상담을 마친 뒤, 강유진이 명함 뒷면에 개인 번호를 적어 건넸습니다. “업무 때문 아니어도 연락해요.”'
     : id === 'sera' ? '새벽 고민방에서 몇 시간 대화한 윤세라가 말합니다. “오늘 나간 뒤에도… 갑자기 사라지진 않을 거죠?”'
-    : '비공개 모임에서 한채린이 먼저 잔을 내려놓습니다. “돈 말고도 흥미로운 사람인지 궁금하네요.”';
+    : '당신 세력이 업계에서 이름을 얻자 한채린 쪽에서 먼저 비공개 회동을 제안했습니다. 채린이 잔을 내려놓습니다. “돈 말고, 사람을 얼마나 움직일 수 있는지 궁금하네요.”';
   host.style.display='block';
   host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${c.emoji} 특별한 만남</div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="${c.name}"><div><strong>${c.name} · ${c.age}세 · ${c.job}</strong><br><span class="muted">${(D.PERSONALITIES[c.personality]||{}).name}</span></div></div><div class="event-desc">${intro}</div><div class="event-options"><button class="event-opt" data-special-rel="friend">친구로 연락을 이어간다</button><button class="event-opt" data-special-rel="acquaintance">필요할 때만 연락한다</button><button class="event-opt" data-special-rel="casual">🌙 오늘 함께 밤을 보낸다 <span class="opt-sub">이 선택부터 전용 위험 트리거가 작동합니다</span></button></div></div></div>`;
   host.querySelectorAll('[data-special-rel]').forEach(b=>b.addEventListener('click',()=>resolveSpecialMeet(b.dataset.specialRel)));
@@ -3169,21 +3284,13 @@ function personCardHTML(c, head, attrs, cls) {
      </button>`;
 }
 
-// 특수 캐릭터 조우 조건에 넘길 상황 정보 (보유 주식·피습·빚 등 — 자연스러운 인연을 위해)
+// 특수 캐릭터 조우 조건에 넘길 상황 정보 (피습·세력·빚 등 — 자연스러운 인연을 위해)
 function specialRouteContext(L) {
-  // 한채린의 '회사' = 마스터 데이터상 가장 비싼(대장주) 종목으로 고정 (가격 변동에 흔들리지 않게)
-  if (!S._heiressCompany) {
-    let name = null, best = -1;
-    (D.COMPANY_MASTER || []).forEach(m => { if ((m.price || 0) > best) { best = m.price; name = m.name; } });
-    S._heiressCompany = name;
-  }
-  const co = S._heiressCompany;
-  const stock = co && S.stocks.find(s => s.name === co && s.listed);
-  const price = stock ? stock.history[stock.history.length - 1].c : 0;
-  const held = co && S.owned[co] ? Math.max(0, S.owned[co].qty) : 0;
+  const faction = RIVALS.ensureFaction(L);
   return {
-    heiressCompany: co,
-    heiressValue: held * price,
+    factionLevel: faction.level || 0,
+    factionMembers: (faction.members || []).length,
+    factionFund: faction.fund || 0,
     attacked: (L._attackedRecently || 0) > 0,
     totalLoan: L.loan || 0,
   };
@@ -3968,7 +4075,7 @@ function showFactionOutcome(kind,result) {
         <span>구성원 <b>${faction.members.length}/${faction.capacity}명</b></span>
         <span>상시 방어 <b>${Math.round((faction.defense||0)*100)}%</b></span>
         <span>역공 성공 <b>${faction.wins||0}회</b></span>
-        <span>위탁 자금 <b>${won(faction.fund||0)}</b></span>
+        <span>누적 운영 투자 <b>${won(faction.fund||0)}</b></span>
       </div>
       <div class="important-event-detail">거점 · ${assets}</div>
       <button id="faction-outcome-close" class="session-btn opening">작전실 나가기</button>
@@ -3977,7 +4084,7 @@ function showFactionOutcome(kind,result) {
   $('faction-outcome-close').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';});
 }
 
-/* ---- 세력 자금 위탁: 맡긴 돈을 세력이 매달 굴려 패시브 수익을 낸다 ---- */
+/* ---- 세력 운영 투자: 회수하는 예금이 아니라 거점·정보망·사업을 키우는 누적 투자다 ---- */
 function entrustFaction(amt) {
   const f = RIVALS.ensureFaction(S.life);
   if (!f.level) { flashToast('먼저 내 세력을 만들어야 합니다', 'bad'); return; }
@@ -3985,18 +4092,136 @@ function entrustFaction(amt) {
   if (S.capital < amt) { flashToast(`💸 현금이 부족합니다 (${won(amt)}원)`, 'bad'); return; }
   S.capital -= amt;
   f.fund = (f.fund || 0) + amt;
-  addNews(`💼 세력에 ${won(amt)}원 위탁 (총 ${won(f.fund)}) — 매달 운용 수익이 붙습니다`, 'neutral');
-  flashToast(`💼 ${won(amt)}원 위탁 · 총 ${won(f.fund)}`, 'good');
-  afterLifeAction('라이벌');
+  f.xp = (f.xp || 0) + Math.max(2, Math.floor(amt / 1000000) * 2);
+  (f.members || []).forEach(member => { member.loyalty = Math.min(100, (member.loyalty || 50) + Math.min(5, Math.ceil(amt / 5000000))); });
+  RIVALS.ensureFaction(S.life);
+  addNews(`🏗️ 세력 운영에 ${won(amt)}원 투자 · 누적 ${won(f.fund)}원 (회수 불가)`, 'neutral');
+  flashToast(`🏗️ 조직 운영 투자 ${won(amt)}원 · 사업·방어·정보력 강화`, 'good');
+  renderAll(); autoSave();
+  if (S.phase === 'closed' && $('market-close') && $('market-close').style.display === 'block') renderCloseReport(S.day);
 }
-function withdrawFaction() {
-  const f = RIVALS.ensureFaction(S.life);
-  const amt = f.fund || 0;
-  if (amt <= 0) { flashToast('회수할 위탁 자금이 없습니다', 'neutral'); return; }
-  S.capital += amt; f.fund = 0;
-  addNews(`💰 세력 위탁 자금 ${won(amt)}원 전액 회수`, 'good');
-  flashToast(`💰 ${won(amt)}원 회수`, 'good');
-  afterLifeAction('라이벌');
+
+function factionTradeTarget(direction) {
+  const outlook = ECONOMY.outlook(S.economy);
+  const preferred = direction > 0 ? outlook.strong : outlook.weak;
+  let pool = S.stocks.filter(stock => stock.listed && stock.type !== 'etf' && stock.type !== 'macro');
+  const sectorPool = pool.filter(stock => preferred.includes(stock.sector));
+  if (sectorPool.length) pool = sectorPool;
+  return pool.length ? pick(pool) : null;
+}
+
+function maybeFactionTradeCall() {
+  const L = S.life;
+  if (!L || S.phase !== 'open') return;
+  const f = RIVALS.ensureFaction(L);
+  if (!f.level || !(f.members || []).length || (f.fund || 0) < 1000000) return;
+  if (f.lastTradeProposalDay === S.day) return;
+  const due = !Number.isFinite(f.lastTradeProposalDay) || S.day - f.lastTradeProposalDay >= 2;
+  if (!due && Math.random() > Math.min(.78, .48 + (f.intel || 0) * .55)) return;
+
+  const outlook = ECONOMY.outlook(S.economy);
+  const direction = Math.random() < (outlook.monthlyMarket >= 0 ? .76 : .24) ? 1 : -1;
+  const stock = factionTradeTarget(direction);
+  if (!stock) return;
+  const proposer = (f.members || []).filter(m => (m.injuredMonths || 0) <= 0)
+    .sort((a,b) => ((b.stats || {}).intel || 0) - ((a.stats || {}).intel || 0))[0] || f.members[0];
+  const others = S.bots.filter(bot => (bot.jailMonths || 0) <= 0).sort(() => Math.random() - .5)
+    .slice(0, Math.min(5, 1 + f.level)).map(bot => bot.name);
+  const meta = CAP_META[stock.cap] || CAP_META.mid;
+  const base = stock.cap === 'large' ? .012 : stock.cap === 'mid' ? .024 : .042;
+  const operationPower = Math.min(.55, Math.sqrt((f.fund || 0) / 30000000) * .25);
+  const impact = Math.min(meta.sessionLimit * .52, base * (1 + f.level * .08 + operationPower));
+  const call = {
+    stock:stock.name, direction, impact, proposer:proposer.name,
+    participants:others, sector:stock.sector, day:S.day,
+  };
+  f.lastTradeProposalDay = S.day;
+  f.lastTradeCall = call;
+  S._factionTradeCall = call;
+  showFactionTradeCall();
+}
+
+function showFactionTradeCall() {
+  const call = S._factionTradeCall; if (!call) return;
+  const host = $('life-event'); if (!host) return;
+  const stock = S.stocks.find(s => s.name === call.stock); if (!stock) return;
+  const verb = call.direction > 0 ? '공동 매수' : '공동 매도';
+  const expected = call.direction > 0 ? '매수세를 모아 가격을 끌어올린다' : '보유분을 정리해 가격을 누른다';
+  host.style.display='block';
+  autoPauseForPopup();
+  host.innerHTML=`<div class="window event-window">
+    <div class="title-bar event-bar"><div class="title-bar-text">📡 세력 작전실 연락 · ${verb}</div><div class="title-bar-controls"><button aria-label="Close" id="faction-call-x"></button></div></div>
+    <div class="window-body">
+      <img class="life-scene-banner" src="${lifeSceneImage('faction')}" alt="세력들이 공동 매매를 논의하는 작전실">
+      <div class="event-title">${call.proposer}: “${call.stock}, 이번 달 흐름이면 지금 ${call.direction > 0 ? '모아야' : '줄여야'} 합니다.”</div>
+      <div class="event-desc"><b>${call.stock}</b> · ${(D.SECTORS[stock.sector] || {}).name || stock.sector} · ${CAP_META[stock.cap].label}주<br>${call.participants.join(' · ')} 측도 ${verb}에 가담합니다. 작전이 시작되면 3틱 동안 주문이 나뉘어 들어가 ${expected}는 흐름이 생깁니다.</div>
+      <div class="event-options">
+        <button class="event-opt" data-faction-call="follow">🤝 나도 동참한다 <span class="opt-sub">${call.direction > 0 ? '현금의 10% 범위에서 자동 매수' : '보유 주식의 25% 자동 매도'}</span></button>
+        <button class="event-opt" data-faction-call="observe">📊 조직의 판단에 맡기고 관망한다</button>
+        <button class="event-opt" data-faction-call="counter">🛑 반대 의견을 내서 주문 규모를 줄인다</button>
+      </div>
+    </div>
+  </div>`;
+  host.querySelectorAll('[data-faction-call]').forEach(b=>b.addEventListener('click',()=>resolveFactionTradeCall(b.dataset.factionCall)));
+  $('faction-call-x').addEventListener('click',()=>resolveFactionTradeCall('observe'));
+}
+
+function playerFollowFactionTrade(call, stock) {
+  const price = priceOf(stock.name);
+  const pos = S.owned[stock.name];
+  if (call.direction > 0) {
+    if (pos && pos.qty < 0) return '기존 공매도 포지션 때문에 개인 계좌는 관망';
+    const budget = Math.min(S.capital * .10, 5000000);
+    const qty = Math.floor(budget / (price * (1 + CFG.FEE_RATE)));
+    if (qty < 1) return '현금이 부족해 개인 계좌는 매수하지 못함';
+    const gross=price*qty,fee=Math.round(gross*CFG.FEE_RATE),cost=gross+fee;
+    S.capital-=cost;
+    if(pos&&pos.qty>0){const total=pos.qty+qty;pos.avg=(pos.avg*pos.qty+gross)/total;pos.qty=total;}
+    else S.owned[stock.name]={qty,avg:price};
+    S.trades++;
+    return `${qty}주 자동 매수`;
+  }
+  if (!pos || pos.qty <= 0) return '보유분이 없어 개인 계좌는 관망';
+  const qty=Math.max(1,Math.floor(pos.qty*.25)),gross=price*qty,fee=Math.round(gross*CFG.FEE_RATE),tax=Math.round(gross*CFG.TAX_RATE);
+  const proceeds=gross-fee-tax;
+  if(S.loan>0){const repay=Math.min(S.loan,proceeds);S.loan-=repay;S.capital+=proceeds-repay;}else S.capital+=proceeds;
+  S.realizedPnL+=(price-pos.avg)*qty-fee-tax;pos.qty-=qty;if(!pos.qty)delete S.owned[stock.name];S.trades++;
+  return `${qty}주 자동 매도`;
+}
+
+function runFactionBotOrders(call, stock) {
+  const price=priceOf(stock.name);
+  call.participants.forEach(name=>{
+    const bot=S.bots.find(b=>b.name===name);if(!bot)return;
+    const held=(bot.owned||{})[stock.name]||0;
+    if(call.direction>0){
+      const budget=Math.min(bot.capital*.12,1500000+Math.random()*2500000),qty=Math.floor(budget/price);
+      if(qty>0){bot.capital-=qty*price;bot.owned[stock.name]=held+qty;}
+    }else if(held>0){
+      const qty=Math.max(1,Math.floor(held*.3));bot.owned[stock.name]=held-qty;bot.capital+=qty*price;if(bot.owned[stock.name]<=0)delete bot.owned[stock.name];
+    }
+  });
+}
+
+function resolveFactionTradeCall(choice) {
+  const call=S._factionTradeCall;if(!call)return;
+  const stock=S.stocks.find(s=>s.name===call.stock);if(!stock)return;
+  const multiplier=choice==='follow'?1:choice==='counter'?.42:.76;
+  stock.factionFlowTicks=3;
+  stock.factionFlowRate=call.direction*call.impact*multiplier/3;
+  runFactionBotOrders(call,stock);
+  const personal=choice==='follow'?playerFollowFactionTrade(call,stock):choice==='counter'?'내 반대로 공동 주문 규모 축소':'개인 계좌는 관망';
+  const verb=call.direction>0?'공동 매수':'공동 매도';
+  const text=`${call.stock} ${verb} 개시 · ${call.participants.length+1}개 세력 · ${personal}`;
+  logCompanyNews(call.stock,`세력 공동 주문 유입 · ${text}`,call.direction*call.impact*multiplier);
+  addNews(`📡 [세력] ${text}`,'neutral');
+  const f=RIVALS.ensureFaction(S.life);f.lastTradeCall={...call,result:text,choice};
+  S.rivalFeed=S.rivalFeed||[];S.rivalFeed.unshift({day:S.day,text:`📡 [공동매매] ${text}`});
+  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
+  S._factionTradeCall=null;
+  autoResumeFromPopup();
+  flashToast(`📡 ${text}`,'neutral');
+  renderAll();autoSave();
 }
 
 const MONTHLY_ACTION_GROUPS = {
@@ -4211,14 +4436,16 @@ function lifeHubHTML() {
   const factionMembers=(faction.members||[]).map(m=>{
     const role=RIVALS.ROLE_LABELS[m.role]||{icon:'👤',name:m.role};
     const state=(m.injuredMonths||0)>0?`<span class="down">부상 ${m.injuredMonths}개월</span>`:`충성 ${Math.round(m.loyalty||0)}`;
-    return `<div class="faction-member"><img src="${characterPortrait(m)}" alt="${m.name}"><span><b>${m.name}</b><small>${role.icon} ${role.name} · ${state}<br>월 ${won(m.upkeep||0)}</small></span></div>`;
+    const income=(m.stats&&m.stats.income)||0,net=income-(m.upkeep||0);
+    return `<div class="faction-member"><img src="${characterPortrait(m)}" alt="${m.name}"><span><b>${m.name}</b><small>${role.icon} ${role.name} · ${state}<br>사업 ${won(income)} · 운영비 ${won(m.upkeep||0)} · <b class="${net>=0?'up':'down'}">순익 ${net>=0?'+':''}${won(net)}</b></small></span></div>`;
   }).join('');
-  const fundBox = faction.level ? `<div class="faction-fund">💼 세력 위탁 자금 <b class="up">${won(faction.fund||0)}</b> <span class="muted">· 매달 세력이 굴려 <b>패시브 수익</b>을 냅니다 (단계 높을수록 안정·고수익)</span></div>
-    <button class="life-btn" data-act="faction-entrust" data-amt="1000000">위탁 +100만</button>
-    <button class="life-btn" data-act="faction-entrust" data-amt="5000000">위탁 +500만</button>
-    <button class="life-btn" data-act="faction-entrust" data-amt="10000000">위탁 +1,000만</button>
-    ${(faction.fund||0)>0?`<button class="life-btn hot" data-act="faction-withdraw">💰 전액 회수 (${won(faction.fund)})</button>`:''}` : '';
-  const factionBox=`<div class="faction-status">🛡️ <b>${faction.name}</b> · 단계 ${faction.level}/5 · 구성원 ${faction.members.length}/${faction.capacity}명 · 방어 ${Math.round(faction.defense*100)}% · 정보 ${Math.round((faction.intel||0)*100)}% · 역공 ${faction.wins}승${faction.assets&&faction.assets.length?`<br>거점: ${faction.assets.map(a=>a.icon+a.name).join(' · ')}`:''}${faction.lastAttacker?`<br>최근 공격자: ${faction.lastAttacker}`:''}</div>${factionMembers?`<div class="faction-members">${factionMembers}</div>`:'<div class="hub-note">아직 구성원이 없습니다. 거점만으로는 역공할 수 없습니다.</div>'}<button class="life-btn" data-act="faction" data-faction="build">🏗️ ${faction.level?'세력 강화·정원 확장':'내 세력 만들기'}</button><button class="life-btn" data-act="faction-recruit" ${faction.level&&faction.members.length<faction.capacity?'':'disabled'}>👥 인원 모집 <small>${faction.members.length}/${faction.capacity}명 · 일반 인력/특별 아군</small></button><button class="life-btn hot" data-act="faction" data-faction="revenge" ${faction.level&&faction.members.length?'':'disabled'}>🔥 선택한 라이벌에게 역공</button>${fundBox}`;
+  const operationBoost=Math.round((faction.operationBoost||0)*100);
+  const lastTrade=faction.lastTradeCall&&faction.lastTradeCall.stock?`<br>최근 공동매매: <b>${faction.lastTradeCall.stock}</b> ${faction.lastTradeCall.direction>0?'매수':'매도'}${faction.lastTradeCall.result?` · ${faction.lastTradeCall.result}`:''}`:'';
+  const fundBox = faction.level ? `<div class="faction-fund">🏗️ 누적 조직 운영 투자 <b class="up">${won(faction.fund||0)}</b> <span class="muted">· 회수 불가 · 사업 효율 +${operationBoost}% · 공동매매 규모와 방어·정보망 강화</span></div>
+    <button class="life-btn" data-act="faction-entrust" data-amt="1000000">운영 투자 +100만</button>
+    <button class="life-btn" data-act="faction-entrust" data-amt="5000000">운영 투자 +500만</button>
+    <button class="life-btn" data-act="faction-entrust" data-amt="10000000">운영 투자 +1,000만</button>` : '';
+  const factionBox=`<div class="faction-status">🛡️ <b>${faction.name}</b> · 단계 ${faction.level}/5 · 구성원 ${faction.members.length}/${faction.capacity}명 · 방어 ${Math.round(faction.defense*100)}% · 정보 ${Math.round((faction.intel||0)*100)}% · 역공 ${faction.wins}승<br>월 예상: 거점·사업 <b class="up">+${won(faction.projectedGross||0)}</b> · 운영비 <b class="down">-${won(faction.projectedUpkeep||0)}</b> · 순익 <b class="${(faction.projectedNet||0)>=0?'up':'down'}">${(faction.projectedNet||0)>=0?'+':''}${won(faction.projectedNet||0)}</b>${faction.assets&&faction.assets.length?`<br>거점: ${faction.assets.map(a=>a.icon+a.name).join(' · ')}`:''}${faction.lastAttacker?`<br>최근 공격자: ${faction.lastAttacker}`:''}${lastTrade}</div>${factionMembers?`<div class="faction-members">${factionMembers}</div>`:'<div class="hub-note">구성원이 없어도 거점 기본 수입은 발생합니다. 인원을 모집하면 사업 수익과 방어력이 함께 늘어납니다.</div>'}<button class="life-btn" data-act="faction" data-faction="build">🏗️ ${faction.level?'세력 강화·정원 확장':'내 세력 만들기'}</button><button class="life-btn" data-act="faction-recruit" ${faction.level&&faction.members.length<faction.capacity?'':'disabled'}>👥 인원 모집 <small>${faction.members.length}/${faction.capacity}명 · 일반 인력/특별 아군</small></button><button class="life-btn hot" data-act="faction" data-faction="revenge" ${faction.level&&faction.members.length?'':'disabled'}>🔥 선택한 라이벌에게 역공</button>${fundBox}`;
   const planBtns = L.relationship==='married'&&!L.familyPlan ? `<button class="life-btn" data-act="family-plan" data-method="birth">👶 출산 계획 <small>5,000,000</small></button><button class="life-btn" data-act="family-plan" data-method="adopt">🫶 입양 신청 <small>12,000,000</small></button>` : '';
   const childBtns = L.children.map(c=>`<button class="life-btn" data-act="child-bond" data-child="${c.id}">🫶 ${c.name}와 시간 보내기 <small>200,000</small></button><button class="life-btn" data-act="child-edu" data-child="${c.id}">📚 ${c.name} 교육 투자 <small>1,000,000</small></button>`).join('');
   const certBtns = CAREER.CERTS.filter(c=>!CAREER.ensure(L).certifications.includes(c.id)).map(c=>`<button class="life-btn" data-act="cert" data-cert="${c.id}">${c.icon} ${c.name} <small>${won(c.cost)}</small></button>`).join('');
@@ -4232,8 +4459,7 @@ function lifeHubHTML() {
   const sctx = specialRouteContext(L);
   const specialMeetBtns = [
     (!specialMet('police') && (justice.case || L.criminalRecord > 0 || sctx.attacked)) ? '<button class="life-btn" data-act="meet-special" data-special="yujin">👮‍♀️ 경찰서에서 상담한다 <small>공격·사건·전과가 만든 인연</small></button>' : '',
-    (!specialMet('obsessive') && L.stress >= 45) ? '<button class="life-btn" data-act="meet-special" data-special="sera">🌙 심야 고민방에 접속한다 <small>스트레스 높은 밤의 인연</small></button>' : '',
-    (!specialMet('heiress') && sctx.heiressValue >= 30000000) ? `<button class="life-btn" data-act="meet-special" data-special="chaerin">🥂 주주총회 리셉션에 참석한다 <small>${sctx.heiressCompany || '대장주'} 주식 3천만↑ 보유</small></button>` : ''
+    (!specialMet('heiress') && sctx.factionLevel >= 2 && sctx.factionMembers >= 3) ? '<button class="life-btn" data-act="meet-special" data-special="chaerin">🥂 한채린의 비공개 회동 제안을 받는다 <small>세력 2단계 · 조직원 3명 이상</small></button>' : ''
   ].join('');
   const personalBtns = ensureMet(L).filter(m=>['friend','casual','partner','polycule','lover'].includes(m.status)).map(m=>{const st=STORIES.get(m.name),next=st&&STORIES.next(m),state=st&&STORIES.ensure(m),sig=CHAR_TRAITS&&CHAR_TRAITS.label(m);return`<button class="life-btn" data-act="person-request" data-person="${m.name}">🙏 ${m.name}에게 부탁하기 <small>${relationTag(L,m.name)} · 호감 ${Math.round(m.affection||0)}${sig?` · ${sig}`:''}</small></button>${st?`<button class="life-btn ${next?'hot':''}" data-act="character-story" data-person="${m.name}">📖 ${m.name} 개인 스토리 <small>${state.completed?'완결':next?`${state.chapter+1}장 진행 가능`:`${state.chapter+1}장 · 호감 ${st.chapters[state.chapter].min} 필요`}</small></button>`:''}`;}).join('');
   const courtBtns=justice.case?`<div class="court-status">⚖️ <b>${justice.case.crime}</b> · <b class="down">${justice.case.phase}</b> 단계 · ${justice.case.months}개월 남음<br><span class="muted">${justice.case.phase==='수사'?'변호사를 미리 선임하면 유리합니다':justice.case.phase==='기소'?'변호사 등급이 불기소 확률에 영향':'⚠️ 재판 전략 3가지 중 하나를 꼭 선택하세요'}</span></div><button class="life-btn" data-act="lawyer" data-tier="public">국선변호인</button><button class="life-btn" data-act="lawyer" data-tier="standard">전문 변호사 <small>5,000,000</small></button><button class="life-btn" data-act="lawyer" data-tier="elite">대형 로펌 <small>20,000,000</small></button>${justice.case.phase==='재판'?'<button class="life-btn" data-act="court" data-strategy="plea">혐의 인정·선처</button><button class="life-btn" data-act="court" data-strategy="contest">무죄 다툼</button><button class="life-btn" data-act="court" data-strategy="cooperate">수사 협조</button>':''}`:'<span class="muted">진행 중인 사건 없음</span>';
@@ -4252,7 +4478,7 @@ function lifeHubHTML() {
       <div class="hub-quick">${quickBtns}</div>
       <details class="hub-more"><summary>🧰 다른 행동 보기</summary>
         <details class="hub-section"><summary>🎨 취미·건강·연애</summary><div class="hub-btns">${hobbyBtns}<button class="life-btn" data-act="checkup">🏥 건강검진 <small>500,000</small></button><button class="life-btn" data-act="treat">💊 치료${treatment?' · '+treatment.name+' '+won(treatment.cost):''}</button>${relBtns}</div></details>
-        <details class="hub-section"><summary>📈 경력·거주지 이동</summary><div class="hub-note">🏠 거주지는 내가 실제로 사는 곳입니다. 보증금·월 주거비·가족 수용인원에 영향을 줍니다.</div><div class="hub-btns"><button class="life-btn" data-act="changejob">💼 이직</button><button class="life-btn" data-act="career-train">📚 직무교육</button>${certBtns}${housingBtns}</div></details>
+        <details class="hub-section"><summary>📈 경력·거주지 이동</summary><div class="hub-note">🏠 월세는 초기금이 낮지만 매달 비용이 나갑니다. 전세는 월 부담이 매우 낮고, 매매는 집값을 한 번 지불하면 월 주거비 0원이며 자산으로 남습니다.</div><div class="hub-btns"><button class="life-btn" data-act="changejob">💼 이직</button><button class="life-btn" data-act="career-train">📚 직무교육</button>${certBtns}${housingBtns}</div></details>
         <details class="hub-section"><summary>👨‍👩‍👧 가족·인맥</summary><img class="hub-scene-banner" src="${lifeSceneImage('network')}" alt="업계 인맥 모임 장면"><div class="hub-btns">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👵 부모님 돌봄 <small>1,500,000</small></button><button class="life-btn" data-act="contact-meet">🍽️ 업계 모임</button>${specialMeetBtns}${personalBtns}${contactBtns}</div></details>
         <details class="hub-section"><summary>💳 금융·자동수입·투자용 부동산</summary><img class="hub-scene-banner" src="${lifeSceneImage('property')}" alt="자산 계약 장면"><div class="hub-note">💸 예금·채권·운영권은 주식과 별개로 매달 현금을 만듭니다. 높은 수익에는 매출 변동과 낮은 매각가가 따릅니다.</div><div class="hub-btns">${loanBtns}<button class="life-btn" data-act="repay">상환${L.loan>0?' '+won(L.loan):''}</button>${insuranceBtns}${pensionBtns}${passiveBtns}${propBtns}</div></details>
         <details class="hub-section" ${justice.case?'open':''}><summary>⚔️ 라이벌·세력·법정${justice.case?' · 진행 중 사건 있음':''}</summary><img class="hub-scene-banner" src="${justice.case?lifeSceneImage('court'):lifeSceneImage('faction')}" alt="${justice.case?'법정 심리':'라이벌 공격에 대응하는 세력 작전실'} 장면"><div class="hub-btns">${factionBox}${rivalSelect}${rivalBtns}${courtBtns}</div></details>
@@ -4304,7 +4530,6 @@ function wireLifeHub(host) {
     else if (act === 'faction') doFactionAction(b.dataset.faction, +($('rival-target') ? $('rival-target').value : 0));
     else if (act === 'faction-recruit') showFactionRecruitment();
     else if (act === 'faction-entrust') entrustFaction(+b.dataset.amt);
-    else if (act === 'faction-withdraw') withdrawFaction();
     else if (act === 'date') doDate();
     else if (act === 'marry') doMarriage();
     else if (act === 'breakup') doBreakupChoice();
@@ -5048,18 +5273,35 @@ function renderCapital() {
 function renderIssues() {
   const el = $('issue-list');
   el.innerHTML = '';
+  const outlook = ECONOMY.outlook(S.economy);
+  const strong = outlook.strong.slice(0, 2).map(id => (D.SECTORS[id] || {}).name || id).join('·');
+  const weak = outlook.weak.slice(0, 2).map(id => (D.SECTORS[id] || {}).name || id).join('·');
+  const macro = document.createElement('li');
+  macro.className = outlook.monthlyMarket >= 0 ? 'good' : 'bad';
+  macro.innerHTML = `<strong>${outlook.text}</strong><br><span class="muted">금리·물가와 경기 국면이 한 달 동안 누적 반영됩니다${strong ? ` · 강세 ${strong}` : ''}${weak ? ` · 약세 ${weak}` : ''}</span>`;
+  el.appendChild(macro);
   const live = S.stocks.filter(s => s.listed);
+  let issueCount = 0;
   live.forEach(stock => {
     if (!stock.pendingIssue || !stock.pendingIssue.impact) return;
     const iss = stock.pendingIssue;
+    const meta = CAP_META[stock.cap] || CAP_META.mid;
+    const effective = Math.abs(iss.impact * meta.issueMul);
+    const strength = effective >= .07 ? '강함' : effective >= .035 ? '보통' : '약함';
     const li = document.createElement('li');
     li.className='issue-stock';li.title=`${stock.name} 차트로 이동`;li.dataset.stock=stock.name;
     const cls = iss.impact >= 0 ? 'good' : 'bad';
-    li.innerHTML = `<strong>${stock.name}</strong> <span class="${cls}">${iss.text} (${pct(iss.impact)})</span> <span class="muted">→ 다음 틱 반영</span>`;
+    li.innerHTML = `<strong>${stock.name}</strong> <span class="${cls}">${iss.text}</span> <span class="muted">· 예상 ${iss.impact >= 0 ? '호재' : '악재'} ${strength} · ${meta.label}주 월 한도 ±${Math.round(meta.sessionLimit*100)}%</span>`;
     el.appendChild(li);
+    issueCount++;
   });
   el.querySelectorAll('.issue-stock').forEach(li=>li.addEventListener('click',()=>goBuy(li.dataset.stock)));
-  if (!el.children.length) el.innerHTML = '<li class="muted">대기 중인 이슈 없음</li>';
+  if (!issueCount) {
+    const empty = document.createElement('li');
+    empty.className = 'muted';
+    empty.textContent = '대기 중인 개별 공시 없음 · 이번 달은 경제 뉴스와 업종 흐름을 확인하세요';
+    el.appendChild(empty);
+  }
 }
 
 function addNews(text, cls) {

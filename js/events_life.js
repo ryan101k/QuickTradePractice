@@ -13,6 +13,16 @@
  *    endRelationshipChance : 이 확률로 이별
  * ========================================================================= */
 const LIFE_EVENTS = [
+  {
+    id: 'life_rainy_canvas', cat: 'life', emoji: '☔', title: '비에 젖은 그림 상자',
+    desc: '막차가 끊긴 골목, 한 여자가 빗속에서 쏟아진 그림과 액자를 혼자 주워 담고 있습니다. 지나가는 사람들은 젖을까 봐 모른 척 발걸음을 재촉합니다.',
+    cond: c => !c.seraKnown,
+    options: [
+      { text: '우산을 씌워 주고 끝까지 함께 줍는다', effects: { cash:-120000, happy:5, morality:5, meetSera:true }, outcome: '택시까지 잡아 주자 여자는 젖은 명함 대신 휴대폰을 내밉니다. “윤세라예요. 번호… 제가 먼저 저장해도 돼요?” 도움받은 일을 잊지 않겠다는 말이 유난히 오래 남습니다.' },
+      { text: '근처 가게에서 박스와 수건을 사다 준다', effects: { cash:-50000, happy:3, morality:3, meetSera:true }, outcome: '그림을 살려낸 여자는 몇 번이나 고맙다고 말합니다. 헤어지고 얼마 지나지 않아 ‘잘 들어갔어요?’라는 윤세라의 첫 메시지가 도착합니다.' },
+      { text: '급한 일정이 있어 그냥 지나친다', effects: { happy:-2 }, outcome: '몇 걸음 뒤 돌아봤을 때도 여자는 혼자 빗속에 서 있었습니다.' },
+    ],
+  },
   /* ---------------- 직업(job) ---------------- */
   {
     id: 'job_promo', cat: 'job', emoji: '📈', title: '승진 제안',

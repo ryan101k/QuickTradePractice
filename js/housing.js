@@ -13,10 +13,15 @@ const HOMES=[
 const TENURES={monthly:{id:'monthly',icon:'🧾',name:'월세'},jeonse:{id:'jeonse',icon:'🔑',name:'전세'},owned:{id:'owned',icon:'🏠',name:'매매'}};
 function ensure(life){if(!life.housing||!HOMES.some(h=>h.id===life.housing.id))life.housing={id:'parents',tenure:'monthly',depositPaid:0,assetValue:0,months:0};if(!life.housing.tenure)life.housing.tenure='monthly';return life.housing;}
 function home(life){return HOMES.find(h=>h.id===ensure(life).id)||HOMES[0];}
-function quote(h,tenure){const price=Math.max(10000000,Math.round(h.deposit*4+h.rent*80));if(tenure==='owned')return{upfront:price,monthly:h.manage,assetValue:price};if(tenure==='jeonse')return{upfront:Math.round(price*.62),monthly:h.manage,assetValue:Math.round(price*.62)};return{upfront:h.deposit,monthly:h.rent+h.manage,assetValue:h.deposit};}
+function quote(h,tenure){
+ const price=Math.max(10000000,Math.round(h.deposit*3+h.rent*60));
+ if(tenure==='owned')return{upfront:price,monthly:0,assetValue:price};
+ if(tenure==='jeonse')return{upfront:Math.round(price*.58),monthly:Math.round(h.manage*.25),assetValue:Math.round(price*.58)};
+ return{upfront:h.deposit,monthly:Math.round(h.rent*.72+h.manage*.4),assetValue:h.deposit};
+}
 function assetValue(life){const hs=ensure(life);return Math.max(0,hs.assetValue||hs.depositPaid||0);}
 function move(life,id,tenure='monthly'){const target=HOMES.find(h=>h.id===id);if(!target||!TENURES[tenure])return null;const current=ensure(life),refund=Math.round(assetValue(life)*(current.tenure==='owned'?.98:1)),q=quote(target,tenure);life.housing={id,tenure,depositPaid:tenure==='owned'?0:q.upfront,assetValue:q.assetValue,months:0};return{target,tenure,refund,cost:q.upfront,quote:q};}
-function monthly(life,livingMultiplier=1){const h=home(life),hs=ensure(life),q=quote(h,hs.tenure);hs.months++;if(hs.tenure==='owned'){const rate=1+(Math.random()-.45)*.006;hs.assetValue=Math.max(q.upfront*.65,Math.round((hs.assetValue||q.assetValue)*rate));}const expense=Math.round(q.monthly*livingMultiplier);return{home:h,tenure:hs.tenure,expense,health:h.health,stress:h.stress,charm:h.charm,education:h.education,commute:h.commute};}
+function monthly(life,livingMultiplier=1){const h=home(life),hs=ensure(life),q=quote(h,hs.tenure);hs.months++;if(hs.tenure==='owned'){const rate=1+(Math.random()-.45)*.006;hs.assetValue=Math.max(q.upfront*.65,Math.round((hs.assetValue||q.assetValue)*rate));}const expense=hs.tenure==='owned'?0:Math.round(q.monthly*livingMultiplier);return{home:h,tenure:hs.tenure,expense,health:h.health,stress:h.stress,charm:h.charm,education:h.education,commute:h.commute};}
 function canAddChild(life){return (life.children||[]).length+(life.familyPlan?1:0)<home(life).capacity;}
 root.QT_HOUSING={HOMES,TENURES,ensure,home,quote,assetValue,move,monthly,canAddChild};
 })(window);

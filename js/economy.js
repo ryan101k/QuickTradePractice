@@ -18,6 +18,18 @@ function ensure(e){if(!e||!PHASES[e.id])return create();if(!Number.isFinite(e.mo
 function phase(e){return PHASES[ensure(e).id];}
 function monthly(e){e=ensure(e);e.monthsLeft--;e.elapsed++;let changed=null;if(e.monthsLeft<=0){const prev=e.id;e.id=pick(NEXT[prev]);e.monthsLeft=duration(e.id);e.history.unshift({from:prev,to:e.id,at:e.elapsed});e.history=e.history.slice(0,20);changed={from:PHASES[prev],to:PHASES[e.id]};}const p=PHASES[e.id],before=e.baseRate;const gap=p.rate-e.baseRate;e.lastRateDelta=Math.abs(gap)>=.2?Math.sign(gap)*.25:0;e.baseRate=Math.max(.25,Math.min(8,Math.round((e.baseRate+e.lastRateDelta)*4)/4));e.inflation=Math.max(-1,Math.min(10,e.inflation+(p.inflation-e.inflation)*.28+rand(-.15,.15)));const rateDecision=e.lastRateDelta?{from:before,to:e.baseRate,delta:e.lastRateDelta,reason:e.lastRateDelta>0?'물가 억제를 위한 금리 인상':'경기 부양을 위한 금리 인하'}:null;return{state:e,phase:p,changed,rateDecision};}
 function stockImpact(e,sector){const id=ensure(e).id;return PHASES[id].market+((SECTOR[id]||{})[sector]||0);}
+function outlook(e){
+  e=ensure(e);
+  const p=PHASES[e.id], sectors=SECTOR[e.id]||{};
+  const ranked=Object.entries(sectors).sort((a,b)=>b[1]-a[1]);
+  return{
+    monthlyMarket:p.market*2.4,
+    sectors,
+    strong:ranked.filter(x=>x[1]>0).map(x=>x[0]),
+    weak:ranked.filter(x=>x[1]<0).reverse().map(x=>x[0]),
+    text:`${p.icon} ${p.name} · ${p.desc} · 월 시장 기준 ${p.market>=0?'+':''}${(p.market*240).toFixed(1)}%`,
+  };
+}
 function salaryMultiplier(e){return phase(e).salary;}
 function loanMultiplier(e){e=ensure(e);return phase(e).loan*Math.max(.65,1+(e.baseRate-3.25)*.09);}
 function assetImpact(e,asset){e=ensure(e);const p=phase(e),rate=e.baseRate,infl=e.inflation,crisis=e.id==='crisis';if(asset==='gold')return (infl-2)*.00055-(rate-3)*.00022+(crisis ? .004 : 0)+(e.id==='overheating' ? .0015 : 0);if(asset==='bond')return -(e.lastRateDelta||0)*.0045+(3.25-rate)*.00018+(['recession','stimulus','crisis'].includes(e.id) ? .0012 : 0);if(asset==='usd')return (['tightening','crisis'].includes(e.id) ? .0025 : 0)+(rate-3)*.00028-(e.id==='stimulus' ? .0015 : 0);return p.market;}
@@ -25,5 +37,5 @@ function macroLesson(e){e=ensure(e);const dir=e.lastRateDelta>0?'인상':e.lastR
 function propertyReturn(e){return phase(e).property+rand(-.006,.006);}
 function livingMultiplier(e){return phase(e).living;}
 function layoffRisk(e,jobRisk){return Math.min(.25,phase(e).layoff+(jobRisk||0)*.12);}
-root.QT_ECONOMY={PHASES,create,ensure,phase,monthly,stockImpact,salaryMultiplier,loanMultiplier,assetImpact,macroLesson,propertyReturn,livingMultiplier,layoffRisk};
+root.QT_ECONOMY={PHASES,create,ensure,phase,monthly,stockImpact,outlook,salaryMultiplier,loanMultiplier,assetImpact,macroLesson,propertyReturn,livingMultiplier,layoffRisk};
 })(window);

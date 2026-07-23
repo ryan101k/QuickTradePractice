@@ -43,14 +43,14 @@ const CHARACTERS = [
 /* 남성 인물은 연애 로스터와 분리한다.
  * 경쟁 세력·언론·정보원·특별 아군으로만 등장하며 세력 영입 조건도 서로 다르다. */
 const WORLD_MALE_NPCS = [
-  { id:'minjun', name:'민준', gender:'m', emoji:'⚖️', job:'기업·형사 전문 변호사', portrait:'minjun-v2-neutral.webp', role:'legal', side:'ally', recruitable:true, minLevel:2, cost:7000000, upkeep:900000, loyalty:70, stats:{defense:.03,intel:.02,legal:24,income:150000}, desc:'수사와 계약 분쟁을 막아 주는 법률 참모. 사건을 겪었을 때 영입이 쉬워진다.' },
-  { id:'doyun', name:'도윤', gender:'m', emoji:'🩺', job:'응급의학과 의사', portrait:'doyun-v2-neutral.webp', role:'medical', side:'ally', recruitable:true, minLevel:2, cost:8500000, upkeep:1100000, loyalty:68, stats:{defense:.02,medical:26,income:100000}, desc:'다친 조직원을 복귀시키고 건강 사고의 손실을 줄이는 의료 고문.' },
-  { id:'siwoo', name:'시우', gender:'m', emoji:'💻', job:'보안 개발자', portrait:'siwoo-v2-neutral.webp', role:'intel', side:'ally', recruitable:true, minLevel:2, cost:6500000, upkeep:800000, loyalty:62, stats:{defense:.04,intel:.14,income:180000}, desc:'공격 징후와 자금 흐름을 추적하는 정보 책임자.' },
-  { id:'geonwoo', name:'건우', gender:'m', emoji:'📦', job:'물류업 운영자', portrait:'geonwoo-v2-neutral.webp', role:'operations', side:'ally', recruitable:true, minLevel:1, cost:4500000, upkeep:600000, loyalty:74, stats:{defense:.05,intel:.02,income:650000}, desc:'거점과 사람을 묶어 실제 조직으로 굴러가게 만드는 살림꾼.' },
+  { id:'minjun', name:'민준', gender:'m', emoji:'⚖️', job:'기업·형사 전문 변호사', portrait:'minjun-v2-neutral.webp', role:'legal', side:'ally', recruitable:true, minLevel:2, cost:7000000, upkeep:450000, loyalty:70, stats:{defense:.03,intel:.02,legal:24,income:650000}, desc:'수사와 계약 분쟁을 막아 주는 법률 참모. 외부 자문 수입도 세력에 보탠다.' },
+  { id:'doyun', name:'도윤', gender:'m', emoji:'🩺', job:'응급의학과 의사', portrait:'doyun-v2-neutral.webp', role:'medical', side:'ally', recruitable:true, minLevel:2, cost:8500000, upkeep:500000, loyalty:68, stats:{defense:.02,medical:26,income:700000}, desc:'다친 조직원을 복귀시키고 건강 사고의 손실을 줄이며 협력 병원 수입을 만든다.' },
+  { id:'siwoo', name:'시우', gender:'m', emoji:'💻', job:'보안 개발자', portrait:'siwoo-v2-neutral.webp', role:'intel', side:'ally', recruitable:true, minLevel:2, cost:6500000, upkeep:400000, loyalty:62, stats:{defense:.04,intel:.14,income:800000}, desc:'공격 징후와 자금 흐름을 추적하고 보안 외주 수익을 만든다.' },
+  { id:'geonwoo', name:'건우', gender:'m', emoji:'📦', job:'물류업 운영자', portrait:'geonwoo-v2-neutral.webp', role:'operations', side:'ally', recruitable:true, minLevel:1, cost:4500000, upkeep:350000, loyalty:74, stats:{defense:.05,intel:.02,income:1100000}, desc:'거점과 사람을 묶어 실제 조직으로 굴러가게 만들며 가장 안정적인 사업 수입을 담당한다.' },
   { id:'jiwoo', name:'지우', gender:'m', emoji:'🕶️', job:'브로커·정보상', portrait:'jiwoo-v2-neutral.webp', role:'broker', side:'neutral', recruitable:false, stats:{intel:.10}, desc:'돈 되는 편에 붙는 회색지대 정보상. 사건에 따라 제보자나 배신자로 등장한다.' },
   { id:'subin', name:'수빈', gender:'m', emoji:'📹', job:'탐사 유튜버', portrait:'subin-v2-neutral.webp', role:'media', side:'rival', recruitable:false, stats:{intel:.08}, desc:'세력과 기업의 약점을 생방송 소재로 삼는 언론형 경쟁자.' },
   { id:'taeyang', name:'태양', gender:'m', emoji:'🦁', job:'태양캐피탈 대표', portrait:'taeyang-v2-neutral.webp', role:'leader', side:'rival', recruitable:false, stats:{defense:.12,intel:.08}, desc:'돈과 사람을 함께 사들이는 공격적인 경쟁 세력 수장.' },
-  { id:'hantaeseok', name:'한태석', gender:'m', emoji:'🤜', job:'의리파 해결사', portrait:'hantaeseok-neutral.png', role:'guardian', side:'special', recruitable:true, minLevel:4, minWins:3, cost:15000000, upkeep:400000, loyalty:95, stats:{defense:.22,intel:.05,legal:8,medical:5,income:0}, desc:'쉽게 마음을 열지 않지만 한번 사람으로 인정하면 감옥·빚·위기에서 끝까지 책임지는 특별 아군.' },
+  { id:'hantaeseok', name:'한태석', gender:'m', emoji:'🤜', job:'의리파 해결사', portrait:'hantaeseok-neutral.png', role:'guardian', side:'special', recruitable:true, minLevel:4, minWins:3, cost:15000000, upkeep:250000, loyalty:95, stats:{defense:.22,intel:.05,legal:8,medical:5,income:300000}, desc:'쉽게 마음을 열지 않지만 한번 사람으로 인정하면 감옥·빚·위기에서 끝까지 책임지는 특별 아군.' },
 ];
 
 /* 구버전 세이브 호환 — 이름이 바뀐 인물(초상화 성별과 맞추느라 교체) */
@@ -94,8 +94,7 @@ const DATE_ROUTES = [
   { key: 'hobby',  emoji: '🎨', name: '취미 모임', desc: '취향이 잘 맞는 사람',   pool: ['caring', 'homebody', 'ambitious'], cost: 400000,  scoreMod: 8 },
   { key: 'club',   emoji: '🍸', name: '클럽/헌팅', desc: '화려하지만 위험한 사람', pool: ['free', 'lavish'],                 cost: 800000,  scoreMod: -6 },
   { key:'police_scene',emoji:'👮‍♀️',name:'경찰서·사건 현장',desc:'공격을 당했거나 사건·전과가 있을 때 강유진과 마주치는 특별 장면',pool:[],fixed:'yujin',cost:0,scoreMod:-5,scene:'./assets/event-yujin-rain-rescue.png',condition:(l,ctx)=>!!((l.justice&&l.justice.case)||l.criminalRecord||(ctx&&ctx.attacked))},
-  { key:'sera_scene',emoji:'🌙',name:'심야 전시 골목',desc:'스트레스가 높은 밤 윤세라와 마주치는 특별 장면',pool:[],fixed:'sera',cost:180000,scoreMod:3,scene:'./assets/event-sera-doorstep.png',condition:l=>(l.stress||0)>=45},
-  { key:'chaerin_scene',emoji:'🥂',name:'주주총회 리셉션',desc:'한채린 회사(대장주)의 주식을 크게(3,000만원↑) 보유하면 주주로서 먼저 말을 거는 특별 장면',pool:[],fixed:'chaerin',cost:500000,scoreMod:-8,scene:'./assets/event-chaerin-contract.png',condition:(l,ctx)=>!!(ctx&&ctx.heiressValue>=30000000)},
+  { key:'chaerin_scene',emoji:'🥂',name:'세력 대표자 비공개 회동',desc:'내 세력이 2단계·조직원 3명 이상이 되면 한채린 쪽에서 먼저 접촉합니다',pool:[],fixed:'chaerin',cost:250000,scoreMod:-5,scene:'./assets/event-chaerin-contract.png',condition:(l,ctx)=>!!(ctx&&ctx.factionLevel>=2&&ctx.factionMembers>=3)},
 ];
 
 /* 데이트 결과 대사(현실적) — 성공/보통/실패 티어별 랜덤 */

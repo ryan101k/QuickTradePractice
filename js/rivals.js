@@ -26,8 +26,8 @@
     broker:{icon:'🕶️',name:'브로커'}, media:{icon:'📹',name:'언론'}, leader:{icon:'🏢',name:'세력 수장'}
   };
   const MOB_RECRUITS=[
-    {id:'mob-field',name:'현장 인력 모집',role:'field',portrait:'mob-faction-field.png',cost:1200000,upkeep:260000,loyalty:55,stats:{defense:.075,intel:.01,income:140000},names:['김성호','박기철','오민석','이현준','정우람'],desc:'거점 경비와 현장 대응을 맡는다.'},
-    {id:'mob-intel',name:'정보 인력 모집',role:'intel',portrait:'mob-faction-intel.png',cost:1500000,upkeep:320000,loyalty:50,stats:{defense:.015,intel:.085,income:220000},names:['강도현','문재호','배준영','윤정민','최인호'],desc:'시세·언론·경쟁 세력의 움직임을 추적한다.'},
+    {id:'mob-field',name:'현장 인력 모집',role:'field',portrait:'mob-faction-field.png',cost:1200000,upkeep:150000,loyalty:55,stats:{defense:.075,intel:.01,income:350000},names:['김성호','박기철','오민석','이현준','정우람'],desc:'거점 경비와 현장 대응을 맡으며 경호·회수 업무로 수입을 만든다.'},
+    {id:'mob-intel',name:'정보 인력 모집',role:'intel',portrait:'mob-faction-intel.png',cost:1500000,upkeep:180000,loyalty:50,stats:{defense:.015,intel:.085,income:450000},names:['강도현','문재호','배준영','윤정민','최인호'],desc:'시세·언론·경쟁 세력을 추적하며 조사 의뢰와 정보 거래 수입을 만든다.'},
   ];
   const rand=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)];
   function createBots(){return PERSONAS.map((p,i)=>({...p,capital:1000000,owned:{},assets:i%3===0?[{...ASSETS[i%ASSETS.length]}]:[],relations:{},defense:.05,jailMonths:0,criminalRecord:0,monthlyProfit:0}));}
@@ -91,19 +91,37 @@
     return{attacker,caught:false,illegal,loss,message:`${attacker.name}의 ${illegal?'불법 공작':'경쟁 견제'}로 ${loss.toLocaleString('ko-KR')}원 피해`};
   }
   function ensureFaction(life){
-    if(!life.faction)life.faction={name:'내 세력',level:0,xp:0,defense:0,intel:0,lastAttacker:null,wins:0,assets:[],diplomacy:[],members:[],mobCounter:0};
+    if(!life.faction)life.faction={name:'내 세력',level:0,xp:0,defense:0,intel:0,lastAttacker:null,wins:0,assets:[],diplomacy:[],members:[],mobCounter:0,fund:0};
     if(!Array.isArray(life.faction.assets))life.faction.assets=[];if(!Array.isArray(life.faction.diplomacy))life.faction.diplomacy=[];
     if(!Array.isArray(life.faction.members))life.faction.members=[];
     if(!Number.isFinite(life.faction.mobCounter))life.faction.mobCounter=life.faction.members.length;
+    if(!Number.isFinite(life.faction.fund))life.faction.fund=0;
+    // 구버전 세이브의 적자형 급여·수입도 최신 밸런스로 즉시 교체한다.
+    const catalog=MOB_RECRUITS.concat(namedRecruits());
+    life.faction.members.forEach(member=>{
+      const base=catalog.find(item=>item.id===member.sourceId);if(!base)return;
+      member.upkeep=base.upkeep||0;
+      member.stats={...(member.stats||{}),...(base.stats||{})};
+      if(base.desc)member.desc=base.desc;
+    });
     return recalcFaction(life.faction);
   }
   function recalcFaction(f){
     const active=(f.members||[]).filter(m=>(m.injuredMonths||0)<=0),totals={defense:0,intel:0,legal:0,medical:0,income:0};
     active.forEach(m=>Object.keys(totals).forEach(k=>{totals[k]+=Number((m.stats||{})[k])||0;}));
+    const operationFund=Math.max(0,f.fund||0);
+    const operationBoost=Math.min(1.25,Math.sqrt(operationFund/20000000)*.35);
+    const operationDefense=Math.min(.12,operationFund/100000000*.08);
+    const operationIntel=Math.min(.10,operationFund/80000000*.06);
     f.capacity=Math.max(0,(f.level||0)*3);
-    f.defense=Math.min(.88,(f.level||0)*.055+totals.defense);
-    f.intel=Math.min(.72,(f.level||0)*.035+totals.intel);
+    f.defense=Math.min(.88,(f.level||0)*.055+totals.defense+operationDefense);
+    f.intel=Math.min(.72,(f.level||0)*.035+totals.intel+operationIntel);
     f.legal=totals.legal;f.medical=totals.medical;f.monthlyIncome=totals.income;
+    f.operationBoost=operationBoost;
+    f.baseIncome=(f.level||0)*250000+(f.assets||[]).length*100000;
+    f.projectedGross=Math.round((f.baseIncome+totals.income*(1+(f.level||0)*.08))*(1+operationBoost));
+    f.projectedUpkeep=(f.members||[]).reduce((sum,m)=>sum+(m.upkeep||0),0);
+    f.projectedNet=f.projectedGross-f.projectedUpkeep;
     return f;
   }
   function namedRecruits(){
@@ -143,10 +161,11 @@
     return{ok:true,cash:cash-base.cost,cost:base.cost,member,success:true,message:`${member.name}(${(ROLE_LABELS[member.role]||{}).name||member.role})이 ${f.name}에 합류했습니다. 현재 ${f.members.length}/${f.capacity}명${arc?` · 첫 사건 예고: ${arc.chapters[0]}`:''}`};
   }
   function settleFaction(life,cash){
-    const f=ensureFaction(life),events=[];if(!f.level||!f.members.length)return{cash,income:0,upkeep:0,events,left:null};
+    const f=ensureFaction(life),events=[];if(!f.level)return{cash,income:0,upkeep:0,events,left:null};
     f.members.forEach(m=>{if((m.injuredMonths||0)>0)m.injuredMonths--;});
+    recalcFaction(f);
     const active=f.members.filter(m=>(m.injuredMonths||0)<=0);
-    const income=Math.round(active.reduce((s,m)=>s+(Number((m.stats||{}).income)||0),0)*(1+f.level*.05));
+    const income=f.projectedGross;
     const upkeep=f.members.reduce((s,m)=>s+(m.upkeep||0),0);
     const paid=Math.min(Math.max(0,cash),upkeep);cash=cash-paid+income;
     if(paid<upkeep){
