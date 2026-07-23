@@ -87,9 +87,9 @@ const DATE_ROUTES = [
   { key: 'intro',  emoji: '🤝', name: '지인 소개', desc: '안정적·진중한 사람',    pool: ['frugal', 'homebody', 'caring'],    cost: 300000,  scoreMod: 6 },
   { key: 'hobby',  emoji: '🎨', name: '취미 모임', desc: '취향이 잘 맞는 사람',   pool: ['caring', 'homebody', 'ambitious'], cost: 400000,  scoreMod: 8 },
   { key: 'club',   emoji: '🍸', name: '클럽/헌팅', desc: '화려하지만 위험한 사람', pool: ['free', 'lavish'],                 cost: 800000,  scoreMod: -6 },
-  { key:'police_scene',emoji:'👮‍♀️',name:'경찰서 민원실',desc:'사건이나 전과가 있을 때 강유진과 마주치는 특별 장면',pool:[],fixed:'yujin',cost:0,scoreMod:-5,scene:'./assets/event-yujin-rain-rescue.png',condition:l=>!!((l.justice&&l.justice.case)||l.criminalRecord)},
+  { key:'police_scene',emoji:'👮‍♀️',name:'경찰서·사건 현장',desc:'공격을 당했거나 사건·전과가 있을 때 강유진과 마주치는 특별 장면',pool:[],fixed:'yujin',cost:0,scoreMod:-5,scene:'./assets/event-yujin-rain-rescue.png',condition:(l,ctx)=>!!((l.justice&&l.justice.case)||l.criminalRecord||(ctx&&ctx.attacked))},
   { key:'sera_scene',emoji:'🌙',name:'심야 전시 골목',desc:'스트레스가 높은 밤 윤세라와 마주치는 특별 장면',pool:[],fixed:'sera',cost:180000,scoreMod:3,scene:'./assets/event-sera-doorstep.png',condition:l=>(l.stress||0)>=45},
-  { key:'chaerin_scene',emoji:'🥂',name:'빌딩 경매 설명회',desc:'자산이나 평판을 쌓으면 한채린이 먼저 말을 거는 특별 장면',pool:[],fixed:'chaerin',cost:500000,scoreMod:-8,scene:'./assets/event-chaerin-contract.png',condition:l=>((l.social&&l.social.reputation)||0)>=25||(l.properties||[]).length>0},
+  { key:'chaerin_scene',emoji:'🥂',name:'주주총회 리셉션',desc:'한채린 회사(대장주)의 주식을 크게(3,000만원↑) 보유하면 주주로서 먼저 말을 거는 특별 장면',pool:[],fixed:'chaerin',cost:500000,scoreMod:-8,scene:'./assets/event-chaerin-contract.png',condition:(l,ctx)=>!!(ctx&&ctx.heiressValue>=30000000)},
 ];
 
 /* 데이트 결과 대사(현실적) — 성공/보통/실패 티어별 랜덤 */
