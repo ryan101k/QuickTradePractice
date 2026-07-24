@@ -12,11 +12,49 @@ for (const file of [
   'js/core/trading.js',
   'js/core/time.js',
   'js/core/campaign.js',
+  'js/relationship_group.js',
+  'js/family.js',
+  'js/business.js',
   'js/services/save.js',
   'js/campaign_endings.js',
   'js/rivals.js',
 ]) {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename:file });
+}
+
+{
+  const life = {};
+  const business = context.QT_BUSINESS;
+  const legacyState = business.ensure(life);
+  assert.deepEqual(Array.from(legacyState.owned), [], '사업 데이터가 없는 구버전 세이브도 빈 장부로 복원해야 한다');
+
+  const opened = business.start(life, 'commerce', 3);
+  assert.equal(opened.ok, true);
+  assert.equal(opened.manager.name, '박지수');
+  assert.equal(opened.manager.portrait, 'mob-office-neutral.png');
+  assert.equal(business.start(life, 'commerce', 3).ok, false, '같은 사업체를 중복 설립하면 안 된다');
+
+  const month = business.monthly(life, { phaseId:'boom', day:3, random:()=>0 });
+  assert.equal(month.reports.length, 1);
+  assert.equal(month.reports[0].manager, '박지수');
+  assert.equal(Number.isFinite(month.net), true);
+  assert.equal(month.event.businessEvent, true);
+  const view = business.eventView(life, month.event);
+  assert.equal(view.portrait, './assets/characters/mob-office-sad.png');
+  const beforeReputation = view.item.reputation;
+  const decision = business.resolveEvent(life, month.event, 'absorb');
+  assert.equal(decision.ok, true);
+  assert.equal(decision.cash, -1200000);
+  assert.equal(decision.business.reputation > beforeReputation, true);
+  assert.equal(business.assetValue(life) > 0, true, '사업체 매각가치는 총재산에 포함할 수 있어야 한다');
+
+  const assignedPortraits = business.TYPES.map(type => business.staffOf(type.managerId).portrait);
+  assert.deepEqual(Array.from(assignedPortraits), [
+    'mob-office-neutral.png','mob-creative-neutral.png','mob-corporate.png','mob-medical.png',
+  ]);
+  for (const portrait of assignedPortraits) {
+    assert.equal(fs.existsSync(path.join(root, 'assets', 'characters', portrait)), true, `${portrait} 모브 이미지가 실제로 존재해야 한다`);
+  }
 }
 
 {
@@ -100,7 +138,7 @@ for (const file of [
     pendingOrders: [],
     limitOrders: [],
     companyNews: [],
-    life: { children:[] },
+    life: { children:[], business:{ owned:[{ id:'commerce', typeId:'commerce', managerId:'office', level:1 }] } },
     economy: {},
     stocks: [{
       name:'한결전자',
@@ -125,6 +163,7 @@ for (const file of [
   assert.equal(loaded.marketEvent.text, '시장 충격');
   assert.equal(loaded.intraSession.factionTradeCall.stock, '한결전자');
   assert.equal(loaded.intraSession.raidTarget, 2);
+  assert.equal(loaded.life.business.owned[0].managerId, 'office', '사업체와 담당 직원은 저장 데이터에 포함돼야 한다');
 }
 
 {
@@ -140,12 +179,73 @@ for (const file of [
     realizedPnL: 4000000,
     maxNetWorth: 28000000,
     partner: '나래',
+    partners: ['나래', '한채린', '윤세라'],
     children: 1,
   });
   const result = context.QT_SAVE.decodeResult('#result=' + encoded);
   assert.equal(result.partner, '나래');
+  assert.deepEqual(Array.from(result.partners), ['나래', '한채린', '윤세라']);
   assert.equal(result.children, 1);
   assert.equal(context.QT_SAVE.decodeResult('#result=' + encoded + 'broken'), null);
+}
+
+{
+  const life = {
+    relationship:'dating',
+    partner:{ name:'강유진', job:'경찰', personality:'caring' },
+    met:[
+      { name:'강유진', status:'partner', affection:75 },
+      { name:'한채린', status:'polycule', affection:70 },
+      { name:'윤세라', status:'polycule', affection:68 },
+      { name:'비밀연인', status:'lover', affection:55 },
+    ],
+    polycule:{ active:true, members:[{ name:'한채린' }, '윤세라'], trust:70 },
+    dangerousTrioBond:{ active:true, members:['강유진','한채린','윤세라'] },
+    lovers:[{ name:'비밀연인' }],
+    affection:75,
+  };
+  assert.deepEqual(Array.from(context.QT_RELATIONSHIPS.names(life)), ['강유진','한채린','윤세라']);
+  assert.equal(context.QT_RELATIONSHIPS.isPartner(life,'윤세라'), true, '보조 연인도 현재 연인으로 판정해야 한다');
+  assert.equal(context.QT_RELATIONSHIPS.label(life,'한채린'), '위험한 결핍 공생');
+  assert.equal(context.QT_RELATIONSHIPS.secretLovers(life)[0].name, '비밀연인');
+  assert.deepEqual(
+    Array.from(life.relationshipGroup.members, member => Object.keys(member).sort()),
+    [['joinedDay','name'],['joinedDay','name'],['joinedDay','name']],
+    '실제 관계 구성원 데이터에는 주연인 역할이 없어야 한다',
+  );
+
+  const removed = context.QT_RELATIONSHIPS.removeMember(life,'강유진','ex');
+  assert.equal(removed.removed, true);
+  assert.equal(life.relationship, 'dating', '주 연인 한 명이 빠져도 남은 다자 관계를 해제하면 안 된다');
+  assert.equal(life.partner.name, '한채린');
+  assert.deepEqual(Array.from(context.QT_RELATIONSHIPS.names(life)), ['한채린','윤세라']);
+
+  const committed=context.QT_RELATIONSHIPS.commit(life,5);
+  assert.equal(committed.spouseName,null,'다인 공동생활 서약에서 특정 구성원을 배우자/주연인으로 올리면 안 된다');
+  assert.equal(life.relationship,'married','구버전 이벤트에는 공동생활 서약을 married로 투영한다');
+  const budget=context.QT_RELATIONSHIPS.monthlyHousehold(life,{
+    incomeOf:()=>10000000,
+    personalityOf:()=>({money:-0.1,happy:2}),
+    housingCost:500000,
+    children:1,
+  });
+  assert.equal(budget.contribution<=budget.need,true,'구성원이 늘어도 공동예산 분담금은 실제 생활비를 넘으면 안 된다');
+  assert.equal(budget.lifestyleCost,250000,'생활 성향 지출은 인원수 합계가 아니라 가구 평균이어야 한다');
+  const beforeMembers=context.QT_RELATIONSHIPS.names(life).length;
+  context.QT_RELATIONSHIPS.registerConflict(life,30,'테스트 갈등',null,6);
+  assert.equal(context.QT_RELATIONSHIPS.names(life).length,beforeMembers,'갈등은 자동 이별로 이어지면 안 된다');
+  life.relationshipGroup.agreement.publicity='private';
+  life.relationshipGroup.exposure=100;
+  const exposed=context.QT_RELATIONSHIPS.monthlyPublicity(life,{month:7,random:()=>0});
+  assert.equal(exposed.type,'exposed');
+  assert.equal(life.relationshipGroup.agreement.publicity,'exposed');
+  context.QT_RELATIONSHIPS.setPublicity(life,'public',8);
+  assert.equal(context.QT_RELATIONSHIPS.publicityLabel(life),'공개 관계');
+
+  const plan=context.QT_FAMILY.startPlan(life,'birth',{caregivers:['나',...context.QT_RELATIONSHIPS.caregiverNames(life)]});
+  assert.equal(plan.ok,true);
+  for(let month=0;month<9;month++)context.QT_FAMILY.monthly(life);
+  assert.deepEqual(Array.from(life.children[0].caregivers),['나','한채린','윤세라']);
 }
 
 {
@@ -212,14 +312,23 @@ for (const file of [
 {
   const familyLife = {
     partner:{ name:'나래', affection:80 },
-    children:[{ name:'하늘' }],
+    met:[
+      { name:'나래', status:'partner', affection:80 },
+      { name:'한채린', status:'polycule', affection:75 },
+    ],
+    relationship:'dating',
+    polycule:{ active:true, members:[{ name:'한채린' }], trust:70 },
+    children:[{ name:'하늘', caregivers:['나','나래','한채린'] }],
     affection:80, familyBond:70, health:80, morality:70, criminalRecord:0,
   };
   const happy = context.QT_CAMPAIGN_ENDINGS.build('victory', familyLife, {
     totalWealth:150000000, debt:0, path:'legal',
   });
   assert.equal(happy.id, 'victory_happy');
+  assert.deepEqual(Array.from(happy.partnerNames), ['나래','한채린']);
+  assert.equal(happy.lines.some(line => line.includes('나래·한채린')), true);
   assert.equal(happy.lines.some(line => line.includes('하늘')), true);
+  assert.equal(happy.lines.some(line => line.includes('나·나래·한채린')), true);
   const normal = context.QT_CAMPAIGN_ENDINGS.build('victory', {
     children:[], health:80, morality:70, criminalRecord:0,
   }, { totalWealth:150000000, debt:0, path:'network' });

@@ -131,6 +131,7 @@ js/app.js                  게임 진행과 각 모듈을 연결하는 UI 조정
 js/core/trading.js         매수·매도·공매도·지정가 주문 체결 회계
 js/core/time.js            월 단위 날짜와 월말 신용이자 계산
 js/core/campaign.js        공격 해금·세력 반응 단계·파산 판정
+js/relationship_group.js   동등한 관계 구성원·공동생활 예산·공개도·갈등 상태
 js/services/save.js        버전 저장·장중 복원·읽기 전용 결과 링크
 js/companies.js            종목·ETF·경제자산 데이터
 js/economy.js              경제 국면, 기준금리, 물가, 자산 영향
@@ -144,7 +145,7 @@ js/justice.js              수사와 재판
 js/housing.js              주거와 부동산
 js/life_finance.js         세금·보험·연금
 js/health.js               건강과 노화
-js/family.js               결혼·자녀·가족
+js/family.js               공동생활 서약·자녀 공동양육·가족
 js/social_network.js       인맥과 평판
 js/legacy.js               연대기와 세대 계승
 tests/core_regression.test.cjs  거래·저장·시간 핵심 회귀 테스트

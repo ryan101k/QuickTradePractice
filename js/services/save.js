@@ -3,7 +3,7 @@
   'use strict';
 
   const SAVE_VERSION = 3;
-  const RESULT_VERSION = 1;
+  const RESULT_VERSION = 2;
 
   function finite(value, fallback) {
     return Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -148,12 +148,15 @@
   }
 
   function encodeResult(result) {
+    const partners = (Array.isArray(result.partners) ? result.partners : [result.partner])
+      .map(value => String(value || '').slice(0, 30)).filter(Boolean).slice(0, 8);
     const payload = {
       day: Math.max(1, Math.floor(finite(result.day, 1))),
       netWorth: Math.round(finite(result.netWorth, 0)),
       realizedPnL: Math.round(finite(result.realizedPnL, 0)),
       maxNetWorth: Math.round(finite(result.maxNetWorth, 0)),
-      partner: String(result.partner || '').slice(0, 30),
+      partner: partners[0] || '',
+      partners,
       children: Math.max(0, Math.floor(finite(result.children, 0))),
     };
     const json = JSON.stringify(payload);
@@ -165,8 +168,9 @@
     if (!hash || !hash.startsWith(marker)) return null;
     try {
       const envelope = JSON.parse(decodeURIComponent(hash.slice(marker.length)));
-      if (!envelope || envelope.v !== RESULT_VERSION || !envelope.p) return null;
+      if (!envelope || ![1, RESULT_VERSION].includes(envelope.v) || !envelope.p) return null;
       if (envelope.k !== checksum(JSON.stringify(envelope.p))) return null;
+      if (!Array.isArray(envelope.p.partners)) envelope.p.partners = envelope.p.partner ? [envelope.p.partner] : [];
       return envelope.p;
     } catch (error) {
       return null;

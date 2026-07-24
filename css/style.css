@@ -118,6 +118,9 @@ body {
 .faction-member span { min-width:0; }
 .faction-member b,.faction-member small { display:block; }
 .faction-member small { color:#555; font-size:10.5px; line-height:1.35; }
+.business-staff { flex:1 1 100%; align-items:flex-start; background:#fff8ed; }
+.business-staff img { width:68px; height:68px; flex-basis:68px; object-position:top; border:2px ridge #fff; }
+.business-staff small { font-size:11px; line-height:1.45; }
 
 /* 연애 시작 선택 버튼 */
 .romance-choice { display: flex; gap: 8px; margin-top: 8px; }

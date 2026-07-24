@@ -3,16 +3,19 @@
   'use strict';
 
   function relationshipContext(life) {
-    const partner = life && life.partner;
+    const group = root.QT_RELATIONSHIPS;
+    const partners = group ? group.consensualMembers(life || {}) : (life && life.partner ? [life.partner] : []);
+    const partner = partners[0] || null;
     const children = life && Array.isArray(life.children) ? life.children : [];
     const affection = Math.max(
       Number(life && life.affection) || 0,
       Number(partner && partner.affection) || 0,
       Number(partner && partner.charm) || 0,
+      ...partners.map(person => Number(person.affection) || 0),
     );
     const familyBond = Number(life && life.familyBond) || 0;
     const supported = !!partner && affection >= 60 || children.length > 0 && familyBond >= 50;
-    return { partner, children, affection, familyBond, supported };
+    return { partner, partners, children, affection, familyBond, supported };
   }
 
   function pathLine(path) {
@@ -30,16 +33,21 @@
 
   function familyLines(rel) {
     const lines = [];
-    if (rel.partner) {
-      lines.push(`${topic(rel.partner.name)} 마지막 순위표보다 당신이 무사히 돌아온 것을 먼저 확인했습니다.`);
+    if (rel.partners.length) {
+      const names = root.QT_RELATIONSHIPS ? root.QT_RELATIONSHIPS.joinNames(rel.partners) : rel.partner.name;
+      lines.push(`${topic(names)} 마지막 순위표보다 당신이 무사히 돌아온 것을 먼저 확인했습니다.`);
     } else {
       lines.push('긴 싸움이 끝난 뒤, 당신을 기다리는 집은 조용했습니다.');
     }
     if (rel.children.length) {
       const names = rel.children.slice(0, 2).map(child => child.name).join('과 ');
       lines.push(`${names || '아이'}에게 당신은 승리보다 실패를 견디고 다시 일어나는 법을 남겼습니다.`);
-    } else if (rel.partner) {
-      lines.push('두 사람은 다음 목표를 더 큰 숫자가 아니라 함께 보낼 시간으로 정했습니다.');
+      const caregivers=[...new Set(rel.children.flatMap(child=>Array.isArray(child.caregivers)?child.caregivers:[]))];
+      if(caregivers.length)lines.push(`${caregivers.join('·')}의 공동양육 약속은 마지막 순위표가 사라진 뒤에도 가족의 일상으로 남았습니다.`);
+    } else if (rel.partners.length) {
+      lines.push(rel.partners.length > 1
+        ? '연인들은 다음 목표를 더 큰 숫자가 아니라 함께 보낼 시간으로 정했습니다.'
+        : '두 사람은 다음 목표를 더 큰 숫자가 아니라 함께 보낼 시간으로 정했습니다.');
     }
     return lines;
   }
@@ -93,6 +101,7 @@
       summary,
       lines,
       partnerName:rel.partner && rel.partner.name,
+      partnerNames:rel.partners.map(person => person.name),
       children:rel.children.length,
       wealth,
       debt,

@@ -62,7 +62,7 @@ const GENDER_LABEL = { m: '남성', f: '여성' };
 const SPECIAL_CHARACTERS = {
   narae: { id:'narae', name:'나래', gender:'f', emoji:'👩', age:28, job:'투자교육 매니저', income:12000000, personality:'cold', portrait:'narae-v2-neutral.webp', romanceDifficulty:-25, special:'tutorial' },
   taesik: { id:'taesik', name:'장태식', gender:'m', emoji:'🦈', age:39, job:'사채 추심 책임자', income:0, personality:'cold', portrait:'taesik-v2-neutral.webp', special:'collector' },
-  yujin: { id:'yujin', name:'강유진', gender:'f', emoji:'👮‍♀️', age:29, job:'경찰관', income:10500000, personality:'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.36, special:'police', actionOnly:true, obsession:0, obsessionGrowth:0, portrait:'yujin-neutral.png' },
+  yujin: { id:'yujin', name:'강유진', gender:'f', emoji:'👮‍♀️', age:29, job:'경찰관', income:10500000, personality:'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.36, special:'police', actionOnly:true, obsession:0, obsessionGrowth:0, portrait:'yujin-v3-neutral.png' },
   sera: { id:'sera', name:'윤세라', gender:'f', emoji:'🖤', age:25, job:'프리랜서 일러스트레이터', income:7500000, personality:'obsessive', moneyStyle:'dependent', datingMoneyRate:-.06, marriedShareRate:.18, special:'obsessive', actionOnly:true, obsession:55, obsessionGrowth:8, portrait:'sera-neutral.png' },
   chaerin: { id:'chaerin', name:'한채린', gender:'f', emoji:'👑', age:27, job:'재벌가 전략실 이사', income:60000000, personality:'ambitious', moneyStyle:'support', datingMoneyRate:.10, marriedShareRate:.50, special:'heiress', actionOnly:true, obsession:0, obsessionGrowth:0, portrait:'chaerin-neutral.png' },
 };
