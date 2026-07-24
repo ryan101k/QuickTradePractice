@@ -64,6 +64,50 @@ const CHAPTERS=[
   ]
  }
 ];
+const AFTERMATH=[
+ {
+  id:'replaced_frames',title:'공동생활 1개월 · 사라진 단체사진',icon:'🖼️',scene:'./assets/event-sera-three-chairs.png',
+  desc:'공동 거처의 액자 속 사진이 밤사이 전부 바뀌었습니다. 유진의 순찰 사진도, 채린의 이사회 사진도, 당신의 어린 시절 사진도 같은 구도의 세라 사진으로 덮여 있습니다.',
+  speakers:[
+   {name:'윤세라',line:'한 집에 사는데 사진도 같은 사람을 보면 덜 헷갈리잖아요.'},
+   {name:'강유진',line:'남의 물건을 허락 없이 바꾸는 건 공동생활이 아니라 침입이에요.'},
+   {name:'한채린',line:'취향은 최악인데 실행력은 인정할게. 원본은 내 보관실에 있어.'}
+  ],
+  choices:[
+   {id:'restore',text:'네 사람의 사진을 새로 찍어 같은 크기로 건다',result:'세라는 자기 사진이 줄었다며 불평했지만, 누구도 지워지지 않는 첫 공동사진이 생겼습니다.',stability:8,obsession:-5},
+   {id:'sera_wall',text:'세라 사진 한 장만 남기고 나머지는 원래대로 돌린다',result:'세라는 선택받은 한 장을 매일 닦았습니다. 유진과 채린은 그 정도가 피해를 줄이는 타협이라고 받아들였습니다.',stability:3,obsession:5},
+   {id:'office',text:'사진들을 세력 사무실의 상황판으로 옮긴다',result:'채린은 액자를 정보판으로 바꾸고 유진은 비상연락망을 붙였습니다. 세라는 당신 사진 옆에 자기 사진을 다시 끼웠습니다.',stability:5,faction:6}
+  ]
+ },
+ {
+  id:'faction_table',title:'공동생활 2개월 · 세력 회의의 세 자리',icon:'🦂',scene:'./assets/life-faction-war.png',
+  desc:'세력 회의실에 세 개의 의자가 새로 놓였습니다. 유진은 합법적인 방어선을, 채린은 자금과 거점을, 세라는 누구도 기록하지 못한 사람들의 습관을 보고합니다.',
+  speakers:[
+   {name:'강유진',line:'세력을 키우는 건 상관없어요. 증거와 절차를 지키면 내가 방패가 될게요.'},
+   {name:'한채린',line:'작은 조직 흉내는 그만둬. 내가 돈을 대면 적어도 무너지진 않아.'},
+   {name:'윤세라',line:'배신할 사람은 표정만 봐도 알아요. 가까이서 계속 보면 더 잘 알 수 있고.'}
+  ],
+  choices:[
+   {id:'roles',text:'유진은 법무·채린은 운영·세라는 정보 담당으로 선을 정한다',result:'세 사람은 서로의 보고서를 검증하며 이상할 만큼 효율적인 간부진이 됐습니다.',stability:9,faction:10},
+   {id:'competition',text:'이번 달 가장 성과가 큰 사람에게 내 일정을 맡긴다',result:'세력의 실적은 올랐지만 당신의 일정이 세 사람의 전리품처럼 취급되기 시작했습니다.',stability:-4,obsession:8,faction:8},
+   {id:'separate',text:'연애와 세력 업무를 분리하고 회의석을 치운다',result:'유진은 안도했고 채린은 비효율적이라 평했으며 세라는 회의실 밖에서 모든 대화를 들었습니다.',stability:2,obsession:-3}
+  ]
+ },
+ {
+  id:'closed_world',title:'공동생활 3개월 · 문 밖의 약속',icon:'🌙',scene:'./assets/event-trio-secure-home-ending.png',
+  desc:'늦은 귀가 한 번으로 세 사람의 규칙이 충돌했습니다. 유진은 신고 시각을, 채린은 경호차량을, 세라는 귀가하지 않는 선택 자체를 문제 삼습니다.',
+  speakers:[
+   {name:'강유진',line:'연락이 늦은 건 화낼 일이 아니라 확인할 일이에요. 그 뒤에는 기다려야 해요.'},
+   {name:'한채린',line:'차와 사람을 붙였으면 이런 낭비는 없었어. 자유도 관리할 능력이 있을 때 자유지.'},
+   {name:'윤세라',line:'기다리게 하지 않으면 아무도 화낼 필요가 없잖아요. 그냥 항상 같이 가요.'}
+  ],
+  choices:[
+   {id:'deadline',text:'연락이 없어도 정해진 시각까지는 누구도 추적하지 않는다',result:'세 사람 모두 불만이었지만 처음으로 기다림에 명확한 끝과 시작이 생겼습니다.',stability:10,obsession:-6},
+   {id:'escort',text:'외출할 때 세 사람 중 한 명과 반드시 동행한다',result:'혼자일 시간은 줄었지만 세 사람의 경쟁은 당번표 안에서만 움직이기 시작했습니다.',stability:6,obsession:7},
+   {id:'vanish',text:'규칙을 시험하려 하루 동안 일부러 연락을 끊는다',result:'도시는 다시 세 구역으로 나뉘었습니다. 구조 경쟁은 끝났지만 포위망은 더 촘촘해졌습니다.',stability:-12,obsession:12}
+  ]
+ }
+];
 
 function ensure(life){
  if(!life.dangerousTrio||typeof life.dangerousTrio!=='object')life.dangerousTrio={active:false,queued:false,encountered:false,stage:0,stability:50,axes:{balance:0,containment:0,fracture:0},history:[],ending:null};
@@ -71,16 +115,23 @@ function ensure(life){
 }
 function progress(life){
  const rows=NAMES.map(name=>{
-  const r=rec(life,name);
-  return{name,met:!!r,friend:!!r&&r.status==='friend',ready:!!r&&r.status==='friend',need:!r?'아직 만나지 못함':r.status!=='friend'?`현재 관계: ${r.status||'지인'} · 친구여야 함`:'친구로 연락 중'};
+  const r=rec(life,name),stories=root.QT_CHARACTER_STORIES,state=r&&stories&&stories.ensure(r),story=r&&stories&&stories.get(r.name);
+  const route=state&&state.ending&&state.ending.route;
+  const accepted=name==='강유진'?['dangerous_dependence','accomplice'].includes(route)
+   :name==='한채린'?['private_submission','boardroom_pair'].includes(route)
+   :name==='윤세라'?['shared_cage','anchored'].includes(route):false;
+  const active=!!r&&!['ex','deceased'].includes(r.status);
+  const chapter=state?state.chapter:0,total=story?story.chapters.length:0;
+  return{name,met:!!r,active,chapter,total,route,ready:active&&!!state&&state.completed&&accepted,
+   need:!r?'아직 만나지 못함':!active?`현재 관계: ${r.status||'지인'} · 관계가 끊김`:!state||!state.completed?`개인 스토리 ${chapter}/${total} 진행`:accepted?`전용 결핍 엔딩 · ${state.ending.title}`:`현재 엔딩(${state.ending&&state.ending.title||'미정'})은 결핍 공생 조건과 다름`};
  });
  return rows;
 }
 function eligibility(life){
- const state=ensure(life),rows=progress(life),single=life.relationship==='single'&&!life.partner;
- const poly=life.polycule||{},clean=!poly.active&&!(poly.members||[]).length;
- const untouched=rows.every(row=>{const r=rec(life,row.name);return r&&!r.spentNight&&!r.dangerAwakened;});
- return{ok:!state.encountered&&!state.active&&!state.ending&&single&&clean&&untouched&&rows.every(row=>row.ready),single,clean,untouched,rows};
+ const state=ensure(life),rows=progress(life),partner=!!life.partner&&NAMES.includes(life.partner.name);
+ const poly=life.polycule||{},outsiders=(poly.members||[]).filter(person=>!NAMES.includes(person.name));
+ const clean=!outsiders.length;
+ return{ok:!state.encountered&&!state.active&&!state.ending&&partner&&clean&&rows.every(row=>row.ready),partner,clean,outsiders,rows};
 }
 function queue(life){
  const check=eligibility(life),state=ensure(life);
@@ -113,7 +164,21 @@ function monthly(life){
  state.stability=clamp(state.stability+((state.axes.balance||0)>=(state.axes.fracture||0)?2:-4),0,100);
  return state.stability<=15?'세 사람의 신경전이 위험 단계입니다. 전용 이야기를 진행해 균형을 정해야 합니다.':null;
 }
+function nextAftermath(life){
+ const state=ensure(life);if(!state.ending)return null;
+ if(!Number.isFinite(state.aftermathIndex))state.aftermathIndex=0;
+ if(state.aftermathIndex>=AFTERMATH.length)return null;
+ return AFTERMATH[state.aftermathIndex];
+}
+function applyAftermath(life,choiceId){
+ const state=ensure(life),event=nextAftermath(life);if(!event)return null;
+ const choice=event.choices.find(item=>item.id===choiceId);if(!choice)return null;
+ state.stability=clamp((state.stability||0)+(choice.stability||0),0,100);
+ NAMES.forEach(name=>{const r=rec(life,name);if(!r)return;r.trust=clamp((r.trust||0)+Math.sign(choice.stability||0)*2,0,100);if(choice.obsession)r.obsession=clamp((r.obsession||0)+choice.obsession,0,100);});
+ state.aftermathIndex++;
+ return{event,choice,state};
+}
 function compatibleCandidate(){return false;}
 
-root.QT_DANGEROUS_TRIO={NAMES,CHAPTERS,ensure,progress,eligibility,queue,start,next,apply,monthly,compatibleCandidate};
+root.QT_DANGEROUS_TRIO={NAMES,CHAPTERS,AFTERMATH,ensure,progress,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
 })(window);

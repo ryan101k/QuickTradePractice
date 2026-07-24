@@ -101,6 +101,15 @@ body {
 .bubble-tts { margin-left:6px; padding:0 4px; border:1px solid #bbb; background:#eef4ff; cursor:pointer; font-size:11px; line-height:1.4; vertical-align:middle; }
 .bubble-tts:hover { background:#d6e6ff; }
 .chat-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; }
+.chat-readonly-note { margin-top:7px; padding:7px 8px; border:1px solid #9aa5b6; background:#eef2f7; color:#4b5563; font-size:11.5px; line-height:1.45; }
+.message-incoming { margin:9px 0; padding:12px 13px; border:2px inset #fff; background:#e9f1ff; font-size:14px; line-height:1.6; }
+.message-popup-avatar { display:flex; align-items:center; justify-content:center; width:72px; height:72px; border:2px ridge #fff; background:#e6eaf1; font-size:40px; flex:0 0 auto; }
+.trio-choice-vanish { animation:trio-choice-vanish .42s ease-in forwards; pointer-events:none; }
+@keyframes trio-choice-vanish {
+  0% { transform:rotate(0); opacity:1; filter:none; }
+  45% { transform:rotate(-6deg) scale(.98); opacity:.55; filter:contrast(1.8); }
+  100% { transform:translateX(45px) rotate(11deg) scale(.72); opacity:0; filter:blur(2px); }
+}
 .relation-preview { margin-top:8px; padding:8px; border:2px inset #fff; background:#f4f4f4; }
 .faction-status { padding:7px; margin-bottom:6px; background:#111; color:#9cff9c; border:2px inset #aaa; }
 .faction-members { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; margin:5px 0; }

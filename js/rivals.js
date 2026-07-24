@@ -113,7 +113,7 @@
     const operationBoost=Math.min(1.25,Math.sqrt(operationFund/20000000)*.35);
     const operationDefense=Math.min(.12,operationFund/100000000*.08);
     const operationIntel=Math.min(.10,operationFund/80000000*.06);
-    f.capacity=Math.max(0,(f.level||0)*3);
+    f.capacity=Math.max(0,(f.level||0)*3+(f.trioCapacityBonus||0));
     f.defense=Math.min(.88,(f.level||0)*.055+totals.defense+operationDefense);
     f.intel=Math.min(.72,(f.level||0)*.035+totals.intel+operationIntel);
     f.legal=totals.legal;f.medical=totals.medical;f.monthlyIncome=totals.income;
