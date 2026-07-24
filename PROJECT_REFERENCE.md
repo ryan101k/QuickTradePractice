@@ -89,9 +89,11 @@ aptitude.js
 career.js
 economy.js
 business.js
+business_romance.js
 housing.js
 life_finance.js
 ui/page-lifecycle.js
+ui/news-anchor.js
 ui/market-workspace.js
 ui/info-market-panel.js
 ui/month-close-flow.js
@@ -351,7 +353,7 @@ app.js
 
 ### 6.7 사업
 
-`business.js`가 사업 상태와 계산을 소유한다.
+`business.js`가 사업 상태와 계산을 소유하고, `business_romance.js`가 네 담당자의 익명 신원·업무 신뢰·유혹 함정·얼굴 공개·연애 엔딩을 소유한다.
 
 사업 종류:
 
@@ -360,7 +362,32 @@ app.js
 - 기업 자문사
 - 돌봄·웰니스 센터
 
-핵심 API는 `start`, `expand`, `close`, `assetValue`, `projected`, `monthly`, `eventView`, `resolveEvent`다. 각 사업에는 남성 모브 매니저가 배정되고, 월간 보고와 선택형 사건이 있다.
+`business.js` 핵심 API는 `start`, `expand`, `close`, `assetValue`, `projected`, `monthly`, `eventView`, `resolveEvent`다. 각 사업에는 여성 담당자 한 명이 배정되고 월간 보고와 선택형 사건이 있다.
+
+담당자는 공개 전 `박 매니저`, `한 실장`, `차 총괄`, `오 책임자`처럼 직함으로만 표시한다. 사업 선택과 흑자로 숨은 신뢰가 오르며, 솔로 상태에서 네 사업을 모두 운영하고 3개월 연속 전체 흑자를 내면 한 명씩 얼굴·실명 공개 사건이 자연 발생한다. 공개 후에는 일반 연락·외출·데이트 대상이 된다.
+
+각 담당자의 사업 장면은 `event-business-<id>-masked.png`와 `event-business-<id>-night.png`가 한 쌍이다. 일반 보고·유혹 단계는 눈을 가린 `masked`, 공개·순애 단계는 얼굴이 보이는 `night`를 사용한다.
+
+연인이 있는 동안 아직 공개되지 않은 담당자의 유혹을 받아 선을 넘으면 확정 함정이다. 박지수·오혜린은 폭로로 기존 관계가 파탄 나고, 한이슬·차서윤은 비밀유지·협박 합의금을 요구한다. 선을 지키면 숨은 신뢰가 크게 오른다. 각 담당자 순애 엔딩과 네 명의 합의형 세트 엔딩은 `business_romance.js` 조건을 따른다.
+
+공개 뒤 네 담당자는 각각 2장의 개인 업무 이야기를 가진다. 개인 장면은 오피스 로맨스의 성숙한 긴장감을 유지하되, 각자의 업무 윤리와 관계 방식이 먼저 드러나도록 구성한다.
+
+| 담당자 | 개인 이야기 | 컷씬 |
+|---|---|---|
+| 박지수 | 물류실의 야근, 근무표에 만든 생활의 빈칸 | `event-business-office-ledger.png`, `event-business-office-schedule.png` |
+| 한이슬 | 크레딧에서 빠진 이름, 뮤즈와 공동 제작자의 경계 | `event-business-creative-credit.png`, `event-business-creative-muse.png` |
+| 차서윤 | 독소조항을 이용한 신뢰 시험, 서명하지 않은 장기계약 | `event-business-corporate-clause.png`, `event-business-corporate-unsigned.png` |
+| 오혜린 | 매출보다 안전을 먼저 긋는 선, 돌보는 사람의 휴진일 | `event-business-medical-redline.png`, `event-business-medical-rest.png` |
+
+개인 선택 결과에는 공통 설명만 쓰지 않고 담당자별 `reply`를 함께 반환해 서로 다른 말투가 결과창과 연락으로 이어지게 한다.
+
+4인 세트는 위험 3인조의 감금·의존이나 힐링 3인조의 소박한 공동생활과 구별되는 **이사회 로맨스**다. 네 사업을 모두 운영하고 전원 개인 이야기 1장 이상을 본 뒤 아래 공동 이야기가 차례로 자연 발생한다.
+
+1. `호칭을 정하는 이사회`: 권한과 책임 배분
+2. `네 개 부서를 노린 적대적 인수`: 부서 간 공조와 직원 보호
+3. `퇴근 뒤에는 누가 대표인가`: 고용 관계와 사적 동의의 경계
+
+공동 선택은 `업무 시너지`, `공동 의사결정`, `공과 사 경계`를 바꾼다. 3장을 완료하고 세 지표와 전원 관계 조건을 충족해야 `네 개의 명함` 세트 엔딩이 열린다. 공동 컷씬은 `event-business-quartet-boardroom.png`, `event-business-quartet-crisis.png`, `event-business-quartet-afterhours.png`다.
 
 사업을 추가할 때 필요한 것:
 
@@ -430,6 +457,8 @@ AI/라이벌의 공격
 
 연락처는 연인만이 아니라 시작 배경에서 생긴 부모·친구·직업 인맥도 포함한다. 캐릭터 대사를 추가할 때 범용 `chat_lines.js`만 늘리지 말고 `character_dialogue.js`의 해당 인물 말투를 우선한다.
 
+월간 관계 감소는 시장만 보거나 연락 탭을 열지 않았다는 이유로 발생하지 않는다. `pushPersonMessage`가 기록한 실제 상대 수신 메시지가 있고, `lastReplyDay`가 그보다 오래됐으며, 이를 2개월 이상 답하지 않았을 때만 `idleMonths`와 소원해짐 감소를 적용한다. 선택지에서 명시적으로 `무시`를 누르는 경우의 즉시 감소는 별도다.
+
 ### 6.11 건강·가족·자녀·세대 계승
 
 | 파일 | 역할 |
@@ -471,7 +500,7 @@ AI/라이벌의 공격
 
 | 파일 | 역할 |
 |---|---|
-| `bgm.js` | 자체 WebAudio 반주, SAM 음절 보컬, 포먼트·자음 합성, 캐릭터 보이스, Tone.js 효과·보조 화음, 트랙 상태 |
+| `bgm.js` | 자체 WebAudio 반주, SAM 음절 보컬, 포먼트·자음 합성, 캐릭터 보이스, Tone.js 보컬 효과, 트랙·복구 상태 |
 | `voice.js` | TTS 음성 선택과 발화 |
 | `app.js` | 옵션, 사용자 입력 뒤 재생 시작, 장면 변화 전달 |
 
@@ -482,14 +511,14 @@ AI/라이벌의 공격
 - 음절 악보: `{ text, note, step, beats, vowel, onset }` 데이터로 발음·음정·시작점·길이를 지정
 - SAM: `HEL`, `LO`, `RISE`, `NEWS`처럼 짧게 나눈 발음 PCM 생성
 - 음정: SAM 원음을 C4로 보고 `playbackRate = 2^(반음 차이/12)`로 정확히 이조
-- 지속 모음: A/E/I/O/U별 F1·F2·F3 band-pass 포먼트 위에 음표 주파수의 오실레이터를 통과시킴
+- 지속 모음: A/E/I/O/U별 핵심 F1·F2 band-pass 포먼트 위에 음표 주파수의 오실레이터를 통과시킴
 - 자음: S/SH/CH/F는 고주파 노이즈, K/T/P/B/D/G는 짧은 파열음, M/N은 저음 공명, H는 숨소리
 - 보이스 스타일: 파형, SAM/포먼트 비율, 자음 세기, 비브라토, 글라이드, 포먼트 스케일, 속삭임, 글리치를 조합
-- Tone.js: 샘플 예약, 포먼트 보이스, 더블 트래킹, 패닝, 코러스, 리버브, 보조 화음
+- Tone.js: 샘플 예약, 포먼트 보이스, 제한된 더블 트래킹, 패닝, 짧은 코러스와 리버브
 - 자체 WebAudio: 기존 멜로디·아르페지오·베이스·패드·드럼
 - 선곡: 시작 화면, 장 마감 월별 순환, 데이트/관계, 위험 사건, 속보, 장중 상승·하락
 
-장면 기본 보컬은 `arcade`, `ticker`, `turbo`, `hollow`, `broadcast`, `broken`, `stadium`, `dream`으로 나뉜다. 캐릭터 보이스는 현재 나래(`guide`), 강유진(`guardian`), 한채린(`velvetKnife`), 윤세라(`stalker`)가 있으며, 해당 인물의 이벤트·데이트 창이 보이면 `app.js`가 자동으로 캐릭터 보컬을 선택한다.
+보컬 프리셋은 `arcade`, `ticker`, `turbo`, `hollow`, `broadcast`, `broken`, `stadium`, `dream`으로 나뉘지만, 모든 장면에서 동시에 사용하지 않는다. 자동 보컬은 타이틀 훅에만 나오고 장중·뉴스·급등락은 악기 중심으로 재생한다. 캐릭터 보이스는 현재 나래(`guide`), 강유진(`guardian`), 한채린(`velvetKnife`), 윤세라(`stalker`)가 있으며, 해당 인물의 이벤트·데이트 창이 보일 때만 `app.js`가 캐릭터 보컬을 선택한다.
 
 개발 중 직접 시험:
 
@@ -506,7 +535,9 @@ QT_BGM.clearCharacterVoice();
 - 음악 버튼의 실제 클릭/터치 안에서 `QT_BGM.unlock()`을 기다린 뒤 재생한다.
 - Tone과 자체 반주가 하나의 `AudioContext`를 공유한다.
 - 컨텍스트가 잠긴 상태에서는 음표를 미리 예약하지 않는다.
-- 백그라운드에서 돌아올 때 `visibilitychange`/`pageshow`로 재개를 시도한다.
+- 스케줄러에서 `resume()`을 반복하지 않는다. 동시 복구 요청은 하나의 Promise로 합친다.
+- 백그라운드 복귀와 다음 `pointerdown`/`touchend`/`keydown`에서 한 번만 재개를 시도한다.
+- 복구 뒤에는 편곡을 처음부터 중복 시작하지 않고 진행 위치와 다음 예약 시각을 유지한다.
 - 잠금 해제가 실패하면 버튼을 OFF로 되돌려 “켜졌지만 무음” 상태를 남기지 않는다.
 
 트랙이 나오지 않으면 `#bgm-toggle`의 `data-engine`, `data-audio-state`, 툴팁을 먼저 확인한다. `sam+tone / running`이 고급 엔진의 정상 상태이며, `webaudio / running`은 CDN 폴백이 정상 재생 중인 상태다.
@@ -656,34 +687,38 @@ QT_BGM.clearCharacterVoice();
 
 조건의 최종 판정은 `QT_DANGEROUS_TRIO.eligibility()`다. UI에서 조건을 복제하지 말고 이 함수를 사용한다.
 
-### 자유로운 3인 세트
+### 힐링 3인 세트 — 화려한 하루 뒤, 작은 집
 
 구성원: **채원 + 유나 + 소희**
 
 파일: `freedom_trio.js`
 
-위험한 3인 세트와 달리 감금보다 자유·커리어·거리감이 주제다.
+세 사람의 직업은 승무원·모델·연주자처럼 화려하지만, 이 루트의 보상은 더 큰 무대가 아니다. 현관을 닫은 뒤에는 누구도 직함이나 성과로 평가하지 않고, 피곤한 사람이 평범하게 돌아와 쉴 수 있는 집을 만드는 것이 핵심이다.
 
 개인 선행 사건:
 
-- 채원: 마지막 비행 뒤의 빈 좌석 → 장거리 노선 발령
-- 유나: 렌즈가 꺼진 뒤의 얼굴 → 연애 금지 계약서
-- 소희: 박수가 끝난 빈 객석 → 해외 오디션 합격 통지
+- 채원: 마지막 비행 뒤의 편의점 죽 → 비행 없는 아침과 빨래
+- 유나: 렌즈가 꺼진 뒤의 국숫집 → 공개 일정이 없는 시장·서점의 일요일
+- 소희: 박수가 끝난 뒤의 따뜻한 차 → 보온병과 집 열쇠를 건네는 작은 연주
 
 세트 축:
 
-- `freedom`: 서로를 붙잡지 않는 신뢰
-- `career`: 각자의 일을 함께 확장
-- `control`: 통제와 구속
+- `harmony`: 네 사람이 비교받지 않고 함께 지내는 관계 조화
+- `rest`: 집에서 실제로 회복되는 안식감
+- `axes.freedom`: 서로의 일을 인정하면서 평범한 생활을 지키는 선택
+- `axes.career`: 직업을 처리하되 집까지 무대로 만들지 않는 선택
+- `axes.control`: 따뜻한 집을 허락과 평가가 필요한 장소로 바꾸는 선택
 
-4장 세트 스토리 뒤 귀환, 세계 순회, 빈 탑승구 계열 결말과 후일담이 있다. 조건의 최종 판정은 `QT_FREEDOM_TRIO.eligibility()`다.
+네 장은 공항 귀가, 열애설이 난 일요일 장보기, 세 도시에서 온 귀가 문자, 아무 역할도 하지 않는 공동생활로 이어진다. 좋은 결말은 `화려한 날 뒤의 불 켜진 집` 또는 `네 사람의 작은 저녁`, 통제 선택이 누적된 나쁜 결말은 `불이 꺼진 현관`이다.
+
+좋은 결말 뒤 `recovery()`는 매달 행복 증가, 스트레스 감소, 안식감에 따른 건강 회복과 소액 생활수입 30만 원을 반환한다. 후일담도 공동 콘텐츠나 세계 순회가 아니라 일정 없는 일요일, 늦은 귀가, 동네 축제처럼 소박한 생활을 중심으로 한다. 조건의 최종 판정은 `QT_FREEDOM_TRIO.eligibility()`다.
 
 ## 12. 이미지 자산 규칙
 
 현재 자산은 대략 다음 규모다.
 
-- `assets/` 바로 아래 이벤트·UI 이미지: 64개
-- `assets/characters/` 초상화·표정 이미지: 216개
+- `assets/` 바로 아래 이벤트·UI 이미지: 83개
+- `assets/characters/` 초상화·표정 이미지: 220개
 
 기본 규칙:
 
@@ -704,6 +739,7 @@ QT_BGM.clearCharacterVoice();
 | 주가 변동폭·서킷브레이커 | `app.js` | `events_market.js`, `core/trading.js` |
 | 종목·회사 추가 | `companies.js` | `company_reports.js`, `data.js` |
 | 뉴스·이슈 추가 | `events_market.js` | `app.js` 장 마감 보고 |
+| 월간·긴급 뉴스 도트 안내원 | `ui/news-anchor.js` | `app.js`의 `openMarket`, `showBreaking`, `style.css` |
 | 종목 검색·필터·호가창 접기 | `ui/market-workspace.js` | `app.js`의 `renderStockList`, `style.css` |
 | 내 정보·시장 탭 | `ui/info-market-panel.js` | `app.js`의 `renderInfoMarketPanel`, 해당 데이터 모델 |
 | 탭·앱 전환 시 장 정지 | `ui/page-lifecycle.js` | `app.js`의 `pauseForPageLeave`, `togglePause` |
@@ -716,6 +752,7 @@ QT_BGM.clearCharacterVoice();
 | 주거 비용 | `housing.js` | `economy.js`, `app.js` |
 | 부동산·배당형 자산 | `data.js` | `app.js`, `economy.js` |
 | 사업 추가·밸런스 | `business.js` | `assets/characters`, 저장 테스트 |
+| 사업 담당자 익명·유혹·공개·연애 | `business_romance.js` | `business.js`, `app.js`, 사업 이벤트 컷신 |
 | 세력 수익·유지비 | `rivals.js` | `faction_campaign.js`, `app.js` |
 | 공격·방어·복수 | `rivals.js` | `core/campaign.js`, `faction_campaign.js` |
 | 관계 판정·이별 | `relationship_group.js` | `app.js`, `romance_events.js` |

@@ -499,6 +499,15 @@
     },
   };
 
+  // 일반 장중·뉴스까지 계속 노래하면 정보음과 멜로디가 서로 싸우고 모바일 노드 수도
+  // 지나치게 늘어난다. 자동 보컬은 타이틀 훅에만 쓰고, 나머지는 캐릭터 장면에서
+  // playCharacter()가 명시적으로 요청할 때만 켠다.
+  const AUTO_VOCAL_TRACKS = new Set(['title']);
+  function vocalFor(trackName) {
+    return advanced.voiceOverride ||
+      (AUTO_VOCAL_TRACKS.has(trackName) ? VOCAL_TRACKS[trackName] : null);
+  }
+
   // 캐릭터 전용 보컬 모티프. 반주는 기존 장면 트랙을 재사용하고 보컬만 교체한다.
   const CHARACTER_VOCALS = {
     narae: {
@@ -617,10 +626,10 @@
           await T.start();
           const destination = T.getDestination ? T.getDestination() : T.Destination;
           const limiter = new T.Limiter(-8).connect(destination);
-          const mix = new T.Gain(Math.max(0.001, volume * 0.5)).connect(limiter);   // SAM 보컬이 반주에 안 묻히게
-          const reverb = new T.Reverb({ decay: 3.2, preDelay: 0.035, wet: 0.34 }).connect(mix);
+          const mix = new T.Gain(Math.max(0.001, volume * 0.38)).connect(limiter);
+          const reverb = new T.Reverb({ decay: 1.8, preDelay: 0.025, wet: 0.18 }).connect(mix);
           const chorus = new T.Chorus({
-            frequency: 1.35, delayTime: 3.8, depth: 0.24, spread: 145, wet: 0.22,
+            frequency: 1.2, delayTime: 3.2, depth: 0.18, spread: 120, wet: 0.12,
           }).start().connect(reverb);
           const vocalFilter = new T.Filter({ type: 'highpass', frequency: 105, rolloff: -12 }).connect(chorus);
           const pad = new T.PolySynth(T.AMSynth, {
@@ -685,7 +694,7 @@
 
     setVolume(v) {
       if (this.nodes && this.nodes.mix) {
-        const target = Math.max(0.0001, v * 0.5);
+        const target = Math.max(0.0001, v * 0.38);
         const gain = this.nodes.mix.gain;
         if (gain && typeof gain.rampTo === 'function') gain.rampTo(target, 0.08);
         else if (gain) gain.value = target;
@@ -755,6 +764,12 @@
       const T = root.Tone;
       let player;
       try {
+        // 짧은 시간에 음절이 몰려도 오래된 샘플을 정리해 모바일 오디오 노드 폭증을 막는다.
+        while (this.players.size >= 12) {
+          const oldest = this.players.values().next().value;
+          this.players.delete(oldest);
+          try { oldest.stop(); oldest.dispose(); } catch (e) {}
+        }
         const channel = new T.Channel({ volume: -4, pan: pan || 0 }).connect(this.nodes.vocalFilter);
         player = new T.Player(buffer).connect(channel);
         // C4(60)를 SAM 원음 기준으로 삼는다. 반음 n개의 비율은 정확히 2^(n/12).
@@ -812,6 +827,11 @@
       const end = at + duration;
       const voice = { stopped: false, parts: [] };
       try {
+        while (this.voices.size >= 8) {
+          const oldest = this.voices.values().next().value;
+          this.voices.delete(oldest);
+          try { oldest.stop(); oldest.dispose(); } catch (e) {}
+        }
         const panner = new T.Panner(pan || 0).connect(this.nodes.vocalFilter);
         const vibrato = new T.Vibrato({
           frequency: style.vibratoRate || 5,
@@ -826,8 +846,8 @@
           type: style.wave || 'sawtooth',
           volume: -18,
         });
-        const weights = [0.92, 0.58, 0.27];
-        [formant.f1, formant.f2, formant.f3].forEach((center, index) => {
+        const weights = [0.92, 0.58];
+        [formant.f1, formant.f2].forEach((center, index) => {
           const filter = new T.Filter({
             type: 'bandpass',
             frequency: center * (style.formantScale || 1),
@@ -879,16 +899,6 @@
       const local = step % 32;
       const time = this.toneTime(audioTime);
 
-      // 섹션 첫 박에 Tone.js 패드가 기존 화음을 부드럽게 받쳐 준다.
-      if (local === 0) {
-        const chords = layerOf(track, sec, 'chords');
-        const spec = chords && chords[step % chords.length];
-        if (spec && spec !== '-') {
-          try {
-            this.nodes.pad.triggerAttackRelease(spec.split('+'), Math.max(0.4, spb * 7.5), time, 0.18);
-          } catch (e) {}
-        }
-      }
       // 편곡 위치(arrIdx)에 따라 절/후렴 보컬을 바꾼다. sections 가 없으면 기존 score.
       const idx = arrIdx || 0;
       const banks = (vocal.sections && vocal.sections.length) ? vocal.sections : null;
@@ -911,7 +921,7 @@
         phraseIndex % 2 ? 0.1 : -0.1, style);
 
       // 완벽히 같은 복제 대신 미세한 시간·음정 차를 둔 더블 트래킹.
-      if (vocal.duet && phraseIndex % 2 === 0) {
+      if (vocal.duet && phraseIndex % 4 === 0 && this.voices.size < 4) {
         const harmony = phraseIndex % 4 === 0 ? 7 : -5;
         const harmonyTime = time + 0.024;
         this.playSample(buffer, midi + harmony, harmonyTime,
@@ -922,10 +932,7 @@
           phraseIndex % 4 === 0 ? 0.32 : -0.32, style);
       }
       try {
-        if (phraseIndex === 0) this.nodes.breath.triggerAttackRelease(0.07, time, 0.15);
-        if (phraseIndex % 2) this.nodes.accent.triggerAttackRelease(
-          phrase.note, Math.max(0.08, spb * 0.8), time, 0.1
-        );
+        if (phraseIndex === 0) this.nodes.breath.triggerAttackRelease(0.07, time, 0.12);
       } catch (e) {}
     },
   };
@@ -957,6 +964,7 @@
   let arrIdx = 0, secStep = 0, curSecLen = 16;   // 편곡 진행 상태
   let enabled = false, volume = 0.5, wanted = null;
   let unlockPromise = null;
+  let recoveryPromise = null;
 
   const LOOKAHEAD = 0.14;
   const TICK_MS = 30;
@@ -981,6 +989,11 @@
     comp.threshold.value = -14; comp.knee.value = 24; comp.ratio.value = 4;
     comp.attack.value = 0.004; comp.release.value = 0.18;
     master.connect(comp); comp.connect(ctx.destination);
+    if (typeof ctx.addEventListener === 'function') {
+      ctx.addEventListener('statechange', () => {
+        if (ctx.state === 'running' && cur && timer) nextTime = ctx.currentTime + 0.06;
+      });
+    }
     return ctx;
   }
 
@@ -1226,35 +1239,43 @@
 
   function scheduler() {
     if (!cur || !ctx) return;
+    // 백그라운드나 모바일 정책으로 잠긴 동안에는 예약만 멈춘다.
+    // setInterval에서 resume()를 반복하면 복구 Promise가 폭증하므로 사용자 동작·pageshow에서만 재개한다.
+    if (ctx.state !== 'running') return;
     const spb = 60 / cur.bpm / 4;           // 16분음표 한 칸(초)
     const swing = cur.swing || 0;
-    const vocal = advanced.voiceOverride || VOCAL_TRACKS[wanted];   // 이 트랙에 보컬이 있나
+    const vocal = vocalFor(wanted);
     const mix = vocal ? VOCAL_MIX : FLAT_MIX;
-    while (nextTime < ctx.currentTime + LOOKAHEAD) {
+    // 스케줄러가 크게 밀렸으면(탭 백그라운드·렌더링·느린 기기) 밀린 만큼 따라잡지 말고
+    // 현재 시각으로 스냅한다. 안 그러면 while 루프가 수십 스텝을 한꺼번에 예약해
+    // 노드가 폭증 → "드드드득" 끊김 → 컨텍스트 정지로 이어진다.
+    if (nextTime < ctx.currentTime) nextTime = ctx.currentTime + 0.03;
+    let guard = 0;
+    while (nextTime < ctx.currentTime + LOOKAHEAD && guard++ < 32) {
       const sec = cur.sections[cur.arrangement[arrIdx % cur.arrangement.length]] || cur.sections[0];
       const i = secStep;
       const at = nextTime + ((i % 2) ? swing * spb : 0);   // 홀수 칸을 살짝 밀어 스윙감
 
-      layerNote(cur.leadInst || 'square', layerOf(cur, sec, 'lead'), i, at, spb * 1.7, (cur.leadVol || 0.05) * mix.lead);
-      layerNote(cur.bassInst || 'tri', layerOf(cur, sec, 'bass'), i, at, spb * 2.6, (cur.bassVol || 0.06) * mix.bass);
-      const arp = layerOf(cur, sec, 'arp');
-      if (arp) layerNote(cur.arpInst || 'pluck', arp, i, at, spb * 0.9,
-        (cur.arpVol != null ? cur.arpVol : (cur.leadVol || 0.05) * 0.55) * mix.arp);
-      const chords = layerOf(cur, sec, 'chords');
-      if (chords) chordVoice(cur.chordInst || 'pad', chords[i % chords.length], at, spb * 7, (cur.chordVol || 0.03) * mix.chords);
-      const drum = layerOf(cur, sec, 'drum');
-      if (drum && drum.length && cur.drumVol) {
-        const d = drum[i % drum.length];
-        // 보컬 트랙에선 딸깍이는 하이햇(h·H)은 더 얇게, 킥·스네어만 남겨 리듬을 유지
-        if (d && d !== '-') {
-          const soft = vocal && (d === 'h' || d === 'H') ? 0.5 : 1;
-          drumHit(d, at, cur.drumVol * mix.drum * soft * (0.9 + Math.random() * 0.18));
+      try {   // 한 음이 실패해도 재생 루프는 절대 멈추지 않게
+        layerNote(cur.leadInst || 'square', layerOf(cur, sec, 'lead'), i, at, spb * 1.7, (cur.leadVol || 0.05) * mix.lead);
+        layerNote(cur.bassInst || 'tri', layerOf(cur, sec, 'bass'), i, at, spb * 2.6, (cur.bassVol || 0.06) * mix.bass);
+        const arp = layerOf(cur, sec, 'arp');
+        if (arp) layerNote(cur.arpInst || 'pluck', arp, i, at, spb * 0.9,
+          (cur.arpVol != null ? cur.arpVol : (cur.leadVol || 0.05) * 0.55) * mix.arp);
+        const chords = layerOf(cur, sec, 'chords');
+        if (chords) chordVoice(cur.chordInst || 'pad', chords[i % chords.length], at, spb * 7, (cur.chordVol || 0.03) * mix.chords);
+        const drum = layerOf(cur, sec, 'drum');
+        if (drum && drum.length && cur.drumVol) {
+          const d = drum[i % drum.length];
+          if (d && d !== '-') {
+            const soft = vocal && (d === 'h' || d === 'H') ? 0.5 : 1;
+            drumHit(d, at, cur.drumVol * mix.drum * soft * (0.9 + Math.random() * 0.18));
+          }
         }
-      }
-      advanced.schedule(wanted, cur, sec, i, at, spb, arrIdx);
-      // 보컬은 둘 중 하나만 부른다 — SAM 고급 엔진이 켜졌으면 그쪽(진짜 단어 발음),
-      // 아니면 webaudio 포먼트 보컬. 둘 다 부르면 노드가 폭증해 "드득" 끊긴다.
-      if (!advanced.ready) singVocalStep(vocal, i, at, spb, arrIdx, 1);
+        advanced.schedule(wanted, cur, sec, i, at, spb, arrIdx);
+        // 보컬은 둘 중 하나만 — SAM 고급 엔진이 켜졌으면 그쪽, 아니면 webaudio 포먼트 보컬
+        if (!advanced.ready) singVocalStep(vocal, i, at, spb, arrIdx, 1);
+      } catch (e) { /* noop — 다음 스텝 계속 */ }
 
       nextTime += spb;
       secStep++;
@@ -1329,22 +1350,19 @@
       if (!enabled) return false;
       if (!ensureCtx()) return false;
       if (ctx.state !== 'running') {
-        // 잠긴 상태에서 오실레이터를 미리 만들면 일부 모바일 브라우저에서
-        // resume 뒤에도 무음이 된다. 해제 성공 뒤 트랙을 처음부터 예약한다.
-        this.unlock().then(ok => {
-          if (ok && enabled && wanted === name) this.play(name, true, vocalOverride);
-        });
+        // 잠금 해제 요청은 하나만 유지하고, 성공 시점의 최신 wanted 트랙을 시작한다.
+        recoverPlayback();
         return true;
       }
-      if (!force && cur === t && timer) return true;
-      this._halt();
-      cur = normalize(t);
-      arrIdx = 0; secStep = 0;
-      curSecLen = sectionLen(cur, cur.sections[cur.arrangement[0]] || cur.sections[0]);
-      nextTime = ctx.currentTime + 0.06;
-      timer = setInterval(scheduler, TICK_MS);
-      advanced.start(name);
-      return true;
+      if (!force && cur === t && timer) {
+        if (vocalFor(name)) {
+          if (advanced.name !== name) advanced.start(name);
+        } else if (advanced.name) {
+          advanced.stop();
+        }
+        return true;
+      }
+      return this._start(name);
     },
 
     // 기존 반주 위에 캐릭터별 발음·포먼트·리듬 프리셋을 얹는다.
@@ -1359,10 +1377,29 @@
 
     clearCharacterVoice() {
       advanced.voiceOverride = null;
+      if (wanted && vocalFor(wanted)) advanced.start(wanted);
+      else if (advanced.name) advanced.stop();
       return true;
     },
 
-    stop() { wanted = null; this._halt(); },
+    stop() {
+      wanted = null;
+      advanced.voiceOverride = null;
+      this._halt();
+    },
+
+    _start(name) {
+      const t = TRACKS[name];
+      if (!t || !enabled || !ctx || ctx.state !== 'running') return false;
+      this._halt();
+      cur = normalize(t);
+      arrIdx = 0; secStep = 0;
+      curSecLen = sectionLen(cur, cur.sections[cur.arrangement[0]] || cur.sections[0]);
+      nextTime = ctx.currentTime + 0.06;
+      timer = setInterval(scheduler, TICK_MS);
+      if (vocalFor(name)) advanced.start(name);
+      return true;
+    },
 
     _halt() {
       if (timer) { clearInterval(timer); timer = null; }
@@ -1371,15 +1408,40 @@
     },
   };
 
-  // 백그라운드 탭에서 돌아온 뒤 모바일 OS가 컨텍스트를 suspend한 경우 복구한다.
+  function recoverPlayback() {
+    if (!enabled || !wanted) return Promise.resolve(false);
+    if (root.document && root.document.visibilityState === 'hidden') return Promise.resolve(false);
+    if (recoveryPromise) return recoveryPromise;
+    recoveryPromise = BGM.unlock().then(ok => {
+      if (!ok || !enabled || !wanted || !ctx || ctx.state !== 'running') return false;
+      // 타이머가 살아 있으면 편곡 진행 위치를 유지하고 예약 시각만 현재로 맞춘다.
+      if (cur && timer) {
+        nextTime = ctx.currentTime + 0.06;
+        if (vocalFor(wanted)) {
+          if (advanced.name !== wanted) advanced.start(wanted);
+        } else if (advanced.name) {
+          advanced.stop();
+        }
+        return true;
+      }
+      return BGM._start(wanted);
+    }).catch(() => false).finally(() => {
+      recoveryPromise = null;
+    });
+    return recoveryPromise;
+  }
+
+  // 백그라운드 탭에서 돌아왔거나 다음 사용자 동작이 들어왔을 때만 복구한다.
+  // 삼성 인터넷처럼 사용자 활성화 토큰이 필요한 브라우저에서도 무음 상태로 굳지 않는다.
   if (root.document && typeof root.document.addEventListener === 'function') {
     const recover = () => {
       if (!enabled || !wanted || root.document.visibilityState === 'hidden') return;
-      BGM.unlock().then(ok => {
-        if (ok && enabled && wanted) BGM.play(wanted, true, advanced.voiceOverride);
-      });
+      recoverPlayback();
     };
     root.document.addEventListener('visibilitychange', recover);
+    root.document.addEventListener('pointerdown', recover);
+    root.document.addEventListener('touchend', recover);
+    root.document.addEventListener('keydown', recover);
     root.addEventListener('pageshow', recover);
   }
 

@@ -35,6 +35,7 @@ const APTITUDE = window.QT_APTITUDE;
 const VOICE = window.QT_VOICE;
 const ECONOMY = window.QT_ECONOMY;
 const BUSINESS = window.QT_BUSINESS;
+const BUSINESS_ROMANCE = window.QT_BUSINESS_ROMANCE;
 const HOUSING = window.QT_HOUSING;
 const LIFE_FINANCE = window.QT_LIFE_FINANCE;
 const COMPANY = window.QT_COMPANY;
@@ -43,6 +44,7 @@ const MARKET_WORKSPACE = window.QT_MARKET_WORKSPACE;
 const INFO_MARKET_PANEL = window.QT_INFO_MARKET_PANEL;
 const MONTH_CLOSE_FLOW = window.QT_MONTH_CLOSE_FLOW;
 const MONTH_CLOSE_VIEWS = window.QT_MONTH_CLOSE_VIEWS || {};
+const NEWS_ANCHOR = window.QT_NEWS_ANCHOR;
 
 /* ------------------------------------------------------------------ 설정 */
 const CFG = {
@@ -772,6 +774,10 @@ function showBreaking(item, isAlert) {
   if (isAlert || item.impact <= -0.18) playBGMSting('bankrupt', 4200);
   else if (item.impact >= 0.18) playBGMSting('jackpot', 4200);
   else syncBGM();
+  if(NEWS_ANCHOR)NEWS_ANCHOR.breaking({
+    headline:item.headline,target:item.target,impact:item.impact,
+  });
+  speak(`긴급 뉴스입니다. ${item.headline}. ${item.target}에 ${item.impact>=.035?'상승':item.impact<=-.035?'하락':'중립'} 압력이 예상됩니다.`);
   S.breaking.timer = setTimeout(closeBreaking, CFG.BREAKING_MS);
 }
 
@@ -874,6 +880,10 @@ function openMarket() {
   const outlookText = `${outlook.text}${strong ? ` · 강세 ${strong}` : ''}${weak ? ` · 약세 ${weak}` : ''}`;
   addNews(`📰 월간 경제전망 — ${outlookText}`, outlook.monthlyMarket >= 0 ? 'good' : 'bad');
   S.sessionNews.push({ headline:outlookText, target:'경제 국면', impact:outlook.monthlyMarket, market:true });
+  if(NEWS_ANCHOR)NEWS_ANCHOR.monthly({
+    date:dateInfo(S.day).label,text:outlook.text,strong,weak,impact:outlook.monthlyMarket,
+  });
+  speak(`달월 뉴스입니다. ${outlook.text}${strong?` 강세 업종은 ${strong}.`:''}${weak?` 약세 업종은 ${weak}.`:''}`);
   flashToast(`🔔 ${dateInfo(S.day).label} 장 개장! 행운을 빕니다`, 'good');
   playSound('buy');
   setSpeed(S.speed);                    // 타이머 시작
@@ -1154,9 +1164,10 @@ function careerMonthChanges(before, after, settle) {
     detail:'다음 인생 행동에서 이직·자기계발·자격증을 선택할 수 있습니다.', tone:'bad',
   });
   (settle.businessReports || []).filter(report => Math.abs(report.net || 0) >= 1000000).forEach(report => {
+    const manager=BUSINESS_ROMANCE?BUSINESS_ROMANCE.identity(S.life,report.managerId):null;
     changes.push({
       icon:report.icon || '🏪', title:`${report.name} 월간 보고`,
-      desc:`담당 ${report.manager} · 매출 ${won(report.sales)}원`,
+      desc:`담당 ${manager?manager.displayName:report.manager} · 매출 ${won(report.sales)}원`,
       detail:`비용 ${won(report.cost)}원 · 순익 ${report.net >= 0 ? '+' : ''}${won(report.net)}원`,
       tone:report.net >= 0 ? 'good' : 'bad',
     });
@@ -1305,7 +1316,7 @@ function renderCurrentMonthCloseStep() {
     actionsRemaining:lifeActionRemaining,
     overview:() => {
       const L = S.life, job = jobOf();
-      return `<span>행동력 <b>${lifeActionRemaining()}/${LIFE_ACTIONS_PER_MONTH}</b></span><span>${job.emoji} ${job.name}</span><span>❤️ 건강 ${Math.round(L.health)}</span><span>😊 행복 ${Math.round(L.happy)}</span><span>🫥 스트레스 ${Math.round(L.stress)}</span>`;
+      return `<span class="life-action-money">💵 보유 현금 <b>${won(S.capital)}원</b></span><span class="life-action-worth">💼 순자산 <b>${won(netWorthClean())}원</b></span><span>행동력 <b>${lifeActionRemaining()}/${LIFE_ACTIONS_PER_MONTH}</b></span><span>${job.emoji} ${job.name}</span><span>❤️ 건강 ${Math.round(L.health)}</span><span>😊 행복 ${Math.round(L.happy)}</span><span>🫥 스트레스 ${Math.round(L.stress)}</span>`;
     },
     nextMonthLabel:() => dateInfo(S.day + 1).label,
   });
@@ -1490,8 +1501,19 @@ function settleMonth() {
       b.businessDebt=Math.max(0,loss-paid);
       if(b.businessDebt)LOAN.addDebt(L,b.businessDebt,'사업체 운영손실');
     }
-    businessMonth.reports.forEach(report=>addNews(`${report.icon} [사업] ${report.manager} 보고 · ${report.name} 매출 ${won(report.sales)} · 비용 ${won(report.cost)} · 순익 ${report.net>=0?'+':''}${won(report.net)}원`,report.net>=0?'good':'bad'));
+    businessMonth.reports.forEach(report=>{
+      const manager=BUSINESS_ROMANCE?BUSINESS_ROMANCE.identity(L,report.managerId):null;
+      addNews(`${report.icon} [사업] ${manager?manager.displayName:report.manager} 보고 · ${report.name} 매출 ${won(report.sales)} · 비용 ${won(report.cost)} · 순익 ${report.net>=0?'+':''}${won(report.net)}원`,report.net>=0?'good':'bad');
+    });
     if(businessMonth.event)queueImportantEvent(Object.assign({type:'business',icon:'🏪'},businessMonth.event));
+    if(BUSINESS_ROMANCE){
+      const romanceEvent=BUSINESS_ROMANCE.monthly(L,{
+        day:S.day,totalNet:businessMonth.net,businessState:BUSINESS.ensure(L),
+        hasPartner:RELATIONSHIPS.consensualMembers(L).length>0,
+        partnerNames:RELATIONSHIPS.names(L),met:ensureMet(L),
+      });
+      if(romanceEvent)queueImportantEvent(romanceEvent);
+    }
   }
 
   // 2-3) 세력 조직원 정산 — 실제 구성원이 만든 수입과 급여·운영비를 함께 처리한다.
@@ -2142,7 +2164,7 @@ function showGameGuide(fromStart = false) {
       • 장 마감 뒤 연락에 답하고 우연한 재회·친분 외출을 거쳐 <b>호감 15 · 신뢰 8 · 교류 3회 · 1개월</b>을 채우면 정식 데이트가 열립니다.<br>
       • 고백은 <b>호감 60 · 신뢰 18 · 정식 데이트 3회 · 3개월</b> 뒤 가능하며, 성격에 따라 상대가 먼저 고백하기도 합니다.<br>
       • 강유진·한채린·윤세라는 각각 <b>과잉보호·지배욕·집착</b>이라는 전용 위험 수치와 단계별 사건을 가집니다. 다른 인물에게는 집착 수치가 없습니다.<br>
-      • 채원·유나·소희는 호감이 오르면 각자 <b>2개의 개인 선택 이벤트</b>가 열립니다. 세 사람의 이벤트를 모두 보고 한 명과 연애 중이면 <b>자유와 귀환</b> 세트 루트가 시작됩니다.<br>
+      • 채원·유나·소희는 호감이 오르면 각자 <b>2개의 개인 회복 이벤트</b>가 열립니다. 세 사람의 이벤트를 모두 보고 한 명과 연애 중이면 <b>화려한 하루 뒤, 작은 집</b> 세트 루트가 시작됩니다.<br>
       • 연애 중 새 사람을 만나면 <b>양다리</b>가 되고, 걸리면 이별·위자료·해고 위험!<br>
       • <b>이별/이혼</b>은 성격에 따라 순탄하거나 파국이 되며, 헤어진 상대는 <b>전 연인</b>으로 남아 <b>재회</b>를 노릴 수 있어요.`) +
     sec('🤝', '인맥', `
@@ -2300,6 +2322,7 @@ function showNextImportantEvent(resumeCurrent = false) {
   if (event.factionStory) { showFactionStory(event.factionStory); return; }
   if (event.factionVictory) { showFactionVictoryEnding(); return; }
   if (event.businessEvent) { showBusinessReport(event); return; }
+  if (event.businessRomanceEvent) { showBusinessRomanceEvent(event); return; }
   if (event.monthlyMessage) { showMonthlyMessagePopup(event); return; }
   if (event.bondEncounter) { showBondEncounter(event); return; }
   if (event.dangerousHeroineEvent) { showDangerousHeroineEvent(event.dangerousHeroineEvent); return; }
@@ -2353,13 +2376,18 @@ function showBusinessReport(event){
   if(!host||!view){showNextImportantEvent();return;}
   S._businessReport=event;
   const item=view.item,manager=view.manager,type=view.type,issue=view.event;
+  const managerIdentity=BUSINESS_ROMANCE?BUSINESS_ROMANCE.identity(S.life,manager.id):null;
+  const managerName=managerIdentity?managerIdentity.displayName:manager.name;
+  const managerPortrait=managerIdentity&&managerIdentity.revealed?managerIdentity.portrait:view.portrait;
+  const managerScene=managerIdentity?(managerIdentity.revealed?managerIdentity.scene:managerIdentity.maskedScene):'';
   host.style.display='block';
   host.innerHTML=`<div class="window event-window business-report-window">
     <div class="title-bar event-bar"><div class="title-bar-text">${type.icon} 사업체 긴급 보고 · 선택 필요</div></div>
     <div class="window-body">
-      <div class="date-profile"><img class="char-portrait" id="business-manager-portrait" src="${view.portrait}" alt="${manager.name}"><div><strong>${manager.name} · ${manager.role}</strong><br><span class="muted">${type.name} 담당 · 규모 ${item.level}단계 · 평판 ${Math.round(item.reputation)} · 직원 사기 ${Math.round(item.morale)}</span></div></div>
+      ${managerScene?`<img class="business-reveal-scene" src="${managerScene}" alt="${managerName} 사업 보고 장면">`:''}
+      <div class="date-profile"><img class="char-portrait" id="business-manager-portrait" src="${managerPortrait}" alt="${managerName}"><div><strong>${managerName} · ${manager.role}</strong><br><span class="muted">${type.name} 담당 · 규모 ${item.level}단계 · 평판 ${Math.round(item.reputation)} · 직원 사기 ${Math.round(item.morale)}${managerIdentity&&!managerIdentity.revealed?' · 신원 비공개':''}</span></div></div>
       <div class="event-title">${issue.title}</div>
-      <div class="story-dialogue"><b>${manager.name}</b> “${issue.line}”</div>
+      <div class="story-dialogue"><b>${managerName}</b> “${issue.line}”</div>
       <div class="event-desc">${issue.desc}</div>
       <div class="event-options">${view.choices.map(choice=>{const poor=choice.cash<0&&S.capital<Math.abs(choice.cash);return`<button class="event-opt" data-business-choice="${choice.id}" ${poor?'disabled':''}>${choice.text}<span class="opt-sub">${choice.preview}${poor?' · 현금 부족':''}</span></button>`;}).join('')}</div>
       <div class="event-outcome" id="business-report-outcome"></div>
@@ -2377,12 +2405,121 @@ function resolveBusinessReport(choiceId){
   const result=BUSINESS.resolveEvent(S.life,pending,choiceId);
   if(!result.ok){flashToast(result.message||'사업 결정을 처리하지 못했습니다','bad');return;}
   S.capital+=result.cash;
-  const portrait=$('business-manager-portrait');if(portrait)portrait.src=result.portrait;
+  if(BUSINESS_ROMANCE)BUSINESS_ROMANCE.applyDecision(S.life,result.manager.id,(view.event.choices.find(item=>item.id===choiceId)||{}).effects);
+  const managerIdentity=BUSINESS_ROMANCE?BUSINESS_ROMANCE.identity(S.life,result.manager.id):null;
+  const managerName=managerIdentity?managerIdentity.displayName:result.manager.name;
+  const portrait=$('business-manager-portrait');if(portrait)portrait.src=managerIdentity&&managerIdentity.revealed?managerIdentity.portrait:result.portrait;
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
   const cashText=result.cash?` · 현금 ${result.cash>0?'+':'-'}${won(Math.abs(result.cash))}`:'';
-  $('business-report-outcome').innerHTML=`<div class="story-dialogue"><b>${result.manager.name}</b> “${result.outcome}”</div><div class="oc-changes">${result.detail}${cashText}</div><button id="business-report-confirm" class="session-btn opening">보고 확인 · 다음 사건 보기</button>`;
-  addNews(`${result.type.icon} [사업 결정] ${result.manager.name} · ${result.outcome}${cashText}`,result.cash>=0?'good':'neutral');
+  $('business-report-outcome').innerHTML=`<div class="story-dialogue"><b>${managerName}</b> “${result.outcome}”</div><div class="oc-changes">${result.detail}${cashText}${managerIdentity?` · 숨은 신뢰 ${managerIdentity.bond}/100`:''}</div><button id="business-report-confirm" class="session-btn opening">보고 확인 · 다음 사건 보기</button>`;
+  addNews(`${result.type.icon} [사업 결정] ${managerName} · ${result.outcome}${cashText}`,result.cash>=0?'good':'neutral');
   $('business-report-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._businessReport=null;renderCapital();renderLifePanel();autoSave();showNextImportantEvent();});
+  renderCapital();renderLifePanel();autoSave();
+}
+
+function showBusinessRomanceEvent(event){
+  const host=$('life-event'),view=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.view(S.life,event,S.capital);
+  if(!host||!view){showNextImportantEvent();return;}
+  S._businessRomanceEvent=event;
+  const identity=view.identity;
+  const singlePortrait=view.portrait||(identity&&identity.revealed?identity.portrait:
+    identity?BUSINESS.portraitPath(identity.id,'neutral'):'');
+  const portraits=view.portraits
+    ?`<div class="business-quartet-scene">${view.portraits.map((src,index)=>`<img src="${src}" alt="${BUSINESS_ROMANCE.identity(S.life,BUSINESS_ROMANCE.IDS[index]).displayName}">`).join('')}</div>`
+    :singlePortrait?`<img class="business-reveal-scene" src="${singlePortrait}" alt="${identity?identity.displayName:view.title} 이벤트 장면">`:'';
+  const speaker=identity?identity.displayName:'네 명의 담당자';
+  const dialogueBlock=view.dialogues&&view.dialogues.length
+    ?`<div class="business-board-dialogues">${view.dialogues.map(([name,line])=>`<div class="business-board-dialogue"><b>${name}</b><span>“${line}”</span></div>`).join('')}</div>`
+    :`<div class="story-dialogue"><b>${speaker}</b> “${view.line}”</div>`;
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window business-romance-window ${view.kind==='temptation'?'business-trap-window':''}">
+    <div class="title-bar event-bar"><div class="title-bar-text">${view.icon} 사업 인연 · 조건 이벤트</div></div>
+    <div class="window-body">
+      ${portraits}
+      <div class="event-title">${view.title}</div>
+      ${dialogueBlock}
+      <div class="event-desc">${view.desc}</div>
+      ${view.meta?`<div class="important-event-detail">${view.meta}</div>`:identity?`<div class="important-event-detail">${identity.style} · 업무 신뢰 ${identity.bond}/100${identity.revealed?` · 개인 신뢰 ${identity.trust}/100`:' · 아직 실명과 얼굴을 공개하지 않음'}</div>`:''}
+      <div class="event-options">${view.choices.map(choice=>`<button class="event-opt" data-business-romance-choice="${choice.id}">${choice.text}<span class="opt-sub">${choice.preview}</span></button>`).join('')}</div>
+      <div class="event-outcome" id="business-romance-outcome"></div>
+    </div>
+  </div>`;
+  host.querySelectorAll('[data-business-romance-choice]').forEach(button=>button.addEventListener('click',()=>resolveBusinessRomanceEvent(button.dataset.businessRomanceChoice)));
+}
+
+function resolveBusinessRomanceEvent(choiceId){
+  const pending=S._businessRomanceEvent,host=$('life-event');
+  if(!pending||!host||!BUSINESS_ROMANCE)return;
+  const result=BUSINESS_ROMANCE.resolve(S.life,pending,choiceId,S.capital);
+  if(!result.ok){flashToast(result.message||'사업 인연 선택을 처리하지 못했습니다','bad');return;}
+  if(result.cash>0)S.capital+=result.cash;
+  else if(result.cash<0){
+    const loss=Math.abs(result.cash),paid=Math.min(Math.max(0,S.capital),loss),debt=loss-paid;
+    S.capital-=paid;
+    if(debt)LOAN.addDebt(S.life,debt,'사업 담당자 비밀유지·협박 합의금');
+  }
+  if(result.breakupAll){
+    RELATIONSHIPS.consensualMembers(S.life).slice().forEach(person=>RELATIONSHIPS.removeMember(S.life,person.name,'ex'));
+    (S.life.lovers||[]).forEach(person=>{const rec=metRecord(S.life,person.name);if(rec)rec.status='ex';});
+    S.life.lovers=[];
+    S.life.happy=clamp(S.life.happy-25,0,100);
+    S.life.stress=clamp((S.life.stress||0)+25,0,100);
+  }
+  if(result.badEnding){
+    changeMorality(-22,'사업 담당자와의 불륜 함정에 들어갔습니다');
+    S.life.guilt=clamp((S.life.guilt||0)+35,0,100);
+    LEGACY.push(S.life,dateInfo(S.day).age,'🕳️',`${result.title} · 사업 인연 불륜 배드엔딩`,'love');
+  }
+  if(result.revealed&&result.character){
+    const rec=rememberPerson(result.character,'friend');
+    rec.affection=Math.max(rec.affection||0,result.affection||0);
+    rec.trust=Math.max(rec.trust||0,result.trust||0);
+    rec.businessHeroineId=pending.staffId;
+    pushPersonMessage(S.life,rec,`${rec.name}이에요. 업무 밖에서 부를 때는 이제 직함 말고 이름으로 불러요.`,false);
+  }
+  if(result.personalStory&&result.staffId){
+    const profile=BUSINESS_ROMANCE.profile(result.staffId);
+    const rec=metRecord(S.life,profile.name)||rememberPerson(BUSINESS_ROMANCE.asCharacter(result.staffId),'friend');
+    rec.affection=clamp((rec.affection||0)+(result.affection||0),0,100);
+    rec.trust=clamp((rec.trust||0)+(result.trust||0),0,100);
+    pushPersonMessage(S.life,rec,`${result.text} 다음에는 업무 보고가 아니라, 제 얘기도 들으러 와요.`,false);
+    LEGACY.push(S.life,dateInfo(S.day).age,profile.emoji,`${profile.name} · ${result.title}`,'love');
+  }
+  if(result.groupStory){
+    BUSINESS_ROMANCE.IDS.forEach(id=>{
+      const profile=BUSINESS_ROMANCE.profile(id);
+      const rec=metRecord(S.life,profile.name)||rememberPerson(BUSINESS_ROMANCE.asCharacter(id),'friend');
+      rec.affection=clamp((rec.affection||0)+(result.affectionEach||0),0,100);
+      rec.trust=clamp((rec.trust||0)+(result.trustEach||0),0,100);
+    });
+    LEGACY.push(S.life,dateInfo(S.day).age,'🏢',`${result.title} · 사업 담당자 공동 이사회`,'career');
+  }
+  if(result.soloEnding){
+    LEGACY.push(S.life,dateInfo(S.day).age,'💍',`${result.title} · 사업 담당자 순애엔딩`,'love');
+    celebrate();
+  }
+  if(result.quartet){
+    BUSINESS_ROMANCE.IDS.forEach(id=>{
+      const rec=rememberPerson(BUSINESS_ROMANCE.asCharacter(id),'polycule');
+      rec.affection=Math.max(rec.affection||0,75);rec.trust=Math.max(rec.trust||0,55);
+      RELATIONSHIPS.addMember(S.life,rec,S.day);
+    });
+    const group=RELATIONSHIPS.ensure(S.life).relationshipGroup;
+    group.agreement.publicity='private';group.agreement.cohabiting=true;
+    S.life.businessQuartetBond={active:true,since:S.day,members:BUSINESS_ROMANCE.IDS.map(id=>BUSINESS_ROMANCE.profile(id).name)};
+    LEGACY.push(S.life,dateInfo(S.day).age,'🏢','네 개의 명함 · 사업 담당자 4인 세트엔딩','love');
+    celebrate();
+  }
+  const options=host.querySelector('.event-options');if(options)options.innerHTML='';
+  const cashText=result.cash<0
+    ?`<br><b class="down">합의·수습 비용 ${won(Math.abs(result.cash))}원${S.capital<=0?' · 부족액은 채무 처리':''}</b>`
+    :result.cash>0?`<br><b class="up">사업 현금 유입 +${won(result.cash)}원</b>`:'';
+  $('business-romance-outcome').innerHTML=`<div class="oc-text ${result.tone==='bad'?'down':result.tone==='good'?'up':''}">${result.badEnding?`<b>BAD END · ${result.title}</b><br>`:''}${result.text}${result.reply?`<div class="story-dialogue"><b>${BUSINESS_ROMANCE.profile(result.staffId).name}</b> “${result.reply}”</div>`:''}${cashText}${result.meta?`<div class="oc-changes">${result.meta}</div>`:''}</div><button id="business-romance-confirm" class="session-btn opening">기록하고 다음 사건 보기</button>`;
+  addNews(`${result.badEnding?'🕳️':result.quartet||result.groupStory?'🏢':result.revealed?'🎭':'💼'} ${result.text}`,result.tone||'neutral');
+  $('business-romance-confirm').addEventListener('click',()=>{
+    host.style.display='none';host.innerHTML='';S._businessRomanceEvent=null;
+    renderCapital();renderLifePanel();autoSave();showNextImportantEvent();
+  });
   renderCapital();renderLifePanel();autoSave();
 }
 
@@ -2561,9 +2698,11 @@ function resolveFreedomPersonalEvent(choiceId){
   if(preview.cash<0&&S.capital<Math.abs(preview.cash)){flashToast('💸 현금이 부족합니다','bad');return;}
   const result=FREEDOM_TRIO.applyPersonal(S.life,pending.id,choiceId);if(!result)return;
   if(result.choice.cash)S.capital+=result.choice.cash;
+  if(result.choice.happy)S.life.happy=clamp((S.life.happy||0)+result.choice.happy,0,100);
+  if(result.choice.stress)S.life.stress=clamp((S.life.stress||0)+result.choice.stress,0,100);
   addBondInteraction(result.r,`personal-${pending.id}`);
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
-  $('freedom-personal-outcome').innerHTML=`<div class="story-dialogue"><b>${result.r.name}</b> “${result.choice.result}”</div><div class="oc-changes">호감 ${result.choice.affection>=0?'+':''}${result.choice.affection||0} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}${result.choice.cash?` · 현금 ${result.choice.cash>0?'+':'-'}${won(Math.abs(result.choice.cash))}`:''}</div><button id="freedom-personal-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
+  $('freedom-personal-outcome').innerHTML=`<div class="story-dialogue"><b>${result.r.name}</b> “${result.choice.result}”</div><div class="oc-changes">호감 ${result.choice.affection>=0?'+':''}${result.choice.affection||0} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0} · 안식감 ${result.choice.rest>=0?'+':''}${result.choice.rest||0}${result.choice.happy?` · 행복 ${result.choice.happy>0?'+':''}${result.choice.happy}`:''}${result.choice.stress?` · 스트레스 ${result.choice.stress>0?'+':''}${result.choice.stress}`:''}${result.choice.cash?` · 현금 ${result.choice.cash>0?'+':'-'}${won(Math.abs(result.choice.cash))}`:''}</div><button id="freedom-personal-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
   addNews(`${result.event.icon} ${result.event.title} · ${result.choice.text}`,result.choice.tag==='control'?'bad':'good');
   $('freedom-personal-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._freedomPersonalEvent=null;renderCapital();renderLifePanel();autoSave();showNextImportantEvent();});
   renderCapital();renderLifePanel();autoSave();
@@ -3225,7 +3364,7 @@ function personChat(L,name){const chats=ensureChats(L);if(!chats[name])chats[nam
 function pushPersonMessage(L,person,text,mine){
   if(!person||!text)return;const room=personChat(L,person.name);
   room.messages.push({day:S.day,text,mine:!!mine});if(room.messages.length>30)room.messages.shift();
-  if(!mine)room.unread=(room.unread||0)+1;
+  if(!mine){room.unread=(room.unread||0)+1;room.lastIncomingDay=S.day;}
 }
 // 이번 달 시장 분위기 — 채팅에서 투자 관련 걱정/응원 대사를 고를 때 참고
 function currentMarketMood(){
@@ -3392,13 +3531,18 @@ function queueNaturalFreedomEvents(L){
 function monthlyFreedomTrioAftermath(L){
   const bond=L.freedomTrioBond;if(!bond||!bond.active||!FREEDOM_TRIO)return;
   const state=FREEDOM_TRIO.ensure(L),event=FREEDOM_TRIO.nextAftermath(L);
+  if(state.lastRecoveryDay!==S.day){
+    state.lastRecoveryDay=S.day;
+    const recovery=FREEDOM_TRIO.recovery?FREEDOM_TRIO.recovery(L):{happy:3,stress:-4,health:0,income:300000};
+    L.happy=clamp((L.happy||0)+(recovery.happy||0),0,100);
+    L.stress=clamp((L.stress||0)+(recovery.stress||0),0,100);
+    L.health=clamp((L.health||0)+(recovery.health||0),0,100);
+    S.capital+=recovery.income||0;
+    bond.totalIncome=(bond.totalIncome||0)+(recovery.income||0);
+    bond.totalStressRecovered=(bond.totalStressRecovered||0)+Math.max(0,-(recovery.stress||0));
+  }
   if(event&&bond.lastAftermathDay!==S.day){
     bond.lastAftermathDay=S.day;queueImportantEvent({freedomTrioAftermath:true});return;
-  }
-  if(state.lastIncomeDay!==S.day){
-    state.lastIncomeDay=S.day;
-    const income=state.ending&&state.ending.id==='world_tour'?2500000:800000;
-    S.capital+=income;bond.totalIncome=(bond.totalIncome||0)+income;
   }
 }
 function monthlyDangerousTrioAftermath(L){
@@ -3472,7 +3616,13 @@ function updateRelationships(L) {
     const activeJob=partnerNames.has(m.name)||['friend','casual','lover','polycule'].includes(m.status);
     if(activeJob){const jm=relationshipJobMod(m);m.affection=clamp((m.affection||0)+Math.sign(jm)*Math.min(2,Math.ceil(Math.abs(jm)/8)),0,100);}
     if (partnerNames.has(m.name)) { m.idleMonths = 0; return; }
-    m.idleMonths = (m.idleMonths || 0) + 1;
+    const room=personChat(L,m.name);
+    const unansweredDay=Math.max(0,room.lastIncomingDay||0);
+    const answeredDay=Math.max(0,room.lastReplyDay||0);
+    // 단순히 장만 진행했다고 관계가 식지 않는다. 도착한 연락을 두 달 이상
+    // 실제로 답하지 않았을 때만 방치로 판정한다.
+    if(!unansweredDay||answeredDay>=unansweredDay){m.idleMonths=0;return;}
+    m.idleMonths=Math.max(1,S.day-unansweredDay);
     if (m.idleMonths < 2) return;
     // 몰래 만나는 사이는 더 빨리 식는다 (자주 못 보니까)
     const isLover = (L.lovers || []).some(x => x.name === m.name);
@@ -3747,7 +3897,7 @@ function beginSeraLoop(){
 function relationTag(L, name) {
   const trioState=DANGEROUS_TRIO&&DANGEROUS_TRIO.ensure(L);
   if(trioState&&(trioState.active||trioState.ending)&&DANGEROUS_TRIO.NAMES.includes(name))return'위험한 결핍 공생';
-  if(L.freedomTrioBond&&L.freedomTrioBond.active&&FREEDOM_TRIO&&FREEDOM_TRIO.NAMES.includes(name))return'자유와 귀환';
+  if(L.freedomTrioBond&&L.freedomTrioBond.active&&FREEDOM_TRIO&&FREEDOM_TRIO.NAMES.includes(name))return'작은 집의 연인';
   const relationshipLabel=RELATIONSHIPS.label(L,name);if(relationshipLabel)return relationshipLabel;
   const rec = metRecord(L, name);
   if (!rec) return '아는 사람';
@@ -3757,7 +3907,7 @@ function ensurePolycule(L){return RELATIONSHIPS.ensure(L).polycule;}
 function relationshipImage(L,name){
   const tag=relationTag(L,name);
   if(tag==='위험한 결핍 공생')return'./assets/event-trio-secure-home-ending.png';
-  if(tag==='자유와 귀환')return'./assets/event-freedom-trio-home.png';
+  if(tag==='작은 집의 연인')return'./assets/event-freedom-trio-home.png';
   if(tag==='합의한 다자연애')return'./assets/relationship-polycule.png';
   if(tag==='배우자')return'./assets/relationship-married.png';
   if(tag==='연인'||tag==='몰래 만나는 중')return'./assets/relationship-dating.png';
@@ -4741,7 +4891,7 @@ function startFreedomTrioRoute(auto){
   if(!FREEDOM_TRIO){if(auto)showNextImportantEvent();return;}
   const result=FREEDOM_TRIO.start(S.life);
   if(!result.ok){if(auto)showNextImportantEvent();else flashToast('채원·유나·소희의 개인 이벤트와 관계 조건이 아직 부족합니다','neutral');return;}
-  addNews('🛫 채원·유나·소희의 출국 일정이 같은 공항에서 겹쳤습니다','neutral');
+  addNews('🏠 채원·유나·소희가 화려한 일정을 마치고 같은 귀가길에 올랐습니다','good');
   autoSave();showFreedomTrioStory();
 }
 function showFreedomTrioStory(){
@@ -4750,7 +4900,7 @@ function showFreedomTrioStory(){
   const state=FREEDOM_TRIO.ensure(S.life);
   const speakers=chapter.speakers.map(s=>{const person=metRecord(S.life,s.name);return`<div class="trio-dialogue"><img src="${characterPortrait(person)}" alt="${s.name}"><div><b>${s.name}</b><p>“${s.line}”</p></div></div>`;}).join('');
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window trio-route-window freedom-trio-window"><div class="title-bar event-bar"><div class="title-bar-text">${chapter.icon} 자유와 귀환 ${state.stage+1}/${FREEDOM_TRIO.CHAPTERS.length} · ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="freedom-story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${chapter.scene}" alt="${chapter.title} 이벤트 컷신"><div class="trio-meter"><span>관계 조화</span><b class="${state.harmony<30?'down':'up'}">${Math.round(state.harmony)}/100</b></div><div class="event-desc">${chapter.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${chapter.choices.map(choice=>{const poor=choice.cash<0&&S.capital<Math.abs(choice.cash);return`<button class="event-opt" data-freedom-choice="${choice.id}" ${poor?'disabled':''}>${choice.text}<span class="opt-sub">${choice.preview}${choice.cash?` · 현금 -${won(Math.abs(choice.cash))}`:''}${poor?' · 현금 부족':''}</span></button>`;}).join('')}<button class="event-opt" id="freedom-story-later">지금은 각자의 일정으로 돌려보낸다</button></div><div class="event-outcome" id="freedom-outcome"></div></div></div>`;
+  host.innerHTML=`<div class="window event-window trio-route-window freedom-trio-window"><div class="title-bar event-bar"><div class="title-bar-text">${chapter.icon} 화려한 하루 뒤, 작은 집 ${state.stage+1}/${FREEDOM_TRIO.CHAPTERS.length} · ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="freedom-story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${chapter.scene}" alt="${chapter.title} 이벤트 컷신"><div class="trio-meter"><span>관계 조화</span><b class="${state.harmony<30?'down':'up'}">${Math.round(state.harmony)}/100</b><span>안식감</span><b class="${state.rest<30?'down':'up'}">${Math.round(state.rest)}/100</b></div><div class="event-desc">${chapter.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${chapter.choices.map(choice=>{const poor=choice.cash<0&&S.capital<Math.abs(choice.cash);return`<button class="event-opt" data-freedom-choice="${choice.id}" ${poor?'disabled':''}>${choice.text}<span class="opt-sub">${choice.preview}${choice.cash?` · 현금 -${won(Math.abs(choice.cash))}`:''}${poor?' · 현금 부족':''}</span></button>`;}).join('')}<button class="event-opt" id="freedom-story-later">오늘은 각자 쉬고 다음에 이야기한다</button></div><div class="event-outcome" id="freedom-outcome"></div></div></div>`;
   host.querySelectorAll('[data-freedom-choice]').forEach(button=>button.addEventListener('click',()=>resolveFreedomTrioStory(button.dataset.freedomChoice)));
   [$('freedom-story-x'),$('freedom-story-later')].forEach(button=>button.addEventListener('click',closeLifeEvent));
 }
@@ -4771,14 +4921,16 @@ function resolveFreedomTrioStory(choiceId){
   S._freedomRetry=freedomTrioCheckpoint();
   const result=FREEDOM_TRIO.apply(S.life,choiceId);if(!result)return;
   if(result.choice.cash)S.capital+=result.choice.cash;
+  if(result.choice.happy)S.life.happy=clamp((S.life.happy||0)+result.choice.happy,0,100);
+  if(result.choice.stress)S.life.stress=clamp((S.life.stress||0)+result.choice.stress,0,100);
   const host=$('life-event'),options=host.querySelector('.event-options');if(options)options.innerHTML='';
   if(result.ending&&result.ending.tone==='good')activateFreedomTrioBond(result.ending.id);
   else if(result.ending&&result.ending.tone==='bad')applyFreedomTrioBadEnding();
   const ending=result.ending?`<div class="story-ending ${result.ending.tone==='bad'?'down':''}"><img class="relationship-scene" src="${result.ending.scene}" alt="${result.ending.title} 엔딩"><b>📕 ${result.ending.title}</b><br>${result.ending.text}</div>`:'';
-  const success=result.ending&&result.ending.tone==='good'?`<div class="important-event-detail up">${result.ending.id==='world_tour'?'세계 순회 특수엔딩':'공동생활 해피엔딩'}입니다. 채원·유나·소희가 모두 합의된 연인이 되며 다음 달부터 전용 후일담과 활동 수입이 이어집니다.</div>`:'';
+  const success=result.ending&&result.ending.tone==='good'?`<div class="important-event-detail up">힐링 공동생활 해피엔딩입니다. 채원·유나·소희가 모두 합의된 연인이 되며, 다음 달부터 작은 생활비 수입과 함께 행복·건강이 오르고 스트레스가 회복됩니다.</div>`:'';
   const retry=result.ending&&result.ending.tone==='bad'?'<button id="freedom-retry" class="session-btn opening">↩️ 마지막 선택 다시 하기</button>':'';
-  $('freedom-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">관계 조화 ${result.choice.harmony>=0?'+':''}${result.choice.harmony} · 세 사람 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}${result.choice.cash?` · 현금 -${won(Math.abs(result.choice.cash))}`:''}</div>${ending}${success}${retry}<button id="freedom-confirm" class="session-btn ${result.ending&&result.ending.tone==='bad'?'':'opening'}">${result.ending?'엔딩 확인':'이번 사건을 마친다'}</button>`;
-  addNews(`${result.chapter.icon} 채원·유나·소희 · ${result.chapter.title}`,result.choice.tag==='control'?'bad':'good');
+  $('freedom-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">관계 조화 ${result.choice.harmony>=0?'+':''}${result.choice.harmony} · 안식감 ${result.choice.rest>=0?'+':''}${result.choice.rest||0} · 세 사람 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}${result.choice.happy?` · 행복 ${result.choice.happy>0?'+':''}${result.choice.happy}`:''}${result.choice.stress?` · 스트레스 ${result.choice.stress>0?'+':''}${result.choice.stress}`:''}${result.choice.cash?` · 현금 -${won(Math.abs(result.choice.cash))}`:''}</div>${ending}${success}${retry}<button id="freedom-confirm" class="session-btn ${result.ending&&result.ending.tone==='bad'?'':'opening'}">${result.ending?'엔딩 확인':'이번 사건을 마친다'}</button>`;
+  addNews(`${result.chapter.icon} 작은 집의 세 사람 · ${result.chapter.title}`,result.choice.tag==='control'?'bad':'good');
   const retryBtn=$('freedom-retry');if(retryBtn)retryBtn.addEventListener('click',retryFreedomTrioChoice);
   $('freedom-confirm').addEventListener('click',()=>{closeLifeEvent();renderCapital();renderLifePanel();if(!result.ending)showNextImportantEvent();});
   renderCapital();renderLifePanel();autoSave();
@@ -4805,17 +4957,17 @@ function activateFreedomTrioBond(endingId){
   L.relationship='dating';L.partner=Object.assign({},main,{mood:'happy'});L.affection=Math.round(people.reduce((sum,r)=>sum+(r.affection||0),0)/3);main.status='partner';
   poly.active=true;poly.mode='freedom_trio_success';poly.tone='freedom';poly.trust=Math.round(FREEDOM_TRIO.ensure(L).harmony);
   poly.members=others.map(r=>{r.status='polycule';return{name:r.name,job:r.job,personality:r.personality,age:r.age,emoji:r.emoji,gender:r.gender,portrait:r.portrait};});
-  L.freedomTrioBond={active:true,since:S.day,endingId,members:FREEDOM_TRIO.NAMES.slice(),totalIncome:0};
-  people.forEach(person=>RELATIONSHIPS.addMember(L,person,S.day));const group=RELATIONSHIPS.ensure(L).relationshipGroup;group.agreement.cohabiting=endingId!=='world_tour';group.agreement.publicity='public';
+  L.freedomTrioBond={active:true,since:S.day,endingId,members:FREEDOM_TRIO.NAMES.slice(),totalIncome:0,totalStressRecovered:0};
+  people.forEach(person=>RELATIONSHIPS.addMember(L,person,S.day));const group=RELATIONSHIPS.ensure(L).relationshipGroup;group.agreement.cohabiting=endingId!=='world_tour';group.agreement.publicity='private';
   if(group.agreement.cohabiting)FAMILY.syncCaregivers(L,RELATIONSHIPS.caregiverNames(L));
-  addNews(`🛫 ${endingId==='world_tour'?'세계 순회':'돌아올 곳'} 엔딩 · 채원·유나·소희와 합의된 관계가 시작됐습니다`,'good');
+  addNews(`🏠 ${endingId==='bright_home'?'화려한 날 뒤의 불 켜진 집':'네 사람의 작은 저녁'} 엔딩 · 채원·유나·소희와 힐링 공동생활이 시작됐습니다`,'good');
 }
 function showFreedomTrioAftermath(){
   const event=FREEDOM_TRIO&&FREEDOM_TRIO.nextAftermath(S.life),host=$('life-event');
   if(!event||!host){showNextImportantEvent();return;}
   const speakers=event.speakers.map(s=>{const r=metRecord(S.life,s.name);return`<div class="trio-dialogue"><img src="${characterPortrait(r)}" alt="${s.name}"><div><b>${s.name}</b><p>“${s.line}”</p></div></div>`;}).join('');
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window trio-route-window freedom-trio-window"><div class="title-bar event-bar"><div class="title-bar-text">${event.icon} 자유와 귀환 후일담 · 선택 필요</div></div><div class="window-body"><img class="life-scene-banner" src="${event.scene}" alt="${event.title}"><div class="event-title">${event.title}</div><div class="event-desc">${event.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${event.choices.map(choice=>{const poor=choice.cash<0&&S.capital<Math.abs(choice.cash);return`<button class="event-opt" data-freedom-aftermath="${choice.id}" ${poor?'disabled':''}>${choice.text}${choice.cash?`<span class="opt-sub">현금 -${won(Math.abs(choice.cash))}${poor?' · 현금 부족':''}</span>`:''}</button>`;}).join('')}</div><div class="event-outcome" id="freedom-aftermath-outcome"></div></div></div>`;
+  host.innerHTML=`<div class="window event-window trio-route-window freedom-trio-window"><div class="title-bar event-bar"><div class="title-bar-text">${event.icon} 작은 집의 후일담 · 선택 필요</div></div><div class="window-body"><img class="life-scene-banner" src="${event.scene}" alt="${event.title}"><div class="event-title">${event.title}</div><div class="event-desc">${event.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${event.choices.map(choice=>{const poor=choice.cash<0&&S.capital<Math.abs(choice.cash);return`<button class="event-opt" data-freedom-aftermath="${choice.id}" ${poor?'disabled':''}>${choice.text}${choice.cash?`<span class="opt-sub">현금 -${won(Math.abs(choice.cash))}${poor?' · 현금 부족':''}</span>`:''}</button>`;}).join('')}</div><div class="event-outcome" id="freedom-aftermath-outcome"></div></div></div>`;
   host.querySelectorAll('[data-freedom-aftermath]').forEach(button=>button.addEventListener('click',()=>resolveFreedomTrioAftermath(button.dataset.freedomAftermath)));
 }
 function resolveFreedomTrioAftermath(choiceId){
@@ -4823,8 +4975,10 @@ function resolveFreedomTrioAftermath(choiceId){
   if(choice.cash<0&&S.capital<Math.abs(choice.cash)){flashToast('💸 현금이 부족합니다','bad');return;}
   const result=FREEDOM_TRIO.applyAftermath(S.life,choiceId);if(!result)return;
   if(result.choice.cash)S.capital+=result.choice.cash;if(result.choice.income)S.capital+=result.choice.income;
+  if(result.choice.happy)S.life.happy=clamp((S.life.happy||0)+result.choice.happy,0,100);
+  if(result.choice.stress)S.life.stress=clamp((S.life.stress||0)+result.choice.stress,0,100);
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
-  $('freedom-aftermath-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">관계 조화 ${result.choice.harmony>=0?'+':''}${result.choice.harmony||0}${result.choice.cash?` · 현금 -${won(Math.abs(result.choice.cash))}`:''}${result.choice.income?` · 활동 수입 +${won(result.choice.income)}`:''}</div><button id="freedom-aftermath-confirm" class="session-btn opening">후일담을 기록하고 다음 사건 보기</button>`;
+  $('freedom-aftermath-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">관계 조화 ${result.choice.harmony>=0?'+':''}${result.choice.harmony||0} · 안식감 ${result.choice.rest>=0?'+':''}${result.choice.rest||0}${result.choice.happy?` · 행복 ${result.choice.happy>0?'+':''}${result.choice.happy}`:''}${result.choice.stress?` · 스트레스 ${result.choice.stress>0?'+':''}${result.choice.stress}`:''}${result.choice.cash?` · 현금 -${won(Math.abs(result.choice.cash))}`:''}${result.choice.income?` · 생활 수입 +${won(result.choice.income)}`:''}</div><button id="freedom-aftermath-confirm" class="session-btn opening">후일담을 기록하고 다음 사건 보기</button>`;
   $('freedom-aftermath-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';renderCapital();renderLifePanel();autoSave();showNextImportantEvent();});
   renderCapital();autoSave();
 }
@@ -4866,8 +5020,10 @@ function startBusiness(typeId){
   const result=BUSINESS.start(S.life,typeId,S.day);
   if(!result.ok){flashToast(result.message,'neutral');return;}
   S.capital-=result.cost;
-  addNews(`${type.icon} ${type.name} 설립 · ${result.manager.name} ${result.manager.role} 배치`,'good');
-  flashToast(`${type.icon} ${type.name}을 시작했습니다 · 담당 ${result.manager.name}`,'good');
+  const identity=BUSINESS_ROMANCE?BUSINESS_ROMANCE.identity(S.life,result.manager.id):null;
+  const managerName=identity?identity.displayName:result.manager.name;
+  addNews(`${type.icon} ${type.name} 설립 · ${managerName} ${result.manager.role} 배치`,'good');
+  flashToast(`${type.icon} ${type.name}을 시작했습니다 · 담당 ${managerName}`,'good');
   celebrate();afterLifeAction('사업');
 }
 
@@ -5470,6 +5626,8 @@ function renderLifePanel() {
   const passiveOwned = L.passiveAssets || [];
   const passiveExpected = passiveOwned.reduce((sum, owned) => { const a=D.PASSIVE_ASSETS.find(x=>x.id===owned.id); return sum+(a?Math.max(0,a.monthlyIncome-a.maintenance):0); },0);
   const businessValue=BUSINESS?BUSINESS.assetValue(L):0;
+  const businessEnding=BUSINESS_ROMANCE?BUSINESS_ROMANCE.endingSummary(L):'';
+  const businessProgress=BUSINESS_ROMANCE?BUSINESS_ROMANCE.progressSummary(L):null;
   const charmHint = L.relationship === 'single' ? `(연애까지 ${R.DATING_AT})`
     : RELATIONSHIPS.ensure(L).relationshipGroup.status==='dating' ? `(공동생활 서약까지 ${R.MARRY_AT})` : '';
   const risk = jobRiskTier(job);
@@ -5543,7 +5701,9 @@ function renderLifePanel() {
      <div class="life-stat"><span>투자용 부동산</span><strong>${L.properties.length}채 · ${won(propVal)}원</strong></div>
      <div class="life-stat"><span>주식 외 자동수입</span><strong class="up">월 예상 ${won(passiveExpected)}원 · ${passiveOwned.length}개 자산</strong></div>
      <div class="life-stat"><span>운영 사업체</span><strong class="${(businessState.lastNet||0)>=0?'up':'down'}">${businessState.owned.length}곳 · 지난달 ${(businessState.lastNet||0)>=0?'+':''}${won(businessState.lastNet||0)}원 · 매각가치 ${won(businessValue)}원</strong></div>
-     ${businessState.owned.length?`<div class="life-props">${businessState.owned.map(item=>{const type=BUSINESS.typeOf(item.typeId),manager=BUSINESS.staffOf(item.managerId);return`${type.icon}<b>${type.name}</b> ${item.level}단계 · ${manager.name} · 평판 ${Math.round(item.reputation)} · 사기 ${Math.round(item.morale)}`;}).join('<br>')}</div>`:''}
+     ${businessState.owned.length?`<div class="life-props">${businessState.owned.map(item=>{const type=BUSINESS.typeOf(item.typeId),manager=BUSINESS.staffOf(item.managerId),identity=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.identity(L,manager.id);return`${type.icon}<b>${type.name}</b> ${item.level}단계 · ${identity?identity.displayName:manager.name} · 평판 ${Math.round(item.reputation)} · 사기 ${Math.round(item.morale)}`;}).join('<br>')}</div>`:''}
+     ${businessProgress?`<div class="life-stat"><span>사업 인연 이사회</span><strong>개인 이야기 ${businessProgress.personal}/${businessProgress.total} · 공동 장 ${businessProgress.chapter}/${businessProgress.chapters}<br><small>시너지 ${businessProgress.synergy} · 의사결정 ${businessProgress.governance} · 공사 경계 ${businessProgress.boundary}</small></strong></div>`:''}
+     ${businessEnding?`<div class="life-stat"><span>사업 인연 엔딩</span><strong class="up">${businessEnding}</strong></div>`:''}
      <div class="life-stat"><span>개인 대출</span><strong class="${L.loan > 0 ? 'down' : ''}">${won(L.loan)}원</strong></div>
      <div class="life-stat"><span>신용등급</span><strong class="${L.creditScore < 500 ? 'down' : ''}">${LOAN.grade(L.creditScore)} · ${Math.round(L.creditScore)}점</strong></div>
      ${L.jailMonths > 0 ? `<div class="life-stat"><span>신분</span><strong class="down">🔒 수감 중 · ${L.jailMonths}개월 남음</strong></div>` : ''}
@@ -5574,6 +5734,7 @@ function lifeHubHTML() {
   CAREER.ensure(L);
   HOUSING.ensure(L);
   const businessState=BUSINESS?BUSINESS.ensure(L):{owned:[]};
+  const businessProgress=BUSINESS_ROMANCE?BUSINESS_ROMANCE.progressSummary(L):null;
   const finance = LIFE_FINANCE.ensure(L);
   const social = SOCIAL.ensure(L);
   const justice = JUSTICE.ensure(L);
@@ -5585,11 +5746,14 @@ function lifeHubHTML() {
   }).join('');
   const businessBox=BUSINESS?BUSINESS.TYPES.map(type=>{
     const item=BUSINESS.owned(L,type.id),manager=BUSINESS.staffOf(type.managerId);
+    const identity=BUSINESS_ROMANCE?BUSINESS_ROMANCE.identity(L,manager.id):null;
+    const managerName=identity?identity.displayName:manager.name;
+    const managerPortrait=identity&&identity.revealed?identity.portrait:null;
     if(item){
       const plan=BUSINESS.projected(item,S.economy.id),expandCost=BUSINESS.expansionCost(L,item.id),resale=BUSINESS.resaleValue(L,item.id);
-      return`<div class="faction-member business-staff"><img src="${BUSINESS.portraitPath(manager.id,item.lastNet<0?'sad':item.lastNet>1000000?'happy':'neutral')}" alt="${manager.name}"><span><b>${type.icon} ${type.name} · ${item.level}단계</b><small>${manager.name} · ${manager.role}<br>지난달 매출 ${won(item.lastSales)} · 비용 ${won(item.lastCost)} · <b class="${item.lastNet>=0?'up':'down'}">순익 ${item.lastNet>=0?'+':''}${won(item.lastNet)}</b><br>다음 달 기준 예상 ${plan.net>=0?'+':''}${won(plan.net)} · 평판 ${Math.round(item.reputation)} · 직원 사기 ${Math.round(item.morale)}</small></span></div><button class="life-btn" data-act="business-expand" data-business="${item.id}" ${item.level>=5?'disabled':''}>🏗️ ${type.name} 확장 <small>${item.level>=5?'최대 규모':`${won(expandCost)} · 다음 규모 ${item.level+1}단계`}</small></button><button class="life-btn hot" data-act="business-close" data-business="${item.id}">🚪 ${type.name} 운영 종료 <small>${won(resale)} 회수</small></button>`;
+      return`<div class="faction-member business-staff"><img src="${managerPortrait||BUSINESS.portraitPath(manager.id,item.lastNet<0?'sad':item.lastNet>1000000?'happy':'neutral')}" alt="${managerName}"><span><b>${type.icon} ${type.name} · ${item.level}단계</b><small>${managerName} · ${manager.role}${identity&&!identity.revealed?' · 신원 비공개':identity?` · 업무 신뢰 ${identity.bond}`:''}<br>지난달 매출 ${won(item.lastSales)} · 비용 ${won(item.lastCost)} · <b class="${item.lastNet>=0?'up':'down'}">순익 ${item.lastNet>=0?'+':''}${won(item.lastNet)}</b><br>다음 달 기준 예상 ${plan.net>=0?'+':''}${won(plan.net)} · 평판 ${Math.round(item.reputation)} · 직원 사기 ${Math.round(item.morale)}</small></span></div><button class="life-btn" data-act="business-expand" data-business="${item.id}" ${item.level>=5?'disabled':''}>🏗️ ${type.name} 확장 <small>${item.level>=5?'최대 규모':`${won(expandCost)} · 다음 규모 ${item.level+1}단계`}</small></button><button class="life-btn hot" data-act="business-close" data-business="${item.id}">🚪 ${type.name} 운영 종료 <small>${won(resale)} 회수</small></button>`;
     }
-    return`<div class="faction-member business-staff"><img src="${BUSINESS.portraitPath(manager.id,'neutral')}" alt="${manager.name}"><span><b>${manager.emoji} ${manager.name} · ${manager.role}</b><small>${manager.intro}<br>${type.icon} ${type.name} · 월 기준 예상 ${won(type.baseSales-type.fixedCost)} · ${type.desc}</small></span></div><button class="life-btn" data-act="business-start" data-business="${type.id}">${type.icon} ${type.name} 설립 <small>${won(type.cost)} · ${manager.name} 담당</small></button>`;
+    return`<div class="faction-member business-staff"><img src="${managerPortrait||BUSINESS.portraitPath(manager.id,'neutral')}" alt="${managerName}"><span><b>${manager.emoji} ${managerName} · ${manager.role}</b><small>${manager.intro}${identity&&!identity.revealed?' 실명과 얼굴은 장기 신뢰 전까지 공개하지 않습니다.':''}<br>${type.icon} ${type.name} · 월 기준 예상 ${won(type.baseSales-type.fixedCost)} · ${type.desc}</small></span></div><button class="life-btn" data-act="business-start" data-business="${type.id}">${type.icon} ${type.name} 설립 <small>${won(type.cost)} · ${managerName} 담당</small></button>`;
   }).join(''):'';
   const job = jobOf();
   const monthlyIncome = job.variable ? Math.max(0, (job.variable[0] + job.variable[1]) / 2) : job.salary;
@@ -5604,7 +5768,7 @@ function lifeHubHTML() {
   const polyBtn=trioBond&&trioBond.active
     ? `<span class="down">🦂 결핍 공생 연애 · 강유진·한채린·윤세라 전원 연인 · 외출 동행 활성</span>`
     : freedomBond&&freedomBond.active
-      ? `<span class="up">🛫 자유와 귀환 · 채원·유나·소희 전원 연인 · ${freedomBond.endingId==='world_tour'?'세계 순회 중':'공동생활 중'} · 누적 활동수입 ${won(freedomBond.totalIncome||0)}</span>`
+      ? `<span class="up">🏠 작은 집의 연인 · 채원·유나·소희 전원 연인 · 힐링 공동생활 중 · 회복한 스트레스 ${Math.round(freedomBond.totalStressRecovered||0)} · 누적 생활수입 ${won(freedomBond.totalIncome||0)}</span>`
     : relationshipMembers.length===1&&!poly.active
       ? `<button class="life-btn" data-act="polycule">🌈 일반 다자연애 제안</button>`
       : poly.active?`<span class="up">🌈 합의형 관계 진행 중 · 추가 구성원 ${poly.members.length}명 · 신뢰 ${poly.trust}</span>`:'';
@@ -5687,7 +5851,7 @@ function lifeHubHTML() {
         <details class="hub-section"><summary>📈 경력·거주지 이동</summary><div class="hub-note">📚 직무 성장은 취미의 자기계발과 자격증으로 올립니다. 🏠 월세는 초기금이 낮지만 매달 비용이 나가며, 전세는 월 부담이 매우 낮고 매매는 월 주거비가 없습니다.</div><div class="hub-btns"><button class="life-btn" data-act="changejob">💼 이직</button>${certBtns}${housingBtns}</div></details>
         <details class="hub-section"><summary>👨‍👩‍👧 가족·인맥</summary><img class="hub-scene-banner" src="${lifeSceneImage('network')}" alt="업계 인맥 모임 장면"><div class="hub-btns">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👵 부모님 돌봄 <small>1,500,000</small></button><button class="life-btn" data-act="contact-meet">🍽️ 업계 모임</button>${specialMeetBtns}${personalBtns}${contactBtns}</div></details>
         <details class="hub-section"><summary>💳 금융·자동수입·투자용 부동산</summary><img class="hub-scene-banner" src="${lifeSceneImage('property')}" alt="자산 계약 장면"><div class="hub-note">💸 예금·채권·운영권은 주식과 별개로 매달 현금을 만듭니다. 높은 수익에는 매출 변동과 낮은 매각가가 따릅니다.</div><div class="hub-btns">${loanBtns}<button class="life-btn" data-act="repay">상환${L.loan>0?' '+won(L.loan):''}</button>${insuranceBtns}${pensionBtns}${passiveBtns}${propBtns}</div></details>
-        <details class="hub-section" ${businessState.owned.length?'open':''}><summary>🏪 사업체·직원${businessState.owned.length?` · ${businessState.owned.length}곳 운영 중`:''}</summary><div class="hub-note">사업체는 세력과 별도 장부로 운영됩니다. 매달 매출·고정비가 정산되고, 중요한 계약·인력·납기 문제는 담당 직원이 직접 보고합니다.</div><div class="hub-btns">${businessBox}</div></details>
+        <details class="hub-section" ${businessState.owned.length?'open':''}><summary>🏪 사업체·직원${businessState.owned.length?` · ${businessState.owned.length}곳 운영 중`:''}</summary><div class="hub-note">사업체는 세력과 별도 장부로 운영됩니다. 담당자 네 명의 루트는 감금이나 방랑이 아니라 <b>이사회 로맨스</b>입니다. 개인 이야기와 공동 위기를 거쳐 업무 시너지·공동 의사결정·공과 사 경계를 함께 쌓습니다.${businessProgress?`<br>현재: 개인 ${businessProgress.personal}/${businessProgress.total} · 공동 ${businessProgress.chapter}/${businessProgress.chapters} · 시너지 ${businessProgress.synergy} / 의사결정 ${businessProgress.governance} / 경계 ${businessProgress.boundary}`:''}</div><div class="hub-btns">${businessBox}</div></details>
         <details class="hub-section" ${justice.case?'open':''}><summary>⚔️ 라이벌·세력·법정${justice.case?' · 진행 중 사건 있음':''}</summary><img class="hub-scene-banner" src="${justice.case?lifeSceneImage('court'):lifeSceneImage('faction')}" alt="${justice.case?'법정 심리':'라이벌 공격에 대응하는 세력 작전실'} 장면"><div class="hub-btns">${factionBox}${rivalSelect}${rivalBtns}${courtBtns}</div></details>
       </details>
     </div>`;
@@ -6871,14 +7035,18 @@ function playBGMSting(track, duration) {
 async function toggleBGM(on) {
   if (!BGM) return;
   S.bgmOn = on == null ? !S.bgmOn : !!on;
-  BGM.setEnabled(S.bgmOn);
-  if (S.bgmOn) {
+  if (!S.bgmOn) {
+    BGM.setEnabled(false);
+  } else {
+    // 잠금을 먼저 풀고 한 번만 시작한다. setEnabled(true)와 syncBGM()이 동시에
+    // 재생을 예약하면 모바일에서 트랙이 두 번 초기화되며 무음으로 굳을 수 있다.
     const unlocked = !BGM.unlock || await BGM.unlock();
     if (!unlocked) {
       S.bgmOn = false;
       BGM.setEnabled(false);
       flashToast('모바일 브라우저가 음악 재생을 막았습니다. 음악 버튼을 다시 눌러주세요.', 'bad');
     } else {
+      BGM.setEnabled(true);
       syncBGM(true);
       setTimeout(renderBGMStatus, 450);
     }
@@ -6899,12 +7067,15 @@ function restoreBGMPref() {
   const volEl = $('bgm-vol'); if (volEl) volEl.value = Math.round(BGM.getVolume() * 100);
   if (!pref.on) { toggleBGM(false); return; }
   S.bgmOn = true;
-  BGM.setEnabled(true);
+  BGM.setEnabled(false);
   const btn = $('bgm-toggle');
   if (btn) { btn.textContent = '🎵 음악 ON'; btn.classList.add('on'); }
   const arm = async () => {
     const unlocked = !BGM.unlock || await BGM.unlock();
-    if (unlocked) syncBGM(true);
+    if (unlocked) {
+      BGM.setEnabled(true);
+      syncBGM(true);
+    }
     else {
       S.bgmOn = false;
       BGM.setEnabled(false);
@@ -7329,6 +7500,8 @@ function boot() {
   applySeraLoopResidue();
   LOAN.ensure(S.life); HEALTH.ensure(S.life); FAMILY.ensure(S.life);
   if (BUSINESS) BUSINESS.ensure(S.life);
+  if (BUSINESS_ROMANCE) BUSINESS_ROMANCE.ensure(S.life);
+  if (NEWS_ANCHOR) NEWS_ANCHOR.mount();
   if (APTITUDE) APTITUDE.ensure(S.life);
   if (seraLoopActive()) ensureSeraLoopPartner();
   fillSectorFilter();

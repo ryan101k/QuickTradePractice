@@ -438,6 +438,44 @@ body {
 .ex-view { font-size: 12px; font-weight: bold; }
 .ex-cmt { font-size: 12px; color: #555; }
 
+/* 월간·긴급 뉴스를 말해 주는 도트 앵커. 외부 이미지 없이 CSS 블록만 사용한다. */
+.news-anchor {
+  position:fixed; right:12px; bottom:12px; z-index:9997;
+  width:min(360px,calc(100vw - 18px)); min-height:92px;
+  display:flex; align-items:center; gap:10px; padding:8px 30px 8px 8px;
+  border:3px outset #f7f7f7; background:#d8d8d8; color:#111;
+  box-shadow:5px 5px 0 rgba(0,0,0,.45);
+  opacity:0; transform:translateY(18px); pointer-events:none;
+  transition:opacity .18s ease,transform .18s ease;
+}
+.news-anchor.show { opacity:1; transform:translateY(0); pointer-events:auto; }
+.news-anchor.bad { border-left:7px solid var(--down); }
+.news-anchor.good { border-left:7px solid var(--up); }
+.news-anchor-close {
+  position:absolute; right:4px; top:4px; width:22px; height:20px; padding:0;
+  font-weight:bold; line-height:15px;
+}
+.news-anchor-copy { min-width:0; display:flex; flex-direction:column; gap:3px; line-height:1.25; }
+.news-anchor-label { color:#000080; font-size:12px; }
+.news-anchor-text { font-size:13px; font-weight:bold; }
+.news-anchor-hint { color:#555; font-size:11px; }
+.pixel-anchor-sprite {
+  position:relative; flex:0 0 72px; width:72px; height:72px; cursor:pointer;
+  image-rendering:pixelated; background:#111b36; border:3px inset #8da5cf;
+}
+.pixel-anchor-sprite i { position:absolute; display:block; image-rendering:pixelated; }
+.pa-hair { left:18px; top:7px; width:36px; height:28px; background:#312518; box-shadow:-6px 6px #312518,6px 6px #312518; }
+.pa-face { left:20px; top:16px; width:32px; height:28px; background:#f2c7a8; box-shadow:-3px 3px #f2c7a8,3px 3px #f2c7a8; }
+.pa-eye { top:26px; width:5px; height:5px; background:#172033; }
+.pa-eye-l { left:26px; }.pa-eye-r { left:42px; }
+.pa-mouth { left:34px; top:38px; width:6px; height:3px; background:#a34f55; }
+.pa-body { left:15px; top:48px; width:42px; height:21px; background:#243f77; box-shadow:6px 4px #fff,-6px 4px #fff; }
+.pa-mic { left:55px; top:39px; width:5px; height:22px; background:#b8becb; box-shadow:-3px -4px #e54848; transform:rotate(-14deg); }
+.news-anchor.speaking .pa-mouth { animation:anchor-talk .22s steps(2) infinite; }
+.news-anchor.speaking .pixel-anchor-sprite { animation:anchor-bob .55s steps(2) infinite; }
+@keyframes anchor-talk { 50% { height:6px; transform:translateY(-1px); } }
+@keyframes anchor-bob { 50% { transform:translateY(-2px); } }
+
 /* ---------------------------------------------------------------- 장 개장/마감 */
 .session-btn { font-weight: bold; }
 .session-btn.opening { background: #d0ffd0 !important; }
@@ -544,8 +582,15 @@ body {
 .life-action-overview {
   display: flex; gap: 6px; flex-wrap: wrap; padding: 7px;
   background: #fffbe3; border: 1px solid #c9b86b; font-size: 12px;
+  position: sticky; top: 0; z-index: 6; box-shadow: 0 2px 4px rgba(0,0,0,.18);
 }
 .life-action-overview span { padding: 3px 6px; background: #fff; border: 1px solid #ddd2a0; }
+.life-action-overview .life-action-money,
+.life-action-overview .life-action-worth {
+  flex: 1 1 180px; border-color: #a98a24; background: #fff7bd; font-size: 13px;
+}
+.life-action-overview .life-action-money b { color: #8b210d; font-size: 14px; }
+.life-action-overview .life-action-worth b { color: #103f86; font-size: 14px; }
 .month-return-body { text-align: center; justify-content: center; min-height: 400px; }
 .month-return-icon { font-size: 54px; }
 .month-return-body h2 { margin: 0; }
@@ -643,6 +688,26 @@ body {
 
 /* 데이트 프로필 카드 */
 .date-profile { display: flex; align-items: center; gap: 12px; background: #fff0f5; border: 1px solid #f0a0c0; border-radius: 4px; padding: 8px 10px; margin-bottom: 8px; }
+.business-romance-window { width:min(720px,96vw); }
+.business-trap-window .event-bar { background:linear-gradient(90deg,#4d002a,#a3004e)!important; }
+.business-reveal-scene {
+  display:block; width:min(680px,100%); max-height:46vh; margin:0 auto 10px;
+  object-fit:contain; object-position:center; border:2px inset #888; background:#f8f1e7;
+}
+.business-quartet-scene {
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px;
+  margin-bottom:10px; padding:4px; border:2px inset #888; background:#24202b;
+}
+.business-quartet-scene img { width:100%; aspect-ratio:3/4; object-fit:cover; object-position:50% 18%; }
+.business-board-dialogues {
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin:7px 0;
+}
+.business-board-dialogue {
+  display:flex; flex-direction:column; gap:3px; min-width:0; padding:7px 9px;
+  background:#f5f2ff; border:1px solid #b9afd1; font-size:12px; line-height:1.45;
+}
+.business-board-dialogue b { color:#4b276f; }
+.business-board-dialogue span { color:#333; }
 .dp-emoji { font-size: 34px; }
 .dp-info { font-size: 14px; line-height: 1.4; }
 .event-opt .muted { font-weight: normal; }
@@ -772,6 +837,16 @@ body {
   .control-bar .spacer { display:none; }
   .breaking-host { top: 8px; }
   .breaking-headline { font-size: 15px; }
+  .news-anchor {
+    right:5px; bottom:calc(5px + env(safe-area-inset-bottom)); width:calc(100vw - 10px);
+    min-height:78px; gap:7px; padding:6px 28px 6px 6px;
+  }
+  .pixel-anchor-sprite { flex-basis:60px; width:60px; height:60px; transform:scale(.84); transform-origin:center; margin:-6px; }
+  .news-anchor.speaking .pixel-anchor-sprite { animation:none; }
+  .news-anchor-text { font-size:12px; }
+  .business-quartet-scene { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .business-board-dialogues { grid-template-columns:1fr; }
+  .business-reveal-scene { max-height:42vh; }
 
   /* 진행 바를 화면 상단에 고정 — 스크롤해도 남은 시간이 항상 보여 '갑자기 장마감'을 막는다 */
   .session-bar { position: sticky; top: 0; z-index: 60; height: 30px; margin-top: 3px; box-shadow: 0 3px 6px rgba(0,0,0,.35); }
