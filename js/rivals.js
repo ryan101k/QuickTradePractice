@@ -96,6 +96,8 @@
     if(!Array.isArray(life.faction.members))life.faction.members=[];
     if(!Number.isFinite(life.faction.mobCounter))life.faction.mobCounter=life.faction.members.length;
     if(!Number.isFinite(life.faction.fund))life.faction.fund=0;
+    if(!life.faction.storyStage)life.faction.storyStage=life.faction.level>0?'active':'locked';
+    if(life.faction.level>0&&['locked','attacked','legal_wait','forming'].includes(life.faction.storyStage))life.faction.storyStage='active';
     // 구버전 세이브의 적자형 급여·수입도 최신 밸런스로 즉시 교체한다.
     const catalog=MOB_RECRUITS.concat(namedRecruits());
     life.faction.members.forEach(member=>{
@@ -114,12 +116,15 @@
     const operationDefense=Math.min(.12,operationFund/100000000*.08);
     const operationIntel=Math.min(.10,operationFund/80000000*.06);
     f.capacity=Math.max(0,(f.level||0)*3+(f.trioCapacityBonus||0));
-    f.defense=Math.min(.88,(f.level||0)*.055+totals.defense+operationDefense);
-    f.intel=Math.min(.72,(f.level||0)*.035+totals.intel+operationIntel);
-    f.legal=totals.legal;f.medical=totals.medical;f.monthlyIncome=totals.income;
+    const pathDefense=f.path==='legal'?.08:f.path==='underground'?.035:.045;
+    const pathIntel=f.path==='network'?.09:f.path==='underground'?.055:.025;
+    const pathIncome=f.path==='network'?1.16:f.path==='legal'?1.06:1.10;
+    f.defense=Math.min(.88,(f.level||0)*.055+totals.defense+operationDefense+(f.level?pathDefense:0));
+    f.intel=Math.min(.72,(f.level||0)*.035+totals.intel+operationIntel+(f.level?pathIntel:0));
+    f.legal=totals.legal+(f.path==='legal'&&f.level?18:0);f.medical=totals.medical;f.monthlyIncome=totals.income;
     f.operationBoost=operationBoost;
     f.baseIncome=(f.level||0)*250000+(f.assets||[]).length*100000;
-    f.projectedGross=Math.round((f.baseIncome+totals.income*(1+(f.level||0)*.08))*(1+operationBoost));
+    f.projectedGross=Math.round((f.baseIncome+totals.income*(1+(f.level||0)*.08))*(1+operationBoost)*pathIncome);
     f.projectedUpkeep=(f.members||[]).reduce((sum,m)=>sum+(m.upkeep||0),0);
     f.projectedNet=f.projectedGross-f.projectedUpkeep;
     return f;
@@ -208,10 +213,14 @@
     recalcFaction(f);return{cash,income,upkeep,events,left};
   }
   function buildFaction(life,cash){
-    const f=ensureFaction(life),cost=f.level?Math.round(1500000*(f.level+1)):2000000;
+    const f=ensureFaction(life);
+    if(!f.level&&!['forming','active','victory'].includes(f.storyStage))return{ok:false,cash,message:'첫 피습 이후 나래와 장태식의 세력 창설 이야기를 먼저 진행해야 합니다.'};
+    const baseCost=f.level?Math.round(1500000*(f.level+1)):1000000;
+    const cost=Math.max(500000,baseCost-(f.foundingDiscount||0));
     if(f.level>=5)return{ok:false,cash,message:'이미 최종 단계 거점을 운영하고 있습니다.'};
     if(cash<cost)return{ok:false,cash,message:`세력 정비 비용 ${cost.toLocaleString('ko-KR')}원이 필요합니다.`};
     f.level=Math.min(5,f.level+1);
+    if(f.level===1){f.storyStage='active';f.foundingDiscount=0;}
     const bases=[{icon:'🏚️',name:'골목 사무실'},{icon:'☕',name:'정보원 카페'},{icon:'🏢',name:'세력 본부'},{icon:'📡',name:'미디어 상황실'},{icon:'🏙️',name:'도심 연합타워'}];if(f.assets.length<f.level)f.assets.push(bases[f.level-1]);
     recalcFaction(f);
     return{ok:true,cash:cash-cost,cost,message:`${f.name}이 ${f.level}단계가 됐습니다. 정원 ${f.capacity}명 · 방어 ${Math.round(f.defense*100)}%`};
@@ -233,10 +242,20 @@
     const cost=500000+f.level*250000;if(cash<cost)return{ok:false,cash,message:`작전비 ${cost.toLocaleString('ko-KR')}원이 부족합니다.`};
     const active=f.members.filter(m=>(m.injuredMonths||0)<=0);
     if(!active.length)return{ok:false,cash,message:'작전을 수행할 조직원이 없습니다. 먼저 인원을 모집하세요.'};
-    const chance=Math.min(.9,.30+f.level*.07+f.intel*.35+Math.min(.16,active.length*.025)),success=Math.random()<chance;
-    const damage=success?Math.min(target.capital,Math.round(Math.max(300000,target.capital*(.025+f.level*.012+active.length*.006)))):0;
+    const chance=Math.min(.92,.40+f.level*.075+f.intel*.35+Math.min(.16,active.length*.025)),success=Math.random()<chance;
+    const damage=success?Math.min(target.capital,Math.round(Math.max(400000,target.capital*(.055+f.level*.016+active.length*.008)))):0;
+    let assetDamage=0;
+    if(success&&target.assets&&target.assets.length){
+      const asset=target.assets.slice().sort((a,b)=>(b.value||0)-(a.value||0))[0];
+      assetDamage=Math.round((asset.value||0)*Math.min(.16,.055+f.level*.012+active.length*.005));
+      asset.value=Math.max(0,(asset.value||0)-assetDamage);
+    }
+    const reward=success?Math.round((damage+assetDamage)*.12):0;
     if(success){target.capital-=damage;f.wins++;f.xp+=12;}else f.xp+=3;
-    return{ok:true,success,cash:cash-cost,cost,damage,message:success?`${f.name}의 역공 성공! ${target.name}에게 ${damage.toLocaleString('ko-KR')}원 타격`:`${target.name}이 역공을 눈치채 피해 갔습니다.`};
+    const message=success
+      ?`${f.name}의 역공 성공! ${target.name}에게 현금 ${damage.toLocaleString('ko-KR')}원${assetDamage?`·사업가치 ${assetDamage.toLocaleString('ko-KR')}원`:''} 타격 · 작전수익 ${reward.toLocaleString('ko-KR')}원`
+      :`${target.name}이 역공을 눈치채 피해 갔습니다.`;
+    return{ok:true,success,cash:cash-cost+reward,cost,damage,assetDamage,reward,message};
   }
   root.QT_RIVALS={PERSONAS,ACTIONS,ASSETS,ROLE_LABELS,MOB_RECRUITS,createBots,settleBots,botsFight,act,attackPlayer,ensureFaction,recruitOptions,recruit,settleFaction,buildFaction,defendAttack,revenge};
 })(window);

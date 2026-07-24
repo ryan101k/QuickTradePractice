@@ -84,6 +84,10 @@
 - 성향이 다른 여러 AI의 현금·보유 종목·평단가·순자산 추적
 - AI 사이의 투자 경쟁과 공격
 - 플레이어를 향한 합법·불법 경쟁 행동
+- 첫 직접 공격 이후 나래의 합법 대응과 장태식의 조언으로 세력을 창설하는 캠페인
+- 합법 투자연합·정보/사업 연합·지하 세력 중 조직 노선 선택
+- 역공으로 경쟁 세력의 현금·사업가치를 낮추고 순자산 랭킹 1위를 노리는 메인 목표
+- 랭킹 1위 달성 시 조직 노선에 따른 세력전 메인 엔딩
 - 라이벌 동향 로그와 순자산 비교 차트
 - 불법 행동 적발 시 수사와 재판 연계
 
@@ -94,7 +98,8 @@
 - 모바일 장 진행 시간 표시
 - 관심 종목과 뉴스에서 차트로 바로 이동
 - 효과음, 배경음악, 일시정지와 1·2·4배속
-- localStorage 자동 저장과 URL 공유
+- 장중 틱·서킷브레이커·이벤트까지 복원하는 localStorage 자동 저장
+- 세이브를 덮어쓰지 않는 읽기 전용 결과 URL 공유
 - 업적 시스템
 
 ## 실행 방법
@@ -120,13 +125,17 @@ python -m http.server 8000
 index.html                 화면 레이아웃과 스크립트 로딩
 css/style.css              게임 UI와 반응형 스타일
 assets/                    인물·상황별 이미지와 사운드
-js/app.js                  시장 진행, 정산, UI, 저장 통합 로직
+js/app.js                  게임 진행과 각 모듈을 연결하는 UI 조정 로직
+js/core/trading.js         매수·매도·공매도·지정가 주문 체결 회계
+js/core/time.js            월 단위 날짜와 월말 신용이자 계산
+js/services/save.js        버전 저장·장중 복원·읽기 전용 결과 링크
 js/companies.js            종목·ETF·경제자산 데이터
 js/economy.js              경제 국면, 기준금리, 물가, 자산 영향
 js/jobs.js                 직업 데이터
 js/characters.js           연애 캐릭터와 경제·성격 데이터
 js/romance_events.js       연애 및 연인 직업별 선택 이벤트
 js/rivals.js               AI 라이벌과 경쟁 행동
+js/faction_campaign.js      첫 피습·세력 창설·라이벌 제압·세력 엔딩
 js/justice.js              수사와 재판
 js/housing.js              주거와 부동산
 js/life_finance.js         세금·보험·연금
@@ -134,6 +143,13 @@ js/health.js               건강과 노화
 js/family.js               결혼·자녀·가족
 js/social_network.js       인맥과 평판
 js/legacy.js               연대기와 세대 계승
+tests/core_regression.test.cjs  거래·저장·시간 핵심 회귀 테스트
+```
+
+핵심 회귀 테스트는 Node.js만으로 실행할 수 있습니다.
+
+```bash
+node tests/core_regression.test.cjs
 ```
 
 ## 사용 라이브러리
