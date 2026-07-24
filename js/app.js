@@ -38,6 +38,11 @@ const BUSINESS = window.QT_BUSINESS;
 const HOUSING = window.QT_HOUSING;
 const LIFE_FINANCE = window.QT_LIFE_FINANCE;
 const COMPANY = window.QT_COMPANY;
+const PAGE_LIFECYCLE = window.QT_PAGE_LIFECYCLE;
+const MARKET_WORKSPACE = window.QT_MARKET_WORKSPACE;
+const INFO_MARKET_PANEL = window.QT_INFO_MARKET_PANEL;
+const MONTH_CLOSE_FLOW = window.QT_MONTH_CLOSE_FLOW;
+const MONTH_CLOSE_VIEWS = window.QT_MONTH_CLOSE_VIEWS || {};
 
 /* ------------------------------------------------------------------ 설정 */
 const CFG = {
@@ -113,6 +118,9 @@ const S = {
   newsSeq: 0,                 // 뉴스 발생 순번 — 일반 뉴스와 공시를 한 줄로 정렬할 때 쓴다
   newsFilter: 'all',          // 뉴스 탭 필터: all | stock | market | mine | watch
   dayStartNW: CFG.START_CAPITAL, // 개장 시점 순자산(당월 손익 계산용)
+  dayStartCapital: CFG.START_CAPITAL,
+  dayStartRealizedPnL: 0,
+  monthCloseContext: null,      // 장 마감 계산 결과와 View 큐 진행 상태
   life: null,                 // 인생 상태(직업/행복/관계/부동산/대출) — boot 에서 초기화
   economy: null,              // 장기 경제 국면
   circuitBreakerTicks: 0,     // 시장 급락 시 남은 거래정지 틱
@@ -825,6 +833,11 @@ function goBuy(name) {
 /* ------------------------------------------------------------------ 장 개장/마감 */
 function openMarket() {
   if (S.phase === 'open') return;
+  if (S.monthCloseContext && S.monthCloseContext.active) {
+    renderCurrentMonthCloseStep();
+    flashToast('📋 이번 달 마감 절차를 먼저 완료하세요', 'neutral');
+    return;
+  }
   if (!S.life || !S.life.started) {
     flashToast('🏠 먼저 가정환경과 학창생활을 정해 인생을 시작하세요', 'bad');
     if (S.life && !S.life.tutorialSeen) showTutorial();
@@ -835,6 +848,7 @@ function openMarket() {
   S.awaitingNextDay = false;
   S.phase = 'open';
   S.paused = false;
+  S._backgroundPaused = false;
   S.sessionTick = 0;
   S.sessionNews = [];
   S.circuitBreakerTicks = 0;
@@ -849,6 +863,8 @@ function openMarket() {
     stock.limitAnnouncedDay = null;
   });
   S.dayStartNW = netWorthClean();
+  S.dayStartCapital = S.capital;
+  S.dayStartRealizedPnL = S.realizedPnL || 0;
   closeReport();                        // 마감 리포트 닫기
   addNews(`📅 ${dateInfo(S.day).label} 개장`, 'neutral');
   const outlook = ECONOMY.outlook(S.economy);
@@ -876,28 +892,27 @@ function closeMarket() {
   if (S.breaking) closeBreaking();
 
   const endedDay = S.day;
+  const beforeClose = captureMonthCloseState();
   // 월말 정산: 신규 상장 / 배당(3개월마다) / 신용이자
   maybeNewListing();
   if (endedDay % 3 === 0) payDividends();
+  let marginInterest = 0;
   if (S.loan > 0) {
-    const interest = TIME.monthlyInterest(S.loan, CFG.MARGIN_MONTHLY_INTEREST);
-    S.loan += interest;
-    if (interest > 0) addNews(`🏦 신용이자 ${won(interest)}원 발생 (빚 ${won(S.loan)})`, 'bad');
+    marginInterest = TIME.monthlyInterest(S.loan, CFG.MARGIN_MONTHLY_INTEREST);
+    S.loan += marginInterest;
+    if (marginInterest > 0) addNews(`🏦 신용이자 ${won(marginInterest)}원 발생 (빚 ${won(S.loan)})`, 'bad');
   }
   S._preSettleNW = netWorthClean();     // 정산 전(=순수 투자 성과) 순자산
   settleMonth();                        // 월급/월세/부동산/개인대출 정산
+  recordMonthEndWorldNews();            // 팝업 대신 월말 정산 뉴스에 포함
+  const afterClose = captureMonthCloseState();
+  S.monthCloseContext = createMonthCloseContext(endedDay, beforeClose, afterClose, marginInterest);
   addNews(`🔔 ${dateInfo(endedDay).label} 장 마감`, 'neutral');
   playSound('sell');
 
   renderAll();
   renderMarketPhase();
-  renderCloseReport(endedDay);          // 마감 리포트(뉴스 골라보기) 표시
-  maybeWorldBreaking();                 // 월말에는 기업·정치 상황을 속보로 체감
-  const terminalEvent = S._settle && (S._settle.died || S._settle.campaignBankrupt || S._settle.captivity);
-  if (!terminalEvent) {
-    if (S._settle && S._settle.incident) showJobIncident(S._settle.incident);
-    else showNextImportantEvent();      // 중요 사건을 모두 확인한 뒤 일반 선택지 이벤트
-  }
+  renderCurrentMonthCloseStep();
   autoSave();
 }
 
@@ -909,11 +924,16 @@ const WORLD_BREAKING = [
   {headline:'정부, 신산업 투자 세액공제 확대 예고',target:'산업정책',impact:.10,market:true},
   {headline:'대형 기관, 국내 증시 장기투자 비중 확대',target:'증시 수급',impact:.12,market:true},
 ];
-function maybeWorldBreaking(){
-  if(Math.random()>.42)return;
+function rollWorldBreaking(){
+  if(Math.random()>.42)return null;
   let item={...pick(WORLD_BREAKING)};
   if(Math.random()<.55){const stock=pick(S.stocks.filter(s=>s.listed&&s.type!=='etf'));if(stock){const good=Math.random()<.52;item={headline:`${stock.name}, ${good?'대규모 신규 계약·투자 계획 발표':'실적 전망 하향·경영진 긴급회의'}`,target:stock.name,impact:good?.14:-.14};}}
-  showBreaking(item,true);
+  return item;
+}
+function recordMonthEndWorldNews(){
+  const item=rollWorldBreaking();if(!item)return;
+  S.sessionNews.push(item);
+  addNews(`🌐 월말 속보 · ${item.headline}`,item.impact>=0?'good':'bad');
 }
 
 function renderMarketPhase() {
@@ -980,111 +1000,363 @@ function renderSessionProgress() {
   }
 }
 
-/* 장 마감 리포트: 그날의 뉴스를 골라서 전문가 진단까지 볼 수 있다 */
-function renderCloseReport(day) {
-  const host = $('market-close');
-  if (!host) return;
-  const nwNow = netWorthClean();
-  const investPL = (S._preSettleNW != null ? S._preSettleNW : nwNow) - S.dayStartNW; // 월급 제외한 순수 투자손익
-  // 같은 헤드라인은 가장 강한 것 하나로 합치고, 임팩트 큰 순 주요 뉴스만 추린다
-  const seen = new Map();
-  S.sessionNews.forEach(n => {
-    const cur = seen.get(n.headline);
-    if (!cur || Math.abs(n.impact) > Math.abs(cur.impact)) seen.set(n.headline, n);
+function captureMonthCloseState() {
+  const L = S.life;
+  const career = CAREER.ensure(L);
+  return {
+    capital: S.capital,
+    netWorth: netWorthClean(),
+    totalWealth: totalWealth(),
+    realizedPnL: S.realizedPnL || 0,
+    happy: L.happy || 0,
+    stress: L.stress || 0,
+    health: L.health || 0,
+    fitness: L.fitness || 0,
+    creditScore: L.creditScore || 0,
+    morality: L.morality == null ? 60 : L.morality,
+    guilt: L.guilt || 0,
+    familyBond: L.familyBond || 0,
+    parentAge: L.parentAge || 0,
+    parentHealth: L.parentHealth || 0,
+    job: L.job,
+    career: {
+      months: career.months || 0,
+      level: career.level || 0,
+      skill: career.skill || 0,
+      performance: career.performance || 0,
+      reputation: career.reputation || 0,
+    },
+    conditions: (L.conditions || []).slice(),
+    relationships: Object.fromEntries((L.met || []).map(person => [person.name, {
+      name: person.name,
+      status: person.status,
+      affection: person.affection || 0,
+      trust: person.trust || 0,
+      obsession: person.obsession || 0,
+      dangerLevel: person.dangerLevel || 0,
+      portrait: person.portrait,
+      mood: person.mood,
+    }])),
+    children: Object.fromEntries((L.children || []).map(child => [child.id, {
+      name: child.name,
+      ageMonths: child.ageMonths || 0,
+      bond: child.bond || 0,
+      happy: child.happy || 0,
+      health: child.health || 0,
+    }])),
+  };
+}
+
+function scalarMonthChanges(before, after) {
+  const definitions = [
+    ['happy', '행복', '😊'],
+    ['stress', '스트레스', '🫥'],
+    ['health', '건강', '❤️'],
+    ['fitness', '체력·운동 습관', '🏃'],
+    ['creditScore', '신용점수', '💳'],
+    ['morality', '도덕성', '⚖️'],
+    ['guilt', '죄책감', '🕯️'],
+    ['familyBond', '가족 유대', '👨‍👩‍👧'],
+    ['parentHealth', '부모님 건강', '👵'],
+  ];
+  const changes = definitions.flatMap(([key, label, icon]) => {
+    const from = Math.round(before[key] || 0), to = Math.round(after[key] || 0);
+    return from === to ? [] : [{ key, label, icon, before:from, after:to, delta:to-from }];
   });
-  const totalCnt = seen.size;
-  const news = [...seen.values()].sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact)).slice(0, 6);
-  const items = news.length
-    ? news.map((n, i) =>
-        `<li class="report-news ${n.impact >= 0 ? 'good' : 'bad'}" data-i="${i}">
-           <span class="rn-head">${n.impact >= 0 ? '📈' : '📉'} ${n.headline}</span>
-           <span class="rn-meta">${n.target} · ${pct(n.impact)} <span class="muted">(클릭 → 전문가 진단)</span></span>
-           <div class="rn-detail" id="rn-detail-${i}"></div>
-         </li>`).join('')
-    : '<li class="muted" style="cursor:default">📭 오늘은 특별한 뉴스가 없는 조용한 하루였습니다.</li>';
-
-  const st = S._settle || {};
-  const settleBits = [];
-  if (st.salary) settleBits.push(`${st.salary >= 0 ? '월급' : '적자'} <b class="${st.salary >= 0 ? 'up' : 'down'}">${st.salary >= 0 ? '+' : ''}${won(st.salary)}</b>`);
-  if (st.rent) settleBits.push(`월세 <b class="up">+${won(st.rent)}</b>`);
-  if (st.passive) settleBits.push(`자동수입 <b class="up">+${won(st.passive)}</b>`);
-  if (st.businessNet) settleBits.push(`사업체 손익 <b class="${st.businessNet >= 0 ? 'up' : 'down'}">${st.businessNet >= 0 ? '+' : ''}${won(st.businessNet)}</b>`);
-  if (st.factionBiz) settleBits.push(`조직원 수입 <b class="up">+${won(st.factionBiz)}</b>`);
-  if (st.factionUpkeep) settleBits.push(`조직 운영비 <b class="down">-${won(st.factionUpkeep)}</b>`);
-  if (st.partner) settleBits.push(`관계 공동예산 <b class="${st.partner >= 0 ? 'up' : 'down'}">${st.partner >= 0 ? '+' : ''}${won(st.partner)}</b>`);
-  if (st.incident) settleBits.push(`🚑${st.incident.job} 사고 <b class="down">-${won(st.incident.cost)}</b> <span class="muted">(현금 ${won(st.incident.cashPaid)} · 빚 +${won(st.incident.debtAdded)})</span>`);
-  if (st.scandal) {
-    const kind = st.scandal.wasMarried ? '불륜' : '양다리';
-    settleBits.push(st.scandal.forgiven
-      ? `😰${kind}발각 <b class="down">용서받음 · 친밀도 급락</b>`
-      : `😱${kind}발각 <b class="down">${st.scandal.settle ? `-${won(st.scandal.settle)}` : '이별'}${st.scandal.fired ? ' +해고' : ''}</b>`);
+  const beforeConditions = new Set(before.conditions || []);
+  const afterConditions = new Set(after.conditions || []);
+  afterConditions.forEach(id => {
+    if (!beforeConditions.has(id)) {
+      const condition = HEALTH.CONDITIONS.find(item => item.id === id);
+      changes.push({
+        key:`condition:${id}`, label:'새 질환', icon:(condition && condition.icon) || '🏥',
+        beforeText:'없음', afterText:(condition && condition.name) || id, delta:-1,
+      });
+    }
+  });
+  beforeConditions.forEach(id => {
+    if (!afterConditions.has(id)) {
+      const condition = HEALTH.CONDITIONS.find(item => item.id === id);
+      changes.push({
+        key:`recovery:${id}`, label:'질환 회복', icon:'💊',
+        beforeText:(condition && condition.name) || id, afterText:'회복', delta:1,
+      });
+    }
+  });
+  Object.entries(after.children || {}).forEach(([id, child]) => {
+    const previous = (before.children || {})[id];
+    if (!previous) {
+      changes.push({ key:`child:${id}`, label:`${child.name} 가족 합류`, icon:'👶', beforeText:'없음', afterText:'새 가족', delta:1 });
+    } else if (child.ageMonths !== previous.ageMonths && child.ageMonths % 12 === 0) {
+      changes.push({ key:`child-age:${id}`, label:`${child.name} 성장`, icon:'🎂', beforeText:`${previous.ageMonths}개월`, afterText:`${child.ageMonths}개월`, delta:1 });
+    }
+  });
+  if (Math.floor(after.parentAge) !== Math.floor(before.parentAge)) {
+    changes.push({ key:'parentAge', label:'부모님 나이', icon:'🕰️', before:Math.floor(before.parentAge), after:Math.floor(after.parentAge), delta:-1 });
   }
-  if (st.lifeInterest) settleBits.push(`대출이자 <b class="down">-${won(st.lifeInterest)}</b>`);
-  const info = dateInfo(day);
-  const nextInfo = dateInfo(day + 1);
-  const lifeLeft = lifeActionRemaining();
-  const macro = ECONOMY.ensure(S.economy);
-  const rateMark = macro.lastRateDelta > 0 ? '▲ 인상' : macro.lastRateDelta < 0 ? '▼ 인하' : '－ 동결';
+  return changes;
+}
 
-  host.style.display = 'block';
-  host.innerHTML =
-    `<div class="window close-window">
-       <div class="title-bar close-bar">
-         <div class="title-bar-text">🔔 ${info.label} 마감 리포트</div>
-         <div class="title-bar-controls"><button aria-label="Close" id="close-report-x"></button></div>
-       </div>
-       <div class="window-body">
-         <div class="close-summary">
-           <div class="cash-big">💰 보유 현금 <strong>${won(S.capital)}원</strong></div>
-           <div>당월 투자손익 <strong class="${investPL >= 0 ? 'up' : 'down'}">${investPL >= 0 ? '+' : ''}${won(investPL)}원</strong></div>
-           <div>마감 순자산 <strong>${won(nwNow)}원</strong></div>
-           <div>총 재산 <strong>${won(totalWealth())}원</strong></div>
-            ${S.life && S.life.loan > 0 ? `<div>개인 대출 <strong class="down">${won(S.life.loan)}원</strong></div>` : ''}
-            ${settleBits.length ? `<div class="settle-line">월말 정산 · ${settleBits.join(' · ')}</div>` : ''}
-            <div class="macro-summary"><b>🏦 기준금리 ${macro.baseRate.toFixed(2)}%</b> <span class="muted">${rateMark}</span> · 🌡️ 물가 ${macro.inflation.toFixed(1)}%<br><small>금리 상승은 대출 부담을 키우고 장기채 가격을 누를 수 있습니다. 금은 물가·불안에 강한 편이지만 높은 금리에는 약해질 수 있습니다.</small></div>
-         </div>
-         <div class="close-news-title">📰 이번 달 주요 뉴스 — 골라서 읽어보세요${totalCnt > news.length ? ` <span class="muted" style="color:#ccd">(주요 ${news.length}건 / 총 ${totalCnt}건)</span>` : ''}</div>
-         <ul class="clean-list close-news">${items}</ul>
-         ${lifeHubHTML()}
-         <div class="close-actions">
-           <button id="next-day-btn" class="session-btn opening">${lifeLeft > 0 ? `⏭ 이번 달 마무리 · 자유시간 ${lifeLeft}회 남음` : '▶ 이번 달 일정 완료'} (${nextInfo.label} 개장)</button>
-           <button id="close-report-btn">리포트 닫기</button>
-         </div>
-       </div>
-     </div>`;
-  wireLifeHub(host);
-
-  // 뉴스 클릭 → 전문가 진단 토글
-  host.querySelectorAll('.report-news').forEach(li => {
-    li.addEventListener('click', () => {
-      const i = +li.dataset.i;
-      const detail = $(`rn-detail-${i}`);
-      if (!detail) return;
-      if (detail.innerHTML) { detail.innerHTML = ''; detail.classList.remove('open'); return; }
-      const n = news[i];
-      if (!n.experts) n.experts = pickExperts(n);
-      detail.innerHTML =
-        `<div class="experts-title">🎙️ 전문가 긴급 진단 (제각각입니다, 참고만!)</div>
-         <ul class="clean-list experts">` +
-        n.experts.map(e =>
-          `<li class="expert">
-             <span class="ex-name">${e.icon} ${e.name} <small>${e.firm} · ${e.style}</small></span>
-             <span class="ex-view ${e.bull ? 'up' : 'down'}">${e.bull ? '📈 비중확대' : '📉 비중축소'} · 확신 ${e.confidence}% · ${e.horizon}</span>
-             <span class="ex-cmt"><b>판단</b> ${e.thesis}<br><b>확인</b> ${e.catalyst}<br><b>위험</b> ${e.risk}</span>
-           </li>`).join('') + '</ul>' +
-        (isStockName(n.target) ? `<button class="gobuy-btn" data-buy="${n.target}">📈 ${n.target} 구매하러 가기</button>` : '');
-      detail.classList.add('open');
-      const gb = detail.querySelector('.gobuy-btn');
-      if (gb) gb.addEventListener('click', (e) => { e.stopPropagation(); goBuy(gb.dataset.buy); });
+function relationshipMonthChanges(before, after) {
+  const names = new Set([
+    ...Object.keys(before.relationships || {}),
+    ...Object.keys(after.relationships || {}),
+  ]);
+  const changes = [];
+  names.forEach(name => {
+    const oldRec = (before.relationships || {})[name];
+    const newRec = (after.relationships || {})[name];
+    if (!oldRec && newRec) {
+      changes.push({
+        name, portrait:characterPortrait(newRec), summary:'이번 달 새롭게 알게 된 인물',
+        detail:`현재 관계 ${newRec.status || '지인'} · 호감 ${Math.round(newRec.affection)}`,
+      });
+      return;
+    }
+    if (!oldRec || !newRec) return;
+    const affection = Math.round(newRec.affection - oldRec.affection);
+    const trust = Math.round(newRec.trust - oldRec.trust);
+    const danger = Math.round(
+      (newRec.obsession || newRec.dangerLevel || 0) - (oldRec.obsession || oldRec.dangerLevel || 0)
+    );
+    const statusChanged = oldRec.status !== newRec.status;
+    if (!statusChanged && Math.max(Math.abs(affection), Math.abs(trust), Math.abs(danger)) < 5) return;
+    const parts = [];
+    if (statusChanged) parts.push(`${oldRec.status || '지인'} → ${newRec.status || '지인'}`);
+    if (affection) parts.push(`호감 ${affection > 0 ? '+' : ''}${affection}`);
+    if (trust) parts.push(`신뢰 ${trust > 0 ? '+' : ''}${trust}`);
+    if (danger) parts.push(`위험 ${danger > 0 ? '+' : ''}${danger}`);
+    changes.push({
+      name, portrait:characterPortrait(newRec),
+      summary:statusChanged ? '관계 단계가 달라졌습니다' : (affection + trust >= 0 ? '관계가 가까워졌습니다' : '관계가 멀어졌습니다'),
+      detail:parts.join(' · '),
     });
   });
+  return changes;
+}
 
-  const x = $('close-report-x');
-  if (x) x.addEventListener('click', closeReport);
-  const closeBtn = $('close-report-btn');
-  if (closeBtn) closeBtn.addEventListener('click', closeReport);
-  const nextBtn = $('next-day-btn');
-  if (nextBtn) nextBtn.addEventListener('click', openMarket);
+function careerMonthChanges(before, after, settle) {
+  const changes = [];
+  if (settle.incident) changes.push({
+    icon:settle.incident.emoji || '🚑', title:`${settle.incident.job} 근무 사고`,
+    desc:settle.incident.text,
+    detail:`총비용 ${won(settle.incident.cost)}원 · 현금 지출 ${won(settle.incident.cashPaid)}원 · 사고채무 +${won(settle.incident.debtAdded)}원`,
+    tone:'bad',
+  });
+  if (settle.career && settle.career.promotion) changes.push({
+    icon:'🎉', title:`${settle.career.promotion} 승진`,
+    desc:'경력과 업무 능력을 인정받았습니다.',
+    detail:`축하금 +${won(settle.career.bonus || 0)}원`, tone:'good',
+  });
+  if (before.job !== after.job) changes.push({
+    icon:'📦', title:'직업 상태 변화',
+    desc:`${(D.JOBS.find(job => job.id === before.job) || {}).name || before.job} → ${(D.JOBS.find(job => job.id === after.job) || {}).name || after.job}`,
+    detail:'다음 인생 행동에서 이직·자기계발·자격증을 선택할 수 있습니다.', tone:'bad',
+  });
+  (settle.businessReports || []).filter(report => Math.abs(report.net || 0) >= 1000000).forEach(report => {
+    changes.push({
+      icon:report.icon || '🏪', title:`${report.name} 월간 보고`,
+      desc:`담당 ${report.manager} · 매출 ${won(report.sales)}원`,
+      detail:`비용 ${won(report.cost)}원 · 순익 ${report.net >= 0 ? '+' : ''}${won(report.net)}원`,
+      tone:report.net >= 0 ? 'good' : 'bad',
+    });
+  });
+  return changes;
+}
+
+function familyMonthChanges(settle) {
+  const family = settle.family || {};
+  const changes = [];
+  if (family.birth) {
+    changes.push({
+      icon:'👶', title:`${family.birth.name}이(가) 가족이 되었습니다`,
+      desc:'출산·입양 절차가 끝나 새 가족과의 생활이 시작됩니다.',
+      detail:`이번 달 공동생활·양육비 ${won(family.cost || 0)}원`, tone:'good',
+    });
+  }
+  (family.news || []).forEach(text => {
+    if (family.birth && text.includes(family.birth.name)) return;
+    const health = text.includes('건강') || text.includes('돌봄');
+    changes.push({
+      icon:health ? '🏥' : text.includes('🎂') ? '🎂' : '🏠',
+      title:health ? '부모님 돌봄 변화' : '가족의 이번 달 소식',
+      desc:text.replace(/^[^\p{L}\p{N}]+/u, ''),
+      detail:family.cost ? `공동생활·양육비 ${won(family.cost)}원` : '',
+      tone:health ? 'bad' : 'good',
+    });
+  });
+  return changes;
+}
+
+function majorMonthNews() {
+  const seen = new Map();
+  (S.sessionNews || []).forEach(item => {
+    const current = seen.get(item.headline);
+    if (!current || Math.abs(item.impact || 0) > Math.abs(current.impact || 0)) seen.set(item.headline, item);
+  });
+  return [...seen.values()].sort((a, b) => Math.abs(b.impact || 0) - Math.abs(a.impact || 0)).slice(0, 6);
+}
+
+function createMonthCloseContext(day, before, after, marginInterest) {
+  const settle = S._settle || {};
+  const finance = settle.finance || {};
+  const salaryIncome = Math.max(0, settle.salary || 0);
+  const propertyIncome = Math.max(0, settle.rent || 0);
+  const passiveIncome = Math.max(0, settle.passive || 0);
+  const businessIncome = settle.businessNet || 0;
+  const sharedIncome = (settle.partner || 0) + (settle.factionBiz || 0) - (settle.factionUpkeep || 0);
+  const tax = (finance.tax || 0) + (finance.propertyTax || 0);
+  const insurance = finance.premiums || 0;
+  const pension = finance.pensionContribution || 0;
+  const livingCost = (settle.housingExpense || 0) + (settle.familyCost || 0)
+    + Math.max(0, -((settle.relationshipBudget || {}).net || 0));
+  const loanInterest = (marginInterest || 0) + (settle.lifeInterest || 0);
+  const incidentCost = (settle.incident && settle.incident.cost) || 0;
+  const totalIncome = salaryIncome + propertyIncome + passiveIncome
+    + Math.max(0, businessIncome) + Math.max(0, sharedIncome)
+    + (finance.pensionPayout || 0) + (finance.incomeBenefit || 0);
+  const totalExpense = tax + insurance + pension + livingCost + loanInterest + incidentCost
+    + Math.max(0, -businessIncome) + Math.max(0, -sharedIncome);
+  const info = dateInfo(day);
+  const report = {
+    year:info.year, month:info.month, label:info.label,
+    startNetWorth:S.dayStartNW,
+    endNetWorth:after.netWorth,
+    netWorthChange:after.netWorth - S.dayStartNW,
+    tradingPnL:(S._preSettleNW == null ? after.netWorth : S._preSettleNW) - S.dayStartNW,
+    realizedPnL:(S.realizedPnL || 0) - (S.dayStartRealizedPnL || 0),
+    cashChange:after.capital - (S.dayStartCapital == null ? before.capital : S.dayStartCapital),
+    salary:settle.salary || 0,
+    tax, insurance, pension, livingCost, loanInterest,
+    propertyIncome, passiveIncome, businessIncome, sharedIncome, incidentCost,
+    totalIncome, totalExpense, majorNews:majorMonthNews(),
+  };
+  let terminal = null;
+  if (settle.died) terminal = { type:'death', age:info.age };
+  else if (settle.campaignBankrupt) terminal = { type:'bankruptcy', reason:settle.campaignBankruptcyReason };
+  else if (settle.captivity) terminal = { type:'captivity', personName:settle.captivityPerson };
+  return MONTH_CLOSE_FLOW.build({
+    id:`month-close:${day}`,
+    day,
+    report,
+    before,
+    after,
+    lifeChanges:scalarMonthChanges(before, after),
+    relationshipChanges:relationshipMonthChanges(before, after),
+    familyChanges:familyMonthChanges(settle),
+    careerChanges:careerMonthChanges(before, after, settle),
+    forcedEvents:(S._importantEvents || []).map(event => event.title || event.type || 'event'),
+    terminal,
+  });
+}
+
+function monthCloseProgress() {
+  const ctx = S.monthCloseContext;
+  if (!ctx || !ctx.steps) return '';
+  const position = Math.min(ctx.currentIndex + 1, ctx.steps.length);
+  return `<div class="month-flow-progress"><span style="width:${Math.round(position / ctx.steps.length * 100)}%"></span><b>${position}/${ctx.steps.length}</b></div>`;
+}
+
+function renderCurrentMonthCloseStep() {
+  const ctx = S.monthCloseContext;
+  if (!ctx || !ctx.active) return;
+  const step = MONTH_CLOSE_FLOW.current(ctx);
+  if (!step) return;
+  const host = $('market-close');
+  if (!host) return;
+  if (step.name === 'important-events') {
+    host.style.display = 'none';
+    host.innerHTML = '';
+    S._monthCloseEventPhase = true;
+    if (ctx.currentRandomEvent) {
+      S._monthCloseRandomEvent = true;
+      showLifeEvent(ctx.currentRandomEvent);
+    } else {
+      showNextImportantEvent(!!ctx.currentImportantEvent);
+    }
+    return;
+  }
+  if (step.name === 'terminal') {
+    host.style.display = 'none';
+    host.innerHTML = '';
+    const terminal = ctx.terminal;
+    const resuming = !!ctx.terminalShown;
+    ctx.terminalShown = true;
+    S._monthCloseEventPhase = false;
+    autoSave();
+    if (terminal.type === 'death') showDeathScreen(terminal.age, resuming);
+    else if (terminal.type === 'bankruptcy') showCampaignBankruptcyEnding(terminal.reason, resuming);
+    else if (terminal.type === 'captivity') {
+      const person = metRecord(S.life, terminal.personName);
+      if (person && person.name === '윤세라') showCaptivityEnding(person);
+      else if (person) showDangerousHeroineEnding(person);
+    }
+    return;
+  }
+  const view = MONTH_CLOSE_VIEWS[step.name];
+  if (!view) { advanceMonthCloseFlow(); return; }
+  host.style.display = 'block';
+  view.render(host, step.props || {}, {
+    next:advanceMonthCloseFlow,
+    finish:finishMonthCloseFlow,
+    progress:monthCloseProgress,
+    lifeHubHTML,
+    wireLifeHub,
+    actionsRemaining:lifeActionRemaining,
+    overview:() => {
+      const L = S.life, job = jobOf();
+      return `<span>행동력 <b>${lifeActionRemaining()}/${LIFE_ACTIONS_PER_MONTH}</b></span><span>${job.emoji} ${job.name}</span><span>❤️ 건강 ${Math.round(L.health)}</span><span>😊 행복 ${Math.round(L.happy)}</span><span>🫥 스트레스 ${Math.round(L.stress)}</span>`;
+    },
+    nextMonthLabel:() => dateInfo(S.day + 1).label,
+  });
+}
+
+function advanceMonthCloseFlow() {
+  const ctx = S.monthCloseContext;
+  if (!ctx || !ctx.active) return;
+  MONTH_CLOSE_FLOW.advance(ctx);
+  S._monthCloseEventPhase = false;
+  autoSave();
+  renderCurrentMonthCloseStep();
+}
+
+function finishMonthCloseFlow() {
+  const ctx = S.monthCloseContext;
+  if (ctx) {
+    if (!ctx.completedSteps.includes('return-market')) ctx.completedSteps.push('return-market');
+    ctx.active = false;
+  }
+  S.monthCloseContext = null;
+  S._monthCloseEventPhase = false;
+  closeReport();
+  autoSave();
+  openMarket();
+}
+
+function resolveMonthCloseTerminal() {
+  const ctx = S.monthCloseContext;
+  if (ctx) {
+    if (!ctx.completedSteps.includes('terminal')) ctx.completedSteps.push('terminal');
+    ctx.active = false;
+  }
+  S.monthCloseContext = null;
+  S._monthCloseEventPhase = false;
+  S._monthCloseRandomEvent = false;
+}
+
+/* 구버전 마감 리포트. 새 월말 큐를 복원할 수 없는 저장에만 폴백한다. */
+function renderCloseReportLegacy(day) {
+  const current = captureMonthCloseState();
+  S.monthCloseContext = createMonthCloseContext(day, current, current, 0);
+  renderCurrentMonthCloseStep();
+}
+
+function renderCloseReport(day) {
+  if (S.monthCloseContext && S.monthCloseContext.active) {
+    renderCurrentMonthCloseStep();
+    return;
+  }
+  renderCloseReportLegacy(day);
 }
 
 function closeReport() {
@@ -1316,7 +1588,11 @@ function settleMonth() {
   // 5-2) 인간관계 유지 — 오래 안 만나면 사이가 식고, 가끔 근황이 들려온다
   updateRelationships(L);
   queueAvailableStories(L);
-  if (updateObsession(L)) b.captivity = true;
+  const captivityPerson = updateObsession(L);
+  if (captivityPerson) {
+    b.captivity = true;
+    b.captivityPerson = captivityPerson.name;
+  }
   updateMoralityState(L);
 
   // 6) 행복 자연 감소
@@ -1373,6 +1649,8 @@ function settleMonth() {
   S.bots.forEach(b => { b.nwHist = b.nwHist || []; b.nwHist.push(Math.round(botNetWorth(b))); if (b.nwHist.length > 48) b.nwHist.shift(); });
   S._myNwHist = S._myNwHist || []; S._myNwHist.push(Math.round(netWorthClean())); if (S._myNwHist.length > 48) S._myNwHist.shift();
   const housingResult = HOUSING.monthly(L, ECONOMY.livingMultiplier(S.economy));
+  b.housingExpense = housingResult.expense || 0;
+  b.housing = housingResult;
   if (housingResult.expense > 0) {
     const paid=Math.min(Math.max(0,S.capital),housingResult.expense);S.capital-=paid;
     if(housingResult.expense>paid)LOAN.addDebt(L,housingResult.expense-paid,'주거비 연체');
@@ -1384,6 +1662,7 @@ function settleMonth() {
     debtRatio: L.loan / Math.max(1, Math.max(0, b.salary + b.rent) * 12),
     jailed: wasJailed, happy: L.happy,
   });
+  b.health = healthResult;
   b.died = !!healthResult.died;
   healthResult.news.forEach(text => {
     addNews(text, 'bad');
@@ -1398,6 +1677,7 @@ function settleMonth() {
     b.aptMatch = m;
   }
   const careerResult = CAREER.monthly(L, job, { health:L.health, stress:L.stress });
+  b.career = careerResult;
   if (careerResult.promotion) {
     S.capital += careerResult.bonus;
     addNews(`🎉 ${job.name} ${careerResult.promotion} 승진 · 축하금 ${won(careerResult.bonus)}원`, 'good');
@@ -1406,6 +1686,8 @@ function settleMonth() {
   }
   const familyResult = FAMILY.monthly(L);
   familyResult.cost = Math.round(familyResult.cost * ECONOMY.livingMultiplier(S.economy));
+  b.familyCost = familyResult.cost || 0;
+  b.family = familyResult;
   if (familyResult.cost > 0) {
     const paid = Math.min(Math.max(0, S.capital), familyResult.cost);
     S.capital -= paid;
@@ -1486,8 +1768,6 @@ function settleMonth() {
     ?'채무 추심과 연체가 한계에 도달해 모든 회생 수단이 중단됐습니다.'
     :b.solvency.reason;
   b.campaignBankrupt=(b.debtGameOver||b.solvency.bankrupt)&&!L.campaignSolvency.endingSeen;
-  if (healthResult.died) setTimeout(() => showDeathScreen(info.age), 700);
-  else if (b.campaignBankrupt) setTimeout(()=>showCampaignBankruptcyEnding(b.campaignBankruptcyReason),500);
 }
 
 /* ---- 출신 배경 / 학창생활 / 직업 ---- */
@@ -1743,7 +2023,7 @@ const NARAE_TUTORIAL_STEPS = [
   { target:'#buy-btn', title:'매수·매도·공매도', text:'매수는 주식을 사는 것, 매도는 보유 주식을 파는 것이에요. 보유량 없이 매도하면 하락에 베팅하는 공매도가 되므로 손실이 크게 날 수 있어요.' },
   { target:'#leverage-select', title:'신용 레버리지', text:'레버리지는 빚을 섞어 투자 규모를 키우는 기능이에요. 수익도 커지지만 손실·이자·반대매매 위험도 같은 배율로 커집니다. ETF의 2배·인버스와는 별개예요.' },
   { target:'[data-tab="news"]', title:'뉴스와 기업 공시', text:'뉴스의 기업명을 누르면 해당 기업 리포트와 차트로 이동할 수 있어요. 호재는 긍정적 재료, 악재는 부정적 재료지만 가격이 반드시 같은 방향으로 움직인다는 보장은 없어요.' },
-  { target:'[data-tab="life"]', title:'장마감 후 인생 행동', text:'마감 뒤에는 자유시간 3회로 데이트·경력·인맥·가족 행동을 선택해요. 월급·빚·부동산도 함께 정산됩니다. 이제 직업을 정하면 시작할 수 있어요!' },
+  { target:'[data-tab="life"]', title:'장마감 후 인생 행동', text:'마감 뒤에는 자유시간 4회로 데이트·취미·경력·인맥·가족 행동을 선택해요. 월급·빚·부동산도 함께 정산됩니다. 이제 직업을 정하면 시작할 수 있어요!' },
 ];
 
 function clearTutorialFocus() {
@@ -1856,7 +2136,7 @@ function showGameGuide(fromStart = false) {
     sec('💼', '직업·경력·이직', `
       • 시작 시 <b>직업</b>을 고르면 매달 <b>월급</b>이 들어옵니다. 고소득 직업일수록 <b>사고 리스크</b>(→빚)가 큽니다.<br>
       • <b>이직</b>은 직업마다 <b>합격 확률</b>이 다르고(현재 경력 vs 목표 난이도), 성공/실패로 갈립니다.<br>
-      • 직무교육·자격증으로 능력을 키우면 <b>승진</b>과 이직에 유리합니다.`) +
+      • 취미의 <b>자기계발</b>과 자격증으로 능력을 키우면 <b>승진</b>과 이직에 유리합니다.`) +
     sec('💘', '연애·결혼', `
       • <b>외출 장소</b>(번화가·사내·취미·클럽·조건부 특별 장소)마다 첫 조우하는 사람이 달라요. 첫 만남만으로 바로 연인이 되지는 않습니다.<br>
       • 장 마감 뒤 연락에 답하고 우연한 재회·친분 외출을 거쳐 <b>호감 15 · 신뢰 8 · 교류 3회 · 1개월</b>을 채우면 정식 데이트가 열립니다.<br>
@@ -1898,7 +2178,7 @@ function closeGuide() {
   if (needJob) startLifeSetup();
 }
 
-function showDeathScreen(age) {
+function showDeathScreen(age, resuming = false) {
   if (S.timer) { clearInterval(S.timer); S.timer = null; }
   S.phase = 'closed'; S.paused = true;
   const lifeBenefit = LIFE_FINANCE.deathBenefit(S.life);
@@ -1907,7 +2187,7 @@ function showDeathScreen(age) {
   const heir = FAMILY.bestHeir(S.life);
   S._heir = heir;
   const ending = LEGACY.ending(S.life,{wealth:legacy.gross,trades:S.trades,realized:S.realizedPnL});
-  LEGACY.push(S.life,age,ending.icon,`${ending.name} 엔딩을 맞았다`,'ending');
+  if (!resuming) LEGACY.push(S.life,age,ending.icon,`${ending.name} 엔딩을 맞았다`,'ending');
   const lifeHistory=LEGACY.ensure(S.life).timeline.slice().sort((a,b)=>a.age-b.age);
   const host = $('life-modal'); if (!host) return;
   host.style.display = 'flex';
@@ -1935,6 +2215,7 @@ function showDeathScreen(age) {
 }
 
 function startNextGeneration() {
+  resolveMonthCloseTerminal();
   const nextGeneration = (S.life.generation || 1) + 1;
   const inherited = (S._legacy || HEALTH.inheritance(totalWealth())).net;
   S.capital = inherited; S.owned = {}; S.loan = 0; S.day = 1; S.tick = 0;
@@ -1978,10 +2259,37 @@ function queueImportantEvent(event) {
   if (S._importantEvents.length < 10) S._importantEvents.push(event);
 }
 
-function showNextImportantEvent() {
+function showNextImportantEvent(resumeCurrent = false) {
   const queue = S._importantEvents || [];
-  const event = queue.shift();
-  if (!event) { maybeLifeEvent(); return; }
+  const ctx = S._monthCloseEventPhase && S.monthCloseContext && S.monthCloseContext.active
+    ? S.monthCloseContext : null;
+  let event = null;
+  if (resumeCurrent && ctx && ctx.currentImportantEvent) {
+    event = ctx.currentImportantEvent;
+  } else {
+    if (ctx) ctx.currentImportantEvent = null;
+    event = queue.shift();
+    if (ctx && event) {
+      ctx.currentImportantEvent = event;
+      autoSave();
+    }
+  }
+  if (!event) {
+    if (S._monthCloseEventPhase) {
+      const opened = maybeLifeEvent();
+      if (opened) {
+        S._monthCloseRandomEvent = true;
+        if (ctx) {
+          ctx.currentRandomEvent = S._curEvent || null;
+          autoSave();
+        }
+      }
+      else advanceMonthCloseFlow();
+      return;
+    }
+    maybeLifeEvent();
+    return;
+  }
   if (event.dangerousTrioStart) { startDangerousTrioRoute(true); return; }
   if (event.dangerousTrioChapter) { showDangerousTrioStory(); return; }
   if (event.dangerousTrioAftermath) { showDangerousTrioAftermath(); return; }
@@ -1999,6 +2307,24 @@ function showNextImportantEvent() {
   if (event.story && event.personName) {
     const rec = metRecord(S.life, event.personName);
     if (rec && STORIES.get(event.personName) && STORIES.next(rec)) { S._storyFromQueue = true; showCharacterStory(event.personName); return; }
+  }
+  if (ctx && MONTH_CLOSE_VIEWS['major-event']) {
+    const marketHost = $('market-close');
+    const lifeHost = $('life-event');
+    if (lifeHost) { lifeHost.style.display = 'none'; lifeHost.innerHTML = ''; }
+    marketHost.style.display = 'block';
+    MONTH_CLOSE_VIEWS['major-event'].render(marketHost, {
+      event:Object.assign({ scene:lifeSceneImage(event.type) }, event),
+      remaining:queue.length,
+    }, {
+      progress:monthCloseProgress,
+      next:() => {
+        marketHost.style.display = 'none';
+        marketHost.innerHTML = '';
+        showNextImportantEvent();
+      },
+    });
+    return;
   }
   const host = $('life-event'); if (!host) return;
   const tone = event.tone === 'good' ? 'up' : event.tone === 'bad' ? 'down' : '';
@@ -2275,26 +2601,27 @@ function showJobIncident(incident) {
 }
 
 function maybeLifeEvent() {
-  if (!D.LIFE_EVENTS || Math.random() > LIFE.EVENT_PROB) return;
+  if (!D.LIFE_EVENTS || Math.random() > LIFE.EVENT_PROB) return false;
   const L = S.life;
   if (L.children && L.children.length && Math.random() < .45) {
     const childEvent = CHILD_EVENTS.make(L);
-    if (childEvent) { showLifeEvent(childEvent); return; }
+    if (childEvent) { showLifeEvent(childEvent); return true; }
   }
   const eventPartner=pick(RELATIONSHIPS.consensualMembers(L));
-  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,charm:L.charm,affection:L.affection||0,pers:eventPartner&&eventPartner.personality,partnerJob:eventPartner&&eventPartner.job,partnerName:eventPartner&&eventPartner.name,partnerNames:RELATIONSHIPS.names(L),hasLovers:!!(L.lovers&&L.lovers.length),familyPlan:!!L.familyPlan,morality:L.morality==null?60:L.morality,guilt:L.guilt||0,makjang:!!L.makjang,hasShark:(L.loans||[]).some(x=>x.illegal),naraeKnown:!!L.tutorialMet,seraKnown:!!metRecord(L,'윤세라') };
+  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,stress:L.stress||0,charm:L.charm,affection:L.affection||0,pers:eventPartner&&eventPartner.personality,partnerJob:eventPartner&&eventPartner.job,partnerName:eventPartner&&eventPartner.name,partnerNames:RELATIONSHIPS.names(L),hasLovers:!!(L.lovers&&L.lovers.length),familyPlan:!!L.familyPlan,morality:L.morality==null?60:L.morality,guilt:L.guilt||0,makjang:!!L.makjang,hasShark:(L.loans||[]).some(x=>x.illegal),naraeKnown:!!L.tutorialMet,seraKnown:!!metRecord(L,'윤세라'),day:S.day,lastBurnoutEventDay:L.lastBurnoutEventDay };
   const seraIntro = (D.LIFE_EVENTS || []).find(e => e.id === 'life_rainy_canvas');
   if (!ctx.seraKnown && seraIntro && Math.random() < 0.32) {
     showLifeEvent(seraIntro);
-    return;
+    return true;
   }
   const jobSpecific = (D.CAREER_EVENTS || []).filter(e => Array.isArray(e.jobs) && e.jobs.includes(L.job) && (!e.cond || e.cond(ctx)));
   if (jobSpecific.length && Math.random() < 0.65) {
     showLifeEvent(pick(jobSpecific));
-    return;
+    return true;
   }
   const pool = (D.LIFE_EVENTS || []).concat(D.ROMANCE_EVENTS || [], D.CAREER_EVENTS || []).filter(e => !e.cond || e.cond(ctx));
-  if (pool.length) showLifeEvent(pick(pool));
+  if (pool.length) { showLifeEvent(pick(pool)); return true; }
+  return false;
 }
 
 function showLifeEvent(ev) {
@@ -2343,6 +2670,7 @@ function applyEventEffects(eff) {
     if (v) changes.push(`빚 <b class="${v >= 0 ? 'down' : 'up'}">${v >= 0 ? '+' : ''}${won(v)}</b>`);
   }
   if (eff.happy != null) { L.happy = clamp(L.happy + eff.happy, 0, 100); changes.push(`행복 ${eff.happy >= 0 ? '+' : ''}${eff.happy}`); }
+  if (eff.stress != null) { L.stress = clamp((L.stress || 0) + eff.stress, 0, 100); changes.push(`스트레스 ${eff.stress >= 0 ? '+' : ''}${eff.stress}`); }
   if (eff.charm != null) { L.charm = Math.max(0, L.charm + eff.charm); changes.push(`매력 ${eff.charm >= 0 ? '+' : ''}${eff.charm}`); }
   if (eff.affection != null) {
     const members=RELATIONSHIPS.consensualMembers(L),targets=S._curEventPartnerName?members.filter(person=>person.name===S._curEventPartnerName):members;
@@ -2378,6 +2706,7 @@ function resolveEvent(i) {
   const ev = S._curEvent; if (!ev) return;
   const opt = ev.options[i];
   const changes = applyEventEffects(opt.effects || {});
+  if (ev.id === 'life_burnout' || ev.id === 'career_burnout_leave') S.life.lastBurnoutEventDay = S.day;
   if (ev.childId && opt.childEffects) {
     if (opt.childEffects.cash != null) changes.push(...applyEventEffects({cash:opt.childEffects.cash}));
     changes.push(...CHILD_EVENTS.apply(S.life, ev.childId, opt.childEffects));
@@ -2397,7 +2726,15 @@ function resolveEvent(i) {
 function closeLifeEvent() {
   const host = $('life-event'); if (host) { host.style.display = 'none'; host.innerHTML = ''; }
   S._curEvent = null;
-  if (S.phase === 'closed' && $('market-close') && $('market-close').style.display === 'block') renderCloseReport(S.day);
+  if (S._monthCloseRandomEvent) {
+    S._monthCloseRandomEvent = false;
+    if (S.monthCloseContext) S.monthCloseContext.currentRandomEvent = null;
+    advanceMonthCloseFlow();
+  } else if (S.phase === 'closed' && S.monthCloseContext && S.monthCloseContext.active) {
+    renderCurrentMonthCloseStep();
+  } else if (S.phase === 'closed' && $('market-close') && $('market-close').style.display === 'block') {
+    renderCloseReport(S.day);
+  }
 }
 
 function chooseJob(id) {
@@ -2423,9 +2760,14 @@ function doHobby(id) {
   S.life.happy = clamp(S.life.happy + h.happy, 0, 100);
   S.life.charm += h.charm;
   S.life.hobbiesDone++;
+  let careerText = '';
+  if (id === 'study') {
+    const career = CAREER.train(S.life);
+    careerText = ` · 직무 능력 ${Math.round(career.skill)}`;
+  }
   if (id === 'gym') HEALTH.exercise(S.life);
   else if (id === 'travel' || id === 'game') HEALTH.rest(S.life);
-  flashToast(`${h.emoji} ${h.name}! 행복 +${h.happy}${h.charm ? ` 매력 +${h.charm}` : ''}`, 'good');
+  flashToast(`${h.emoji} ${h.name}! 행복 +${h.happy}${h.charm ? ` 매력 +${h.charm}` : ''}${careerText}`, 'good');
   checkRelationship(); afterLifeAction('취미');
   maybeActivityEncounter(id);
 }
@@ -2495,12 +2837,6 @@ function doParentCare() {
   const cost=1500000;if(S.capital<cost){flashToast('💸 부모님 돌봄 비용 1,500,000원 부족','bad');return;}
   S.capital-=cost;FAMILY.careParents(S.life);S.life.happy=clamp(S.life.happy+4,0,100);
   flashToast('👵 부모님 병원과 생활을 챙겼습니다','good');afterLifeAction('가족');
-}
-
-function doCareerTraining() {
-  const cost=700000;if(S.capital<cost){flashToast('💸 교육비 700,000원 부족','bad');return;}
-  S.capital-=cost;const c=CAREER.train(S.life);S.life.happy=clamp(S.life.happy-2,0,100);
-  flashToast(`📈 직무교육 완료 · 능력 ${Math.round(c.skill)}`,'good');afterLifeAction('경력');
 }
 
 function doCertification(id) {
@@ -3228,7 +3564,7 @@ function updateCharacterSignatureSystems(L){
 }
 
 function updateObsession(L) {
-  let captivity=false;
+  let captivity=null;
   ensureMet(L).forEach(r=>{
     if(L.dangerousTrioBond&&L.dangerousTrioBond.active&&isDangerousHeroine(r))return;
     if(r.name!=='윤세라'){if(!isDangerousHeroine(r)){r.obsession=0;r.obsessionGrowth=0;}return;}
@@ -3247,7 +3583,7 @@ function updateObsession(L) {
       if(r.name==='윤세라'){r.yandere=true;queueImportantEvent({type:'love',scene:'./assets/event-sera-doorstep.png',icon:'🖤',title:'윤세라 · 얀데레 전환',desc:'새벽 두 시, 알려준 적 없는 집 앞에 세라가 서 있었습니다. “이제 우연인 척 안 해도 되죠?”',detail:'이후 병원·직장·취미·다른 사람과의 외출에도 세라가 나타날 수 있습니다. 관계를 끊는 것만으로는 즉시 멈추지 않습니다.',tone:'bad'});}
       else queueImportantEvent({type:'love',icon:'🚪',title:`${r.name}가 집 앞에 왔다`,desc:'알려준 적 없는 일정과 장소를 알고 기다리고 있었습니다.',detail:'관계를 분명히 정리하거나 주변 사람에게 도움을 구해야 할 위험 단계입니다.',tone:'bad'});
     }
-    if(r.obsession>=95&&!L.captivityEnding){L.captivityEnding=true;captivity=true;setTimeout(()=>showCaptivityEnding(r),650);}
+    if(r.obsession>=95&&!L.captivityEnding){L.captivityEnding=true;captivity=r;}
   });
   ensureMet(L).filter(r=>!(L.dangerousTrioBond&&L.dangerousTrioBond.active)&&['강유진','한채린'].includes(r.name)&&dangerousRomanceActive(L,r)).forEach(r=>{
     const before=r.dangerLevel||28,signature=CHAR_TRAITS&&CHAR_TRAITS.ensure(r),sig=signature?signature.value||0:0;
@@ -3257,7 +3593,7 @@ function updateObsession(L) {
     r.dangerLevel=clamp(before+pressure,0,100);
     if(before<55&&r.dangerLevel>=55)queueImportantEvent({type:'love',scene:r.name==='강유진'?'./assets/event-yujin-night-call.png':'./assets/event-chaerin-thrown-contract.png',icon:r.name==='강유진'?'🚨':'👑',title:`${r.name} · 보호가 소유로 바뀌는 지점`,desc:r.name==='강유진'?'당신을 위험에서 떼어놓겠다는 유진의 계획이 직장과 연락처와 외출까지 포함하기 시작했습니다.':'채린의 지원이 계좌와 집과 일정의 결정권까지 가져가기 시작했습니다.',detail:`위험도 ${Math.round(r.dangerLevel)}/100 · 연애나 하룻밤 이후에만 진행되는 전용 위험선입니다.`,tone:'bad'});
     if(before<78&&r.dangerLevel>=78)queueImportantEvent({type:'love',scene:r.name==='강유진'?'./assets/event-yujin-safehouse-ending.png':'./assets/event-chaerin-golden-cage-ending.png',icon:'🔐',title:`${r.name} · 출구가 줄어든다`,desc:r.name==='강유진'?'유진이 마련한 보호 숙소의 출입 기록에 당신 이름만 남았습니다.':'채린이 마련한 펜트하우스에서 당신 명의의 카드와 열쇠가 하나씩 작동을 멈췄습니다.',detail:'지금 관계의 선을 다시 세우지 않으면 다음 단계는 전용 감금엔딩입니다.',tone:'bad'});
-    if(r.dangerLevel>=95&&!L.captivityEnding){L.captivityEnding=true;captivity=true;setTimeout(()=>showDangerousHeroineEnding(r),650);}
+    if(r.dangerLevel>=95&&!L.captivityEnding){L.captivityEnding=true;captivity=r;}
   });
   return captivity;
 }
@@ -3298,6 +3634,7 @@ function rewindDangerousRelationship(r){
   if(r.name==='윤세라'){r.obsession=55;r.yandere=false;}else r.dangerLevel=42;
   L.captivityEnding=false;L.dangerousEnding=null;L.seraIntrusionDay=null;
   S.paused=false;
+  resolveMonthCloseTerminal();
   addNews(`↩️ ${r.name}와 위험해지기 전, 친구 관계를 택한 시점으로 돌아갔습니다`,'neutral');
   autoSave();location.reload();
 }
@@ -3371,10 +3708,11 @@ function resolveCaptivityRescue(rescuerId,r){
   S.life.captivityEnding=false;S.life[copy.flag]=true;S.life.seraRescuedBy=rescuerId;S.life.stress=clamp((S.life.stress||0)+12,0,100);
   S.life.seraLoop=null;localStorage.removeItem(LS_SERA_LOOP);
   S.paused=false;
+  resolveMonthCloseTerminal();
   LEGACY.push(S.life,dateInfo(S.day).age,copy.icon,`${copy.title}로 윤세라의 감금에서 탈출했다`,'love');
   host.className='life-modal-host';
   host.innerHTML=`<div class="window event-window"><div class="title-bar"><div class="title-bar-text">${copy.icon} 감금엔딩 분기 · 구조 성공</div></div><div class="window-body"><img class="life-scene-banner" src="${rescuerId==='yujin'?'./assets/event-yujin-rain-rescue.png':'./assets/life-faction-war.png'}" alt="${copy.title}"><div class="event-title">${copy.title}</div><div class="event-desc">${copy.text}</div><div class="important-event-detail">윤세라와 강제 이별 · 집착 ${r.obsession}/100 · 스트레스 +12<br>세라는 사라진 것이 아닙니다. 남겨 둔 증거와 보호망에 따라 이후 재등장 방식이 달라집니다.</div><button id="captivity-rescue-continue" class="session-btn opening">구조 이후의 삶 계속하기</button></div></div>`;
-  $('captivity-rescue-continue').addEventListener('click',()=>{closeLifeModal();renderAll();renderMarketPhase();autoSave();});
+  $('captivity-rescue-continue').addEventListener('click',()=>{resolveMonthCloseTerminal();closeLifeModal();renderAll();renderMarketPhase();autoSave();});
   addNews(`${copy.icon} ${copy.title} · 윤세라 감금에서 탈출했습니다`,'good');autoSave();
 }
 
@@ -4770,7 +5108,7 @@ function showFactionVictoryEnding() {
   });
 }
 
-function showCampaignBankruptcyEnding(reason) {
+function showCampaignBankruptcyEnding(reason, resuming = false) {
   if(!CAMPAIGN_ENDINGS||!S.life)return;
   if(S.timer){clearInterval(S.timer);S.timer=null;}
   S.phase='closed';S.paused=true;
@@ -4778,9 +5116,9 @@ function showCampaignBankruptcyEnding(reason) {
   const ending=CAMPAIGN_ENDINGS.build('bankruptcy',S.life,{
     totalWealth:totalWealth(),debt:(S.loan||0)+(S.life.loan||0),path:faction.path,reason
   });
-  CAMPAIGN_ENDINGS.record(S.life,ending,S.day);
+  if (!resuming) CAMPAIGN_ENDINGS.record(S.life,ending,S.day);
   const age=dateInfo(S.day).age;
-  LEGACY.push(S.life,age,ending.icon,`${ending.title} 엔딩 · 플레이어 파산`,'ending');
+  if (!resuming) LEGACY.push(S.life,age,ending.icon,`${ending.title} 엔딩 · 플레이어 파산`,'ending');
   const host=$('life-modal');if(!host)return;
   host.style.display='flex';host.className='life-modal-host';
   host.innerHTML=`<div class="window event-window">
@@ -4799,6 +5137,7 @@ function showCampaignBankruptcyEnding(reason) {
     S.life.campaignSolvency.endingSeen=true;
     S.life.campaignSolvency.bankrupt=false;
     S.life.campaignSolvency.insolventMonths=0;
+    resolveMonthCloseTerminal();
     closeLifeModal();renderAll();renderMarketPhase();autoSave();
     addNews(`${ending.icon} ${ending.title} 엔딩 이후 재기 모드 시작`,'neutral');
   });
@@ -4956,8 +5295,8 @@ function showFactionTradeCall() {
   const call = S._factionTradeCall; if (!call) return;
   const host = $('life-event'); if (!host) return;
   const stock = S.stocks.find(s => s.name === call.stock); if (!stock) return;
-  const verb = call.direction > 0 ? '공동 매수' : '공동 매도';
-  const expected = call.direction > 0 ? '매수세를 모아 가격을 끌어올린다' : '보유분을 정리해 가격을 누른다';
+  const verb = call.direction > 0 ? '공동 매수' : '공동 공매도';
+  const expected = call.direction > 0 ? '매수세를 모아 가격을 끌어올린다' : '매도·공매도 물량을 모아 가격을 누른다';
   host.style.display='block';
   autoPauseForPopup();
   host.innerHTML=`<div class="window event-window">
@@ -4967,7 +5306,7 @@ function showFactionTradeCall() {
       <div class="event-title">${call.proposer}: “${call.stock}, 이번 달 흐름이면 지금 ${call.direction > 0 ? '모아야' : '줄여야'} 합니다.”</div>
       <div class="event-desc"><b>${call.stock}</b> · ${(D.SECTORS[stock.sector] || {}).name || stock.sector} · ${CAP_META[stock.cap].label}주<br>${call.participants.join(' · ')} 측도 ${verb}에 가담합니다. 작전이 시작되면 3틱 동안 주문이 나뉘어 들어가 ${expected}는 흐름이 생깁니다.</div>
       <div class="event-options">
-        <button class="event-opt" data-faction-call="follow">🤝 나도 동참한다 <span class="opt-sub">${call.direction > 0 ? '현금의 10% 범위에서 자동 매수' : '보유 주식의 25% 자동 매도'}</span></button>
+        <button class="event-opt" data-faction-call="follow">🤝 나도 동참한다 <span class="opt-sub">${call.direction > 0 ? '현금의 10% 범위에서 자동 매수' : '보유분 25% 자동 매도 · 미보유 시 공매도 한도의 10% 자동 공매도'}</span></button>
         <button class="event-opt" data-faction-call="observe">📊 조직의 판단에 맡기고 관망한다</button>
         <button class="event-opt" data-faction-call="counter">🛑 반대 의견을 내서 주문 규모를 줄인다</button>
       </div>
@@ -4992,12 +5331,21 @@ function playerFollowFactionTrade(call, stock) {
     S.trades++;
     return `${qty}주 자동 매수`;
   }
-  if (!pos || pos.qty <= 0) return '보유분이 없어 개인 계좌는 관망';
-  const qty=Math.max(1,Math.floor(pos.qty*.25)),gross=price*qty,fee=Math.round(gross*CFG.FEE_RATE),tax=Math.round(gross*CFG.TAX_RATE);
-  const proceeds=gross-fee-tax;
-  if(S.loan>0){const repay=Math.min(S.loan,proceeds);S.loan-=repay;S.capital+=proceeds-repay;}else S.capital+=proceeds;
-  S.realizedPnL+=(price-pos.avg)*qty-fee-tax;pos.qty-=qty;if(!pos.qty)delete S.owned[stock.name];S.trades++;
-  return `${qty}주 자동 매도`;
+  if (pos && pos.qty > 0) {
+    const qty=Math.max(1,Math.floor(pos.qty*.25));
+    const result=TRADING.executeSell(S,{name:stock.name,qty,price},{
+      feeRate:CFG.FEE_RATE,taxRate:CFG.TAX_RATE,allowShort:false,
+    });
+    return result.ok ? `${result.qty}주 자동 매도` : '보유분 자동 매도 실패';
+  }
+  const power=shortSellingPower();
+  const budget=Math.min(power*.10,5000000);
+  const qty=Math.floor(budget/(price*(1+CFG.FEE_RATE)));
+  if(qty<1)return '공매도 한도가 부족해 개인 계좌는 관망';
+  const result=TRADING.executeSell(S,{name:stock.name,qty,price},{
+    feeRate:CFG.FEE_RATE,taxRate:CFG.TAX_RATE,allowShort:true,shortSellingPower:power,
+  });
+  return result.ok ? `${result.qty}주 자동 공매도` : '공매도 한도 부족으로 개인 계좌는 관망';
 }
 
 function runFactionBotOrders(call, stock) {
@@ -5022,7 +5370,7 @@ function resolveFactionTradeCall(choice) {
   stock.factionFlowRate=call.direction*call.impact*multiplier/3;
   runFactionBotOrders(call,stock);
   const personal=choice==='follow'?playerFollowFactionTrade(call,stock):choice==='counter'?'내 반대로 공동 주문 규모 축소':'개인 계좌는 관망';
-  const verb=call.direction>0?'공동 매수':'공동 매도';
+  const verb=call.direction>0?'공동 매수':'공동 공매도';
   const text=`${call.stock} ${verb} 개시 · ${call.participants.length+1}개 세력 · ${personal}`;
   logCompanyNews(call.stock,`세력 공동 주문 유입 · ${text}`,call.direction*call.impact*multiplier);
   addNews(`📡 [세력] ${text}`,'neutral');
@@ -5037,12 +5385,12 @@ function resolveFactionTradeCall(choice) {
 
 const MONTHLY_ACTION_GROUPS = {
   date:'데이트', hobby:'취미', rest:'휴식',
-  'career-train':'경력', cert:'경력', changejob:'경력',
+  cert:'경력', changejob:'경력',
   'contact-meet':'인맥', 'contact-nurture':'인맥', 'contact-ask':'인맥', 'meet-special':'인맥', 'person-request':'인맥', 'character-story':'인맥',
   'business-start':'사업', 'business-expand':'사업', 'business-close':'사업',
   rival:'라이벌', faction:'라이벌', 'faction-recruit':'라이벌', polycule:'데이트', marry:'가족', 'child-bond':'가족', 'child-edu':'가족', 'parent-care':'가족', 'family-plan':'가족'
 };
-const LIFE_ACTIONS_PER_MONTH = 3;
+const LIFE_ACTIONS_PER_MONTH = 4;
 function monthActionKey(group) { return `${S.day}:${group}`; }
 function monthActionUsed(group) {
   S.life.monthActions = S.life.monthActions || {};
@@ -5325,18 +5673,18 @@ function lifeHubHTML() {
   const actionUsed = lifeActionCount();
   const actionLeft = lifeActionRemaining();
   const weekLabel = actionLeft > 0 ? `${actionUsed + 1}주차 일정 선택` : '이번 달 일정 완료';
-  const quickBtns=`<button class="life-btn" data-act="date">🚶 외출·사람 만나기</button><button class="life-btn" data-act="rest">🛌 쉬기 <small>300,000</small></button><button class="life-btn" data-act="career-train">📚 직무교육 <small>700,000</small></button>${treatment?`<button class="life-btn hot" data-act="treat">💊 ${treatment.name} 치료</button>`:''}${L.loan>0?`<button class="life-btn hot" data-act="repay">💳 대출 상환</button>`:''}`;
+  const quickBtns=`<button class="life-btn" data-act="date">🚶 외출·사람 만나기</button><button class="life-btn" data-act="rest">🛌 쉬기 <small>300,000</small></button>${treatment?`<button class="life-btn hot" data-act="treat">💊 ${treatment.name} 치료</button>`:''}${L.loan>0?`<button class="life-btn hot" data-act="repay">💳 대출 상환</button>`:''}`;
   return `
     <div class="life-hub">
       <div class="hub-title">🎬 ${weekLabel} <span class="muted">주요 행동 ${actionUsed}/${LIFE_ACTIONS_PER_MONTH} · 남은 자유시간 ${actionLeft}회</span></div>
       <div class="life-time-progress" aria-label="이번 달 자유시간 사용 현황">${Array.from({length:LIFE_ACTIONS_PER_MONTH},(_,i)=>`<span class="${i<actionUsed?'used':i===actionUsed?'available current':'available'}">${i<actionUsed?'✓':i+1+'주차'}</span>`).join('')}</div>
-      <div class="hub-note">외출·취미·휴식·경력·인맥·사업·가족·라이벌 중 서로 다른 행동을 최대 3회 선택하세요. 게임·맛집·헬스·여행·휴식 같은 활동 중에도 취향이 맞는 사람을 우연히 만날 수 있고, 외출 장소와 현재 조건에 따라 만나는 인물과 특별 장면이 달라집니다.</div>
+      <div class="hub-note">외출·취미·휴식·경력·인맥·사업·가족·라이벌 중 서로 다른 행동을 최대 4회 선택하세요. 자기계발은 취미에 통합되어 직무 능력도 함께 오릅니다. 활동 중에도 취향이 맞는 사람을 우연히 만날 수 있고, 외출 장소와 현재 조건에 따라 만나는 인물과 특별 장면이 달라집니다.</div>
       ${storyProgressHTML(L)}
       <div class="month-action-status">${['데이트','취미','휴식','경력','인맥','사업','가족','라이벌'].map(g=>`<span class="${monthActionUsed(g)?'done':''}">${monthActionUsed(g)?'✓':'○'} ${g}</span>`).join('')}</div>
       <div class="hub-quick">${quickBtns}</div>
       <details class="hub-more"><summary>🧰 다른 행동 보기</summary>
         <details class="hub-section"><summary>🎨 취미·건강·연애</summary><div class="hub-btns">${hobbyBtns}<button class="life-btn" data-act="checkup">🏥 건강검진 <small>500,000</small></button><button class="life-btn" data-act="treat">💊 치료${treatment?' · '+treatment.name+' '+won(treatment.cost):''}</button>${relBtns}</div></details>
-        <details class="hub-section"><summary>📈 경력·거주지 이동</summary><div class="hub-note">🏠 월세는 초기금이 낮지만 매달 비용이 나갑니다. 전세는 월 부담이 매우 낮고, 매매는 집값을 한 번 지불하면 월 주거비 0원이며 자산으로 남습니다.</div><div class="hub-btns"><button class="life-btn" data-act="changejob">💼 이직</button><button class="life-btn" data-act="career-train">📚 직무교육</button>${certBtns}${housingBtns}</div></details>
+        <details class="hub-section"><summary>📈 경력·거주지 이동</summary><div class="hub-note">📚 직무 성장은 취미의 자기계발과 자격증으로 올립니다. 🏠 월세는 초기금이 낮지만 매달 비용이 나가며, 전세는 월 부담이 매우 낮고 매매는 월 주거비가 없습니다.</div><div class="hub-btns"><button class="life-btn" data-act="changejob">💼 이직</button>${certBtns}${housingBtns}</div></details>
         <details class="hub-section"><summary>👨‍👩‍👧 가족·인맥</summary><img class="hub-scene-banner" src="${lifeSceneImage('network')}" alt="업계 인맥 모임 장면"><div class="hub-btns">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👵 부모님 돌봄 <small>1,500,000</small></button><button class="life-btn" data-act="contact-meet">🍽️ 업계 모임</button>${specialMeetBtns}${personalBtns}${contactBtns}</div></details>
         <details class="hub-section"><summary>💳 금융·자동수입·투자용 부동산</summary><img class="hub-scene-banner" src="${lifeSceneImage('property')}" alt="자산 계약 장면"><div class="hub-note">💸 예금·채권·운영권은 주식과 별개로 매달 현금을 만듭니다. 높은 수익에는 매출 변동과 낮은 매각가가 따릅니다.</div><div class="hub-btns">${loanBtns}<button class="life-btn" data-act="repay">상환${L.loan>0?' '+won(L.loan):''}</button>${insuranceBtns}${pensionBtns}${passiveBtns}${propBtns}</div></details>
         <details class="hub-section" ${businessState.owned.length?'open':''}><summary>🏪 사업체·직원${businessState.owned.length?` · ${businessState.owned.length}곳 운영 중`:''}</summary><div class="hub-note">사업체는 세력과 별도 장부로 운영됩니다. 매달 매출·고정비가 정산되고, 중요한 계약·인력·납기 문제는 담당 직원이 직접 보고합니다.</div><div class="hub-btns">${businessBox}</div></details>
@@ -5357,7 +5705,7 @@ function wireLifeHub(host) {
     const act = b.dataset.act;
     const monthlyGroup=monthlyGroupForAction(act);
     if(monthlyGroup&&monthActionUsed(monthlyGroup)){flashToast(`📅 이번 달 ${monthlyGroup} 행동은 이미 했습니다`,'neutral');return;}
-    if(monthlyGroup&&lifeActionExhausted()){flashToast('📅 이번 달 자유시간 3회를 모두 사용했습니다','neutral');return;}
+    if(monthlyGroup&&lifeActionExhausted()){flashToast(`📅 이번 달 자유시간 ${LIFE_ACTIONS_PER_MONTH}회를 모두 사용했습니다`,'neutral');return;}
     if (act === 'hobby') doHobby(b.dataset.id);
     else if (act === 'prop') buyProperty(b.dataset.id);
     else if (act === 'passive-buy') buyPassiveAsset(b.dataset.id);
@@ -5374,7 +5722,6 @@ function wireLifeHub(host) {
     else if (act === 'child-bond') doChildBond(b.dataset.child);
     else if (act === 'child-edu') doChildEducation(b.dataset.child);
     else if (act === 'parent-care') doParentCare();
-    else if (act === 'career-train') doCareerTraining();
     else if (act === 'cert') doCertification(b.dataset.cert);
     else if (act === 'move') doMoveHousing(b.dataset.home,b.dataset.tenure);
     else if (act === 'insurance') doInsurance(b.dataset.policy);
@@ -5829,20 +6176,37 @@ function sellMax() {
 function renderAll() {
   renderMarketPhase();
   renderStockList();
-  renderOwned();
   renderPendingOrders();
   renderLimitOrders();
   renderOrderBook();
   renderCapital();
+  renderInfoMarketPanel();
+  renderChart();
+  renderPortfolioChart();
+  updateCost();
+}
+
+function renderInfoMarketPanel() {
+  renderOwned();
   renderIssues();
   renderNews();
   renderLeaderboard();
-  renderChart();
-  renderPortfolioChart();
   renderNetWorthChart();
   renderLifePanel();
   renderChatPanel();
-  updateCost();
+}
+
+function renderInfoMarketTab(name) {
+  const renderers = {
+    owned:renderOwned,
+    life:renderLifePanel,
+    chat:renderChatPanel,
+    issue:renderIssues,
+    news:renderNews,
+    rank:() => { renderLeaderboard(); renderNetWorthChart(); },
+    ach:renderAchievements,
+  };
+  if (renderers[name]) renderers[name]();
 }
 
 function changeInfo(stock) {
@@ -6007,9 +6371,16 @@ function renderStockList() {
   const el = $('stock-list');
   el.innerHTML = '';
   const live = S.stocks.filter(s => s.listed);
-  const filter = $('sector-filter').value;
-  live.forEach((stock) => {
-    if (filter !== 'all' && stock.sector !== filter) return;
+  const sectorFilter = $('sector-filter').value;
+  const workspaceFilter = MARKET_WORKSPACE.filters();
+  const visible = live.filter(stock => {
+    if (sectorFilter !== 'all' && stock.sector !== sectorFilter) return false;
+    if (workspaceFilter.query && !`${stock.name} ${(D.SECTORS[stock.sector] || {}).name || ''}`.toLocaleLowerCase('ko-KR').includes(workspaceFilter.query)) return false;
+    if (workspaceFilter.mode === 'watch' && !S.watchlist[stock.name]) return false;
+    if (workspaceFilter.mode === 'owned' && !S.owned[stock.name]) return false;
+    return true;
+  });
+  visible.forEach((stock) => {
     const ci = changeInfo(stock);
     const sec = D.SECTORS[stock.sector];
     const idx = live.indexOf(stock);
@@ -6023,11 +6394,8 @@ function renderStockList() {
       : `<span class="cap-badge">${CAP_META[stock.cap].badge}</span>`;
     li.innerHTML =
       `<span class="star" data-name="${stock.name}">${star}</span>` +
-      `<span class="tag" style="background:${sec.color}">${sec.name}</span>` +
-      `<strong>${stock.name}</strong> ` +
-      badge +
-      `<span class="price ${ci.up ? 'up' : 'down'}">${won(ci.cur)}원</span> ` +
-      `<span class="chg ${ci.up ? 'up' : 'down'}">${ci.up ? '▲' : '▼'} ${pct(ci.rate)}</span>` +
+      `<span class="stock-identity"><span class="tag" style="background:${sec.color}">${sec.name}</span><strong>${stock.name}</strong>${badge}</span>` +
+      `<span class="stock-quote"><span class="price ${ci.up ? 'up' : 'down'}">${won(ci.cur)}원</span><span class="chg ${ci.up ? 'up' : 'down'}">${ci.up ? '▲' : '▼'} ${pct(ci.rate)}</span></span>` +
       `<button class="row-report" data-report="${stock.name}" title="${stock.name} 기업 리포트">📄</button>`;
     li.addEventListener('click', (e) => {
       if (e.target.classList.contains('star')) {
@@ -6038,6 +6406,10 @@ function renderStockList() {
     });
     el.appendChild(li);
   });
+  if (!visible.length) {
+    el.innerHTML = '<li class="stock-list-empty">조건에 맞는 종목이 없습니다.<small>검색어·섹터·관심/보유 필터를 바꿔보세요.</small></li>';
+  }
+  MARKET_WORKSPACE.setStockCount(visible.length, live.length);
 }
 
 function toggleWatch(name) {
@@ -6047,39 +6419,23 @@ function toggleWatch(name) {
 }
 
 function renderOwned() {
-  const el = $('owned-list');
-  el.innerHTML = '';
-  const names = Object.keys(S.owned);
-  if (names.length === 0) { el.innerHTML = '<li class="muted">보유 종목이 없습니다</li>'; return; }
-  names.forEach(name => {
+  const items = Object.keys(S.owned).map(name => {
     const pos = S.owned[name];
     const price = priceOf(name);
-    const li = document.createElement('li');
-    if (pos.qty > 0) {
-      const val = pos.qty * price;
-      const cost = pos.qty * pos.avg;
-      const pl = val - cost;
-      const rate = cost ? pl / cost : 0;
-      li.className = `owned-position ${pl >= 0 ? 'profit' : 'loss'}`;
-      li.innerHTML = `<div class="owned-main"><strong>${name}</strong><span>${pos.qty}주</span></div>` +
-        `<strong class="owned-rate ${pl >= 0 ? 'up' : 'down'}">${pl >= 0 ? '▲' : '▼'} ${pct(rate)}</strong>` +
-        `<div class="owned-detail"><span>현재 ${won(price)}</span><span>평단 ${won(pos.avg)}</span>` +
-        `<b class="${pl >= 0 ? 'up' : 'down'}">${pl >= 0 ? '+' : ''}${won(pl)}원</b></div>`;
-    } else {
-      const pl = (pos.avg - price) * Math.abs(pos.qty);
-      const rate = pos.avg ? (pos.avg - price) / pos.avg : 0;
-      li.className = `owned-position short ${pl >= 0 ? 'profit' : 'loss'}`;
-      li.innerHTML = `<div class="owned-main"><span class="short-badge">공매도</span><strong>${name}</strong><span>${Math.abs(pos.qty)}주</span></div>` +
-        `<strong class="owned-rate ${pl >= 0 ? 'up' : 'down'}">${pl >= 0 ? '▲' : '▼'} ${pct(rate)}</strong>` +
-        `<div class="owned-detail"><span>현재 ${won(price)}</span><span>진입 ${won(pos.avg)}</span>` +
-        `<b class="${pl >= 0 ? 'up' : 'down'}">${pl >= 0 ? '+' : ''}${won(pl)}원</b></div>`;
-    }
-    li.addEventListener('click', () => {
-      const live = S.stocks.filter(s => s.listed);
-      const i = live.findIndex(s => s.name === name);
-      if (i >= 0) { S.selected = i; renderAll(); }
-    });
-    el.appendChild(li);
+    const short = pos.qty <= 0;
+    const quantity = Math.abs(pos.qty);
+    const pl = short ? (pos.avg - price) * quantity : (price - pos.avg) * quantity;
+    const rate = pos.avg ? (short ? (pos.avg - price) : (price - pos.avg)) / pos.avg : 0;
+    return {
+      name, short, profit:pl >= 0, qtyText:`${quantity}주`,
+      priceText:won(price), avgText:won(pos.avg), rateText:pct(rate),
+      plText:`${pl >= 0 ? '+' : ''}${won(pl)}원`,
+    };
+  });
+  INFO_MARKET_PANEL.renderOwned(items, name => {
+    const live = S.stocks.filter(stock => stock.listed);
+    const index = live.findIndex(stock => stock.name === name);
+    if (index >= 0) { S.selected = index; renderAll(); }
   });
 }
 
@@ -6104,37 +6460,27 @@ function renderCapital() {
 }
 
 function renderIssues() {
-  const el = $('issue-list');
-  el.innerHTML = '';
   const outlook = ECONOMY.outlook(S.economy);
   const strong = outlook.strong.slice(0, 2).map(id => (D.SECTORS[id] || {}).name || id).join('·');
   const weak = outlook.weak.slice(0, 2).map(id => (D.SECTORS[id] || {}).name || id).join('·');
-  const macro = document.createElement('li');
-  macro.className = outlook.monthlyMarket >= 0 ? 'good' : 'bad';
-  macro.innerHTML = `<strong>${outlook.text}</strong><br><span class="muted">금리·물가와 경기 국면이 한 달 동안 누적 반영됩니다${strong ? ` · 강세 ${strong}` : ''}${weak ? ` · 약세 ${weak}` : ''}</span>`;
-  el.appendChild(macro);
-  const live = S.stocks.filter(s => s.listed);
-  let issueCount = 0;
-  live.forEach(stock => {
-    if (!stock.pendingIssue || !stock.pendingIssue.impact) return;
+  const items = S.stocks.filter(stock => stock.listed && stock.pendingIssue && stock.pendingIssue.impact).map(stock => {
     const iss = stock.pendingIssue;
     const meta = CAP_META[stock.cap] || CAP_META.mid;
     const effective = Math.abs(iss.impact * meta.issueMul);
     const strength = effective >= .07 ? '강함' : effective >= .035 ? '보통' : '약함';
-    const li = document.createElement('li');
-    li.className='issue-stock';li.title=`${stock.name} 차트로 이동`;li.dataset.stock=stock.name;
-    const cls = iss.impact >= 0 ? 'good' : 'bad';
-    li.innerHTML = `<strong>${stock.name}</strong> <span class="${cls}">${iss.text}</span> <span class="muted">· 예상 ${iss.impact >= 0 ? '호재' : '악재'} ${strength} · ${meta.label}주 월 한도 ±${Math.round(meta.sessionLimit*100)}%</span>`;
-    el.appendChild(li);
-    issueCount++;
+    return {
+      name:stock.name, text:iss.text, good:iss.impact >= 0, strength,
+      limitText:`${meta.label}주 월 한도 ±${Math.round(meta.sessionLimit * 100)}%`,
+    };
   });
-  el.querySelectorAll('.issue-stock').forEach(li=>li.addEventListener('click',()=>goBuy(li.dataset.stock)));
-  if (!issueCount) {
-    const empty = document.createElement('li');
-    empty.className = 'muted';
-    empty.textContent = '대기 중인 개별 공시 없음 · 이번 달은 경제 뉴스와 업종 흐름을 확인하세요';
-    el.appendChild(empty);
-  }
+  INFO_MARKET_PANEL.renderIssues({
+    macro:{
+      good:outlook.monthlyMarket >= 0,
+      title:outlook.text,
+      detail:`금리·물가와 경기 국면이 한 달 동안 누적 반영됩니다${strong ? ` · 강세 ${strong}` : ''}${weak ? ` · 약세 ${weak}` : ''}`,
+    },
+    items,
+  }, goBuy);
 }
 
 function addNews(text, cls) {
@@ -6166,34 +6512,19 @@ function newsFeed(filter) {
 }
 
 function renderNews() {
-  // 티커
-  const ticker = $('news-ticker');
-  const latest = newsFeed('all').slice(0, 12)
-    .map(n => n.kind === 'stock' ? `${n.name} — ${n.text}` : n.text).join('  ◆  ');
-  ticker.textContent = latest || '장이 열렸습니다. 행운을 빕니다 📈';
-
-  // 필터 버튼 상태
-  document.querySelectorAll('.nf-btn').forEach(b => b.classList.toggle('active', b.dataset.nf === S.newsFilter));
-
-  // 로그
-  const el = $('news-log');
   const list = newsFeed(S.newsFilter).slice(0, 40);
-  if (!list.length) {
-    el.innerHTML = '<li class="muted">해당하는 뉴스가 없습니다.</li>';
-    return;
-  }
-  el.innerHTML = list.map(n => {
-    if (n.kind !== 'stock') {
-      return `<li class="${n.cls}"><span class="muted">[${dateInfo(n.day).label}]</span> ${n.text}</li>`;
-    }
-    const arrow = n.impact > 0 ? '▲' : n.impact < 0 ? '▼' : '·';
-    const held = S.owned[n.name] ? '<span class="nf-held">보유</span>' : '';
-    return `<li class="${n.cls} news-stock" data-stock="${n.name}" title="${n.name} 기업 리포트 열기">` +
-      `<span class="muted">[${dateInfo(n.day).label}]</span> <strong>${n.name}</strong>${held} ` +
-      `<span class="${n.cls}">${arrow} ${pct(n.impact)}</span><br>${n.text}</li>`;
-  }).join('');
-  el.querySelectorAll('.news-stock').forEach(li =>
-    li.addEventListener('click', () => showCompanyReport(li.dataset.stock)));
+  INFO_MARKET_PANEL.renderNews({
+    ticker:newsFeed('all').slice(0, 12)
+      .map(item => item.kind === 'stock' ? `${item.name} — ${item.text}` : item.text).join('  ◆  '),
+    filter:S.newsFilter,
+    items:list.map(item => ({
+      ...item,
+      dateLabel:dateInfo(item.day).label,
+      held:item.kind === 'stock' && !!S.owned[item.name],
+      arrow:item.impact > 0 ? '▲' : item.impact < 0 ? '▼' : '·',
+      impactText:item.kind === 'stock' ? pct(item.impact) : '',
+    })),
+  }, { onStock:showCompanyReport });
 }
 
 function setNewsFilter(f) {
@@ -6203,51 +6534,41 @@ function setNewsFilter(f) {
 
 // 오른쪽 패널의 '뉴스' 탭을 열고 그쪽으로 스크롤
 function openNewsTab() {
-  const tab = document.querySelector('.tabs [role="tab"][data-tab="news"]');
-  if (!tab) return;
-  tab.click();
   renderNews();
-  const pane = document.querySelector('.tab-pane[data-pane="news"]');
-  if (pane && pane.scrollIntoView) pane.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  INFO_MARKET_PANEL.activate('news', { scroll:true });
 }
 
 function renderLeaderboard() {
-  const el = $('leaderboard');
-  el.innerHTML = '';
   const players = [
     { name: '🧑 나(You)', value: netWorthClean(), me: true },
     ...S.bots.map(b => ({ name: b.name, portrait:b.portrait, faction:b.faction, value: botNetWorth(b), profit: b.monthlyProfit || 0, jail: b.jailMonths || 0, crime: b.criminalRecord || 0, bankrupt:!!b.bankrupt, stage:b.reactionStage||'stable', bot: b })),
   ].sort((a, b) => b.value - a.value);
-  players.forEach((p, i) => {
-    const li = document.createElement('li');
+  const viewPlayers = players.map((p, i) => {
     const medal = ['🥇', '🥈', '🥉', '4️⃣'][i] || (i + 1);
     const plRate = (p.value - CFG.START_CAPITAL) / CFG.START_CAPITAL;
-    li.className = p.me ? 'me' : `bot-row${p.bankrupt?' bankrupt':''}`;
     let tail = '';
     if (!p.me) {
       const stageLabel=({stable:'평온',wary:'경계',defensive:'방어',desperate:'절박',collapse:'붕괴 직전',bankrupt:'파산·해산'})[p.stage]||p.stage;
       const flags = (p.bankrupt ? ' <span class="down">☠️ 파산·해산</span>' : ` <span class="muted">반응 ${stageLabel}</span>`) + (p.jail > 0 ? ` <span class="down">⛓️수감 ${p.jail}개월</span>` : '') + (p.crime > 0 ? ` <span class="muted">🚨전과 ${p.crime}</span>` : '');
       tail = ` <span class="${p.profit >= 0 ? 'up' : 'down'}">전월 ${p.profit >= 0 ? '+' : ''}${won(p.profit)}</span>${flags} <span class="muted bot-toggle">▼ 보유</span>`;
     }
-    const avatar=!p.me&&p.portrait?`<img class="leader-avatar" src="./assets/characters/${p.portrait}" alt="">`:'';
-    li.innerHTML = `${medal} ${avatar}<strong>${p.name}</strong>${p.faction?` <span class="muted">${p.faction}</span>`:''} ${won(p.value)}원 ` +
-      `<span class="${plRate >= 0 ? 'up' : 'down'}">(${pct(plRate)})</span>${tail}`;
-    if (!p.me) {
-      const detail = document.createElement('div');
-      detail.className = 'bot-detail'; detail.style.display = 'none';
-      detail.innerHTML = botHoldingsHTML(p.bot);
-      li.addEventListener('click', () => {
-        const openNow = detail.style.display !== 'none';
-        detail.style.display = openNow ? 'none' : 'block';
-        const tog = li.querySelector('.bot-toggle'); if (tog) tog.textContent = openNow ? '▼ 보유' : '▲ 접기';
-      });
-      li.appendChild(detail);
-    }
-    el.appendChild(li);
+    return {
+      medal, name:p.name, faction:p.faction,
+      avatar:!p.me && p.portrait ? `<img class="leader-avatar" src="./assets/characters/${p.portrait}" alt="">` : '',
+      valueText:won(p.value), rateText:pct(plRate), profitClass:plRate >= 0 ? 'up' : 'down',
+      rowClass:p.me ? 'me' : `bot-row${p.bankrupt ? ' bankrupt' : ''}`,
+      tail, detailHTML:p.me ? '' : botHoldingsHTML(p.bot),
+    };
   });
-  // 내 순위 저장
   S._rank = players.findIndex(p => p.me) + 1;
-  renderRivalFeed();
+  INFO_MARKET_PANEL.renderRanking({
+    players:viewPlayers,
+    feed:(S.rivalFeed || []).slice(0, 30).map(item => ({
+      text:item.text,
+      dateLabel:dateInfo(item.day).label,
+      cls:/타격|손실|적발|수감|사고/.test(item.text) ? 'bad' : (/대박|횡재|막아냈|\+/.test(item.text) ? 'good' : 'neutral'),
+    })),
+  });
   renderBotNwChart();
 }
 
@@ -6267,18 +6588,6 @@ function botHoldingsHTML(bot) {
   const rows = holds.slice(0, 10).map(h =>
     `<div class="bd-row"><span>${h.listed ? '' : '🚫'}${h.name}</span><span>${h.qty.toLocaleString('ko-KR')}주 · ${won(h.val)}</span></div>`).join('');
   return `<div class="bd-inner">${cashLine}${relation}<div class="bd-title">📦 보유 종목 ${holds.length}개</div>${rows}${assets?`<div class="bd-title">🏙️ 보유 건물·사업</div>${assets}`:''}</div>`;
-}
-
-// 라이벌 동향 창 — AI들이 서로 뭘 하는지(공격·손익·수감) 로그로 보여준다
-function renderRivalFeed() {
-  const el = $('rival-feed');
-  if (!el) return;
-  const feed = S.rivalFeed || [];
-  if (!feed.length) { el.innerHTML = '<li class="muted" style="cursor:default">아직 라이벌 동향이 없습니다. 장을 마감하면 갱신됩니다.</li>'; return; }
-  el.innerHTML = feed.slice(0, 30).map(f => {
-    const cls = /타격|손실|적발|수감|사고/.test(f.text) ? 'bad' : (/대박|횡재|막아냈|\+/.test(f.text) ? 'good' : 'neutral');
-    return `<li class="${cls}" style="cursor:default"><span class="muted">[${dateInfo(f.day).label}]</span> ${f.text}</li>`;
-  }).join('');
 }
 
 /* ------------------------------------------------------------------ 차트 */
@@ -6490,22 +6799,60 @@ function flashToast(msg, cls) {
 /* ------------------------------------------------------------------ 배경음악 */
 const BGM = window.QT_BGM;
 
-// 지금 화면에 맞는 트랙을 고른다 (데이트 > 속보 > 마감 > 장중 분위기)
+// 지금 화면에 맞는 트랙을 고른다.
+// 장 마감마다 같은 news 트랙만 나오던 문제를 피하고, 인생 장면과 월에 따라
+// 차분한 세 곡을 순환한다. 속보·데이트·장중 추세는 각 전용 트랙을 우선한다.
 function bgmScene() {
   const dateOpen = $('date-host') && $('date-host').style.display === 'block';
   if (dateOpen) return 'dreamy';
   if (S.breaking) return 'news';
-  if (S.phase !== 'open') return 'news';
+  if (!S.life || !S.life.started) return 'title';
+  const lifeEventOpen = $('life-event') && $('life-event').style.display === 'block';
+  if (lifeEventOpen) {
+    const eventText = $('life-event').textContent || '';
+    if (/위험|공격|습격|파산|감금|추심|경찰|법정/.test(eventText)) return 'market_bear';
+    if (/연애|데이트|고백|결혼|가족|친구|추억/.test(eventText)) return 'dreamy';
+  }
+  if (S.phase !== 'open') {
+    const closedRotation = ['market_normal', 'dreamy', 'title'];
+    return closedRotation[Math.abs((S.day || 1) - 1) % closedRotation.length];
+  }
 
   const trend = S.bgmMarketTrend || 0;
   if (trend >= 0.007) return 'market_bull';
   if (trend <= -0.007) return 'market_bear';
   return 'market_normal';
 }
+function bgmCharacter() {
+  const eventHost = $('life-event');
+  const dateHost = $('date-host');
+  const eventText = eventHost && eventHost.style.display === 'block' ? eventHost.textContent || '' : '';
+  const dateText = dateHost && dateHost.style.display === 'block' ? dateHost.textContent || '' : '';
+  const visibleText = `${eventText} ${dateText}`;
+  if (visibleText.includes('윤세라')) return 'sera';
+  if (visibleText.includes('한채린')) return 'chaerin';
+  if (visibleText.includes('강유진')) return 'yujin';
+  if (visibleText.includes('나래')) return 'narae';
+  return null;
+}
 function syncBGM(force) {
   if (!BGM || !S.bgmOn) return;
   if (!force && Date.now() < bgmStingUntil) return;
-  BGM.play(bgmScene());
+  const scene = bgmScene();
+  const character = bgmCharacter();
+  if (character && BGM.playCharacter) BGM.playCharacter(character, scene, !!force);
+  else BGM.play(scene, !!force);
+}
+function renderBGMStatus() {
+  const btn = $('bgm-toggle');
+  if (!btn || !BGM) return;
+  const engine = BGM.engine ? BGM.engine() : 'webaudio';
+  const state = BGM.state ? BGM.state() : 'unknown';
+  btn.dataset.engine = engine;
+  btn.dataset.audioState = state;
+  btn.title = S.bgmOn
+    ? `배경음악 켜짐 · ${engine === 'sam+tone' ? 'SAM 보컬 + Tone.js' : 'WebAudio 호환 모드'} · ${state}`
+    : '배경음악 켜기';
 }
 let bgmStingToken = 0;
 let bgmStingUntil = 0;
@@ -6521,13 +6868,24 @@ function playBGMSting(track, duration) {
     }
   }, duration || 4200);
 }
-function toggleBGM(on) {
+async function toggleBGM(on) {
   if (!BGM) return;
   S.bgmOn = on == null ? !S.bgmOn : !!on;
   BGM.setEnabled(S.bgmOn);
-  if (S.bgmOn) BGM.play(bgmScene(), true);
+  if (S.bgmOn) {
+    const unlocked = !BGM.unlock || await BGM.unlock();
+    if (!unlocked) {
+      S.bgmOn = false;
+      BGM.setEnabled(false);
+      flashToast('모바일 브라우저가 음악 재생을 막았습니다. 음악 버튼을 다시 눌러주세요.', 'bad');
+    } else {
+      syncBGM(true);
+      setTimeout(renderBGMStatus, 450);
+    }
+  }
   const btn = $('bgm-toggle');
   if (btn) { btn.textContent = S.bgmOn ? '🎵 음악 ON' : '🎵 음악 OFF'; btn.classList.toggle('on', S.bgmOn); }
+  renderBGMStatus();
   try { localStorage.setItem('qt_bgm', JSON.stringify({ on: S.bgmOn, vol: BGM.getVolume() })); } catch (e) {}
 }
 
@@ -6544,8 +6902,22 @@ function restoreBGMPref() {
   BGM.setEnabled(true);
   const btn = $('bgm-toggle');
   if (btn) { btn.textContent = '🎵 음악 ON'; btn.classList.add('on'); }
-  const arm = () => { syncBGM(); document.removeEventListener('pointerdown', arm); document.removeEventListener('keydown', arm); };
+  const arm = async () => {
+    const unlocked = !BGM.unlock || await BGM.unlock();
+    if (unlocked) syncBGM(true);
+    else {
+      S.bgmOn = false;
+      BGM.setEnabled(false);
+      const failedBtn = $('bgm-toggle');
+      if (failedBtn) { failedBtn.textContent = '🎵 음악 OFF'; failedBtn.classList.remove('on'); }
+    }
+    document.removeEventListener('pointerdown', arm);
+    document.removeEventListener('touchend', arm);
+    document.removeEventListener('keydown', arm);
+    setTimeout(renderBGMStatus, 450);
+  };
   document.addEventListener('pointerdown', arm);
+  document.addEventListener('touchend', arm);
   document.addEventListener('keydown', arm);
 }
 
@@ -6606,19 +6978,11 @@ function checkAchievements() {
 }
 
 function renderAchievements() {
-  const el = $('achievement-list');
-  if (!el) return;
-  el.innerHTML = '';
   const list = allAchievements();
-  list.forEach(a => {
-    const li = document.createElement('li');
-    const done = S.unlocked[a.id];
-    li.className = done ? 'ach done' : 'ach';
-    li.innerHTML = `<span class="ach-icon">${done ? a.icon : '🔒'}</span> <strong>${a.name}</strong> — <span class="muted">${a.desc}</span>`;
-    el.appendChild(li);
-  });
   const cnt = Object.keys(S.unlocked).length;
-  $('ach-count').textContent = `${cnt}/${list.length}`;
+  INFO_MARKET_PANEL.renderAchievements(list.map(item => ({
+    icon:item.icon, name:item.name, desc:item.desc, done:!!S.unlocked[item.id],
+  })), `${cnt}/${list.length}`);
 }
 
 /* ------------------------------------------------------------------ 저장/로드 */
@@ -6672,6 +7036,9 @@ function loadSave() {
     S.sessionTick = d.sessionTick;
     S.sessionNews = d.sessionNews;
     S.dayStartNW = d.dayStartNW;
+    S.dayStartCapital = d.dayStartCapital;
+    S.dayStartRealizedPnL = d.dayStartRealizedPnL;
+    S.monthCloseContext = MONTH_CLOSE_FLOW.normalize(d.monthCloseContext);
     S.circuitBreakerTicks = d.circuitBreakerTicks;
     S.circuitBreakerTriggered = d.circuitBreakerTriggered;
     S.marketSessionReturn = d.marketSessionReturn;
@@ -6826,9 +7193,28 @@ function togglePause() {
   if (S.phase !== 'open') { flashToast('🔒 장이 열려 있지 않습니다', 'neutral'); return; }
   S.paused = !S.paused;
   S._autoPaused = false;   // 수동 조작이 자동 일시정지보다 우선
+  S._backgroundPaused = false;
   $('pause-btn').textContent = S.paused ? '▶ 재개' : '⏸ 일시정지';
   renderSessionProgress();
   flashToast(S.paused ? '⏸ 일시정지됨' : '▶ 재개', 'neutral');
+}
+
+function pauseForPageLeave() {
+  if (S.phase !== 'open') return false;
+  // 팝업 때문에 잠시 멈춘 상태도 백그라운드 잠금으로 승격한다.
+  // 그래야 팝업 타이머가 닫히며 장을 다시 진행시키지 않는다.
+  if (S.paused && !S._autoPaused) return false;
+  S.paused = true;
+  S._autoPaused = false;
+  S._backgroundPaused = true;
+  pauseUISync();
+  return true;
+}
+
+function notifyPageReturn() {
+  if (!S._backgroundPaused || S.phase !== 'open' || !S.paused) return;
+  pauseUISync();
+  flashToast('⏸ 다른 화면을 보는 동안 장을 멈췄습니다 · 재개 버튼을 눌러 계속하세요', 'neutral');
 }
 
 function wire() {
@@ -6868,8 +7254,6 @@ function wire() {
     const s = curStock();
     if (s) showCompanyReport(s.name);
   });
-  document.querySelectorAll('.nf-btn').forEach(b =>
-    b.addEventListener('click', () => setNewsFilter(b.dataset.nf)));
   document.querySelectorAll('.speed-btn').forEach(b => b.addEventListener('click', () => setSpeed(+b.dataset.speed)));
   $('sector-filter').addEventListener('change', renderStockList);
   $('leverage-select').addEventListener('change', e => {
@@ -6921,6 +7305,21 @@ function fillSectorFilter() {
 
 /* ------------------------------------------------------------------ 부트 */
 function boot() {
+  if (!PAGE_LIFECYCLE || !PAGE_LIFECYCLE.mount({
+    onLeave:pauseForPageLeave,
+    onReturn:notifyPageReturn,
+  })) throw new Error('페이지 이탈 시 자동 일시정지를 초기화할 수 없습니다.');
+  if (!MARKET_WORKSPACE || !MARKET_WORKSPACE.mount({
+    onStockFilterChange:renderStockList,
+    onStockLayoutChange:renderStockList,
+  }) || !MARKET_WORKSPACE.initOrderBook()) {
+    throw new Error('종목 탐색기와 호가창 작업공간을 초기화할 수 없습니다.');
+  }
+  if (!INFO_MARKET_PANEL || !INFO_MARKET_PANEL.mount({
+    onNewsFilter:setNewsFilter,
+    onTabChange:renderInfoMarketTab,
+    onLayoutChange:renderInfoMarketTab,
+  })) throw new Error('내 정보 & 시장 패널을 초기화할 수 없습니다.');
   S.economy = ECONOMY.ensure(S.economy);
   buildStocks();
   buildBots();
@@ -6945,6 +7344,8 @@ function boot() {
     S.paused = true;
     pauseUISync();
     restoreIntradayPopup();
+  } else if (S.monthCloseContext && S.monthCloseContext.active) {
+    renderCurrentMonthCloseStep();
   }
   if (!S.life.started) {
     if(!S.life.tutorialSeen)showTutorial();else startLifeSetup();
@@ -6952,7 +7353,9 @@ function boot() {
   } else if (loaded) {
     flashToast(S.phase === 'open'
       ? `💾 ${dateInfo(S.day).label} 장중 상태 복원 · 안전하게 일시정지됨`
-      : '💾 저장된 인생 불러옴 · 🔔 장 열림으로 다음 달 시작', 'good');
+      : S.monthCloseContext && S.monthCloseContext.active
+        ? '💾 월말 진행 상태 복원 · 완료한 정산은 다시 실행되지 않습니다'
+        : '💾 저장된 인생 불러옴 · 🔔 장 열림으로 다음 달 시작', 'good');
   } else {
     flashToast('🎮 🔔 장 열림 버튼으로 이번 달을 시작하세요', 'neutral');
   }

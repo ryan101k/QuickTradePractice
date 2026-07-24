@@ -3,10 +3,52 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
+(async () => {
 const root = path.resolve(__dirname, '..');
 const context = { console, QT_DATA:{ WORLD_MALE_NPCS:[] } };
 context.window = context;
 vm.createContext(context);
+
+{
+  class MobileAudioContext {
+    constructor() {
+      this.state = 'suspended';
+      this.destination = {};
+      this.resumeCalls = 0;
+    }
+    createGain() {
+      return { gain:{ value:0 }, connect(){} };
+    }
+    createDynamicsCompressor() {
+      return {
+        threshold:{ value:0 }, knee:{ value:0 }, ratio:{ value:0 },
+        attack:{ value:0 }, release:{ value:0 }, connect(){},
+      };
+    }
+    async resume() {
+      this.resumeCalls++;
+      this.state = 'running';
+    }
+  }
+  const bgmContext = {
+    console,
+    AudioContext:MobileAudioContext,
+    setInterval,
+    clearInterval,
+    setTimeout,
+    document:{ visibilityState:'visible', addEventListener(){} },
+    addEventListener(){},
+  };
+  bgmContext.window = bgmContext;
+  vm.createContext(bgmContext);
+  vm.runInContext(fs.readFileSync(path.join(root, 'js/bgm.js'), 'utf8'), bgmContext, { filename:'js/bgm.js' });
+  assert.equal(bgmContext.QT_BGM.engine(), 'webaudio', 'Tone/SAM이 없어도 WebAudio 폴백을 제공해야 한다');
+  assert.equal(await bgmContext.QT_BGM.unlock(), true, '모바일 사용자 동작에서 AudioContext를 명시적으로 재개해야 한다');
+  assert.equal(bgmContext.QT_BGM.state(), 'running');
+  assert.equal(typeof bgmContext.QT_BGM.playCharacter, 'function', '캐릭터 전용 보컬 선택 API를 제공해야 한다');
+  assert.ok(bgmContext.QT_BGM.characterVoices.includes('sera'), '윤세라 보컬 프리셋이 등록돼야 한다');
+  assert.ok(bgmContext.QT_BGM.characterVoices.includes('narae'), '나래 보컬 프리셋이 등록돼야 한다');
+}
 
 for (const file of [
   'js/core/trading.js',
@@ -14,12 +56,57 @@ for (const file of [
   'js/core/campaign.js',
   'js/relationship_group.js',
   'js/family.js',
+  'js/health.js',
   'js/business.js',
   'js/services/save.js',
+  'js/ui/page-lifecycle.js',
+  'js/ui/market-workspace.js',
+  'js/ui/info-market-panel.js',
+  'js/ui/month-close-flow.js',
   'js/campaign_endings.js',
   'js/rivals.js',
 ]) {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename:file });
+}
+
+assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이탈 자동 일시정지 연결 API를 제공해야 한다');
+
+{
+  const pageListeners = {};
+  const windowListeners = {};
+  const pageContext = {
+    console,
+    document:{
+      visibilityState:'visible',
+      addEventListener(type, listener) { pageListeners[type] = listener; },
+    },
+    addEventListener(type, listener) { windowListeners[type] = listener; },
+  };
+  pageContext.window = pageContext;
+  vm.createContext(pageContext);
+  vm.runInContext(
+    fs.readFileSync(path.join(root, 'js/ui/page-lifecycle.js'), 'utf8'),
+    pageContext,
+    { filename:'js/ui/page-lifecycle.js' },
+  );
+
+  let leaveCount = 0;
+  let returnCount = 0;
+  assert.equal(pageContext.QT_PAGE_LIFECYCLE.mount({
+    onLeave() { leaveCount++; return true; },
+    onReturn() { returnCount++; },
+  }), true);
+  windowListeners.blur();
+  assert.equal(leaveCount, 1, '다른 창으로 이동하면 장 정지 콜백을 호출해야 한다');
+  windowListeners.focus();
+  assert.equal(returnCount, 1, '게임 창으로 돌아오면 복귀 알림 콜백을 호출해야 한다');
+
+  pageContext.document.visibilityState = 'hidden';
+  pageListeners.visibilitychange();
+  pageContext.document.visibilityState = 'visible';
+  pageListeners.visibilitychange();
+  assert.equal(leaveCount, 2, '모바일 앱·탭 전환도 장 정지 콜백을 호출해야 한다');
+  assert.equal(returnCount, 2);
 }
 
 {
@@ -104,6 +191,50 @@ for (const file of [
   const state = {
     capital: 1000000,
     owned: {},
+    loan: 0,
+    realizedPnL: 0,
+    trades: 0,
+    shortsClosed: 0,
+  };
+  const result = context.QT_TRADING.executeSell(
+    state,
+    { name:'한결전자', qty:100, price:1000 },
+    { feeRate:0.00015, taxRate:0.0018, allowShort:true, shortSellingPower:2000000 },
+  );
+  assert.equal(result.ok, true, '세력 하락 작전에 동참할 때 미보유 종목도 자동 공매도할 수 있어야 한다');
+  assert.equal(result.kind, 'short');
+  assert.equal(state.owned.한결전자.qty, -100);
+  assert.equal(state.trades, 1);
+}
+
+{
+  const lowStress = { health:82, stress:70, fitness:10, happy:50, conditions:[] };
+  context.QT_HEALTH.monthly(lowStress, { age:20, jobRisk:0, debtRatio:0, happy:50, random:()=>0 });
+  assert.equal(lowStress.conditions.includes('burnout'), false, '스트레스가 임계치에 쌓이기 전에는 번아웃 진단이 나오면 안 된다');
+
+  const highStress = { health:82, stress:90, fitness:10, happy:50, conditions:[] };
+  context.QT_HEALTH.monthly(highStress, { age:20, jobRisk:0, debtRatio:0, happy:50, random:()=>0 });
+  assert.equal(highStress.conditions.includes('burnout'), true, '고스트레스 상태에서는 번아웃 진단 후보가 열려야 한다');
+  context.QT_HEALTH.treat(highStress);
+  for (let month = 0; month < 11; month++) {
+    highStress.stress = 95;
+    context.QT_HEALTH.monthly(highStress, { age:20, jobRisk:0, debtRatio:0, happy:50, random:()=>0 });
+  }
+  assert.equal(highStress.conditions.includes('burnout'), false, '번아웃 치료 뒤 12개월 동안 즉시 재발하면 안 된다');
+}
+
+{
+  const appSource = fs.readFileSync(path.join(root, 'js/app.js'), 'utf8');
+  assert.match(appSource, /const LIFE_ACTIONS_PER_MONTH = 4;/, '월 행동력은 4회여야 한다');
+  assert.doesNotMatch(appSource, /data-act="career-train"/, '중복된 직무교육 버튼은 제거돼야 한다');
+  assert.match(appSource, /id === 'study'[\s\S]{0,160}CAREER\.train/, '자기계발이 직무 능력 성장을 대신해야 한다');
+  assert.match(appSource, /allowShort:true,shortSellingPower:power/, '세력 자동 공매도는 실제 공매도 체결 경로를 사용해야 한다');
+}
+
+{
+  const state = {
+    capital: 1000000,
+    owned: {},
     day: 7,
     tick: 81,
     selected: 0,
@@ -125,6 +256,14 @@ for (const file of [
     sessionTick: 11,
     sessionNews: [{ headline:'장중 이벤트', impact:-0.1 }],
     dayStartNW: 1050000,
+    dayStartCapital: 910000,
+    dayStartRealizedPnL: 120000,
+    monthCloseContext: {
+      version:1, active:true, currentIndex:1, completedSteps:['month-close-summary'],
+      report:{ year:2026, month:7 }, lifeChanges:[{ label:'건강', before:82, after:78 }],
+      relationshipChanges:[], familyChanges:[], careerChanges:[], forcedEvents:[], terminal:null,
+      steps:[{type:'view',name:'month-close-summary',props:{}},{type:'view',name:'life-status',props:{}}],
+    },
     circuitBreakerTicks: 2,
     circuitBreakerTriggered: true,
     marketSessionReturn: -0.08,
@@ -157,6 +296,10 @@ for (const file of [
   assert.equal(loaded.paused, true, '장중 복원은 안전을 위해 일시정지 상태여야 한다');
   assert.equal(loaded.sessionTick, 11);
   assert.equal(loaded.dayStartNW, 1050000);
+  assert.equal(loaded.dayStartCapital, 910000);
+  assert.equal(loaded.dayStartRealizedPnL, 120000);
+  assert.equal(loaded.monthCloseContext.currentIndex, 1, '월말 View 진행 위치가 저장돼야 한다');
+  assert.deepEqual(Array.from(loaded.monthCloseContext.completedSteps), ['month-close-summary']);
   assert.equal(loaded.circuitBreakerTicks, 2);
   assert.equal(loaded.sessionOpen.한결전자, 98);
   assert.equal(loaded.breaking.timer, undefined);
@@ -164,6 +307,54 @@ for (const file of [
   assert.equal(loaded.intraSession.factionTradeCall.stock, '한결전자');
   assert.equal(loaded.intraSession.raidTarget, 2);
   assert.equal(loaded.life.business.owned[0].managerId, 'office', '사업체와 담당 직원은 저장 데이터에 포함돼야 한다');
+}
+
+{
+  const workspace = context.QT_MARKET_WORKSPACE;
+  assert.equal(typeof workspace.mount, 'function');
+  assert.equal(typeof workspace.initOrderBook, 'function');
+  assert.equal(typeof workspace.filters, 'function');
+  assert.equal(typeof workspace.setStockExpanded, 'function');
+}
+
+{
+  const panel = context.QT_INFO_MARKET_PANEL;
+  assert.deepEqual(Array.from(panel.TABS.map(tab => tab.id)), [
+    'owned', 'life', 'chat', 'issue', 'news', 'rank', 'ach',
+  ], '내 정보 & 시장 탭 순서는 모듈에서 관리해야 한다');
+  assert.deepEqual(Array.from(panel.FILTERS.map(filter => filter.id)), [
+    'all', 'stock', 'market', 'mine', 'watch',
+  ], '뉴스 필터 정의는 패널 모듈에서 관리해야 한다');
+}
+
+{
+  const flow = context.QT_MONTH_CLOSE_FLOW;
+  const simple = flow.build({
+    report:{ year:2026, month:7 },
+    lifeChanges:[],
+    relationshipChanges:[],
+    familyChanges:[],
+    careerChanges:[],
+  });
+  assert.deepEqual(Array.from(simple.steps.map(step => step.name)), [
+    'month-close-summary', 'life-action', 'important-events', 'return-market',
+  ]);
+  assert.equal(flow.current(simple).name, 'month-close-summary');
+  flow.advance(simple);
+  assert.equal(flow.current(simple).name, 'life-action');
+  assert.deepEqual(Array.from(simple.completedSteps), ['month-close-summary']);
+
+  const busy = flow.build({
+    report:{}, lifeChanges:[{label:'건강'}], relationshipChanges:[{name:'나래'}],
+    familyChanges:[{title:'자녀 진학'}], careerChanges:[{title:'승진'}], terminal:{type:'death'},
+  });
+  assert.deepEqual(Array.from(busy.steps.map(step => step.name)), [
+    'month-close-summary', 'life-status', 'relationship-monthly', 'family-monthly', 'career-business',
+    'life-action', 'important-events', 'terminal',
+  ]);
+  const restored = flow.normalize(JSON.parse(JSON.stringify(busy)));
+  assert.equal(restored.active, true);
+  assert.equal(restored.steps.length, 8);
 }
 
 {
@@ -336,3 +527,4 @@ for (const file of [
 }
 
 console.log('core regression tests: ok');
+})();

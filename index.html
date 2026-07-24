@@ -58,12 +58,12 @@
       <span class="phase-badge" id="phase-badge">🔒 장 마감</span>
       <button id="report-btn" style="display:none">📋 마감 리포트</button>
       <button id="pause-btn">⏸ 일시정지</button>
-      <span class="ctl-group">배속:
+      <span class="ctl-group speed-group">배속:
         <button class="speed-btn active" data-speed="1">1x</button>
         <button class="speed-btn" data-speed="2">2x</button>
         <button class="speed-btn" data-speed="4">4x</button>
       </span>
-      <span class="ctl-group">차트:
+      <span class="ctl-group chart-group">차트:
         <button id="chart-line" class="active">라인</button>
         <button id="chart-candle">캔들</button>
       </span>
@@ -84,14 +84,7 @@
     <div class="main-content">
       <!-- 왼쪽: 종목 목록 -->
       <div class="col col-left">
-        <div class="window panel">
-          <div class="title-bar"><div class="title-bar-text">📋 현재 주식 목록</div></div>
-          <div class="panel-toolbar">
-            섹터:
-            <select id="sector-filter"><option value="all">전체</option></select>
-          </div>
-          <div class="window-body scroll"><ul id="stock-list" class="clean-list"></ul></div>
-        </div>
+        <div id="stock-browser-panel"></div>
       </div>
 
       <!-- 가운데: 차트 + 거래 -->
@@ -108,7 +101,10 @@
           <div class="window-body">
             <div class="pos-pnl position-summary is-empty" id="pos-pnl" role="status" aria-live="polite">📌 미보유</div>
             <button id="open-report" class="report-open-btn">📄 선택 종목 기업 리포트 보기</button>
-            <div class="orderbook" id="orderbook" title="호가창 · 클릭하면 지정가로 입력됩니다"></div>
+            <div class="orderbook-shell" id="orderbook-shell">
+              <button type="button" id="orderbook-toggle" class="orderbook-toggle" aria-expanded="true">📊 호가창 접기</button>
+              <div class="orderbook" id="orderbook" title="호가창 · 클릭하면 지정가로 입력됩니다"></div>
+            </div>
             <div class="trade-row lev-row">
               <label>⚡ 신용 레버리지
                 <select id="leverage-select">
@@ -154,47 +150,7 @@
 
       <!-- 오른쪽: 탭(보유/이슈/뉴스/랭킹/업적) -->
       <div class="col col-right">
-        <div class="window panel">
-          <div class="title-bar"><div class="title-bar-text">💼 내 정보 & 시장</div></div>
-          <menu role="tablist" class="tabs">
-            <li role="tab" aria-selected="true" data-tab="owned"><a href="#">보유</a></li>
-            <li role="tab" data-tab="life"><a href="#">인생</a></li>
-            <li role="tab" data-tab="chat"><a href="#">📱 연락</a></li>
-            <li role="tab" data-tab="issue"><a href="#">이슈</a></li>
-            <li role="tab" data-tab="news"><a href="#">뉴스</a></li>
-            <li role="tab" data-tab="rank"><a href="#">랭킹</a></li>
-            <li role="tab" data-tab="ach"><a href="#">업적</a></li>
-          </menu>
-          <div class="window-body tab-body scroll">
-            <div class="tab-pane active" data-pane="owned"><ul id="owned-list" class="clean-list"></ul></div>
-            <div class="tab-pane" data-pane="life"><div id="life-panel" class="life-panel"></div></div>
-            <div class="tab-pane" data-pane="chat"><div id="chat-panel" class="chat-panel"></div></div>
-            <div class="tab-pane" data-pane="issue"><ul id="issue-list" class="clean-list"></ul></div>
-            <div class="tab-pane" data-pane="news">
-              <div class="news-filters" id="news-filters">
-                <button class="nf-btn active" data-nf="all">전체</button>
-                <button class="nf-btn" data-nf="stock">📄 종목공시</button>
-                <button class="nf-btn" data-nf="market">💹 시장·인생</button>
-                <button class="nf-btn" data-nf="mine">💼 보유</button>
-                <button class="nf-btn" data-nf="watch">⭐ 관심</button>
-              </div>
-              <ul id="news-log" class="clean-list news-log"></ul>
-            </div>
-            <div class="tab-pane" data-pane="rank">
-              <ul id="leaderboard" class="clean-list leaderboard"></ul>
-              <div class="mini-chart-wrap"><span class="mini-label">🏁 나 vs 라이벌 순자산 경쟁</span><canvas id="rivals-nw-chart"></canvas></div>
-              <div class="rival-feed-wrap">
-                <div class="mini-label">⚔️ 라이벌 동향 (서로 공격·손익·수감)</div>
-                <ul id="rival-feed" class="clean-list rival-feed"></ul>
-              </div>
-              <div class="mini-chart-wrap"><span class="mini-label">내 순자산 추이</span><canvas id="nw-chart"></canvas></div>
-            </div>
-            <div class="tab-pane" data-pane="ach">
-              <div class="ach-header">달성 <span id="ach-count">0/0</span></div>
-              <ul id="achievement-list" class="clean-list"></ul>
-            </div>
-          </div>
-        </div>
+        <div id="info-market-panel"></div>
 
         <div class="window panel">
           <div class="title-bar"><div class="title-bar-text">🥧 포트폴리오</div></div>
@@ -210,6 +166,7 @@
         <p>
           • <strong>단축키</strong>: <kbd>O</kbd> 장 열림/마감 · <kbd>B</kbd> 매수 · <kbd>S</kbd> 매도 · <kbd>Space</kbd> 일시정지 · <kbd>↑</kbd>/<kbd>↓</kbd> 종목 이동<br>
           • 🔔 <strong>장 열림 = 한 달</strong>: 버튼을 눌러 개장하면 한 달치 장이 돌고, 시간이 지나면 자동 <strong>장 마감</strong>(또는 조기 마감). 장중 배지에서 남은 틱을 확인할 수 있습니다.<br>
+          • 다른 탭·앱·창으로 이동하면 장이 <strong>자동 일시정지</strong>되며, 돌아온 뒤 재개 버튼을 눌러야 시간이 다시 흐릅니다.<br>
           • 🎬 <strong>인생 모드</strong>: 가정환경과 학창생활에 따라 첫 직업과 연락처가 정해집니다. 장 마감 리포트에서 <strong>취미·주거·데이트·대출·이직</strong>을 선택할 수 있습니다.<br>
           • 🏠 주거는 <strong>월세·전세·매매</strong>가 다릅니다. 전세는 월 부담이 작고, 매매는 구입 뒤 <strong>월 주거비가 0원</strong>이며 집값이 자산으로 남습니다.<br>
           • 주가는 <strong>경기 국면·금리·업종 흐름</strong>이 한 달 동안 누적되고, 드문 기업 이슈와 시장 뉴스가 추가로 반영됩니다. 이슈 탭의 전망은 방향과 강도만 보여 주며 실제 수치는 뉴스에서 확인합니다.<br>
@@ -232,6 +189,9 @@
   <script src="./js/character_dialogue.js"></script>
   <script src="./js/chat_lines.js"></script>
   <script src="./js/voice.js"></script>
+  <!-- BGM 보강 레이어: 실패하거나 오프라인이어도 bgm.js의 WebAudio 엔진으로 자동 폴백한다. -->
+  <script src="https://cdn.jsdelivr.net/npm/tone@15.1.22/build/Tone.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sam-js@0.3.1/dist/samjs.min.js"></script>
   <script src="./js/bgm.js"></script>
   <script src="./js/events_life.js"></script>
   <script src="./js/romance_events.js"></script>
@@ -269,18 +229,18 @@
   <script src="./js/business.js"></script>
   <script src="./js/housing.js"></script>
   <script src="./js/life_finance.js"></script>
+  <script src="./js/ui/page-lifecycle.js"></script>
+  <script src="./js/ui/market-workspace.js"></script>
+  <script src="./js/ui/info-market-panel.js"></script>
+  <script src="./js/ui/month-close-flow.js"></script>
+  <script src="./js/ui/views/month-close-summary-view.js"></script>
+  <script src="./js/ui/views/life-status-view.js"></script>
+  <script src="./js/ui/views/relationship-monthly-view.js"></script>
+  <script src="./js/ui/views/family-monthly-view.js"></script>
+  <script src="./js/ui/views/career-business-view.js"></script>
+  <script src="./js/ui/views/life-action-view.js"></script>
+  <script src="./js/ui/views/major-event-view.js"></script>
+  <script src="./js/ui/views/return-market-view.js"></script>
   <script src="./js/app.js"></script>
-  <script>
-    // 탭 전환 (간단 UI 로직)
-    document.querySelectorAll('.tabs [role="tab"]').forEach(tab => {
-      tab.addEventListener('click', e => {
-        e.preventDefault();
-        document.querySelectorAll('.tabs [role="tab"]').forEach(t => t.setAttribute('aria-selected', 'false'));
-        tab.setAttribute('aria-selected', 'true');
-        const name = tab.dataset.tab;
-        document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.dataset.pane === name));
-      });
-    });
-  </script>
 </body>
 </html>

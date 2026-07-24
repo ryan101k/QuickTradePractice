@@ -61,5 +61,12 @@ CAREER_EVENTS.push(
  C('injury_comp','job','산재 처리 갈등','업무 중 다쳤는데 회사가 산재 처리를 꺼립니다.',['construction','factory','delivery','firefighter','fisher','stuntman','nurse'],[{text:'정식으로 산재를 신청한다',effects:{cash:[500000,5000000],happy:2,charm:2},outcome:'정당한 보상과 치료를 받았다.'},{text:'합의금을 받고 조용히 마무리한다',effects:{cash:[1000000,4000000],happy:-2},outcome:'당장 목돈은 받았지만 후유증이 걱정이다.'},{text:'참고 그냥 복귀한다',effects:{debt:[0,5000000],happy:-8},outcome:'몸을 혹사한 대가가 나중에 돌아왔다.'}],'🩹'),
  C('mentor_offer','job','후배 멘토링 요청','회사가 신입 멘토를 맡아달라고 요청합니다.',null,[{text:'기꺼이 맡아 후배를 키운다',effects:{cash:[100000,800000],happy:5,charm:4},outcome:'가르치며 나도 함께 성장했다.'},{text:'가볍게 조언만 해준다',effects:{happy:2,charm:1},outcome:'부담 없이 좋은 관계를 맺었다.'},{text:'내 일이 바쁘다며 사양한다',effects:{happy:1},outcome:'내 업무에 집중했다.'}],'🧑‍🏫')
 );
+const burnoutLeave=CAREER_EVENTS.find(event=>event.id==='career_burnout_leave');
+if(burnoutLeave){
+ burnoutLeave.cond=ctx=>ctx.job!=='none'&&ctx.stress>=82&&ctx.day-(ctx.lastBurnoutEventDay||-99)>=6;
+ burnoutLeave.options[0].effects.stress=-24;
+ burnoutLeave.options[1].effects.stress=-16;
+ burnoutLeave.options[2].effects.stress=12;
+}
 root.QT_CAREER_EVENTS=CAREER_EVENTS;
 })(window);

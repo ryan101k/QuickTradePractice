@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
 
-  const SAVE_VERSION = 3;
+  const SAVE_VERSION = 4;
   const RESULT_VERSION = 2;
 
   function finite(value, fallback) {
@@ -45,6 +45,9 @@
       sessionNews: state.sessionNews || [],
       sessionOpen: Object.fromEntries((state.stocks || []).map(stock => [stock.name, stock.sessionOpen])),
       dayStartNW: state.dayStartNW,
+      dayStartCapital: state.dayStartCapital,
+      dayStartRealizedPnL: state.dayStartRealizedPnL,
+      monthCloseContext: state.monthCloseContext || null,
       circuitBreakerTicks: state.circuitBreakerTicks,
       circuitBreakerTriggered: state.circuitBreakerTriggered,
       marketSessionReturn: state.marketSessionReturn,
@@ -124,6 +127,10 @@
     data.sessionNews = Array.isArray(data.sessionNews) ? data.sessionNews : [];
     data.sessionOpen = data.sessionOpen && typeof data.sessionOpen === 'object' ? data.sessionOpen : {};
     data.dayStartNW = finite(data.dayStartNW, finite(data.capital, 0));
+    data.dayStartCapital = finite(data.dayStartCapital, finite(data.capital, 0));
+    data.dayStartRealizedPnL = finite(data.dayStartRealizedPnL, finite(data.realizedPnL, 0));
+    data.monthCloseContext = data.monthCloseContext && typeof data.monthCloseContext === 'object'
+      ? data.monthCloseContext : null;
     data.circuitBreakerTicks = Math.max(0, Math.floor(finite(data.circuitBreakerTicks, 0)));
     data.circuitBreakerTriggered = !!data.circuitBreakerTriggered;
     data.marketSessionReturn = finite(data.marketSessionReturn, 0);

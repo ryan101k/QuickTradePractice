@@ -3,7 +3,7 @@
  *  장 마감 때 확률로 하나가 팝업 → 플레이어가 선택 → 결과(effects) 반영
  *
  *  event: { id, cat:'job'|'love'|'debt'|'life', emoji, title, desc,
- *           cond?(ctx),  ctx = { job, loan, rel, happy, charm }
+ *           cond?(ctx),  ctx = { job, loan, rel, happy, stress, charm }
  *           options: [ { text, outcome, effects } ] }
  *  effects 키(모두 선택):
  *    cash   : 현금 증감 (숫자 또는 [min,max] 랜덤 · 음수 가능)
@@ -265,11 +265,11 @@ LIFE_EVENTS.push(
   {
     id: 'life_burnout', cat: 'life', emoji: '🕯️', title: '아무것도 하기 싫은 날',
     desc: '아침에 눈을 떴는데 아무것도 하고 싶지 않습니다. 계좌를 열 마음도 안 납니다.',
-    cond: c => c.happy < 50,
+    cond: c => c.stress >= 75 && c.day - (c.lastBurnoutEventDay || -99) >= 6,
     options: [
-      { text: '하루 완전히 쉰다', effects: { happy: 14 }, outcome: '알림을 다 끄고 잤다. 세상은 아무 일 없이 돌아갔다.' },
-      { text: '가까운 사람에게 털어놓는다', effects: { happy: 10, charm: 2 }, outcome: '"나도 그래." 그 한마디가 컸다.' },
-      { text: '억지로 평소처럼 지낸다', effects: { happy: -6 }, outcome: '버티긴 했지만, 다음 주에 더 크게 왔다.' },
+      { text: '하루 완전히 쉰다', effects: { happy: 14, stress:-20 }, outcome: '알림을 다 끄고 잤다. 세상은 아무 일 없이 돌아갔다.' },
+      { text: '가까운 사람에게 털어놓는다', effects: { happy: 10, stress:-14, charm: 2 }, outcome: '"나도 그래." 그 한마디가 컸다.' },
+      { text: '억지로 평소처럼 지낸다', effects: { happy: -6, stress:10 }, outcome: '버티긴 했지만, 다음 주에 더 크게 왔다.' },
     ],
   },
   {
