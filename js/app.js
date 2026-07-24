@@ -15,6 +15,7 @@ const STORIES = window.QT_CHARACTER_STORIES;
 const CHAR_TRAITS = window.QT_CHARACTER_TRAITS;
 const CROSS_EVENTS = window.QT_CHARACTER_CROSS_EVENTS;
 const DANGEROUS_TRIO = window.QT_DANGEROUS_TRIO;
+const FREEDOM_TRIO = window.QT_FREEDOM_TRIO;
 const ORIGIN = window.QT_ORIGIN;
 const HEALTH = window.QT_HEALTH;
 const FAMILY = window.QT_FAMILY;
@@ -135,6 +136,7 @@ function newLife() {
     lovers: [],              // 양다리 상대 목록 (문어발) — 적발 위험
     polycule: { active:false, members:[], trust:0 }, // 모두가 합의한 다자연애/하렘 루트
     dangerousTrio: { active:false, stage:0, stability:50, axes:{balance:0,containment:0,fracture:0}, history:[], ending:null },
+    freedomTrio: { active:false, stage:0, harmony:50, axes:{freedom:0,career:0,control:0}, history:[], personal:{}, ending:null, aftermathIndex:0 },
     met: [],                 // 한 번이라도 만난 사람 (헤어져도 기억한다) — rememberPerson() 참고
     properties: [],          // [{id, name, emoji, value, rent}]
     passiveAssets: [],       // 주식 외 월 현금흐름 자산 [{id, boughtAt}]
@@ -1829,6 +1831,7 @@ function showGameGuide(fromStart = false) {
       • 장 마감 뒤 연락에 답하고 우연한 재회·친분 외출을 거쳐 <b>호감 15 · 신뢰 8 · 교류 3회 · 1개월</b>을 채우면 정식 데이트가 열립니다.<br>
       • 고백은 <b>호감 60 · 신뢰 18 · 정식 데이트 3회 · 3개월</b> 뒤 가능하며, 성격에 따라 상대가 먼저 고백하기도 합니다.<br>
       • 강유진·한채린·윤세라는 각각 <b>과잉보호·지배욕·집착</b>이라는 전용 위험 수치와 단계별 사건을 가집니다. 다른 인물에게는 집착 수치가 없습니다.<br>
+      • 채원·유나·소희는 호감이 오르면 각자 <b>2개의 개인 선택 이벤트</b>가 열립니다. 세 사람의 이벤트를 모두 보고 한 명과 연애 중이면 <b>자유와 귀환</b> 세트 루트가 시작됩니다.<br>
       • 연애 중 새 사람을 만나면 <b>양다리</b>가 되고, 걸리면 이별·위자료·해고 위험!<br>
       • <b>이별/이혼</b>은 성격에 따라 순탄하거나 파국이 되며, 헤어진 상대는 <b>전 연인</b>으로 남아 <b>재회</b>를 노릴 수 있어요.`) +
     sec('🤝', '인맥', `
@@ -1950,6 +1953,10 @@ function showNextImportantEvent() {
   if (event.dangerousTrioStart) { startDangerousTrioRoute(true); return; }
   if (event.dangerousTrioChapter) { showDangerousTrioStory(); return; }
   if (event.dangerousTrioAftermath) { showDangerousTrioAftermath(); return; }
+  if (event.freedomTrioStart) { startFreedomTrioRoute(true); return; }
+  if (event.freedomTrioChapter) { showFreedomTrioStory(); return; }
+  if (event.freedomTrioAftermath) { showFreedomTrioAftermath(); return; }
+  if (event.freedomPersonalEvent) { showFreedomPersonalEvent(event.eventId); return; }
   if (event.monthlyMessage) { showMonthlyMessagePopup(event); return; }
   if (event.bondEncounter) { showBondEncounter(event); return; }
   if (event.dangerousHeroineEvent) { showDangerousHeroineEvent(event.dangerousHeroineEvent); return; }
@@ -2132,10 +2139,35 @@ function resolveDangerousHeroineEvent(choiceIndex){
     if(r.name==='윤세라')r.obsession=clamp((r.obsession||0)+choice.danger,0,100);
     else r.dangerLevel=clamp((r.dangerLevel||0)+choice.danger,0,100);
   }
+  if(choice.cash)S.capital=Math.max(0,S.capital+choice.cash);
+  if(choice.happy)S.life.happy=clamp(S.life.happy+choice.happy,0,100);
   r.dangerEvents=r.dangerEvents||{};r.dangerEvents[pending.id]='seen';
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
-  $('danger-heroine-outcome').innerHTML=`<div class="oc-text">${choice.result}</div><div class="oc-changes">호감 ${choice.affection>=0?'+':''}${choice.affection||0} · 신뢰 ${choice.trust>=0?'+':''}${choice.trust||0}${choice.danger?` · 위험도 ${choice.danger>0?'+':''}${choice.danger}`:''}</div><button id="danger-heroine-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
+  $('danger-heroine-outcome').innerHTML=`<div class="oc-text">${choice.result}</div><div class="oc-changes">호감 ${choice.affection>=0?'+':''}${choice.affection||0} · 신뢰 ${choice.trust>=0?'+':''}${choice.trust||0}${choice.danger?` · 위험도 ${choice.danger>0?'+':''}${choice.danger}`:''}${choice.cash?` · ${choice.cash>0?'수입 +':'지출 '}${won(Math.abs(choice.cash))}`:''}</div><button id="danger-heroine-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
   $('danger-heroine-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._dangerousHeroineEvent=null;renderLifePanel();autoSave();showNextImportantEvent();});
+}
+
+function showFreedomPersonalEvent(eventId){
+  const event=FREEDOM_TRIO&&FREEDOM_TRIO.personalEvent(eventId),host=$('life-event');
+  if(!event||!host){showNextImportantEvent();return;}
+  const r=metRecord(S.life,event.name);if(!r){showNextImportantEvent();return;}
+  S._freedomPersonalEvent={id:eventId,event,r};
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">${event.icon} ${event.name} 개인 이벤트 · 선택 필요</div></div><div class="window-body"><img class="life-scene-banner" src="${event.scene}" alt="${event.title} 컷신"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(r)}" alt="${r.name}"><div><strong>${r.name} · ${r.job}</strong><br><span class="muted">${relationTag(S.life,r.name)} · 호감 ${Math.round(r.affection||0)} · 신뢰 ${Math.round(r.trust||0)}</span></div></div><div class="event-title">${event.title}</div><div class="event-desc">${event.desc}</div><div class="event-options">${event.choices.map(choice=>{const poor=choice.cash<0&&S.capital<Math.abs(choice.cash);return`<button class="event-opt" data-freedom-personal="${choice.id}" ${poor?'disabled':''}>${choice.text}<span class="opt-sub">${choice.preview}${choice.cash?` · 현금 ${choice.cash>0?'+':'-'}${won(Math.abs(choice.cash))}`:''}${poor?' · 현금 부족':''}</span></button>`;}).join('')}</div><div id="freedom-personal-outcome" class="event-outcome"></div></div></div>`;
+  host.querySelectorAll('[data-freedom-personal]').forEach(button=>button.addEventListener('click',()=>resolveFreedomPersonalEvent(button.dataset.freedomPersonal)));
+}
+function resolveFreedomPersonalEvent(choiceId){
+  const pending=S._freedomPersonalEvent,host=$('life-event');if(!pending||!host)return;
+  const preview=pending.event.choices.find(choice=>choice.id===choiceId);if(!preview)return;
+  if(preview.cash<0&&S.capital<Math.abs(preview.cash)){flashToast('💸 현금이 부족합니다','bad');return;}
+  const result=FREEDOM_TRIO.applyPersonal(S.life,pending.id,choiceId);if(!result)return;
+  if(result.choice.cash)S.capital+=result.choice.cash;
+  addBondInteraction(result.r,`personal-${pending.id}`);
+  const options=host.querySelector('.event-options');if(options)options.innerHTML='';
+  $('freedom-personal-outcome').innerHTML=`<div class="story-dialogue"><b>${result.r.name}</b> “${result.choice.result}”</div><div class="oc-changes">호감 ${result.choice.affection>=0?'+':''}${result.choice.affection||0} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}${result.choice.cash?` · 현금 ${result.choice.cash>0?'+':'-'}${won(Math.abs(result.choice.cash))}`:''}</div><button id="freedom-personal-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
+  addNews(`${result.event.icon} ${result.event.title} · ${result.choice.text}`,result.choice.tag==='control'?'bad':'good');
+  $('freedom-personal-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._freedomPersonalEvent=null;renderCapital();renderLifePanel();autoSave();showNextImportantEvent();});
+  renderCapital();renderLifePanel();autoSave();
 }
 
 function resolveAmt(v) { return Array.isArray(v) ? Math.round(rand(v[0], v[1])) : v; }
@@ -2830,6 +2862,60 @@ const DANGEROUS_AFFECTION_EVENTS={
   sera_romance:{name:'윤세라',kind:'romance',min:55,scene:'./assets/event-sera-doorstep.png',icon:'🖤',title:'윤세라 · 우연을 그만둔 밤',desc:'연애나 하룻밤 이후, 세라는 더 이상 우연인 척하지 않습니다. 당신이 어디에 있는지 알고 싶은 마음을 사랑의 권리라고 부르기 시작했습니다.',choices:[
     {text:'연락 시간과 방문 규칙을 분명히 정한다',result:'세라는 싫어했지만 규칙을 메시지 상단에 고정했습니다. 아직은 약속이 집착보다 강합니다.',trust:7,danger:-10},
     {text:'불안하지 않게 항상 위치를 공유한다',result:'세라는 안심했습니다. 그리고 그 안심을 잃지 않기 위해 더 많은 것을 요구하기 시작했습니다.',affection:10,danger:18}
+  ]},
+
+  /* ── 강유진 · 일상/연애 외출 진행 ── (단정한 존댓말, 확인 질문, 보호가 통제로) */
+  yujin_daily1:{name:'강유진',kind:'friend',min:27,after:'yujin_friend',scene:'./assets/event-yujin-riverside-date.png',icon:'🛒',title:'강유진 · 비번 날의 장보기',desc:'유진이 사복 차림으로 마트 앞에 서 있었습니다. “오늘은 근무 아니에요. 그냥… 혼자 장 보기 싫어서요.” 카트를 미는 내내 당신 냉장고 사정까지 확인 질문이 이어집니다.',choices:[
+    {text:'같이 저녁 재료만 고르고 각자 계산한다',result:'유진은 “이게 친구 사이 적정 거리죠”라며 자기 몫을 따로 계산했습니다. 확인 질문은 많았지만 선은 지켰습니다.',affection:6,trust:9,happy:3,cash:-40000},
+    {text:'유진이 당신 반찬까지 다 챙기게 둔다',result:'유진은 당신 일주일 식단을 통째로 계획했습니다. “끼니는 안전의 기본이에요.” 편했지만 냉장고 안까지 유진이 관리하게 됐습니다.',affection:9,trust:3,danger:8,cash:-70000}
+  ]},
+  yujin_daily2:{name:'강유진',kind:'friend',min:43,after:'yujin_warning',scene:'./assets/event-yujin-night-call.png',icon:'🌃',title:'강유진 · 야간근무 끝의 새벽 산책',desc:'교대를 마친 유진이 “집에 바로 가면 잠이 안 와서요”라며 새벽 강변을 함께 걷자고 합니다. 늘 남을 지키던 사람이 처음으로 자기 얘기를 꺼낼 듯 말 듯 합니다.',choices:[
+    {text:'오늘은 경찰 말고 그냥 유진 얘기를 듣는다',result:'유진은 한참 망설이다 “구하지 못한 사람 꿈을 자주 꿔요”라고 털어놨습니다. 보호자 역할을 잠깐 내려놓은 밤이었습니다.',affection:7,trust:12,happy:2},
+    {text:'피곤할 텐데 데려다주겠다며 동선을 챙긴다',result:'유진은 웃으며 “보호받는 것도 나쁘지 않네요”라고 했지만, 다음 날부터 당신의 새벽 귀가를 자기 일정에 넣었습니다.',affection:6,trust:4,danger:9}
+  ]},
+  yujin_romance2:{name:'강유진',kind:'romance',min:62,after:'yujin_romance',scene:'./assets/event-yujin-rain-rescue.png',icon:'🧳',title:'강유진 · 연인의 첫 여행, 실시간 위치',desc:'첫 커플 여행 첫날, 유진이 “위험한 동네도 있으니까 서로 위치 공유만 켜 둬요”라고 제안합니다. 걱정과 통제의 경계에 선 제안입니다.',choices:[
+    {text:'여행 중엔 정해진 시간에만 연락하자고 정한다',result:'유진은 아쉬워하면서도 “불안은 제 몫이니 제가 관리할게요”라고 했습니다. 여행 내내 위치 대신 사진을 주고받았습니다.',trust:11,danger:-12,happy:4,cash:-300000},
+    {text:'서로 안심되게 위치를 계속 공유한다',result:'유진은 눈에 띄게 편안해졌습니다. 다만 당신이 잠깐 신호가 끊긴 30분 동안, 유진은 이미 근처 지구대 번호를 찾고 있었습니다.',affection:9,danger:14,cash:-300000}
+  ]},
+  yujin_romance3:{name:'강유진',kind:'romance',min:72,after:'yujin_romance2',scene:'./assets/event-yujin-safehouse-ending.png',icon:'🔑',title:'강유진 · 열쇠와 비상 계획',desc:'유진이 당신 집 여벌 열쇠와 함께 “당신에게 무슨 일이 생기면 제가 1순위로 움직이게 해줘요”라는 비상 위임장을 내밉니다. 사랑인지 관제인지 구분이 흐려집니다.',choices:[
+    {text:'열쇠는 받되 위임 범위는 응급 상황으로 못 박는다',result:'유진은 조항을 하나하나 줄이면서도 끝내 웃었습니다. “딱 여기까지. 대신 이 선은 제가 목숨 걸고 지킬게요.”',trust:13,danger:-14},
+    {text:'전부 유진이 판단하도록 맡긴다',result:'유진은 처음으로 완전히 안도했습니다. 그날부터 당신의 병원·직장·가족 연락은 모두 유진을 거치게 됐습니다.',affection:12,danger:20}
+  ]},
+
+  /* ── 한채린 · 일상/연애 외출 진행 ── (격식 있는 반말·명령형, 관계를 가치·계약으로) */
+  chaerin_daily1:{name:'한채린',kind:'friend',min:27,after:'chaerin_friend',scene:'./assets/event-chaerin-private-dinner.png',icon:'🛍️',title:'한채린 · 스타일링이라는 이름의 외출',desc:'채린이 폐점 후 백화점을 통째로 열어 두고 불렀습니다. “네 옷차림이 내 옆에 어울릴 수준은 돼야지. 착각하지 말고, 이건 투자야.”',choices:[
+    {text:'선물은 정중히 거절하고 내 취향대로 고른다',result:'채린은 눈썹을 올리더니 “돈으로 안 넘어오는 것도 가치지”라며 처음으로 네 안목을 인정했습니다.',affection:9,trust:8},
+    {text:'채린이 골라 주는 대로 전부 받는다',result:'채린은 만족스럽게 “이제 좀 봐줄 만하네”라고 했습니다. 대신 그날부터 네 옷과 자리를 채린이 정하기 시작했습니다.',affection:8,trust:2,danger:9}
+  ]},
+  chaerin_daily2:{name:'한채린',kind:'friend',min:43,after:'chaerin_warning',scene:'./assets/event-chaerin-thrown-contract.png',icon:'⛵',title:'한채린 · 주말 별장 초대',desc:'채린이 “주말 비워 뒀어. 이유는 도착해서 말해”라며 별장으로 불렀습니다. 수행원을 모두 물린 이상한 주말, 채린은 평소보다 말이 적습니다.',choices:[
+    {text:'왜 나를 부른 건지 정면으로 묻는다',result:'채린은 오래 창밖을 보다 “가끔은 계산 없이 있어도 되는 사람이 필요해서”라고 짧게 말했습니다. 명령형 뒤의 진심이 잠깐 보였습니다.',affection:8,trust:10},
+    {text:'분위기에 맞춰 아무것도 묻지 않는다',result:'채린은 편안해했지만, 헤어질 때 “이 주말도 내가 준 거야. 잊지 마”라며 다시 계약처럼 마무리했습니다.',affection:7,trust:3,danger:7}
+  ]},
+  chaerin_romance2:{name:'한채린',kind:'romance',min:62,after:'chaerin_romance',scene:'./assets/event-chaerin-contract.png',icon:'🥂',title:'한채린 · 재벌가 행사의 파트너',desc:'채린이 그룹 행사에 “내 파트너”로 당신을 세웁니다. 카메라와 임원들 앞에서, 채린은 당신을 소개하는 방식으로 관계의 지분을 정하려 합니다.',choices:[
+    {text:'채린의 소유물이 아니라 대등한 파트너로 서겠다고 한다',result:'채린은 순간 굳었다가 마이크를 넘겼습니다. “좋아. 네가 스스로 값을 증명하면 더 비싸지지.” 처음으로 무대를 나눴습니다.',affection:8,trust:11},
+    {text:'채린이 짜 준 대본대로 완벽하게 연기한다',result:'행사는 완벽했고 기사도 좋았습니다. 다만 그날 이후 채린은 당신을 “관리 가능한 자산” 목록에 정식으로 올렸습니다.',affection:10,danger:15,cash:2000000}
+  ]},
+  chaerin_romance3:{name:'한채린',kind:'romance',min:72,after:'chaerin_romance2',scene:'./assets/event-chaerin-golden-cage-ending.png',icon:'📜',title:'한채린 · 서명 앞의 두 사람',desc:'채린이 혼전 계약서와 후계 구도 편입 서류를 나란히 내밉니다. “네 인생을 내 장부에 넣어 줄게. 대신 이제 네 결정은 내 결재를 거쳐.”',choices:[
+    {text:'사랑은 결재 대상이 아니라며 소유 조항을 지운다',result:'채린은 펜으로 그 줄을 그으며 웃었습니다. “재미없게 구네. 그래서 못 놓겠고.” 지배 대신 대등함이 관계의 선이 됐습니다.',trust:12,danger:-11},
+    {text:'전부 채린의 설계대로 서명한다',result:'당신은 부족할 것 없는 삶을 얻었습니다. 대신 그 삶의 모든 항목에 결재란이 생겼고, 빈칸은 언제나 채린의 이름이었습니다.',affection:12,danger:22,cash:5000000}
+  ]},
+
+  /* ── 윤세라 · 일상/연애 외출 진행 ── (조심스러운 존댓말, 말줄임·반복, 불안한 집착) */
+  sera_daily1:{name:'윤세라',kind:'friend',min:27,after:'sera_friend',scene:'./assets/event-sera-three-chairs.png',icon:'🎨',title:'윤세라 · 작업실에 초대한 오후',desc:'세라가 처음으로 자기 작업실 문을 열었습니다. “여기… 아무도 안 들여요. 당신이 처음이에요.” 벽 한쪽엔 당신을 닮은 스케치가 몇 장 보입니다.',choices:[
+    {text:'그림은 예쁘지만 나 몰래 그리진 말라고 부드럽게 말한다',result:'세라는 얼굴이 빨개져 “다음엔… 앞에서 그릴게요. 도망 안 가면요”라며 스케치를 상자에 넣었습니다.',affection:5,trust:11,danger:-4},
+    {text:'모델이 되어 주겠다며 오래 앉아 준다',result:'세라는 몇 시간이고 붓을 놓지 않았습니다. “이 시간이 안 끝났으면… 아, 이상한 말 했죠?” 행복해 보였지만 눈이 자꾸 문을 확인했습니다.',affection:9,trust:4,danger:7,happy:4}
+  ]},
+  sera_daily2:{name:'윤세라',kind:'friend',min:43,after:'sera_warning',scene:'./assets/event-sera-convenience-date.png',icon:'🌌',title:'윤세라 · 목적지 없는 새벽 드라이브',desc:'세라가 “어디든 좋아요. 그냥… 지금 당신이랑만 있고 싶어서”라며 새벽 드라이브를 청합니다. 라디오도 끄고, 세라는 몇 번이나 당신 표정을 살핍니다.',choices:[
+    {text:'좋았던 밤이라고 말해 주되 집 앞에서 인사한다',result:'세라는 “오늘은 여기까지… 맞죠? 그래도 괜찮아요”라며 스스로 문을 닫았습니다. 헤어짐을 견디는 연습을 조금 한 밤이었습니다.',affection:6,trust:10,danger:-5,cash:-50000},
+    {text:'날이 밝을 때까지 계속 달린다',result:'세라는 처음으로 크게 웃었습니다. 다만 해가 뜨자 “이 밤이 끝나면 또 혼자죠?”라며 당신 소매를 오래 놓지 못했습니다.',affection:10,danger:10,happy:3,cash:-50000}
+  ]},
+  sera_romance2:{name:'윤세라',kind:'romance',min:62,after:'sera_romance',scene:'./assets/event-sera-doorstep.png',icon:'📷',title:'윤세라 · 우리라는 증거',desc:'세라가 커플 계정과 함께 찍은 사진들을 보여 줍니다. “우리가 진짜라는 걸… 남들도 알면 제가 덜 불안할 것 같아서요. 이상한가요?”',choices:[
+    {text:'우리 관계는 남에게 증명할 필요 없다고 안심시킨다',result:'세라는 울먹이며 “그 말… 저장해도 돼요? 불안할 때 볼게요”라고 했습니다. 증거 대신 약속을 믿어 보기로 했습니다.',trust:10,danger:-10},
+    {text:'세라가 안심하게 커플 공개를 전부 받아들인다',result:'세라는 환하게 웃으며 프로필을 바꿨습니다. 그날부터 사진이 없는 시간은 “왜 안 올렸어요?”라는 질문으로 돌아왔습니다.',affection:10,danger:16}
+  ]},
+  sera_romance3:{name:'윤세라',kind:'romance',min:72,after:'sera_romance2',scene:'./assets/event-sera-doorstep.png',icon:'🔑',title:'윤세라 · 복사한 열쇠 한 개',desc:'세라가 손바닥 위에 열쇠 하나를 올려놓습니다. “당신 집… 언제든 갈 수 있게요. 허락받고 쓸게요. 정말이에요. 안 되면… 안 되는 이유만 말해 줘요.”',choices:[
+    {text:'열쇠는 돌려주고 올 때는 꼭 먼저 연락하자고 정한다',result:'세라는 한참 손을 떨다 열쇠를 내려놓았습니다. “먼저 연락하는 것도… 사랑이라고 생각할게요.” 집착보다 약속을 택한 밤입니다.',trust:12,danger:-13},
+    {text:'언제든 와도 된다고 열쇠를 쥐여 준다',result:'세라는 열쇠를 가슴에 안았습니다. 다음 날부터 당신이 문을 열면, 세라가 이미 안에서 기다리고 있는 날이 늘었습니다.',affection:12,danger:20}
   ]}
 };
 function isDangerousHeroine(person){return!!person&&DANGEROUS_HEROINE_NAMES.includes(person.name);}
@@ -2864,6 +2950,28 @@ function queueNaturalDangerousEvents(L){
       r.dangerEvents[id]='queued';queueImportantEvent({dangerousHeroineEvent:id});
     }
   });
+}
+function queueNaturalFreedomEvents(L){
+  if(!FREEDOM_TRIO)return;
+  const personalId=FREEDOM_TRIO.queuePersonal(L);
+  if(personalId){queueImportantEvent({freedomPersonalEvent:true,eventId:personalId});return;}
+  const state=FREEDOM_TRIO.ensure(L);
+  if(FREEDOM_TRIO.queue(L))queueImportantEvent({freedomTrioStart:true});
+  else if(state.active&&state.encountered&&state.lastChapterDay!==S.day){
+    state.lastChapterDay=S.day;queueImportantEvent({freedomTrioChapter:true});
+  }
+}
+function monthlyFreedomTrioAftermath(L){
+  const bond=L.freedomTrioBond;if(!bond||!bond.active||!FREEDOM_TRIO)return;
+  const state=FREEDOM_TRIO.ensure(L),event=FREEDOM_TRIO.nextAftermath(L);
+  if(event&&bond.lastAftermathDay!==S.day){
+    bond.lastAftermathDay=S.day;queueImportantEvent({freedomTrioAftermath:true});return;
+  }
+  if(state.lastIncomeDay!==S.day){
+    state.lastIncomeDay=S.day;
+    const income=state.ending&&state.ending.id==='world_tour'?2500000:800000;
+    S.capital+=income;bond.totalIncome=(bond.totalIncome||0)+income;
+  }
 }
 function monthlyDangerousTrioAftermath(L){
   const bond=L.dangerousTrioBond;if(!bond||!bond.active)return;
@@ -2965,12 +3073,17 @@ function updateRelationships(L) {
   const crossEvent = CROSS_EVENTS && CROSS_EVENTS.monthly(L);
   if (crossEvent) queueImportantEvent({ crossEventId:crossEvent.id });
   queueNaturalDangerousEvents(L);
+  queueNaturalFreedomEvents(L);
   monthlyDangerousTrioAftermath(L);
+  monthlyFreedomTrioAftermath(L);
   const poly=ensurePolycule(L);
   if(poly.active&&poly.members.length){
-    if(poly.mode==='dangerous_trio'&&DANGEROUS_TRIO){
+    if((poly.mode==='dangerous_trio'||poly.mode==='dangerous_trio_success')&&DANGEROUS_TRIO){
       const warning=DANGEROUS_TRIO.monthly(L),trio=DANGEROUS_TRIO.ensure(L);poly.trust=Math.round(trio.stability);
       if(warning)addNews(`🦂 ${warning}`,'bad');
+    }else if(poly.mode==='freedom_trio_success'&&FREEDOM_TRIO){
+      const warning=FREEDOM_TRIO.monthly(L),trio=FREEDOM_TRIO.ensure(L);poly.trust=Math.round(trio.harmony);
+      if(warning)addNews(`🛫 ${warning}`,'neutral');
     }else{
       const tense=poly.members.some(x=>['homebody','obsessive'].includes(x.personality));
       if(Math.random()<(tense?.2:.08)){poly.trust=Math.max(0,(poly.trust||0)-(tense?12:6));addNews('🌈 다자연애 구성원 사이에서 일정·질투 문제로 갈등이 생겼습니다','bad');}
@@ -3205,6 +3318,7 @@ function beginSeraLoop(){
 function relationTag(L, name) {
   const trioState=DANGEROUS_TRIO&&DANGEROUS_TRIO.ensure(L);
   if(trioState&&(trioState.active||trioState.ending)&&DANGEROUS_TRIO.NAMES.includes(name))return'위험한 결핍 공생';
+  if(L.freedomTrioBond&&L.freedomTrioBond.active&&FREEDOM_TRIO&&FREEDOM_TRIO.NAMES.includes(name))return'자유와 귀환';
   if (L.partner && L.partner.name === name) return L.relationship === 'married' ? '배우자' : '연인';
   const poly=ensurePolycule(L);if(poly.active&&poly.members.some(x=>x.name===name))return'합의한 다자연애';
   if ((L.lovers || []).some(x => x.name === name)) return '몰래 만나는 중';
@@ -3216,6 +3330,7 @@ function ensurePolycule(L){if(!L.polycule||typeof L.polycule!=='object')L.polycu
 function relationshipImage(L,name){
   const tag=relationTag(L,name);
   if(tag==='위험한 결핍 공생')return'./assets/event-trio-secure-home-ending.png';
+  if(tag==='자유와 귀환')return'./assets/event-freedom-trio-home.png';
   if(tag==='합의한 다자연애')return'./assets/relationship-polycule.png';
   if(tag==='배우자')return'./assets/relationship-married.png';
   if(tag==='연인'||tag==='몰래 만나는 중')return'./assets/relationship-dating.png';
@@ -3931,6 +4046,7 @@ function breakUp(charmPenalty, happyPenalty) {
   L.relationship = 'single';
   const poly=ensurePolycule(L);poly.members.forEach(x=>{const r=metRecord(L,x.name);if(r)r.status='ex';});poly.active=false;poly.members=[];poly.trust=0;
   if(L.dangerousTrioBond&&L.dangerousTrioBond.active){DANGEROUS_HEROINE_NAMES.forEach(n=>{const r=metRecord(L,n);if(r)r.status='ex';});removeDangerousTrioFaction(L);L.dangerousTrioBond=null;}
+  if(L.freedomTrioBond&&L.freedomTrioBond.active){FREEDOM_TRIO.NAMES.forEach(n=>{const r=metRecord(L,n);if(r)r.status='ex';});L.freedomTrioBond=null;}
   L.partner = null;
   L.affection = 0;
   if (charmPenalty != null) L.charm = Math.floor(L.charm * charmPenalty);
@@ -4178,6 +4294,97 @@ function activateDangerousTrioBond(){
   L.dangerousTrioBond={active:true,since:S.day,members:DANGEROUS_HEROINE_NAMES.slice()};
   enlistDangerousTrioFaction(L);
   addNews('🦂 공동생활 해피엔딩 · 강유진·한채린·윤세라가 연인이자 세력의 특별 간부가 됐습니다','good');
+}
+
+function freedomTrioCast(){
+  return FREEDOM_TRIO?FREEDOM_TRIO.NAMES.map(name=>metRecord(S.life,name)).filter(Boolean):[];
+}
+function startFreedomTrioRoute(auto){
+  if(!FREEDOM_TRIO){if(auto)showNextImportantEvent();return;}
+  const result=FREEDOM_TRIO.start(S.life);
+  if(!result.ok){if(auto)showNextImportantEvent();else flashToast('채원·유나·소희의 개인 이벤트와 관계 조건이 아직 부족합니다','neutral');return;}
+  addNews('🛫 채원·유나·소희의 출국 일정이 같은 공항에서 겹쳤습니다','neutral');
+  autoSave();showFreedomTrioStory();
+}
+function showFreedomTrioStory(){
+  const chapter=FREEDOM_TRIO&&FREEDOM_TRIO.next(S.life),host=$('life-event');
+  if(!chapter||!host){closeLifeEvent();showNextImportantEvent();return;}
+  const state=FREEDOM_TRIO.ensure(S.life);
+  const speakers=chapter.speakers.map(s=>{const person=metRecord(S.life,s.name);return`<div class="trio-dialogue"><img src="${characterPortrait(person)}" alt="${s.name}"><div><b>${s.name}</b><p>“${s.line}”</p></div></div>`;}).join('');
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window trio-route-window freedom-trio-window"><div class="title-bar event-bar"><div class="title-bar-text">${chapter.icon} 자유와 귀환 ${state.stage+1}/${FREEDOM_TRIO.CHAPTERS.length} · ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="freedom-story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${chapter.scene}" alt="${chapter.title} 이벤트 컷신"><div class="trio-meter"><span>관계 조화</span><b class="${state.harmony<30?'down':'up'}">${Math.round(state.harmony)}/100</b></div><div class="event-desc">${chapter.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${chapter.choices.map(choice=>{const poor=choice.cash<0&&S.capital<Math.abs(choice.cash);return`<button class="event-opt" data-freedom-choice="${choice.id}" ${poor?'disabled':''}>${choice.text}<span class="opt-sub">${choice.preview}${choice.cash?` · 현금 -${won(Math.abs(choice.cash))}`:''}${poor?' · 현금 부족':''}</span></button>`;}).join('')}<button class="event-opt" id="freedom-story-later">지금은 각자의 일정으로 돌려보낸다</button></div><div class="event-outcome" id="freedom-outcome"></div></div></div>`;
+  host.querySelectorAll('[data-freedom-choice]').forEach(button=>button.addEventListener('click',()=>resolveFreedomTrioStory(button.dataset.freedomChoice)));
+  [$('freedom-story-x'),$('freedom-story-later')].forEach(button=>button.addEventListener('click',closeLifeEvent));
+}
+function freedomTrioCheckpoint(){
+  const L=S.life;
+  return{
+    state:JSON.parse(JSON.stringify(FREEDOM_TRIO.ensure(L))),capital:S.capital,relationship:L.relationship,
+    partner:L.partner?JSON.parse(JSON.stringify(L.partner)):null,affection:L.affection,
+    polycule:JSON.parse(JSON.stringify(ensurePolycule(L))),
+    bond:L.freedomTrioBond?JSON.parse(JSON.stringify(L.freedomTrioBond)):null,
+    people:FREEDOM_TRIO.NAMES.map(name=>{const r=metRecord(L,name);return r&&{name,status:r.status,affection:r.affection,trust:r.trust};}).filter(Boolean)
+  };
+}
+function resolveFreedomTrioStory(choiceId){
+  const chapter=FREEDOM_TRIO.next(S.life),choice=chapter&&chapter.choices.find(item=>item.id===choiceId);if(!choice)return;
+  if(choice.cash<0&&S.capital<Math.abs(choice.cash)){flashToast('💸 이 선택에 필요한 현금이 부족합니다','bad');return;}
+  S._freedomRetry=freedomTrioCheckpoint();
+  const result=FREEDOM_TRIO.apply(S.life,choiceId);if(!result)return;
+  if(result.choice.cash)S.capital+=result.choice.cash;
+  const host=$('life-event'),options=host.querySelector('.event-options');if(options)options.innerHTML='';
+  if(result.ending&&result.ending.tone==='good')activateFreedomTrioBond(result.ending.id);
+  else if(result.ending&&result.ending.tone==='bad')applyFreedomTrioBadEnding();
+  const ending=result.ending?`<div class="story-ending ${result.ending.tone==='bad'?'down':''}"><img class="relationship-scene" src="${result.ending.scene}" alt="${result.ending.title} 엔딩"><b>📕 ${result.ending.title}</b><br>${result.ending.text}</div>`:'';
+  const success=result.ending&&result.ending.tone==='good'?`<div class="important-event-detail up">${result.ending.id==='world_tour'?'세계 순회 특수엔딩':'공동생활 해피엔딩'}입니다. 채원·유나·소희가 모두 합의된 연인이 되며 다음 달부터 전용 후일담과 활동 수입이 이어집니다.</div>`:'';
+  const retry=result.ending&&result.ending.tone==='bad'?'<button id="freedom-retry" class="session-btn opening">↩️ 마지막 선택 다시 하기</button>':'';
+  $('freedom-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">관계 조화 ${result.choice.harmony>=0?'+':''}${result.choice.harmony} · 세 사람 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}${result.choice.cash?` · 현금 -${won(Math.abs(result.choice.cash))}`:''}</div>${ending}${success}${retry}<button id="freedom-confirm" class="session-btn ${result.ending&&result.ending.tone==='bad'?'':'opening'}">${result.ending?'엔딩 확인':'이번 사건을 마친다'}</button>`;
+  addNews(`${result.chapter.icon} 채원·유나·소희 · ${result.chapter.title}`,result.choice.tag==='control'?'bad':'good');
+  const retryBtn=$('freedom-retry');if(retryBtn)retryBtn.addEventListener('click',retryFreedomTrioChoice);
+  $('freedom-confirm').addEventListener('click',()=>{closeLifeEvent();renderCapital();renderLifePanel();if(!result.ending)showNextImportantEvent();});
+  renderCapital();renderLifePanel();autoSave();
+}
+function applyFreedomTrioBadEnding(){
+  const L=S.life,names=FREEDOM_TRIO.NAMES;
+  names.forEach(name=>{const r=metRecord(L,name);if(r)r.status='ex';});
+  if(L.partner&&names.includes(L.partner.name)){L.relationship='single';L.partner=null;L.affection=0;}
+  const poly=ensurePolycule(L);poly.members=(poly.members||[]).filter(person=>!names.includes(person.name));if(!poly.members.length){poly.active=false;poly.mode=null;poly.trust=0;}
+  L.freedomTrioBond=null;
+}
+function retryFreedomTrioChoice(){
+  const checkpoint=S._freedomRetry;if(!checkpoint)return;const L=S.life;
+  L.freedomTrio=JSON.parse(JSON.stringify(checkpoint.state));S.capital=checkpoint.capital;L.relationship=checkpoint.relationship;
+  L.partner=checkpoint.partner?JSON.parse(JSON.stringify(checkpoint.partner)):null;L.affection=checkpoint.affection;
+  L.polycule=JSON.parse(JSON.stringify(checkpoint.polycule));L.freedomTrioBond=checkpoint.bond?JSON.parse(JSON.stringify(checkpoint.bond)):null;
+  checkpoint.people.forEach(saved=>{const r=metRecord(L,saved.name);if(r){r.status=saved.status;r.affection=saved.affection;r.trust=saved.trust;}});
+  showFreedomTrioStory();renderCapital();renderLifePanel();autoSave();
+}
+function activateFreedomTrioBond(endingId){
+  const L=S.life,people=FREEDOM_TRIO.NAMES.map(name=>metRecord(L,name)).filter(Boolean);if(people.length!==3)return;
+  const main=(L.partner&&people.find(person=>person.name===L.partner.name))||people[0],others=people.filter(person=>person.name!==main.name),poly=ensurePolycule(L);
+  L.relationship='dating';L.partner=Object.assign({},main,{mood:'happy'});L.affection=Math.round(people.reduce((sum,r)=>sum+(r.affection||0),0)/3);main.status='partner';
+  poly.active=true;poly.mode='freedom_trio_success';poly.tone='freedom';poly.trust=Math.round(FREEDOM_TRIO.ensure(L).harmony);
+  poly.members=others.map(r=>{r.status='polycule';return{name:r.name,job:r.job,personality:r.personality,age:r.age,emoji:r.emoji,gender:r.gender,portrait:r.portrait};});
+  L.freedomTrioBond={active:true,since:S.day,endingId,members:FREEDOM_TRIO.NAMES.slice(),totalIncome:0};
+  addNews(`🛫 ${endingId==='world_tour'?'세계 순회':'돌아올 곳'} 엔딩 · 채원·유나·소희와 합의된 관계가 시작됐습니다`,'good');
+}
+function showFreedomTrioAftermath(){
+  const event=FREEDOM_TRIO&&FREEDOM_TRIO.nextAftermath(S.life),host=$('life-event');
+  if(!event||!host){showNextImportantEvent();return;}
+  const speakers=event.speakers.map(s=>{const r=metRecord(S.life,s.name);return`<div class="trio-dialogue"><img src="${characterPortrait(r)}" alt="${s.name}"><div><b>${s.name}</b><p>“${s.line}”</p></div></div>`;}).join('');
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window trio-route-window freedom-trio-window"><div class="title-bar event-bar"><div class="title-bar-text">${event.icon} 자유와 귀환 후일담 · 선택 필요</div></div><div class="window-body"><img class="life-scene-banner" src="${event.scene}" alt="${event.title}"><div class="event-title">${event.title}</div><div class="event-desc">${event.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${event.choices.map(choice=>{const poor=choice.cash<0&&S.capital<Math.abs(choice.cash);return`<button class="event-opt" data-freedom-aftermath="${choice.id}" ${poor?'disabled':''}>${choice.text}${choice.cash?`<span class="opt-sub">현금 -${won(Math.abs(choice.cash))}${poor?' · 현금 부족':''}</span>`:''}</button>`;}).join('')}</div><div class="event-outcome" id="freedom-aftermath-outcome"></div></div></div>`;
+  host.querySelectorAll('[data-freedom-aftermath]').forEach(button=>button.addEventListener('click',()=>resolveFreedomTrioAftermath(button.dataset.freedomAftermath)));
+}
+function resolveFreedomTrioAftermath(choiceId){
+  const event=FREEDOM_TRIO.nextAftermath(S.life),choice=event&&event.choices.find(item=>item.id===choiceId),host=$('life-event');if(!choice||!host)return;
+  if(choice.cash<0&&S.capital<Math.abs(choice.cash)){flashToast('💸 현금이 부족합니다','bad');return;}
+  const result=FREEDOM_TRIO.applyAftermath(S.life,choiceId);if(!result)return;
+  if(result.choice.cash)S.capital+=result.choice.cash;if(result.choice.income)S.capital+=result.choice.income;
+  const options=host.querySelector('.event-options');if(options)options.innerHTML='';
+  $('freedom-aftermath-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">관계 조화 ${result.choice.harmony>=0?'+':''}${result.choice.harmony||0}${result.choice.cash?` · 현금 -${won(Math.abs(result.choice.cash))}`:''}${result.choice.income?` · 활동 수입 +${won(result.choice.income)}`:''}</div><button id="freedom-aftermath-confirm" class="session-btn opening">후일담을 기록하고 다음 사건 보기</button>`;
+  $('freedom-aftermath-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';renderCapital();renderLifePanel();autoSave();showNextImportantEvent();});
+  renderCapital();autoSave();
 }
 
 function buyProperty(id) {
@@ -4671,9 +4878,11 @@ function lifeHubHTML() {
   const perName = L.partner ? (D.PERSONALITIES[L.partner.personality] || {}).name : '';
   const partnerTag = L.partner ? `<span class="muted">${L.partner.emoji || ''}${L.partner.name}·${L.partner.job}·${perName} · </span>` : '';
   const breakupBtn = L.partner ? `<button class="life-btn hot" data-act="breakup">💔 ${L.relationship === 'married' ? '이혼하기' : '헤어지기'}</button>` : '';
-  const poly=ensurePolycule(L),trioBond=L.dangerousTrioBond;
+  const poly=ensurePolycule(L),trioBond=L.dangerousTrioBond,freedomBond=L.freedomTrioBond;
   const polyBtn=trioBond&&trioBond.active
     ? `<span class="down">🦂 결핍 공생 연애 · 강유진·한채린·윤세라 전원 연인 · 외출 동행 활성</span>`
+    : freedomBond&&freedomBond.active
+      ? `<span class="up">🛫 자유와 귀환 · 채원·유나·소희 전원 연인 · ${freedomBond.endingId==='world_tour'?'세계 순회 중':'공동생활 중'} · 누적 활동수입 ${won(freedomBond.totalIncome||0)}</span>`
     : L.partner&&!poly.active
       ? `<button class="life-btn" data-act="polycule">🌈 일반 다자연애 제안</button>`
       : poly.active?`<span class="up">🌈 합의형 관계 진행 중 · 추가 구성원 ${poly.members.length}명 · 신뢰 ${poly.trust}</span>`:'';
