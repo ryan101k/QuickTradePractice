@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
 
-  const SAVE_VERSION = 2;
+  const SAVE_VERSION = 3;
   const RESULT_VERSION = 1;
 
   function finite(value, fallback) {
@@ -51,6 +51,7 @@
       viNewsCount: state.viNewsCount || 0,
       marketEvent: state.marketEvent || null,
       breaking: cleanBreaking(state.breaking),
+      importantEvents: state._importantEvents || [],
       intraSession: {
         factionTradeCall: state._factionTradeCall || null,
         raidTarget: Number.isInteger(state._raidTarget) ? state._raidTarget : null,
@@ -93,6 +94,17 @@
         jailMonths: bot.jailMonths,
         criminalRecord: bot.criminalRecord,
         monthlyProfit: bot.monthlyProfit,
+        initialWorth: bot.initialWorth,
+        peakWorth: bot.peakWorth,
+        pressure: bot.pressure,
+        credibility: bot.credibility,
+        reactionStage: bot.reactionStage,
+        reactionHistory: bot.reactionHistory || [],
+        bankrupt: !!bot.bankrupt,
+        bankruptDay: bot.bankruptDay,
+        bankruptcyReason: bot.bankruptcyReason,
+        settlementOffer: bot.settlementOffer,
+        truceUntil: bot.truceUntil,
       })),
     };
   }
@@ -116,6 +128,7 @@
     data.circuitBreakerTriggered = !!data.circuitBreakerTriggered;
     data.marketSessionReturn = finite(data.marketSessionReturn, 0);
     data.viNewsCount = Math.max(0, Math.floor(finite(data.viNewsCount, 0)));
+    data.importantEvents = Array.isArray(data.importantEvents) ? data.importantEvents : [];
     data.intraSession = data.intraSession && typeof data.intraSession === 'object' ? data.intraSession : {};
     data.intraSession.factionTradeCall = data.intraSession.factionTradeCall || null;
     data.intraSession.raidTarget = Number.isInteger(data.intraSession.raidTarget) ? data.intraSession.raidTarget : null;

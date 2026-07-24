@@ -10,6 +10,57 @@
     {name:'🧪 바이오문',leader:'문 박사',faction:'문바이오 조합',style:'random',income:5200000,skill:1.10,aggression:.25},
     {name:'🦈 장태식',leader:'장태식',faction:'태식 사채라인',portrait:'taesik-v2-neutral.webp',style:'momentum',income:2500000,skill:1.25,aggression:.55},
   ];
+  const REACTION_LINES={
+    '태양':{
+      wary:'“수익률이 아니라 자금의 출처부터 다시 보겠습니다.”',
+      defensive:'“보유 지분을 정리하고 방어 자금을 확보합니다. 쉽게 흔들릴 회사가 아닙니다.”',
+      desperate:'“조건을 말하시죠. 서로 다치기 전에 거래로 끝낼 수 있습니다.”',
+      collapse:'“내가 쌓은 회사를 숫자 몇 줄로 끝낼 수는 없습니다.”',
+      bankrupt:'“태양캐피탈의 이름은 오늘부로 내려갑니다.”'
+    },
+    '수빈':{
+      wary:'“방송에서는 웃겠지만, 뒤에서는 누가 움직이는지 찾고 있어요.”',
+      defensive:'“채널과 광고주를 지킬 겁니다. 여론전이라면 나도 물러서지 않아요.”',
+      desperate:'“이게 공개되면 우리 둘 다 상처예요. 조용히 합의해요.”',
+      collapse:'“카메라가 꺼져도 끝난 건 아니라고 믿었는데…”',
+      bankrupt:'“수빈 라이브는 여기서 방송을 종료합니다.”'
+    },
+    '지우':{
+      wary:'“내 뒤를 캐고 있군. 다음에는 흔적도 못 찾을 거야.”',
+      defensive:'“정보원을 옮기고 장부를 닫았다. 이제부터는 서로 그림자만 보겠지.”',
+      desperate:'“돈으로 끝낼 수 있을 때 끝내. 아니면 누가 먼저 사라질지 보자고.”',
+      collapse:'“브로커는 이름이 없어도 다시 생겨. 하지만 이번 이름은 끝났군.”',
+      bankrupt:'“무명 브로커 연합은 흔적을 지우고 해산했습니다.”'
+    },
+    '김도현':{
+      wary:'“모델 밖 변수가 확인됐습니다. 당신을 위험요인으로 재분류합니다.”',
+      defensive:'“현금 비중과 방어 알고리즘을 동시에 올렸습니다.”',
+      desperate:'“파산 확률이 허용치를 넘었습니다. 합리적인 합의를 제안합니다.”',
+      collapse:'“모델은 맞았습니다. 대응할 시간이 부족했을 뿐입니다.”',
+      bankrupt:'“QK 시스템즈의 운용을 영구 중단합니다.”'
+    },
+    '최 회장':{
+      wary:'“젊은 사람이 선을 넘는군. 거래처부터 단속하게.”',
+      defensive:'“계열사와 은행을 묶어 방어해. 돈의 체급이 무엇인지 보여주지.”',
+      desperate:'“원하는 계열사를 말해 보게. 그룹 전체를 태울 필요는 없지 않나.”',
+      collapse:'“한성이라는 간판이 내 대에서 내려갈 줄은 몰랐군.”',
+      bankrupt:'“한성그룹은 법정관리와 해체 절차에 들어갔습니다.”'
+    },
+    '문 박사':{
+      wary:'“연구보다 투자자의 시선이 더 위험해졌군요.”',
+      defensive:'“특허와 연구소를 분리해 핵심 자산부터 지키겠습니다.”',
+      desperate:'“연구는 살려주십시오. 경영권과 자산은 협상할 수 있습니다.”',
+      collapse:'“결과를 증명할 시간만 조금 더 있었다면…”',
+      bankrupt:'“문바이오 조합의 연구와 운용이 중단됐습니다.”'
+    },
+    '장태식':{
+      wary:'“이제야 내 장부를 들여다보는 눈이 생겼네.”',
+      defensive:'“돈줄을 옮겼다. 네가 배운 수로 스승을 잡을 수 있을지 보자.”',
+      desperate:'“받을 돈과 줄 돈을 정리하자. 이 바닥도 끝낼 때는 계산이 필요해.”',
+      collapse:'“사람은 남았는데 돈줄이 끊겼군. 이게 세력의 마지막이야.”',
+      bankrupt:'“태식 사채라인은 해산했습니다. 남은 채권은 법정 절차로 넘어갑니다.”'
+    }
+  };
   const ACTIONS=[
     {id:'research',label:'🔎 경쟁사 분석',cost:300000,success:.85,damage:.025,illegal:false,desc:'합법·저위험'},
     {id:'recruit',label:'🤝 경쟁사 인재 빼오기',cost:1200000,success:.70,damage:.05,illegal:false,desc:'상대 조직 타격'},
@@ -30,12 +81,40 @@
     {id:'mob-intel',name:'정보 인력 모집',role:'intel',portrait:'mob-faction-intel.png',cost:1500000,upkeep:180000,loyalty:50,stats:{defense:.015,intel:.085,income:450000},names:['강도현','문재호','배준영','윤정민','최인호'],desc:'시세·언론·경쟁 세력을 추적하며 조사 의뢰와 정보 거래 수입을 만든다.'},
   ];
   const rand=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)];
-  function createBots(){return PERSONAS.map((p,i)=>({...p,capital:1000000,owned:{},assets:i%3===0?[{...ASSETS[i%ASSETS.length]}]:[],relations:{},defense:.05,jailMonths:0,criminalRecord:0,monthlyProfit:0}));}
+  function createBots(){return PERSONAS.map((p,i)=>{
+    const assets=i%3===0?[{...ASSETS[i%ASSETS.length]}]:[];
+    const initial=1000000+assets.reduce((sum,a)=>sum+(a.value||0),0);
+    return{...p,capital:1000000,owned:{},assets,relations:{},defense:.05,jailMonths:0,criminalRecord:0,monthlyProfit:0,
+      initialWorth:initial,peakWorth:initial,pressure:0,credibility:100,reactionStage:'stable',reactionHistory:[],bankrupt:false,settlementOffer:null};
+  });}
+  const campaign=()=>root.QT_CAMPAIGN;
+  function reactionLine(bot,stage){
+    const lines=REACTION_LINES[bot&&bot.leader]||{};
+    return lines[stage]||'상대 세력이 상황을 다시 계산하고 있습니다.';
+  }
+  function structuralWorth(bot){return campaign()?campaign().rivalWorth(bot):Math.max(0,(bot.capital||0)+(bot.assets||[]).reduce((s,a)=>s+(a.value||0),0));}
+  function updateReaction(bot,month){
+    if(!bot)return{changed:false,after:'stable',line:''};
+    const c=campaign();if(!c)return{changed:false,after:bot.reactionStage||'stable',line:''};
+    const result=c.updateRival(bot,structuralWorth(bot),month);
+    result.line=reactionLine(bot,result.after);
+    return result;
+  }
+  function applyPressure(bot,amount,credibilityLoss,month){
+    if(!bot||bot.bankrupt)return updateReaction(bot,month);
+    bot.pressure=Math.min(100,Math.max(0,(bot.pressure||0)+amount));
+    bot.credibility=Math.min(100,Math.max(0,(bot.credibility==null?100:bot.credibility)-credibilityLoss));
+    return updateReaction(bot,month);
+  }
   function settleBots(bots){
     const news=[];
     bots.forEach(b=>{
+      if(b.bankrupt){b.monthlyProfit=0;return;}
+      const reaction=updateReaction(b);
+      if(reaction.changed)news.push(`📣 ${b.name}의 대응 단계가 '${reaction.after}'(으)로 바뀌었습니다 · ${reaction.line}`);
       if(b.jailMonths>0){b.jailMonths--;b.monthlyProfit=0;news.push(`⛓️ ${b.name} 수감 중 (${b.jailMonths+1}개월째)`);return;}
-      const salary=Math.round(b.income*rand(.7,1.2));
+      const stageMul={stable:1,wary:.94,defensive:.78,desperate:.55,collapse:.25}[reaction.after]||1;
+      const salary=Math.round(b.income*stageMul*rand(.7,1.2));
       // 투자 성과 — 실력이 높으면 우상향 드리프트, 하지만 손실도 난다(쭉 오르기만 하지 않게)
       const drift=(b.skill-1)*0.02;
       const trade=Math.round(b.capital*(rand(-0.11,0.11)+drift));
@@ -43,14 +122,24 @@
       if(trade<=-Math.max(300000,b.capital*0.07)) news.push(`📉 ${b.name} 투자 손실 ${trade.toLocaleString('ko-KR')}원`);
       else if(trade>=Math.max(300000,b.capital*0.09)) news.push(`📈 ${b.name} 투자 대박 +${trade.toLocaleString('ko-KR')}원`);
       if(Math.random()<.06){const windfall=Math.round(rand(-9000000,11000000)*b.skill);b.capital=Math.max(0,b.capital+windfall);news.push(`${windfall>=0?'💰':'💥'} ${b.name} ${windfall>=0?'뜻밖의 횡재 +':'사고로 손실 '}${windfall.toLocaleString('ko-KR')}원`);}
-      if(b.capital>35000000&&Math.random()<.08){const a={...pick(ASSETS)};if(b.capital>a.value){b.capital-=a.value;b.assets=b.assets||[];b.assets.push(a);news.push(`${a.icon} ${b.name}이 ${a.name}을 확보해 세력을 넓혔습니다`);}}
+      if(reaction.after==='defensive'&&(b.assets||[]).length&&Math.random()<.18){
+        const asset=b.assets.slice().sort((a,c)=>(a.value||0)-(c.value||0))[0];
+        const recovered=Math.round((asset.value||0)*.68);b.assets=b.assets.filter(a=>a!==asset);b.capital+=recovered;
+        news.push(`🏷️ ${b.name}이 방어 자금 확보를 위해 ${asset.name}을 급매했습니다 · ${reactionLine(b,'defensive')}`);
+      }else if(b.capital>35000000&&reaction.after==='stable'&&Math.random()<.08){const a={...pick(ASSETS)};if(b.capital>a.value){b.capital-=a.value;b.assets=b.assets||[];b.assets.push(a);news.push(`${a.icon} ${b.name}이 ${a.name}을 확보해 세력을 넓혔습니다`);}}
+      if(['desperate','collapse'].includes(reaction.after)&&!b.settlementOffer&&b.capital>1500000&&Math.random()<.30){
+        b.settlementOffer=Math.min(5000000,Math.max(500000,Math.round(b.capital*.12)));
+        news.push(`📞 ${b.name}이 휴전 협상을 요청했습니다 · ${reactionLine(b,'desperate')}`);
+      }
+      const afterReaction=updateReaction(b);
+      if(afterReaction.changed)news.push(`📣 ${b.name}이 재무 악화를 인정했습니다 · ${afterReaction.line}`);
       const arc=root.QT_CHARACTER_STORIES&&root.QT_CHARACTER_STORIES.WORLD_ARCS&&root.QT_CHARACTER_STORIES.WORLD_ARCS[b.leader];
       if(arc&&Math.random()<.045)news.push(`🗞️ [${b.faction||b.name}] ${pick(arc.chapters)} · ${arc.theme}`);
     }); return news;
   }
   // 라이벌끼리 서로 공격 — 공격성에 비례, 불법이면 적발·수감 위험
   function botsFight(bots){
-    const news=[], live=bots.filter(b=>b.jailMonths<=0);
+    const news=[], live=bots.filter(b=>!b.bankrupt&&b.jailMonths<=0);
     live.forEach(att=>{
       if(Math.random()>att.aggression*0.55)return;
       const targets=live.filter(t=>t!==att&&t.jailMonths<=0);if(!targets.length)return;
@@ -68,6 +157,7 @@
   }
   function act(player,target,actionId){
     const a=ACTIONS.find(x=>x.id===actionId);if(!a||!target)return{ok:false,message:'대상을 찾을 수 없습니다.'};
+    if(target.bankrupt)return{ok:false,message:'이미 파산·해산한 세력입니다.'};
     if(player.jailMonths>0)return{ok:false,message:'수감 중에는 경쟁 행동을 할 수 없습니다.'};
     if(player.cash<a.cost)return{ok:false,message:'행동 비용이 부족합니다.'};
     player.cash-=a.cost;
@@ -80,20 +170,22 @@
     }
     const success=Math.random()<a.success;
     const damage=success?Math.min(target.capital,Math.max(100000,Math.round(target.capital*a.damage))):0;
-    if(success){target.capital-=damage;player.cash+=Math.round(damage*(a.illegal?.55:.20));}
-    return{ok:true,success,cash:player.cash,damage,message:success?`${target.name}에 타격 ${damage.toLocaleString('ko-KR')}원`:'공작이 실패했습니다.'};
+    let reaction=null;
+    if(success){target.capital-=damage;player.cash+=Math.round(damage*(a.illegal?.55:.20));reaction=applyPressure(target,a.damage>=.1?20:10,a.damage>=.1?14:7);}
+    return{ok:true,success,cash:player.cash,damage,reaction,message:success?`${target.name}에 타격 ${damage.toLocaleString('ko-KR')}원${reaction&&reaction.changed?` · ${reaction.line}`:''}`:'공작이 실패했습니다.'};
   }
-  function attackPlayer(bots,playerWorth){
-    const candidates=bots.filter(b=>b.jailMonths<=0&&Math.random()<b.aggression*.30);if(!candidates.length)return null;
+  function attackPlayer(bots,playerWorth,month){
+    const candidates=bots.filter(b=>!b.bankrupt&&b.jailMonths<=0&&(!b.truceUntil||b.truceUntil<=(month||0))&&Math.random()<b.aggression*.30*(b.reactionStage==='desperate'?1.45:b.reactionStage==='collapse'?1.7:1));if(!candidates.length)return null;
     const attacker=pick(candidates),illegal=attacker.aggression>.4&&Math.random()<.55;
     if(illegal&&Math.random()<.30){attacker.jailMonths=Math.ceil(rand(2,6));attacker.criminalRecord++;return{attacker,caught:true,loss:0,message:`${attacker.name}의 불법 공작이 적발되어 수감됐습니다.`};}
     const loss=Math.round(Math.max(100000,playerWorth*rand(.01,illegal?.08:.035)));
-    return{attacker,caught:false,illegal,loss,message:`${attacker.name}의 ${illegal?'불법 공작':'경쟁 견제'}로 ${loss.toLocaleString('ko-KR')}원 피해`};
+    return{attacker,caught:false,illegal,loss,message:`${attacker.name}의 ${illegal?'불법 공작':'경쟁 견제'}로 ${loss.toLocaleString('ko-KR')}원 피해 · ${reactionLine(attacker,attacker.reactionStage||'wary')}`};
   }
   function ensureFaction(life){
     if(!life.faction)life.faction={name:'내 세력',level:0,xp:0,defense:0,intel:0,lastAttacker:null,wins:0,assets:[],diplomacy:[],members:[],mobCounter:0,fund:0};
     if(!Array.isArray(life.faction.assets))life.faction.assets=[];if(!Array.isArray(life.faction.diplomacy))life.faction.diplomacy=[];
     if(!Array.isArray(life.faction.members))life.faction.members=[];
+    if(!Array.isArray(life.faction.bankruptcies))life.faction.bankruptcies=[];
     if(!Number.isFinite(life.faction.mobCounter))life.faction.mobCounter=life.faction.members.length;
     if(!Number.isFinite(life.faction.fund))life.faction.fund=0;
     if(!life.faction.storyStage)life.faction.storyStage=life.faction.level>0?'active':'locked';
@@ -238,24 +330,56 @@
   function revenge(life,bots,targetIndex,cash){
     const f=ensureFaction(life),target=bots[targetIndex];
     if(!target)return{ok:false,cash,message:'복수할 대상을 찾을 수 없습니다.'};
+    if(target.bankrupt)return{ok:false,cash,message:'이미 파산·해산한 세력입니다.'};
     if(!f.level)return{ok:false,cash,message:'먼저 내 세력을 만들어야 합니다.'};
     const cost=500000+f.level*250000;if(cash<cost)return{ok:false,cash,message:`작전비 ${cost.toLocaleString('ko-KR')}원이 부족합니다.`};
     const active=f.members.filter(m=>(m.injuredMonths||0)<=0);
     if(!active.length)return{ok:false,cash,message:'작전을 수행할 조직원이 없습니다. 먼저 인원을 모집하세요.'};
     const chance=Math.min(.92,.40+f.level*.075+f.intel*.35+Math.min(.16,active.length*.025)),success=Math.random()<chance;
-    const damage=success?Math.min(target.capital,Math.round(Math.max(400000,target.capital*(.055+f.level*.016+active.length*.008)))):0;
+    const damage=success?Math.min(target.capital,Math.round(Math.max(400000,target.capital*(.08+f.level*.022+active.length*.01)))):0;
     let assetDamage=0;
     if(success&&target.assets&&target.assets.length){
       const asset=target.assets.slice().sort((a,b)=>(b.value||0)-(a.value||0))[0];
-      assetDamage=Math.round((asset.value||0)*Math.min(.16,.055+f.level*.012+active.length*.005));
+      assetDamage=Math.round((asset.value||0)*Math.min(.22,.09+f.level*.016+active.length*.007));
       asset.value=Math.max(0,(asset.value||0)-assetDamage);
     }
     const reward=success?Math.round((damage+assetDamage)*.12):0;
     if(success){target.capital-=damage;f.wins++;f.xp+=12;}else f.xp+=3;
+    const reaction=success?applyPressure(target,18+f.level*2,12+Math.round((f.intel||0)*8)):updateReaction(target);
     const message=success
-      ?`${f.name}의 역공 성공! ${target.name}에게 현금 ${damage.toLocaleString('ko-KR')}원${assetDamage?`·사업가치 ${assetDamage.toLocaleString('ko-KR')}원`:''} 타격 · 작전수익 ${reward.toLocaleString('ko-KR')}원`
-      :`${target.name}이 역공을 눈치채 피해 갔습니다.`;
-    return{ok:true,success,cash:cash-cost+reward,cost,damage,assetDamage,reward,message};
+      ?`${f.name}의 역공 성공! ${target.name}에게 현금 ${damage.toLocaleString('ko-KR')}원${assetDamage?`·사업가치 ${assetDamage.toLocaleString('ko-KR')}원`:''} 타격 · 작전수익 ${reward.toLocaleString('ko-KR')}원${reaction.changed?` · ${reaction.line}`:''}`
+      :`${target.name}이 역공을 눈치채 피해 갔습니다. ${reactionLine(target,target.reactionStage||'stable')}`;
+    return{ok:true,success,cash:cash-cost+reward,cost,damage,assetDamage,reward,reaction,target,message};
   }
-  root.QT_RIVALS={PERSONAS,ACTIONS,ASSETS,ROLE_LABELS,MOB_RECRUITS,createBots,settleBots,botsFight,act,attackPlayer,ensureFaction,recruitOptions,recruit,settleFaction,buildFaction,defendAttack,revenge};
+  function negotiate(life,bots,targetIndex,cash,month){
+    const target=bots[targetIndex];if(!target||target.bankrupt)return{ok:false,cash,message:'협상할 세력을 찾을 수 없습니다.'};
+    const offer=Math.min(target.capital,target.settlementOffer||0);
+    if(offer<=0)return{ok:false,cash,message:'현재 도착한 휴전 제안이 없습니다.'};
+    target.capital-=offer;target.pressure=Math.max(0,(target.pressure||0)-28);target.credibility=Math.min(100,(target.credibility||0)+14);
+    target.truceUntil=(month||1)+3;target.settlementOffer=null;const reaction=updateReaction(target,month);
+    return{ok:true,cash:cash+offer,offer,target,reaction,message:`${target.name}의 휴전금 ${offer.toLocaleString('ko-KR')}원을 받고 3개월 상호불가침에 합의했습니다. 상대는 그동안 재정비합니다.`};
+  }
+  function bankruptRival(life,bots,targetIndex,cash,currentWorth,month){
+    const f=ensureFaction(life),target=bots[targetIndex],c=campaign();
+    if(!target)return{ok:false,cash,message:'파산 압박 대상을 찾을 수 없습니다.'};
+    const eligibility=c.bankruptcyEligibility(target,currentWorth,f);
+    if(!eligibility.ready)return{ok:false,cash,message:eligibility.reason};
+    const cost=3000000+f.level*1000000;if(cash<cost)return{ok:false,cash,message:`최종 작전비 ${cost.toLocaleString('ko-KR')}원이 부족합니다.`};
+    const active=f.members.filter(m=>(m.injuredMonths||0)<=0);
+    const pathBonus=f.path==='legal'?.08:f.path==='network'?.06:.03;
+    const chance=Math.min(.94,.64+f.level*.045+(f.intel||0)*.22+Math.min(.10,active.length*.02)+pathBonus);
+    const success=Math.random()<chance;
+    if(!success){
+      const counterLoss=Math.min(Math.max(0,cash-cost),Math.round(Math.max(500000,cash*.08)));
+      target.pressure=Math.max(0,(target.pressure||0)-10);target.credibility=Math.min(100,(target.credibility||0)+8);updateReaction(target,month);
+      return{ok:true,success:false,cash:cash-cost-counterLoss,cost,counterLoss,target,message:`${target.name}이 마지막 자금줄을 동원해 파산 신청을 막았습니다. 역공 피해 ${counterLoss.toLocaleString('ko-KR')}원 · ${reactionLine(target,target.reactionStage)}`};
+    }
+    const recovered=Math.min(10000000,Math.round(Math.max(0,currentWorth||structuralWorth(target))*.05));
+    target.bankrupt=true;target.bankruptDay=month||1;target.bankruptcyReason=`${f.name}의 최종 자금·신용 압박`;
+    target.capital=0;target.owned={};target.assets=[];target.monthlyProfit=0;target.settlementOffer=null;target.reactionStage='bankrupt';target.credibility=0;target.pressure=100;
+    if(!f.bankruptcies.includes(target.name))f.bankruptcies.push(target.name);
+    f.wins=(f.wins||0)+1;f.xp=(f.xp||0)+30;
+    return{ok:true,success:true,cash:cash-cost+recovered,cost,recovered,target,message:`${target.name} 파산·해산 확정 · ${reactionLine(target,'bankrupt')}${recovered?` · 회수금 ${recovered.toLocaleString('ko-KR')}원`:''}`};
+  }
+  root.QT_RIVALS={PERSONAS,REACTION_LINES,ACTIONS,ASSETS,ROLE_LABELS,MOB_RECRUITS,createBots,settleBots,botsFight,act,attackPlayer,ensureFaction,recruitOptions,recruit,settleFaction,buildFaction,defendAttack,revenge,reactionLine,updateReaction,negotiate,bankruptRival};
 })(window);

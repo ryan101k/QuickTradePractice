@@ -1,4 +1,4 @@
-/* QuickTrade Life — 세력 해금 스토리·순자산 랭킹·메인 엔딩 진행 */
+/* QuickTrade Life — 세력 해금 스토리·경쟁 세력 파산 캠페인 진행 */
 (function(root){
   'use strict';
 
@@ -22,6 +22,11 @@
 
   function ensure(life){
     const f=root.QT_RIVALS.ensureFaction(life);
+    if(!f.bankruptcyCampaignVersion){
+      // 랭킹 1위를 목표로 하던 이전 캠페인 엔딩은 새 파산 캠페인의 승리로 간주하지 않는다.
+      f.campaignWon=false;f.endingSeen=false;f.endingQueued=false;f.storyStage=f.level>0?'active':(f.storyStage||'locked');
+      f.bankruptcyCampaignVersion=1;
+    }
     if(!f.storyStage)f.storyStage=f.level>0?'active':'locked';
     if(!Number.isFinite(f.storyDay))f.storyDay=0;
     if(f.level>0&&['locked','attacked','legal_wait','forming'].includes(f.storyStage))f.storyStage='active';
@@ -72,29 +77,24 @@
     return result;
   }
 
-  function checkRankOne(life,playerWorth,rivals,day){
+  function checkVictory(life,rivals,day){
     const f=ensure(life);
     if(!['active','victory'].includes(f.storyStage)||f.endingSeen)return{ready:false};
-    const ordered=(rivals||[]).slice().sort((a,b)=>b.value-a.value);
-    const strongest=ordered[0]||{name:'경쟁 세력',value:0};
-    const ready=playerWorth>strongest.value;
+    const progress=root.QT_CAMPAIGN.campaignProgress(rivals||[]);
+    const ready=progress.complete;
     if(ready){
-      f.rankOneDay=day||1;
-      f.rankOneWorth=playerWorth;
-      f.lastOvertaken=strongest.name;
+      f.victoryDay=day||1;
+      f.defeatedCount=progress.defeated;
     }
-    return{ready,strongest,playerWorth};
+    return{ready,...progress};
   }
 
-  function progress(life,playerWorth,rivals){
+  function progress(life,rivals){
     const f=ensure(life);
-    const ordered=(rivals||[]).slice().sort((a,b)=>b.value-a.value);
-    const strongest=ordered[0]||{name:'경쟁 세력',value:0};
+    const campaign=root.QT_CAMPAIGN.campaignProgress(rivals||[]);
     return{
-      playerWorth:playerWorth||0,
-      strongest,
-      gap:Math.max(0,strongest.value-(playerWorth||0)),
-      complete:!!f.campaignWon,
+      ...campaign,
+      complete:campaign.complete||!!f.campaignWon,
     };
   }
 
@@ -119,7 +119,7 @@
       attacked:`${f.firstAttacker||'경쟁 세력'}의 공격 뒤 나래와 대응책을 찾는 중입니다.`,
       legal_wait:'나래가 합법적인 조사와 신고를 진행하고 있습니다. 다음 달 결과가 도착합니다.',
       forming:'장태식에게 조직의 기본을 배웠습니다. 첫 거점을 마련하면 세력이 출범합니다.',
-      active:`${(PATHS[f.path]||PATHS.network).name} 노선으로 순자산 랭킹 1위를 노리는 중입니다.`,
+      active:`${(PATHS[f.path]||PATHS.network).name} 노선으로 경쟁 세력의 자금·신용·사업 기반을 무너뜨리는 중입니다.`,
       victory:'세력전 메인 목표를 달성했습니다. 엔딩 이후에도 계속 플레이할 수 있습니다.',
     };
     return labels[f.storyStage]||labels.locked;
@@ -127,6 +127,6 @@
 
   root.QT_FACTION_CAMPAIGN={
     PATHS,ensure,onAttack,completeFirstAttack,takeDueStory,choosePath,
-    activateSpecial,checkRankOne,progress,ending,recordEnding,stageText
+    activateSpecial,checkVictory,progress,ending,recordEnding,stageText
   };
 })(window);

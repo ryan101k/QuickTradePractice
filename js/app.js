@@ -9,6 +9,8 @@ const D = window.QT_DATA;
 const PORTFOLIO = window.QT_PORTFOLIO;
 const TRADING = window.QT_TRADING;
 const TIME = window.QT_TIME;
+const CAMPAIGN = window.QT_CAMPAIGN;
+const CAMPAIGN_ENDINGS = window.QT_CAMPAIGN_ENDINGS;
 const SAVE = window.QT_SAVE;
 const LOAN = window.QT_LOAN;
 const RIVALS = window.QT_RIVALS;
@@ -887,7 +889,7 @@ function closeMarket() {
   renderMarketPhase();
   renderCloseReport(endedDay);          // 마감 리포트(뉴스 골라보기) 표시
   maybeWorldBreaking();                 // 월말에는 기업·정치 상황을 속보로 체감
-  const terminalEvent = S._settle && (S._settle.died || S._settle.debtGameOver || S._settle.captivity);
+  const terminalEvent = S._settle && (S._settle.died || S._settle.campaignBankrupt || S._settle.captivity);
   if (!terminalEvent) {
     if (S._settle && S._settle.incident) showJobIncident(S._settle.incident);
     else showNextImportantEvent();      // 중요 사건을 모두 확인한 뒤 일반 선택지 이벤트
@@ -1343,9 +1345,13 @@ function settleMonth() {
   // AI 라이벌 동향 — 각자 손익 + 서로 공격(bot-vs-bot) + 나에 대한 공격. 전용 피드에 모아 '라이벌 동향' 창으로 본다
   S.rivalFeed = S.rivalFeed || [];
   const rivalNews = [];
+  S.bots.forEach(bot=>botNetWorth(bot)); // 보유 주식 평가액을 세력 재무건전성 계산에 동기화
   RIVALS.settleBots(S.bots).forEach(t => rivalNews.push(t));
   RIVALS.botsFight(S.bots).forEach(t => rivalNews.push(t));
-  const attack = RIVALS.defendAttack(L, RIVALS.attackPlayer(S.bots, Math.max(0, totalWealth())));
+  const attackStatus=factionAttackStatus();
+  const attack = attackStatus.unlocked
+    ? RIVALS.defendAttack(L, RIVALS.attackPlayer(S.bots, Math.max(0, totalWealth()), S.day))
+    : null;
   if (attack) {
     registerFactionAttack(attack.attacker);
     if (!attack.caught && attack.loss > 0) {
@@ -1465,8 +1471,18 @@ function settleMonth() {
   }
   LEGACY.monthly(L,{age:info.age,month:info.month,job:L.job,jobName:jobOf().name,children:L.children.length,record:L.criminalRecord||0,wealth:totalWealth(),relationship:L.relationship});
   b.debtGameOver = !!(b.debtResult && b.debtResult.gameOver);
+  b.solvency=CAMPAIGN.updatePlayerSolvency(L,{
+    totalWealth:totalWealth(),
+    liquidWorth:netWorthClean(),
+    debt:(L.loan||0)+(S.loan||0),
+    reason:b.debtGameOver?'채무 추심과 연체가 한계에 도달해 모든 회생 수단이 중단됐습니다.':'자산을 처분해도 부채와 의무지출을 두 달 연속 감당하지 못했습니다.'
+  });
+  b.campaignBankruptcyReason=b.debtGameOver
+    ?'채무 추심과 연체가 한계에 도달해 모든 회생 수단이 중단됐습니다.'
+    :b.solvency.reason;
+  b.campaignBankrupt=(b.debtGameOver||b.solvency.bankrupt)&&!L.campaignSolvency.endingSeen;
   if (healthResult.died) setTimeout(() => showDeathScreen(info.age), 700);
-  else if (b.debtGameOver) setTimeout(showDebtGameOver, 500);
+  else if (b.campaignBankrupt) setTimeout(()=>showCampaignBankruptcyEnding(b.campaignBankruptcyReason),500);
 }
 
 /* ---- 출신 배경 / 학창생활 / 직업 ---- */
@@ -4479,7 +4495,22 @@ function doRivalAction(actionId, targetIndex) {
   afterLifeAction('라이벌');
 }
 
-/* ---- 세력 메인 캠페인: 첫 피습 → 나래의 합법 대응 → 장태식의 창설 수업 → 랭킹 1위 엔딩 ---- */
+/* ---- 세력 메인 캠페인: 시장 주목 → 첫 피습 → 세력 창설 → 경쟁 세력 파산 → 인생 결말 ---- */
+function factionAttackStatus() {
+  const faction=FACTION_CAMPAIGN.ensure(S.life);
+  const myWorth=netWorthClean();
+  const rank=1+S.bots.filter(bot=>!bot.bankrupt&&botNetWorth(bot)>myWorth).length;
+  const monthlyProfit=S._preSettleNW==null?0:S._preSettleNW-(S.dayStartNW||S._preSettleNW);
+  const current=CAMPAIGN.attackStatus({month:S.day,totalWealth:totalWealth(),monthlyProfit,rank});
+  if(current.unlocked&&!faction.attackUnlocked){
+    faction.attackUnlocked=true;
+    faction.attackUnlockedDay=S.day;
+    faction.attackUnlockReason=current.reason;
+    addNews(`👁️ 시장 주목도 상승 · ${current.reason} 경쟁 세력이 당신을 추적하기 시작합니다.`, 'bad');
+  }
+  return{...current,unlocked:!!faction.attackUnlocked||current.unlocked};
+}
+
 function registerFactionAttack(attacker) {
   if (!FACTION_CAMPAIGN || !S.life || !attacker) return;
   const result = FACTION_CAMPAIGN.onAttack(S.life, attacker.name || attacker, S.day);
@@ -4498,12 +4529,11 @@ function queueFactionRankEnding() {
   if (!FACTION_CAMPAIGN || !S.life) return;
   const faction = FACTION_CAMPAIGN.ensure(S.life);
   if (faction.endingSeen || faction.endingQueued) return;
-  const rivals = S.bots.map(bot => ({ name:bot.name, value:botNetWorth(bot) }));
-  const result = FACTION_CAMPAIGN.checkRankOne(S.life, netWorthClean(), rivals, S.day);
+  const result = FACTION_CAMPAIGN.checkVictory(S.life, S.bots, S.day);
   if (!result.ready) return;
   faction.endingQueued = true;
   queueImportantEvent({ factionVictory:true, type:'faction', scene:lifeSceneImage('faction') });
-  addNews(`🏆 순자산 랭킹 1위 달성 · ${result.strongest.name}을 추월했습니다`, 'good');
+  addNews(`🏆 경쟁 세력 ${result.defeated}/${result.total}곳 파산 · 세력전 승리`, 'good');
   celebrate();
 }
 
@@ -4537,12 +4567,13 @@ function showFactionStory(stage) {
   }
 
   const attacker=S.bots.find(bot=>bot.name===faction.firstAttacker);
+  const attackerLine=attacker?RIVALS.reactionLine(attacker,'wary'):'“혼자 움직이는 계좌치고는 제법이군. 하지만 혼자 버티는 데는 한계가 있어.”';
   host.innerHTML=`<div class="window event-window">
     <div class="title-bar event-bar"><div class="title-bar-text">⚔️ 세력 캠페인 · 혼자라는 약점</div></div>
     <div class="window-body">
       <img class="life-scene-banner" src="${lifeSceneImage('faction')}" alt="첫 세력 공격 직후 도착한 연락">
       <div class="date-profile">${attacker&&attacker.portrait?`<img class="char-portrait" src="./assets/characters/${attacker.portrait}" alt="${attacker.name}">`:'<span class="message-popup-avatar">⚔️</span>'}<div><strong>${faction.firstAttacker||'경쟁 세력'}</strong><br><span class="down">첫 번째 직접 공격</span></div></div>
-      <div class="event-title">“혼자 움직이는 계좌치고는 제법이군. 하지만 혼자 버티는 데는 한계가 있어.”</div>
+      <div class="event-title">${attackerLine}</div>
       <div class="event-desc">공격자는 피해가 우연이 아니었다는 사실을 일부러 알려 왔습니다. 시장에는 돈만 많은 사람이 아니라 정보와 사람을 함께 움직이는 조직이 있습니다.</div>
       <div class="event-options">
         <button class="event-opt" data-faction-first="question">왜 나를 노렸는지 묻는다<span class="opt-sub">공격자의 의도를 확인한 뒤 나래에게 기록을 넘깁니다</span></button>
@@ -4598,38 +4629,85 @@ function chooseFactionCampaignPath(pathId) {
 function showFactionVictoryEnding() {
   const host=$('life-event');if(!host||!FACTION_CAMPAIGN)return;
   const faction=FACTION_CAMPAIGN.ensure(S.life);
-  const ending=FACTION_CAMPAIGN.recordEnding(S.life);
+  FACTION_CAMPAIGN.recordEnding(S.life);
+  const ending=CAMPAIGN_ENDINGS.build('victory',S.life,{
+    totalWealth:totalWealth(),debt:(S.loan||0)+(S.life.loan||0),path:faction.path
+  });
+  CAMPAIGN_ENDINGS.record(S.life,ending,S.day);
   faction.endingQueued=false;
   const age=dateInfo(S.day).age;
-  LEGACY.push(S.life,age,ending.icon,`${ending.name} 엔딩 · 순자산 랭킹 1위`,'ending');
+  LEGACY.push(S.life,age,ending.icon,`${ending.title} 엔딩 · 경쟁 세력 전부 파산`,'ending');
+  const progress=CAMPAIGN.campaignProgress(S.bots);
   host.style.display='block';
   host.innerHTML=`<div class="window event-window">
-    <div class="title-bar event-bar"><div class="title-bar-text">${ending.icon} 메인 엔딩 · ${ending.name}</div></div>
+    <div class="title-bar event-bar"><div class="title-bar-text">${ending.icon} 메인 엔딩 · ${ending.title}</div></div>
     <div class="window-body">
-      <img class="life-scene-banner" src="${lifeSceneImage('faction')}" alt="${ending.name} 엔딩 장면">
-      <div class="event-title">${ending.icon} 순자산 랭킹 1위</div>
-      <div class="event-desc">${ending.desc}</div>
-      <div class="important-event-detail"><b>${faction.name}</b> · ${won(faction.rankOneWorth||netWorthClean())}원<br>${faction.lastOvertaken||'마지막 경쟁 세력'}을 넘어 시장의 정상에 올랐습니다.</div>
-      <p class="hint">이것은 세력전 메인 엔딩입니다. 인생·연애·가문 이야기는 종료되지 않으며 계속 플레이할 수 있습니다.</p>
+      <img class="life-scene-banner" src="${lifeSceneImage('faction')}" alt="${ending.title} 엔딩 장면">
+      <div class="event-title">${ending.icon} ${ending.summary}</div>
+      <div class="event-desc">${ending.lines.map(line=>`<p>${line}</p>`).join('')}</div>
+      <div class="important-event-detail"><b>${faction.name}</b> · 경쟁 세력 ${progress.defeated}/${progress.total}곳 파산<br>최종 총자산 ${won(ending.wealth)}원 · ${ending.partnerName?`함께한 사람 ${ending.partnerName}`:'현재 연인·배우자 없음'} · 자녀 ${ending.children}명</div>
+      <p class="hint">${ending.happy?'관계와 자산 상태가 해피엔딩을 만들었습니다.':'승리는 달성했지만 관계·건강·자산 상태에 따라 노멀엔딩이 기록됐습니다.'} 자유 플레이는 계속할 수 있습니다.</p>
       <button id="faction-ending-continue" class="session-btn opening">엔딩을 기록하고 계속 플레이</button>
     </div>
   </div>`;
   $('faction-ending-continue').addEventListener('click',()=>{
-    addNews(`${ending.icon} ${ending.name} 엔딩 달성 · 게임 계속`, 'good');
+    addNews(`${ending.icon} ${ending.title} 엔딩 달성 · 게임 계속`, 'good');
     celebrate();closeFactionStory();
   });
+}
+
+function showCampaignBankruptcyEnding(reason) {
+  if(!CAMPAIGN_ENDINGS||!S.life)return;
+  if(S.timer){clearInterval(S.timer);S.timer=null;}
+  S.phase='closed';S.paused=true;
+  const faction=FACTION_CAMPAIGN.ensure(S.life);
+  const ending=CAMPAIGN_ENDINGS.build('bankruptcy',S.life,{
+    totalWealth:totalWealth(),debt:(S.loan||0)+(S.life.loan||0),path:faction.path,reason
+  });
+  CAMPAIGN_ENDINGS.record(S.life,ending,S.day);
+  const age=dateInfo(S.day).age;
+  LEGACY.push(S.life,age,ending.icon,`${ending.title} 엔딩 · 플레이어 파산`,'ending');
+  const host=$('life-modal');if(!host)return;
+  host.style.display='flex';host.className='life-modal-host';
+  host.innerHTML=`<div class="window event-window">
+    <div class="title-bar"><div class="title-bar-text">${ending.icon} 메인 엔딩 · ${ending.title}</div></div>
+    <div class="window-body">
+      <img class="life-scene-banner" src="./assets/life-debt-crisis.png" alt="${ending.title} 엔딩 장면">
+      <div class="event-title">${ending.icon} ${ending.summary}</div>
+      <div class="event-desc">${ending.lines.map(line=>`<p>${line}</p>`).join('')}</div>
+      <div class="important-event-detail">최종 총자산 ${won(ending.wealth)}원 · 부채 ${won(ending.debt)}원<br>${ending.partnerName?`함께 남은 사람 ${ending.partnerName}`:'현재 연인·배우자 없음'} · 자녀 ${ending.children}명</div>
+      <p class="hint">${ending.happy?'파산했지만 관계와 가족이 재기의 해피엔딩을 만들었습니다.':'관계와 자산 상태에 따라 파산 노멀엔딩이 기록됐습니다.'}</p>
+      <button id="bankruptcy-ending-continue" class="session-btn opening">엔딩 이후 자유 플레이</button>
+      <button id="bankruptcy-ending-reset">새 인생 시작</button>
+    </div>
+  </div>`;
+  $('bankruptcy-ending-continue').addEventListener('click',()=>{
+    S.life.campaignSolvency.endingSeen=true;
+    S.life.campaignSolvency.bankrupt=false;
+    S.life.campaignSolvency.insolventMonths=0;
+    closeLifeModal();renderAll();renderMarketPhase();autoSave();
+    addNews(`${ending.icon} ${ending.title} 엔딩 이후 재기 모드 시작`,'neutral');
+  });
+  $('bankruptcy-ending-reset').addEventListener('click',hardReset);
+  autoSave();
 }
 
 function doFactionAction(kind, targetIndex) {
   const L=S.life;
   let result;
   if(kind==='build')result=RIVALS.buildFaction(L,S.capital);
+  else if(kind==='bankrupt')result=RIVALS.bankruptRival(L,S.bots,targetIndex,S.capital,botNetWorth(S.bots[targetIndex]),S.day);
+  else if(kind==='negotiate')result=RIVALS.negotiate(L,S.bots,targetIndex,S.capital,S.day);
   else result=RIVALS.revenge(L,S.bots,targetIndex,S.capital);
   if(!result.ok){flashToast(`⛔ ${result.message}`,'bad');return;}
   S.capital=result.cash;
-  addNews(`${kind==='build'?'🛡️':'🔥'} ${result.message}`,result.success===false?'neutral':'good');
-  S.rivalFeed=S.rivalFeed||[];S.rivalFeed.unshift({day:S.day,text:`${kind==='build'?'🛡️ [세력]':'🔥 [역공]'} ${result.message}`});
+  const icon=kind==='build'?'🛡️':kind==='bankrupt'?'🏦':kind==='negotiate'?'🤝':'🔥';
+  addNews(`${icon} ${result.message}`,result.success===false?'bad':'good');
+  S.rivalFeed=S.rivalFeed||[];S.rivalFeed.unshift({day:S.day,text:`${icon} [${kind==='build'?'세력':kind==='bankrupt'?'파산작전':kind==='negotiate'?'협상':'역공'}] ${result.message}`});
   flashToast(result.message,result.success===false?'neutral':'good');
+  if(kind==='bankrupt'&&result.success){
+    result.campaignComplete=CAMPAIGN.campaignProgress(S.bots).complete;
+  }
   afterLifeAction('라이벌');
   showFactionOutcome(kind,result);
 }
@@ -4675,12 +4753,15 @@ function showFactionOutcome(kind,result) {
   const host=$('life-event');if(!host)return;
   const faction=RIVALS.ensureFaction(S.life),success=result.success!==false;
   const assets=(faction.assets||[]).map(a=>`${a.icon||'🏢'} ${a.name}`).join(' · ')||'아직 확보한 거점 없음';
-  const title=kind==='build'?'🛡️ 세력 확장 보고':kind==='recruit'?'👥 영입 결과':'🔥 역공 작전 보고';
+  const title=kind==='build'?'🛡️ 세력 확장 보고':kind==='recruit'?'👥 영입 결과':kind==='bankrupt'?'🏦 최종 파산 작전 보고':kind==='negotiate'?'🤝 휴전 협상 결과':'🔥 역공 작전 보고';
+  const target=result.target;
+  const targetReaction=target?`<div class="date-profile">${target.portrait?`<img class="char-portrait" src="./assets/characters/${target.portrait}" alt="${target.name}">`:'<span class="message-popup-avatar">⚔️</span>'}<div><strong>${target.name} · ${target.faction}</strong><br><span class="${target.bankrupt?'down':'muted'}">${RIVALS.reactionLine(target,target.bankrupt?'bankrupt':target.reactionStage||'stable')}</span></div></div>`:'';
   host.style.display='block';
   host.innerHTML=`<div class="window event-window">
     <div class="title-bar event-bar"><div class="title-bar-text">${title}</div></div>
     <div class="window-body">
       <img class="life-scene-banner" src="${lifeSceneImage('faction')}" alt="세력이 라이벌의 금융 공격에 대응하는 작전실 장면">
+      ${targetReaction}
       <div class="event-title ${success?'up':''}">${success?'작전 완료':'작전 결과 보류'}</div>
       <div class="event-desc">${result.message}</div>
       <div class="faction-operation-summary">
@@ -4694,7 +4775,10 @@ function showFactionOutcome(kind,result) {
       <button id="faction-outcome-close" class="session-btn opening">작전실 나가기</button>
     </div>
   </div>`;
-  $('faction-outcome-close').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';});
+  $('faction-outcome-close').addEventListener('click',()=>{
+    host.style.display='none';host.innerHTML='';
+    if(result.campaignComplete)showFactionVictoryEnding();
+  });
 }
 
 /* ---- 세력 운영 투자: 회수하는 예금이 아니라 거점·정보망·사업을 키우는 누적 투자다 ---- */
@@ -4738,7 +4822,7 @@ function maybeFactionTradeCall() {
   if (!stock) return;
   const proposer = (f.members || []).filter(m => (m.injuredMonths || 0) <= 0)
     .sort((a,b) => ((b.stats || {}).intel || 0) - ((a.stats || {}).intel || 0))[0] || f.members[0];
-  const others = S.bots.filter(bot => (bot.jailMonths || 0) <= 0).sort(() => Math.random() - .5)
+  const others = S.bots.filter(bot => !bot.bankrupt && (bot.jailMonths || 0) <= 0).sort(() => Math.random() - .5)
     .slice(0, Math.min(5, 1 + f.level)).map(bot => bot.name);
   const meta = CAP_META[stock.cap] || CAP_META.mid;
   const base = stock.cap === 'large' ? .012 : stock.cap === 'mid' ? .024 : .042;
@@ -5047,10 +5131,14 @@ function lifeHubHTML() {
       (canMarry ? `<button class="life-btn hot" data-act="marry">💍 결혼하기 <small>${won(R.WEDDING_COST)}</small></button>` : '') + polyBtn + breakupBtn;
   const faction=FACTION_CAMPAIGN?FACTION_CAMPAIGN.ensure(L):RIVALS.ensureFaction(L);
   const myRankWorth=netWorthClean();
-  const rivalValues=S.bots.map((b,i)=>({index:i,name:b.name,value:botNetWorth(b)}));
-  const playerRank=1+rivalValues.filter(item=>item.value>myRankWorth).length;
-  const campaignProgress=FACTION_CAMPAIGN?FACTION_CAMPAIGN.progress(L,myRankWorth,rivalValues):null;
-  const rivalSelect = `<select id="rival-target">${rivalValues.map(item=>`<option value="${item.index}">${item.name} · ${won(item.value)}</option>`).join('')}</select>`;
+  const rivalValues=S.bots.map((b,i)=>{
+    const value=botNetWorth(b);CAMPAIGN.ensureRival(b,value);const reaction=CAMPAIGN.updateRival(b,value,S.day);
+    return{index:i,name:b.name,value,bot:b,bankrupt:!!b.bankrupt,stage:reaction.after};
+  });
+  const playerRank=1+rivalValues.filter(item=>!item.bankrupt&&item.value>myRankWorth).length;
+  const campaignProgress=FACTION_CAMPAIGN?FACTION_CAMPAIGN.progress(L,S.bots):null;
+  const stageNames={stable:'평온',wary:'경계',defensive:'방어',desperate:'절박',collapse:'붕괴 직전',bankrupt:'파산·해산'};
+  const rivalSelect = `<select id="rival-target">${rivalValues.map(item=>`<option value="${item.index}" ${item.bankrupt?'disabled':''}>${item.bankrupt?'☠️':'⚔️'} ${item.name} · ${won(item.value)} · ${stageNames[item.stage]||item.stage} · 압박 ${Math.round(item.bot.pressure||0)} / 신용 ${Math.round(item.bot.credibility==null?100:item.bot.credibility)}${item.bot.settlementOffer?` · 휴전금 ${won(item.bot.settlementOffer)}`:''}</option>`).join('')}</select>`;
   const rivalBtns = RIVALS.ACTIONS.map(a=>`<button class="life-btn ${a.illegal?'hot':''}" data-act="rival" data-rival-action="${a.id}" ${L.jailMonths>0?'disabled':''}>${a.label} <small>${won(a.cost)} · ${a.desc}</small></button>`).join('');
   const factionMembers=(faction.members||[]).map(m=>{
     const role=RIVALS.ROLE_LABELS[m.role]||{icon:'👤',name:m.role};
@@ -5064,8 +5152,9 @@ function lifeHubHTML() {
     <button class="life-btn" data-act="faction-entrust" data-amt="1000000">운영 투자 +100만</button>
     <button class="life-btn" data-act="faction-entrust" data-amt="5000000">운영 투자 +500만</button>
     <button class="life-btn" data-act="faction-entrust" data-amt="10000000">운영 투자 +1,000만</button>` : '';
+  const attackStatus=factionAttackStatus();
   const campaignGoal=campaignProgress
-    ?`<div class="faction-status">🏆 <b>메인 목표 · 순자산 랭킹 1위</b><br>현재 <b class="${playerRank===1?'up':''}">${playerRank}위</b> · 내 순자산 ${won(myRankWorth)} · 선두 ${campaignProgress.strongest.name} ${won(campaignProgress.strongest.value)}${campaignProgress.complete?'<br><b class="up">✓ 세력전 메인 엔딩 달성</b>':playerRank===1?'<br><b class="up">다음 월말 정산에서 세력 엔딩이 열립니다.</b>':`<br>선두까지 ${won(campaignProgress.gap)} 남음`}</div>`
+    ?`<div class="faction-status">🏆 <b>메인 목표 · 경쟁 세력 전부 파산</b><br>파산·해산 <b class="${campaignProgress.complete?'up':''}">${campaignProgress.defeated}/${campaignProgress.total}곳</b> · 남은 세력 ${campaignProgress.remaining}곳 · 현재 순자산 랭킹 ${playerRank}위${campaignProgress.complete?'<br><b class="up">✓ 세력전 메인 엔딩 달성</b>':`<br>${attackStatus.unlocked?'👁️ 경쟁 세력이 당신을 위험한 상대로 인식했습니다.':`🔒 공격 보호 기간 · ${attackStatus.reason}`}`}</div>`
     :'';
   const campaignLocked=['locked','attacked','legal_wait'].includes(faction.storyStage);
   const factionStatus=`<div class="faction-status">🛡️ <b>${faction.name}</b> · 단계 ${faction.level}/5 · 구성원 ${faction.members.length}/${faction.capacity}명 · 방어 ${Math.round(faction.defense*100)}% · 정보 ${Math.round((faction.intel||0)*100)}% · 역공 ${faction.wins}승<br>${FACTION_CAMPAIGN?FACTION_CAMPAIGN.stageText(L):''}${faction.level?`<br>월 예상: 거점·사업 <b class="up">+${won(faction.projectedGross||0)}</b> · 운영비 <b class="down">-${won(faction.projectedUpkeep||0)}</b> · 순익 <b class="${(faction.projectedNet||0)>=0?'up':'down'}">${(faction.projectedNet||0)>=0?'+':''}${won(faction.projectedNet||0)}</b>`:''}${faction.assets&&faction.assets.length?`<br>거점: ${faction.assets.map(a=>a.icon+a.name).join(' · ')}`:''}${faction.lastAttacker?`<br>최근 공격자: ${faction.lastAttacker}`:''}${lastTrade}</div>`;
@@ -5073,7 +5162,7 @@ function lifeHubHTML() {
     ?'<div class="hub-note">🔒 처음부터 조직을 만들 수 없습니다. 라이벌의 첫 직접 공격을 받은 뒤 나래와 장태식의 사건을 진행하세요.</div>'
     :faction.storyStage==='forming'&&!faction.level
       ?'<button class="life-btn hot" data-act="faction" data-faction="build">🏗️ 창립 거점 마련 <small>스토리 지원 적용 · 세력 정식 출범</small></button>'
-      :`<button class="life-btn" data-act="faction" data-faction="build">🏗️ ${faction.level?'세력 강화·정원 확장':'내 세력 만들기'}</button><button class="life-btn" data-act="faction-recruit" ${faction.level&&faction.members.length<faction.capacity?'':'disabled'}>👥 인원 모집 <small>${faction.members.length}/${faction.capacity}명 · 일반 인력/특별 아군</small></button><button class="life-btn hot" data-act="faction" data-faction="revenge" ${faction.level&&faction.members.length?'':'disabled'}>🔥 선택한 라이벌에게 역공 <small>상대 현금·사업가치를 낮춰 랭킹 추격</small></button>${fundBox}`;
+      :`<button class="life-btn" data-act="faction" data-faction="build">🏗️ ${faction.level?'세력 강화·정원 확장':'내 세력 만들기'}</button><button class="life-btn" data-act="faction-recruit" ${faction.level&&faction.members.length<faction.capacity?'':'disabled'}>👥 인원 모집 <small>${faction.members.length}/${faction.capacity}명 · 일반 인력/특별 아군</small></button><button class="life-btn hot" data-act="faction" data-faction="revenge" ${faction.level&&faction.members.length?'':'disabled'}>🔥 선택한 라이벌 압박 <small>현금·사업가치·신용을 낮추고 반응을 끌어냅니다</small></button><button class="life-btn" data-act="faction" data-faction="negotiate" ${faction.level?'':'disabled'}>🤝 휴전 협상 수락 <small>도착한 휴전금을 받는 대신 상대가 3개월 재정비</small></button><button class="life-btn hot" data-act="faction" data-faction="bankrupt" ${faction.level>=2&&faction.members.filter(m=>(m.injuredMonths||0)<=0).length>=2?'':'disabled'}>🏦 최종 파산 압박 <small>세력 2단계·활동 인원 2명·상대 약화 필요</small></button>${fundBox}`;
   const factionBox=`${campaignGoal}${factionStatus}${factionMembers?`<div class="faction-members">${factionMembers}</div>`:faction.level?'<div class="hub-note">구성원이 없어도 거점 기본 수입은 발생합니다. 인원을 모집하면 사업 수익과 방어력이 함께 늘어납니다.</div>':''}${factionControls}`;
   const planBtns = L.relationship==='married'&&!L.familyPlan ? `<button class="life-btn" data-act="family-plan" data-method="birth">👶 출산 계획 <small>5,000,000</small></button><button class="life-btn" data-act="family-plan" data-method="adopt">🫶 입양 신청 <small>12,000,000</small></button>` : '';
   const childBtns = L.children.map(c=>`<button class="life-btn" data-act="child-bond" data-child="${c.id}">🫶 ${c.name}와 시간 보내기 <small>200,000</small></button><button class="life-btn" data-act="child-edu" data-child="${c.id}">📚 ${c.name} 교육 투자 <small>1,000,000</small></button>`).join('');
@@ -5171,7 +5260,7 @@ function wireLifeHub(host) {
 function runBots() {
   const live = S.stocks.filter(s => s.listed);
   S.bots.forEach(bot => {
-    if (bot.jailMonths > 0) return;
+    if (bot.bankrupt || bot.jailMonths > 0) return;
     if (Math.random() > 0.6) return; // 매 틱 거래하진 않음
     let target;
     if (bot.style === 'random') target = pick(live);
@@ -5218,9 +5307,10 @@ function showRivalAlert(bot, html, stockName) {
 /* ---- 장중 라이벌 습격: 즉시 피해 + 세력 있으면 그 자리에서 역공 ---- */
 function maybeRivalRaid() {
   if (S.phase !== 'open' || S._helpActive) return;
+  if (!factionAttackStatus().unlocked) return;
   if (Math.random() > CFG.RAID_PROB) return;
   const L = S.life; if (!L) return;
-  const targets = S.bots.filter(b => b.jailMonths <= 0 && (b.aggression || 0) >= 0.22);
+  const targets = S.bots.filter(b => !b.bankrupt && b.jailMonths <= 0 && (!b.truceUntil||b.truceUntil<=S.day) && (b.aggression || 0) >= 0.22);
   if (!targets.length) return;
   const attacker = pick(targets);
   const idx = S.bots.indexOf(attacker);
@@ -5276,11 +5366,17 @@ function trendOf(stock) {
 }
 
 function botNetWorth(bot) {
+  if (!bot || bot.bankrupt) {if(bot)bot.marketHoldingsValue=0;return 0;}
   let v = bot.capital;
+  let marketHoldingsValue=0;
   Object.keys(bot.owned).forEach(name => {
     const s = S.stocks.find(x => x.name === name);
-    if (s && s.listed) v += bot.owned[name] * s.history[s.history.length - 1].c;
+    if (s && s.listed) {
+      const value=bot.owned[name] * s.history[s.history.length - 1].c;
+      v += value;marketHoldingsValue+=value;
+    }
   });
+  bot.marketHoldingsValue=marketHoldingsValue;
   (bot.assets||[]).forEach(a=>{v+=a.value||0;});
   return v;
 }
@@ -5976,16 +6072,17 @@ function renderLeaderboard() {
   el.innerHTML = '';
   const players = [
     { name: '🧑 나(You)', value: netWorthClean(), me: true },
-    ...S.bots.map(b => ({ name: b.name, portrait:b.portrait, faction:b.faction, value: botNetWorth(b), profit: b.monthlyProfit || 0, jail: b.jailMonths || 0, crime: b.criminalRecord || 0, bot: b })),
+    ...S.bots.map(b => ({ name: b.name, portrait:b.portrait, faction:b.faction, value: botNetWorth(b), profit: b.monthlyProfit || 0, jail: b.jailMonths || 0, crime: b.criminalRecord || 0, bankrupt:!!b.bankrupt, stage:b.reactionStage||'stable', bot: b })),
   ].sort((a, b) => b.value - a.value);
   players.forEach((p, i) => {
     const li = document.createElement('li');
     const medal = ['🥇', '🥈', '🥉', '4️⃣'][i] || (i + 1);
     const plRate = (p.value - CFG.START_CAPITAL) / CFG.START_CAPITAL;
-    li.className = p.me ? 'me' : 'bot-row';
+    li.className = p.me ? 'me' : `bot-row${p.bankrupt?' bankrupt':''}`;
     let tail = '';
     if (!p.me) {
-      const flags = (p.jail > 0 ? ` <span class="down">⛓️수감 ${p.jail}개월</span>` : '') + (p.crime > 0 ? ` <span class="muted">🚨전과 ${p.crime}</span>` : '');
+      const stageLabel=({stable:'평온',wary:'경계',defensive:'방어',desperate:'절박',collapse:'붕괴 직전',bankrupt:'파산·해산'})[p.stage]||p.stage;
+      const flags = (p.bankrupt ? ' <span class="down">☠️ 파산·해산</span>' : ` <span class="muted">반응 ${stageLabel}</span>`) + (p.jail > 0 ? ` <span class="down">⛓️수감 ${p.jail}개월</span>` : '') + (p.crime > 0 ? ` <span class="muted">🚨전과 ${p.crime}</span>` : '');
       tail = ` <span class="${p.profit >= 0 ? 'up' : 'down'}">전월 ${p.profit >= 0 ? '+' : ''}${won(p.profit)}</span>${flags} <span class="muted bot-toggle">▼ 보유</span>`;
     }
     const avatar=!p.me&&p.portrait?`<img class="leader-avatar" src="./assets/characters/${p.portrait}" alt="">`:'';
@@ -6013,6 +6110,7 @@ function renderLeaderboard() {
 // 봇이 지금 무엇을 들고 있는지 — 현금 + 보유 종목(평가액 순)
 function botHoldingsHTML(bot) {
   if (!bot) return '';
+  if (bot.bankrupt) return `<div class="bd-inner"><b class="down">☠️ ${bot.bankruptDay||S.day}개월차 파산·해산</b><div class="muted">${bot.bankruptcyReason||'영업과 투자 활동이 종료됐습니다.'}</div></div>`;
   const holds = Object.keys(bot.owned || {}).map(name => {
     const s = S.stocks.find(x => x.name === name);
     const price = s ? s.history[s.history.length - 1].c : 0;
@@ -6020,7 +6118,7 @@ function botHoldingsHTML(bot) {
   }).filter(h => h.qty > 0).sort((a, b) => b.val - a.val);
   const cashLine = `💵 현금 ${won(bot.capital)}`;
   const assets=(bot.assets||[]).map(a=>`<div class="bd-row"><span>${a.icon||'🏢'}${a.name}</span><span>${won(a.value||0)}</span></div>`).join('');
-  const relation=`<div class="muted">🗣️ 나와의 관계 ${(bot.playerRelation||0)>=30?'동맹':(bot.playerRelation||0)<=-25?'적대':'중립'} · 방어 ${Math.round((bot.defense||0)*100)}%</div>`;
+  const relation=`<div class="muted">🗣️ 나와의 관계 ${(bot.playerRelation||0)>=30?'동맹':(bot.playerRelation||0)<=-25?'적대':'중립'} · 방어 ${Math.round((bot.defense||0)*100)}% · 반응 ${bot.reactionStage||'stable'} · 압박 ${Math.round(bot.pressure||0)} · 신용 ${Math.round(bot.credibility==null?100:bot.credibility)}</div>`;
   if (!holds.length) return `<div class="bd-inner">${cashLine}${relation}${assets?`<div class="bd-title">🏙️ 보유 건물·사업</div>${assets}`:'<div class="muted">보유 종목·사업자산 없음</div>'}</div>`;
   const rows = holds.slice(0, 10).map(h =>
     `<div class="bd-row"><span>${h.listed ? '' : '🚫'}${h.name}</span><span>${h.qty.toLocaleString('ko-KR')}주 · ${won(h.val)}</span></div>`).join('');
@@ -6436,6 +6534,7 @@ function loadSave() {
     S.viNewsCount = d.viNewsCount;
     S.marketEvent = d.marketEvent || null;
     S.breaking = d.breaking ? Object.assign({}, d.breaking, { timer:null }) : null;
+    S._importantEvents = d.importantEvents;
     S._factionTradeCall = d.intraSession.factionTradeCall;
     S._raidTarget = d.intraSession.raidTarget;
     S._obsessionIntrudedDay = d.intraSession.obsessionIntrudedDay;
