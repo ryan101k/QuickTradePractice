@@ -175,7 +175,7 @@
     return{ok:true,success,cash:player.cash,damage,reaction,message:success?`${target.name}에 타격 ${damage.toLocaleString('ko-KR')}원${reaction&&reaction.changed?` · ${reaction.line}`:''}`:'공작이 실패했습니다.'};
   }
   function attackPlayer(bots,playerWorth,month){
-    const candidates=bots.filter(b=>!b.bankrupt&&b.jailMonths<=0&&(!b.truceUntil||b.truceUntil<=(month||0))&&Math.random()<b.aggression*.30*(b.reactionStage==='desperate'?1.45:b.reactionStage==='collapse'?1.7:1));if(!candidates.length)return null;
+    const candidates=bots.filter(b=>b.leader!=='장태식'&&!b.bankrupt&&b.jailMonths<=0&&(!b.truceUntil||b.truceUntil<=(month||0))&&Math.random()<b.aggression*.30*(b.reactionStage==='desperate'?1.45:b.reactionStage==='collapse'?1.7:1));if(!candidates.length)return null;
     const attacker=pick(candidates),illegal=attacker.aggression>.4&&Math.random()<.55;
     if(illegal&&Math.random()<.30){attacker.jailMonths=Math.ceil(rand(2,6));attacker.criminalRecord++;return{attacker,caught:true,loss:0,message:`${attacker.name}의 불법 공작이 적발되어 수감됐습니다.`};}
     const loss=Math.round(Math.max(100000,playerWorth*rand(.01,illegal?.08:.035)));
