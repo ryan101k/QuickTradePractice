@@ -943,10 +943,16 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/개인적인 전쟁/,'세력 창에서 개인적인 공격 동기를 보여줘야 한다');
   assert.match(appSource,/L\.seraRescueOrigin=\{ready:true/,'윤세라 조우는 첫 경쟁 세력 피해에서 시작해야 한다');
   assert.match(appSource,/L\.seraIntelHelper=true/,'구조된 윤세라는 세력 정보 조력자가 되어야 한다');
+  assert.match(appSource,/L\.seraHousing=eff\.seraHousing/,'윤세라 구조 선택은 동거 여부를 저장해야 한다');
+  assert.match(appSource,/showCaptivityEnding\(sera,'club'\)/,'윤세라 3인 공동생활 중 클럽은 기억상실 감금엔딩이어야 한다');
+  assert.match(appSource,/function advancedRelationshipGroup\(\)/,'진전된 다른 그룹은 소꿉친구 재발 배드엔딩에 개입해야 한다');
   assert.match(appSource,/data-sera-response="reverse"/,'윤세라에게 역으로 집착하는 대응이 있어야 한다');
   assert.match(appSource,/차라리 조직 생활할 때가 더 좋았습니다/,'첫 부하는 위험 관계 사이의 정상인 반응을 해야 한다');
   const trioSource=fs.readFileSync(path.join(root,'js/dangerous_trio.js'),'utf8');
   assert.match(trioSource,/가짜 불화와 진짜 공조/,'위험 3인조는 겉으로만 사이 나쁜 악우여야 한다');
+  assert.match(trioSource,/life\.seraHousing==='cohabit'/,'위험 3인조는 윤세라와 실제 동거 중일 때만 열려야 한다');
+  const lifeEventsSource=fs.readFileSync(path.join(root,'js/events_life.js'),'utf8');
+  assert.match(lifeEventsSource,/seraHousing:'separate'/,'윤세라를 집에서 내보내는 선택지가 있어야 한다');
   assert.match(appSource,/MARKET_CIRCUIT:\s*-0\.10/,'시장 급락 보호선은 -10%여야 한다');
   assert.match(appSource,/downsideCircuitDay === S\.day/,'개별 종목 -10% 서킷은 남은 장을 정지해야 한다');
   assert.match(appSource,/importantEventPriority\(event\)/,'월말 주요 사건은 중요도 순서로 정렬돼야 한다');
