@@ -2854,7 +2854,7 @@ function resolveMonthlyMessage(kind){
   if(!result||!result.ok)return;
   const options=host.querySelector('.phone-reply-options');if(options)options.innerHTML='';
   const room=personChat(S.life,pending.target.name);room.unread=0;
-  const unlock=!pending.isContact&&!pending.isRival&&courtshipReadiness(pending.target).ready?`<div class="oc-changes">💘 충분히 가까워졌습니다. 외출 메뉴에서 ${pending.target.name}님과 정식 데이트할 수 있어요.</div>`:'';
+  const unlock=!pending.isContact&&!pending.isRival&&courtshipReadiness(pending.target).ready?`<div class="oc-changes">💘 ${pending.target.name}님이 다음에는 미리 약속을 잡아 만나자고 말했습니다.</div>`:'';
   $('message-event-outcome').innerHTML=`<div class="phone-bubble mine">${result.text}</div>${result.answer?`<div class="phone-bubble incoming followup">${result.answer}</div>`:''}${result.meta?`<div class="oc-changes">${result.meta}</div>`:''}${unlock}<button id="message-event-confirm" class="phone-chat-confirm">대화 닫기 · 다음 알림</button>`;
   $('message-event-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._monthlyMessage=null;renderLifePanel();renderChatPanel();autoSave();showNextImportantEvent();});
 }
@@ -3284,7 +3284,7 @@ function investmentMentorState(L=S.life){
 
 function investmentInsightHTML(){
   const state=investmentMentorState(),phase=ECONOMY.phase(S.economy);
-  if(state.skill<20)return'<div class="asset-empty">상담을 더 받으면 나래의 월간 시장 노트가 열립니다.</div>';
+  if(state.skill<20)return'<div class="asset-empty">이번 달 시장 노트는 아직 비어 있습니다.</div>';
   const lines=[`<div><b>🌐 국면 읽기</b><span>${phase.icon} ${phase.name} 흐름 · 앞으로 약 ${S.economy.monthsLeft}개월</span></div>`];
   if(state.skill>=45){
     const picks=S.stocks.filter(stock=>stock.listed&&stock.type!=='etf').slice().sort((a,b)=>Math.abs(b.trend||0)-Math.abs(a.trend||0)).slice(0,3);
@@ -3479,7 +3479,7 @@ function showIndustryGatherings(){
   const host=$('life-event');if(!host||!SOCIAL)return;
   const social=SOCIAL.ensure(S.life),introduced=BUSINESS_ROMANCE?BUSINESS_ROMANCE.ensure(S.life).staff:{};
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">🥂 사교 모임 · 업계 소개</div><div class="title-bar-controls"><button aria-label="Close" id="industry-gathering-x"></button></div></div><div class="window-body"><div class="event-desc">공개 모임에서 사교 실적과 평판을 쌓으면 상위 초청장이 열립니다. 특별 인물은 사업체에 자동 배치되지 않으며, 소개 뒤 자산·사업 관리실에서 한 명과 전속 계약할 수 있습니다.</div><div class="date-glance"><span>사회 평판 ${Math.round(social.reputation)}</span><span>사교 실적 ${social.industry.standing}</span><span>소개 ${Object.values(introduced).filter(item=>item.introduced).length}/4명</span></div><div class="resume-grid">${SOCIAL.INDUSTRY_GATHERINGS.map(g=>{const status=SOCIAL.gatheringStatus(S.life,g.id),remaining=g.candidates.filter(id=>!introduced[id]||!introduced[id].introduced),hints=remaining.map(id=>{const p=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.profile(id);return p?`${p.rivalFirm} ${p.role}`:'업계 인물';}).join(' · ');return`<button class="resume-card" data-industry-gathering="${g.id}" ${status.available&&S.capital>=g.cost?'':'disabled'}><span>${g.icon}</span><b>${g.name} · ${g.tier}등급</b><small>${g.desc}</small><em>${hints?`소개 가능: ${hints}`:'새 특별 소개 없음 · 사교 실적과 평판 상승'}</em><strong>${won(g.cost)}${!status.available?` · ${status.reason}`:S.capital<g.cost?' · 현금 부족':''}</strong></button>`;}).join('')}</div><button id="industry-gathering-close" class="session-btn">이번 달은 참가하지 않는다</button></div></div>`;
+  host.innerHTML=`<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">🥂 사교 모임 · 업계 소개</div><div class="title-bar-controls"><button aria-label="Close" id="industry-gathering-x"></button></div></div><div class="window-body"><div class="event-desc">호텔 로비와 비공개 라운지에는 평소 명함만 오가던 업계 인물들이 직접 나와 있습니다. 누구와 마주칠지는 그동안 쌓인 평판과 참석자들의 판단에 달렸습니다.</div><div class="date-glance"><span>사회 평판 ${Math.round(social.reputation)}</span><span>사교 실적 ${social.industry.standing}</span><span>아는 얼굴 ${Object.values(introduced).filter(item=>item.introduced).length}/4명</span></div><div class="resume-grid">${SOCIAL.INDUSTRY_GATHERINGS.map(g=>{const status=SOCIAL.gatheringStatus(S.life,g.id),remaining=g.candidates.filter(id=>!introduced[id]||!introduced[id].introduced),hints=remaining.map(id=>{const p=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.profile(id);return p?`${p.rivalFirm} ${p.role}`:'업계 인물';}).join(' · ');return`<button class="resume-card" data-industry-gathering="${g.id}" ${status.available&&S.capital>=g.cost?'':'disabled'}><span>${g.icon}</span><b>${g.name} · ${g.tier}등급</b><small>${g.desc}</small><em>${hints?`참석 예정: ${hints}`:'익숙한 얼굴들이 모이는 자리'}</em><strong>${won(g.cost)}${!status.available?` · ${status.reason}`:S.capital<g.cost?' · 현금 부족':''}</strong></button>`;}).join('')}</div><button id="industry-gathering-close" class="session-btn">이번 달은 참가하지 않는다</button></div></div>`;
   const close=()=>{host.style.display='none';host.innerHTML='';};
   host.querySelectorAll('[data-industry-gathering]').forEach(button=>button.addEventListener('click',()=>attendIndustryGathering(button.dataset.industryGathering)));
   $('industry-gathering-x').addEventListener('click',close);$('industry-gathering-close').addEventListener('click',close);
@@ -5364,7 +5364,7 @@ function resolveDate(i) {
       extra+=`<br>🌱 <span class="muted">${dateMode==='encounter'?'첫인사를 나누고 얼굴을 익혔습니다':'아직 연락처를 건네기에는 조심스러운 사이입니다'}. ${contactProgress(rec)}</span>`;
     }
     extra+=readiness.ready
-      ? `<br>💘 <b class="up">${c.name}님과 충분히 가까워졌습니다. 다음 외출부터 정식 데이트를 제안할 수 있어요.</b>`
+      ? `<br>💘 <b class="up">${c.name}님이 다음에는 미리 약속을 잡아 만나자고 말했습니다.</b>`
       : hasPersonalContact(rec)?`<br><span class="muted">${courtshipProgress(rec)}</span>`:'';
   } else if (L.relationship === 'single') {
     // 연애 여부는 플레이어가 선택. 상대 성격에 따라 '먼저 고백(적극)' vs '내가 고백(소극)'이 갈린다
@@ -5700,7 +5700,7 @@ function showBreakupModal() {
          <img class="life-scene-banner" src="${lifeSceneImage('love')}" alt="관계 갈등 대화 장면">
          <div class="date-profile"><img class="char-portrait" src="${characterPortrait(p, 'sad')}" alt="${p.name}">
            <div class="dp-info"><strong>${p.emoji || ''}${p.name}</strong> · ${p.job}<br><span class="muted">${per.emoji || ''}${per.name || ''} · 친밀도 ${Math.max(0, L.affection || 0)}</span></div></div>
-         <div class="event-desc">${married ? `이혼하면 재산분할·위자료로 <b class="down">약 ${won(alimony)}원</b>이 나가고, 주변에 소문이 날 수 있어요.` : `헤어지면 그동안 쌓은 친밀도가 사라져요.`} 정말 진행할까요?<br><span class="muted">${resistNote}</span><br><span class="muted">헤어진 뒤에도 '전 연인'으로 남아 나중에 재회를 시도할 수 있어요.</span></div>
+         <div class="event-desc">${married ? `이혼하면 재산분할·위자료로 <b class="down">약 ${won(alimony)}원</b>이 나가고, 주변에 소문이 날 수 있어요.` : `상대에게 관계를 끝내겠다고 말합니다.`} 정말 진행할까요?<br><span class="muted">${resistNote}</span></div>
          <div class="event-options">
            <button class="event-opt" id="breakup-go">💔 ${married ? '이혼한다' : '헤어진다'}</button>
            <button class="event-opt" id="breakup-cancel">↩ 다시 생각한다</button>
