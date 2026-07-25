@@ -12,7 +12,17 @@ const HOMES=[
  {id:'mansion',icon:'🏰',name:'대저택',deposit:800000000,rent:8000000,manage:2500000,capacity:8,health:9,stress:-8,charm:20,education:10,commute:5,desc:'가문을 상징하는 최고급 주거'},
 ];
 const TENURES={monthly:{id:'monthly',icon:'🧾',name:'월세'},jeonse:{id:'jeonse',icon:'🔑',name:'전세'},owned:{id:'owned',icon:'🏠',name:'매매'}};
-function ensure(life){if(!life.housing||!HOMES.some(h=>h.id===life.housing.id))life.housing={id:'starter',tenure:'monthly',depositPaid:3000000,assetValue:3000000,months:0,starterLease:true};if(!life.housing.tenure)life.housing.tenure='monthly';return life.housing;}
+function ensure(life){
+ if(!life.housing||!HOMES.some(h=>h.id===life.housing.id))life.housing={id:'starter',tenure:'monthly',depositPaid:0,assetValue:0,months:0,starterLease:true,starterLeaseAssetAdjusted:true};
+ const housing=life.housing;
+ // 시작 현금에서 납부한 적 없는 자취방 보증금을 구버전 저장이 자산·환급금으로 잡지 않게 보정한다.
+ if(housing.starterLease&&!housing.starterLeaseAssetAdjusted&&housing.id==='starter'&&housing.tenure==='monthly'){
+  if((housing.depositPaid||0)===3000000||(housing.assetValue||0)===3000000){housing.depositPaid=0;housing.assetValue=0;}
+  housing.starterLeaseAssetAdjusted=true;
+ }
+ if(!housing.tenure)housing.tenure='monthly';
+ return housing;
+}
 function home(life){return HOMES.find(h=>h.id===ensure(life).id)||HOMES[0];}
 function quote(h,tenure){
  const price=Math.max(10000000,Math.round(h.deposit*3+h.rent*60));

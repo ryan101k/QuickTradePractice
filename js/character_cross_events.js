@@ -211,7 +211,12 @@ function monthly(life) {
   const state = ensure(life);
   if (state.pending) return get(state.pending);
   if (state.cooldown > 0) { state.cooldown--; return null; }
-  const eligible = EVENTS.filter(event => !event.people.some(name=>RETIRED_HEROINES.has(name))&&!state.seen[event.id] && event.condition(life));
+  const freedom=root.QT_FREEDOM_TRIO;
+  const eligible = EVENTS.filter(event =>
+    !event.people.some(name=>RETIRED_HEROINES.has(name))&&
+    (!freedom||!event.people.some(name=>freedom.NAMES.includes(name))||freedom.revealed(life))&&
+    !state.seen[event.id]&&event.condition(life)
+  );
   if (!eligible.length || Math.random() > .42) return null;
   const event = eligible[Math.floor(Math.random() * eligible.length)];
   state.pending = event.id;

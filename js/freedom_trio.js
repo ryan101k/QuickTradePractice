@@ -249,8 +249,17 @@ function resolveGuild(life,id,choiceId){
   state.history.push({type:'guild',id,choice:choice.id});
   return{event,choice,state,reveal:!!choice.reveal};
 }
+function revealed(life){
+  const state=ensure(life);
+  if(state.guildStage>=GUILD_EVENTS.length)return true;
+  return NAMES.every(name=>{const person=rec(life,name);return !!(person&&person.guildFriend);});
+}
+function canMeetOffline(life,name){
+  return !NAMES.includes(name)||revealed(life);
+}
 function nextPersonalEvent(life){
   const state=ensure(life);
+  if(!revealed(life))return null;
   return Object.entries(PERSONAL_EVENTS).map(([id,event])=>({id,event})).find(({id,event})=>{
     const person=rec(life,event.name);
     if(!person||['ex','deceased'].includes(person.status)||state.personal[id]==='seen')return false;
@@ -279,8 +288,9 @@ function applyPersonal(life,id,choiceId){
   return{event,choice,r:person,state};
 }
 function progress(life){
+  const isRevealed=revealed(life);
   return NAMES.map(name=>{
-    const person=rec(life,name),ids=Object.entries(PERSONAL_EVENTS).filter(([,event])=>event.name===name).map(([id])=>id);
+    const person=isRevealed?rec(life,name):null,ids=Object.entries(PERSONAL_EVENTS).filter(([,event])=>event.name===name).map(([id])=>id);
     const seen=ids.filter(id=>ensure(life).personal[id]==='seen').length;
     const active=!!person&&!['ex','deceased'].includes(person.status);
     const ready=active&&seen===ids.length&&(person.affection||0)>=45&&(person.trust||0)>=20;
@@ -370,6 +380,6 @@ function compatibleCandidate(name){return NAMES.includes(name);}
 
 root.QT_FREEDOM_TRIO={
   NAMES,GUILD_MEMBERS,GUILD_EVENTS,PERSONAL_EVENTS,CHAPTERS,AFTERMATH,ensure,playGuild,guildEvent,resolveGuild,nextPersonalEvent,queuePersonal,personalEvent,
-  applyPersonal,progress,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,recovery,compatibleCandidate,
+  revealed,canMeetOffline,applyPersonal,progress,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,recovery,compatibleCandidate,
 };
 })(window);

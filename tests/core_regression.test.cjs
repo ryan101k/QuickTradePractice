@@ -101,6 +101,8 @@ for (const file of [
   'js/family.js',
   'js/health.js',
   'js/housing.js',
+  'js/life_finance.js',
+  'js/wealth.js',
   'js/chat_lines.js',
   'js/social_network.js',
   'js/business.js',
@@ -116,6 +118,24 @@ for (const file of [
   'js/faction_campaign.js',
 ]) {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename:file });
+}
+
+{
+  const housing=context.QT_HOUSING;
+  const starterLife={};
+  housing.ensure(starterLife);
+  assert.equal(housing.assetValue(starterLife),0,'시작 현금에서 내지 않은 자취방 보증금은 총재산에 더하지 않아야 한다');
+  const legacyLife={housing:{id:'starter',tenure:'monthly',depositPaid:3000000,assetValue:3000000,months:4,starterLease:true}};
+  housing.ensure(legacyLife);
+  assert.equal(housing.assetValue(legacyLife),0,'구버전 무료 시작 보증금도 한 번 보정해야 한다');
+  const paidLife={housing:{id:'studio',tenure:'monthly',depositPaid:10000000,assetValue:10000000,months:2}};
+  assert.equal(housing.assetValue(paidLife),10000000,'실제로 낸 주거 보증금은 자산으로 유지해야 한다');
+
+  const wealth=context.QT_WEALTH.breakdown({
+    liquid:10000000,property:3000000,passive:2000000,business:4000000,housing:1000000,pension:500000,personalDebt:6000000,
+  });
+  assert.equal(wealth.total,14500000,'총재산은 금융·실물·연금에서 개인대출을 한 번만 차감해야 한다');
+  assert.equal(wealth.pension,500000,'현금에서 옮겨 적립한 연금도 총재산에 포함해야 한다');
 }
 
 {
@@ -165,6 +185,7 @@ for (const file of [
   const freedom=context.QT_FREEDOM_TRIO;
   freedom.NAMES.forEach(name=>life.met.push({name,status:'friend',affection:80,trust:60}));
   const freedomState=freedom.ensure(life);
+  freedomState.guildStage=freedom.GUILD_EVENTS.length;
   Object.keys(freedom.PERSONAL_EVENTS).forEach(id=>freedomState.personal[id]='seen');
   assert.equal(freedom.eligibility(life).ok,true,'완료된 위험 3인조 뒤에는 자유인 3인조가 자연스럽게 편입될 수 있어야 한다');
   assert.equal(freedom.start(life).ok,true);
@@ -361,7 +382,9 @@ for (const file of [
 
 {
   const freedom=context.QT_FREEDOM_TRIO;
-  const guildLife={};
+  const guildLife={met:freedom.NAMES.map(name=>({name,status:'friend',affection:80,trust:60}))};
+  assert.equal(freedom.canMeetOffline(guildLife,'채원'),false,'게임 정체 공개 전에는 자유인 3인조를 오프라인에서 만날 수 없어야 한다');
+  assert.equal(freedom.nextPersonalEvent(guildLife),null,'잘못 저장된 높은 호감도가 있어도 게임 공개 전 개인 이벤트가 열리면 안 된다');
   assert.equal(freedom.playGuild(guildLife),null);
   const firstGuild=freedom.playGuild(guildLife);
   assert.equal(firstGuild,'first_party','집에서 게임을 두 번 하면 닉네임 길드 첫 사건이 열려야 한다');
@@ -372,6 +395,8 @@ for (const file of [
   freedom.playGuild(guildLife);
   assert.equal(freedom.playGuild(guildLife),'offline_table');
   assert.equal(freedom.resolveGuild(guildLife,'offline_table','names').reveal,true);
+  assert.equal(freedom.canMeetOffline(guildLife,'채원'),true,'오프라인 모임에서 정체를 공개한 뒤에만 현실 관계가 열려야 한다');
+  assert.ok(freedom.nextPersonalEvent(guildLife),'게임 공개 뒤에는 충족한 개인 이벤트가 정상적으로 열려야 한다');
   assert.deepEqual(Array.from(freedom.GUILD_MEMBERS.map(member=>member.nickname)),['막차요정','무보정','쉼표']);
   assert.equal(freedom.AFTERMATH.some(event=>event.id==='open_table'),true,'자유인 3인조는 다른 그룹을 식탁에서 중재하는 후일담이 있어야 한다');
   const life={
@@ -380,6 +405,7 @@ for (const file of [
     polycule:{members:[]},
   };
   const state=freedom.ensure(life);
+  state.guildStage=freedom.GUILD_EVENTS.length;
   Object.keys(freedom.PERSONAL_EVENTS).forEach(id=>{state.personal[id]='seen';});
   assert.equal(freedom.eligibility(life).ok,true,'개인 이벤트와 관계 조건을 채우면 힐링 세트 루트가 열려야 한다');
   assert.equal(freedom.start(life).ok,true);
@@ -695,7 +721,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /person\.name==='나래'\|\|person\.special==='tutorial'/,'나래는 일반 성향 판정으로 하렘에 편입되면 안 된다');
   assert.match(appSource, /function retryBusinessManagementEnding\(\)/,'사업관리 배드엔딩에도 직전 선택으로 돌아가는 경로가 있어야 한다');
   assert.match(appSource, /const CONTACT_RULES=\{affection:12,trust:6,interactions:2,months:1\}/, '일반 인물은 호감·신뢰·교류·기간을 채워야 연락처를 줘야 한다');
-  assert.match(appSource, /const people=ensureMet\(L\)\.filter\(r=>hasPersonalContact\(r\)\)/, '한 번 본 사람은 연락처 목록에 바로 나타나면 안 된다');
+  assert.match(appSource, /const people=ensureMet\(L\)\.filter\(r=>.*hasPersonalContact\(r\)\)/, '한 번 본 사람은 연락처 목록에 바로 나타나면 안 된다');
   assert.match(appSource, /if\(!hasPersonalContact\(r\)&&!exReach\)return/, '개인 연락처가 없는 인물은 월말 선연락을 보내면 안 된다');
   assert.match(appSource, /r\.name==='윤세라'\?\.72:earlyContact\?\.10:\.16/, '위험 히로인 중 윤세라만 초반 고빈도 연락 예외여야 한다');
   assert.doesNotMatch(appSource, /첫인사를 나누고 연락처를 저장했습니다/, '첫 조우가 자동 연락처 저장으로 처리되면 안 된다');
