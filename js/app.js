@@ -183,6 +183,7 @@ function newLife() {
     freedomTrio: { active:false, stage:0, harmony:50, axes:{freedom:0,career:0,control:0}, history:[], personal:{}, ending:null, aftermathIndex:0 },
     childhoodCircle: { anchor:null, schoolId:null, stage:'dormant', pressure:0, trust:0, seen:{}, route:null, pending:null },
     childhoodNightContract: null, // 소꿉친구와 하룻밤 뒤 다른 상대를 택했는지 추적
+    seraHousing: null,        // cohabit | separate | reject — 위험한 3인조 편입 조건
     met: [],                 // 한 번이라도 만난 사람 (헤어져도 기억한다) — rememberPerson() 참고
     properties: [],          // [{id, name, emoji, value, rent}]
     passiveAssets: [],       // 주식 외 월 현금흐름 자산 [{id, boughtAt}]
@@ -3093,6 +3094,18 @@ function applyEventEffects(eff) {
     changes.push('🖤 <b>윤세라를 거두고 연락처·세력 정보 조력을 얻음</b>');
     addNews('🖤 경쟁 세력에게 모든 것을 잃은 윤세라를 데려왔습니다', 'good');
   }
+  if(eff.seraHousing){
+    const trio=DANGEROUS_TRIO&&DANGEROUS_TRIO.ensure(L);
+    L.seraHousing=eff.seraHousing;
+    if(trio)trio.lockedOut=eff.seraHousing!=='cohabit';
+    if(eff.seraHousing==='cohabit'){
+      L.seraCohabitingSince=S.day;
+      changes.push('🏠 <b>윤세라와 동거 시작 · 위험한 3인조 합류 가능</b>');
+    }else{
+      L.seraCohabitingSince=null;
+      changes.push('🚪 <b>윤세라와 별거 · 위험한 3인조 공동생활 루트 영구 차단</b>');
+    }
+  }
   if (eff.familyOrigin && !L.familyPlan) {
     const members=RELATIONSHIPS.consensualMembers(L),other=eff.familyOrigin==='affair'&&L.lovers&&L.lovers.length?L.lovers[0].name:(members[0]&&members[0].name);
     const result=FAMILY.startPlan(L,'birth',{origin:eff.familyOrigin,otherParent:other,caregivers:[L.playerName,...RELATIONSHIPS.caregiverNames(L)],secret:!!eff.familySecret});
@@ -4565,7 +4578,7 @@ function showDangerousHeroineEnding(r){
   autoSave();playSound('crash');
 }
 
-function showCaptivityEnding(r){
+function showCaptivityEnding(r,origin){
   if(S.timer){clearInterval(S.timer);S.timer=null;}S.phase='closed';S.paused=true;
   const host=$('life-modal');if(!host)return;host.style.display='flex';
   if(r.name!=='윤세라'){
@@ -4576,7 +4589,8 @@ function showCaptivityEnding(r){
   const rescuers=captivityRescuers(S.life);
   const rescueButtons=rescuers.map(rescuer=>`<button class="event-opt ${rescuer.success?'':'hot'}" data-captivity-rescue="${rescuer.id}">${rescuer.icon} ${rescuer.label}<small>${rescuer.hint}</small></button>`).join('');
   host.className='life-modal-host captivity-meta-host';
-  host.innerHTML=`<div class="window event-window captivity-ending-window"><div class="title-bar"><div class="title-bar-text">🔒 윤세라 배드엔딩 · 닫힌 방</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-sera-doorstep.png" alt="잠긴 방 앞에 선 윤세라"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(r,'sad')}" alt="${r.name}"><div><strong>${r.name}</strong><br><span class="down">집착 ${Math.round(r.obsession||100)}/100 · 얀데레 고착</span></div></div><div class="event-title">“이제 아무도 우리 사이를 방해하지 못해.”</div><div class="event-desc" id="captivity-ending-text">세라는 휴대전화와 열쇠를 치우고, 당신이 알던 일상의 흔적을 하나씩 지웠습니다. 이것은 사랑의 결말이 아니라 경고와 경계를 계속 미룬 결과입니다.</div>${rescueButtons?`<div class="captivity-rescue-box"><b>문 밖에서 움직이는 사람들</b><div class="event-options">${rescueButtons}</div></div>`:'<div class="important-event-detail">남겨 둔 증거도, 위기를 알아챌 만큼 가까운 사람도 없습니다.</div>'}<button id="captivity-rewind" class="session-btn opening">↩️ 위험해지기 전 관계 선택으로 돌아가기</button><button id="captivity-restart" class="hot">🔁 완전히 새 인생 시작</button></div></div>`;
+  const clubTrap=origin==='club';
+  host.innerHTML=`<div class="window event-window captivity-ending-window"><div class="title-bar"><div class="title-bar-text">🔒 윤세라 배드엔딩 · ${clubTrap?'지워진 밤':'닫힌 방'}</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-sera-doorstep.png" alt="잠긴 방 앞에 선 윤세라"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(r,'sad')}" alt="${r.name}"><div><strong>${r.name}</strong><br><span class="down">집착 ${Math.round(r.obsession||100)}/100 · 얀데레 고착</span></div></div><div class="event-title">${clubTrap?'“즐거웠어요? 기억 안 나면 더 좋고요.”':'“이제 아무도 우리 사이를 방해하지 못해.”'}</div><div class="event-desc" id="captivity-ending-text">${clubTrap?'클럽 입장 버튼을 누른 뒤의 기억이 없습니다. 눈을 뜬 곳은 세라와 살던 집이지만 휴대전화의 다른 연락처와 현관 손잡이가 사라져 있습니다. 세라는 애초에 혼자 나가는 선택 같은 건 없었다며 부서진 버튼 조각을 보여줍니다.':'세라는 휴대전화와 열쇠를 치우고, 당신이 알던 일상의 흔적을 하나씩 지웠습니다. 이것은 사랑의 결말이 아니라 경고와 경계를 계속 미룬 결과입니다.'}</div>${rescueButtons?`<div class="captivity-rescue-box"><b>문 밖에서 움직이는 사람들</b><div class="event-options">${rescueButtons}</div></div>`:'<div class="important-event-detail">남겨 둔 증거도, 위기를 알아챌 만큼 가까운 사람도 없습니다.</div>'}<button id="captivity-rewind" class="session-btn opening">↩️ 위험해지기 전 관계 선택으로 돌아가기</button><button id="captivity-restart" class="hot">🔁 완전히 새 인생 시작</button></div></div>`;
   host.querySelectorAll('[data-captivity-rescue]').forEach(button=>button.addEventListener('click',()=>resolveCaptivityRescue(button.dataset.captivityRescue,r)));
   const rewind=$('captivity-rewind');if(rewind)rewind.addEventListener('click',()=>rewindDangerousRelationship(r));
   const restart=$('captivity-restart');if(restart)restart.addEventListener('click',()=>captivityRestartAttempt(r));
@@ -5433,6 +5447,23 @@ function activeChildhoodNightContract(){
   const contract=S.life&&S.life.childhoodNightContract;
   return contract&&contract.active&&!contract.ended?contract:null;
 }
+function advancedRelationshipGroup(){
+  const L=S.life;
+  if(L.dangerousTrioBond&&L.dangerousTrioBond.active)return{name:'위험한 결핍 3인조',icon:'🦂',line:'세라가 약속 버튼을 지웠고, 유진과 채린은 모르는 척 퇴로를 막았습니다.'};
+  if(L.businessQuartetBond&&L.businessQuartetBond.active)return{name:'가면을 벗은 공동창업자 4인조',icon:'🏢',line:'네 사람의 일정·차량·계약 관리망이 약속 자체를 취소 처리했습니다.'};
+  if(L.freedomTrioBond&&L.freedomTrioBond.active)return{name:'화려한 하루 뒤의 3인조',icon:'🏠',line:'세 사람은 싸우지 않고 당신을 집으로 데려가, 오늘의 충동을 관계의 결론으로 만들지 못하게 했습니다.'};
+  return null;
+}
+function showChildhoodGroupIntervention(triggerName){
+  const group=advancedRelationshipGroup(),contract=activeChildhoodNightContract();if(!group||!contract)return false;
+  contract.active=false;contract.protectedBy=group.name;contract.ended=true;
+  const circle=CHILDHOOD_CIRCLE.ensure(S.life);circle.pressure=clamp((circle.pressure||0)-10,0,100);
+  closeDateModal();
+  const host=$('life-event');if(!host)return true;host.style.display='block';
+  host.innerHTML=`<div class="window event-window"><div class="title-bar"><div class="title-bar-text">${group.icon} 그룹 개입 · 과거의 재발 중단</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/pixel-event-childhood-pact-v1.png" alt="현재 관계가 과거의 재발을 막는 장면"><div class="event-title">${group.name}이 먼저 움직였습니다.</div><div class="event-desc">${contract.anchorName}와의 밤 이후 ${triggerName}에게 향하던 약속은 성립하지 않았습니다. ${group.line}</div><div class="important-event-detail up">소꿉친구 배드엔딩 회피 · 하룻밤 취소 · 과거 계약 종료<br>단, 클럽 행동은 어떤 그룹도 막아주지 못합니다.</div><button id="childhood-group-intervention-confirm" class="session-btn opening">현재의 관계로 돌아간다</button></div></div>`;
+  $('childhood-group-intervention-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';renderLifePanel();autoSave();});
+  autoSave();return true;
+}
 function showChildhoodRelapseEnding(triggerName,triggerType){
   const L=S.life,contract=activeChildhoodNightContract();if(!contract||triggerName===contract.anchorName)return false;
   const circle=CHILDHOOD_CIRCLE.ensure(L),checkpoint={pressure:circle.pressure,stress:L.stress};
@@ -5455,7 +5486,10 @@ function romanceResolve(kind, confirmed) {
   const preview=$('date-outcome')&&$('date-outcome').querySelector('.relation-preview');if(preview)preview.remove();
   if(kind==='casual'&&CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.MEMBERS.includes(c.name)){
     const contract=activeChildhoodNightContract();
-    if(contract&&c.name!==contract.anchorName){showChildhoodRelapseEnding(c.name,'casual');return;}
+    if(contract&&c.name!==contract.anchorName){
+      if(showChildhoodGroupIntervention(c.name))return;
+      showChildhoodRelapseEnding(c.name,'casual');return;
+    }
     rec.status='casual';rec.spentNight=true;rec.nightsTogether=(rec.nightsTogether||0)+1;
     rec.affection=clamp((rec.affection||0)+10,0,100);rec.trust=clamp((rec.trust||0)+3,0,100);
     const circle=CHILDHOOD_CIRCLE.ensure(S.life);circle.pressure=clamp(circle.pressure+22,0,100);circle.stage='relapse';
@@ -5497,7 +5531,10 @@ function romanceResolve(kind, confirmed) {
     const accepts=Math.random()<clamp(.82-chastity*.006+(c.personality==='free'?.18:0),.18,.9);
     if(accepts){
       const contract=activeChildhoodNightContract();
-      if(contract&&c.name!==contract.anchorName){showChildhoodRelapseEnding(c.name,'casual');return;}
+      if(contract&&c.name!==contract.anchorName){
+        if(showChildhoodGroupIntervention(c.name))return;
+        showChildhoodRelapseEnding(c.name,'casual');return;
+      }
       rec.status='casual';rec.trust=Math.max(0,(rec.trust||0)-3);rec.affection=Math.max(20,rec.affection||0);
       if(isDangerousHeroine(rec))awakenDangerousHeroine(rec,'night');
       const tender=['caring','homebody','frugal'].includes(rec.personality),special=isDangerousHeroine(rec);
@@ -5755,7 +5792,7 @@ function showDangerousTrioRoute(){
   const progress=check.rows.map(row=>`<div class="trio-requirement ${row.ready?'ready':''}"><b>${row.ready?'✓':'○'} ${row.name}</b><span>${row.ready?'결핍의 결이 맞음':row.need}</span><small>개인 스토리 ${row.chapter}/5 · ${row.active?'관계 유지 중':'현재 관계가 멀어짐'}</small></div>`).join('');
   const ending=state.ending?`<div class="story-ending"><b>📕 ${state.ending.title}</b><br>${state.ending.text}</div>`:'';
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">🦂 위험한 히로인 세트 · 결핍 공생</div><div class="title-bar-controls"><button aria-label="Close" id="trio-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${state.ending?'./assets/event-trio-secure-home-ending.png':'./assets/event-trio-first-meeting.png'}" alt="강유진 한채린 윤세라 전용 루트"><div class="trio-cast">${castHtml}</div><div class="event-desc">허락을 구해 확률로 여는 다자연애가 아닙니다. 유진의 <b>구원 강박</b>, 채린의 <b>굴복 욕구</b>, 세라의 <b>버림받을 공포</b>를 개인 스토리 선택으로 직접 건드렸을 때만 셋이 서로의 쓸모를 인정합니다.</div>${ending||`<div class="trio-requirements">${progress}</div><div class="important-event-detail">${check.partner?'주 연인이 세 사람 중 한 명입니다.':'주 연인이 강유진·한채린·윤세라 중 한 명이어야 합니다.'}${check.outsiders&&check.outsiders.length?`<br><span class="down">현재 다른 다자연애 구성원(${check.outsiders.map(x=>x.name).join(', ')})이 있어 이 전용 조합과 섞을 수 없습니다.</span>`:''}<br>조건은 상대의 허락이 아니라 지금까지 실제로 만든 관계의 결입니다.</div><button id="trio-start" class="session-btn ${check.ok?'opening':''}" ${check.ok?'':'disabled'}>🗝️ 세 사람을 한 방에 부른다</button>`}</div></div>`;
+  host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">🦂 위험한 히로인 세트 · 결핍 공생</div><div class="title-bar-controls"><button aria-label="Close" id="trio-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${state.ending?'./assets/event-trio-secure-home-ending.png':'./assets/event-trio-first-meeting.png'}" alt="강유진 한채린 윤세라 전용 루트"><div class="trio-cast">${castHtml}</div><div class="event-desc">허락을 구해 확률로 여는 다자연애가 아닙니다. 유진의 <b>구원 강박</b>, 채린의 <b>굴복 욕구</b>, 세라의 <b>버림받을 공포</b>를 개인 스토리 선택으로 직접 건드렸을 때만 셋이 서로의 쓸모를 인정합니다.</div>${ending||`<div class="trio-requirements">${progress}</div><div class="important-event-detail">${check.seraHome?'윤세라가 이미 주인공의 집에서 함께 살고 있습니다.':'윤세라를 작업실 사건에서 집으로 받아들여 동거해야 합니다. 내보냈다면 이번 인생에서는 이 조합을 열 수 없습니다.'}<br>${check.partner?'주 연인이 세 사람 중 한 명입니다.':'주 연인이 강유진·한채린·윤세라 중 한 명이어야 합니다.'}${check.outsiders&&check.outsiders.length?`<br><span class="down">현재 다른 다자연애 구성원(${check.outsiders.map(x=>x.name).join(', ')})이 있어 이 전용 조합과 섞을 수 없습니다.</span>`:''}<br>조건은 상대의 허락이 아니라 지금까지 실제로 만든 관계의 결입니다.</div><button id="trio-start" class="session-btn ${check.ok?'opening':''}" ${check.ok?'':'disabled'}>🗝️ 세 사람을 한 방에 부른다</button>`}</div></div>`;
   $('trio-x').addEventListener('click',closeLifeEvent);
   const start=$('trio-start');if(start)start.addEventListener('click',startDangerousTrioRoute);
 }
@@ -6003,6 +6040,12 @@ function showClubNight(){
 
 function resolveClubNight(){
   const cost=180000;if(S.capital<cost)return;
+  const sera=metRecord(S.life,'윤세라');
+  const seraLivesHere=sera&&(S.life.seraHousing==='cohabit'||(S.life.seraHousing==null&&sera.pickedUpAfterRuin));
+  if(seraLivesHere&&S.life.dangerousTrioBond&&S.life.dangerousTrioBond.active){
+    sera.obsession=100;sera.yandere=true;S.life.captivityEnding=true;
+    closeDateModal();showCaptivityEnding(sera,'club');return;
+  }
   if(activeChildhoodNightContract()){showChildhoodRelapseEnding('클럽의 낯선 사람','club');return;}
   const L=S.life;
   S.capital-=cost;

@@ -131,7 +131,10 @@ function eligibility(life){
  const state=ensure(life),rows=progress(life),partner=!!life.partner&&NAMES.includes(life.partner.name);
  const poly=life.polycule||{},outsiders=(poly.members||[]).filter(person=>!NAMES.includes(person.name));
  const clean=!outsiders.length;
- return{ok:!state.encountered&&!state.active&&!state.ending&&partner&&clean&&rows.every(row=>row.ready),partner,clean,outsiders,rows};
+ const sera=rec(life,'윤세라');
+ const legacyHome=life.seraHousing==null&&sera&&sera.pickedUpAfterRuin;
+ const seraHome=(life.seraHousing==='cohabit'||legacyHome)&&!state.lockedOut;
+ return{ok:!state.encountered&&!state.active&&!state.ending&&partner&&clean&&seraHome&&rows.every(row=>row.ready),partner,clean,seraHome,outsiders,rows};
 }
 function queue(life){
  const check=eligibility(life),state=ensure(life);
