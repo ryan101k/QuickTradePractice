@@ -386,5 +386,55 @@
     f.wins=(f.wins||0)+1;f.xp=(f.xp||0)+30;
     return{ok:true,success:true,cash:cash-cost+recovered,cost,recovered,target,message:`${target.name} 파산·해산 확정 · ${reactionLine(target,'bankrupt')}${recovered?` · 회수금 ${recovered.toLocaleString('ko-KR')}원`:''}`};
   }
-  root.QT_RIVALS={PERSONAS,REACTION_LINES,ACTIONS,ASSETS,ROLE_LABELS,MOB_RECRUITS,createBots,settleBots,botsFight,act,attackPlayer,ensureFaction,recruitOptions,recruit,settleFaction,buildFaction,defendAttack,revenge,reactionLine,updateReaction,negotiate,bankruptRival};
+  function contactMessage(bot,context){
+    const ctx=context||{},stock=ctx.stock||{},stockName=stock.name||'시장',change=Number(stock.change)||0;
+    const movement=change>0?`오늘 ${change.toFixed(1)}% 오른`:change<0?`오늘 ${Math.abs(change).toFixed(1)}% 밀린`:'가격이 멈춘';
+    if(bot.settlementOffer)return{kind:'truce',stockName,text:`${bot.leader}입니다. 휴전금 ${Number(bot.settlementOffer).toLocaleString('ko-KR')}원을 걸었습니다. 다음 장까지 답을 듣고 싶군요.`};
+    if(bot.reactionStage==='collapse'||bot.reactionStage==='desperate')return{kind:'pressure',stockName,text:`${movement} ${stockName}보다 지금은 현금줄이 중요하군요. 우리 세력을 여기까지 몰아붙인 다음 수가 뭡니까?`};
+    if(bot.style==='value')return{kind:'market',stockName,text:`${movement} ${stockName}, 가격보다 장부를 먼저 봤습니까? 나는 소음이 걷히면 살 생각입니다.`};
+    if(bot.style==='momentum')return{kind:'market',stockName,text:`${stockName} 수급이 평소와 다릅니다. ${change>=0?'매수세가 붙는 동안은 먼저 올라탑니다.':'반등만 기다리면 늦을 수 있어요.'} 당신은 어떻게 봅니까?`};
+    return{kind:'market',stockName,text:`${stockName} 쪽에 이상한 주문이 보이네요. 정보인지 함정인지는 모르겠지만, 당신도 그냥 지나치지는 않았겠죠?`};
+  }
+  function contactReplyOptions(bot,message){
+    const kind=message&&message.kind;
+    const stockName=message&&message.stockName||'그 종목';
+    const last=stockName.charCodeAt(stockName.length-1)-0xAC00;
+    const objectParticle=last>=0&&last<=11171&&last%28?'을':'를';
+    if(kind==='truce')return[
+      {id:'deal',text:'휴전 조건과 기간을 먼저 묻는다'},
+      {id:'probe',text:'왜 지금 물러서는지 자금 사정을 캐묻는다'},
+      {id:'challenge',text:'돈이 아니라 완전한 철수를 요구한다'},
+      {id:'brief',text:'제안은 작전실에서 검토하겠다고 답한다'},
+    ];
+    if(kind==='pressure')return[
+      {id:'probe',text:'남은 자금줄과 방어 계획을 캐묻는다'},
+      {id:'challenge',text:'다음 작전도 이미 준비됐다고 압박한다'},
+      {id:'deal',text:'서로 손실을 멈출 거래를 제안한다'},
+      {id:'brief',text:'답 대신 상대 반응만 기록한다'},
+    ];
+    return[
+      {id:'probe',text:`${stockName}${objectParticle} 고른 근거를 묻는다`},
+      {id:'challenge',text:'내 분석은 반대라고 맞받아친다'},
+      {id:'deal',text:'다음 장의 수급 정보를 교환하자고 한다'},
+      {id:'brief',text:'관심 종목에 넣어두겠다고 짧게 답한다'},
+    ];
+  }
+  function resolveContact(bot,replyId,message){
+    bot.playerRelation=Number(bot.playerRelation)||0;
+    const stockName=message&&message.stockName||'그 종목';
+    if(replyId==='probe'){
+      bot.playerRelation-=1;
+      return{reply:`근거 없이 연락한 건 아닙니다. ${stockName}의 거래량과 현금흐름을 같이 보세요. 한쪽만 보면 틀립니다.`,intel:2,relation:-1,meta:'투자 감각 +2 · 경쟁자 관계 -1'};
+    }
+    if(replyId==='challenge'){
+      bot.playerRelation-=4;
+      return{reply:'좋습니다. 장이 끝나면 어느 쪽 판단이 맞았는지 숫자로 확인하죠.',reputation:1,stress:1,relation:-4,meta:'세력 평판 +1 · 스트레스 +1 · 경쟁자 관계 -4'};
+    }
+    if(replyId==='deal'){
+      bot.playerRelation+=4;
+      return{reply:bot.settlementOffer?'조건은 3개월 상호불가침입니다. 작전실에서 정식으로 수락하면 휴전금을 넘기죠.':'서로 먼저 본 수급 하나씩만 공유하죠. 동맹은 아니고, 이번 장만입니다.',intel:1,relation:4,meta:'투자 감각 +1 · 경쟁자 관계 +4'};
+    }
+    return{reply:'확인했습니다. 다음에는 결과가 나온 뒤 이야기하죠.',relation:0,meta:'효과 없음'};
+  }
+  root.QT_RIVALS={PERSONAS,REACTION_LINES,ACTIONS,ASSETS,ROLE_LABELS,MOB_RECRUITS,createBots,settleBots,botsFight,act,attackPlayer,ensureFaction,recruitOptions,recruit,settleFaction,buildFaction,defendAttack,revenge,reactionLine,updateReaction,negotiate,bankruptRival,contactMessage,contactReplyOptions,resolveContact};
 })(window);

@@ -1765,6 +1765,7 @@ function settleMonth() {
   // 봇별 순자산 추이 기록 (라이벌 차트용)
   S.bots.forEach(b => { b.nwHist = b.nwHist || []; b.nwHist.push(Math.round(botNetWorth(b))); if (b.nwHist.length > 48) b.nwHist.shift(); });
   S._myNwHist = S._myNwHist || []; S._myNwHist.push(Math.round(netWorthClean())); if (S._myNwHist.length > 48) S._myNwHist.shift();
+  monthlyRivalMessages(L);
   const housingResult = HOUSING.monthly(L, ECONOMY.livingMultiplier(S.economy));
   b.housingExpense = housingResult.expense || 0;
   b.housing = housingResult;
@@ -2395,7 +2396,7 @@ function importantEventPriority(event) {
   if(event.crossEventId||event.story||event.bondEncounter)return 55;
   if(event.businessRomanceEvent)return 45;
   if(event.businessEvent)return 40;
-  if(event.monthlyMessage)return 20;
+  if(event.monthlyMessage)return event.targetType==='rival'?30:20;
   return 50;
 }
 function importantEventKey(event) {
@@ -2674,23 +2675,30 @@ function resolveBusinessRomanceEvent(choiceId){
 
 function showMonthlyMessagePopup(event){
   const host=$('life-event');if(!host)return;
-  const L=S.life,isContact=event.targetType==='contact';
-  const target=isContact?(SOCIAL.ensure(L).contacts||[]).find(c=>c.id===event.targetId):metRecord(L,event.personName);
+  const L=S.life,isContact=event.targetType==='contact',isRival=event.targetType==='rival';
+  const target=isContact?(SOCIAL.ensure(L).contacts||[]).find(c=>c.id===event.targetId)
+    :isRival?(S.bots||[])[Number(event.targetId)]
+    :metRecord(L,event.personName);
   if(!target){showNextImportantEvent();return;}
   const role=isContact?SOCIAL.role(target):null;
-  const title=isContact?`${role.icon} ${target.name}`:`${target.emoji||'💬'} ${target.name}`;
-  const avatar=isContact?`<span class="message-popup-avatar">${role.icon}</span>`:`<img class="char-portrait" src="${characterPortrait(target)}" alt="${target.name}">`;
-  const choices=isContact&&SOCIAL.contactReplyOptions
+  const title=isContact?`${role.icon} ${target.name}`:target.name;
+  const avatar=isContact?`<span class="message-popup-avatar">${role.icon}</span>`
+    :isRival&&target.portrait?`<img class="char-portrait" src="./assets/characters/${target.portrait}" alt="${target.leader}">`
+    :isRival?`<span class="message-popup-avatar">📈</span>`
+    :`<img class="char-portrait" src="${characterPortrait(target)}" alt="${target.name}">`;
+  const choices=isRival&&RIVALS.contactReplyOptions
+    ? RIVALS.contactReplyOptions(target,event.rivalMessage)
+    : isContact&&SOCIAL.contactReplyOptions
     ? SOCIAL.contactReplyOptions(target,event.text)
     : !isContact&&window.QT_CHAT&&QT_CHAT.replyOptions
       ? QT_CHAT.replyOptions(target,event.text)
       : isContact
         ? [{id:'warm',text:'다정하게 안부를 답한다'},{id:'advice',text:'고민을 솔직하게 말한다'},{id:'meet',text:'다음 달에 만나자고 한다'},{id:'brief',text:'짧게 답장한다'}]
         : [{id:'warm',text:'다정하게 답한다'},{id:'brief',text:'짧게 안부만 답한다'},{id:'boundary',text:'연락의 선을 분명히 한다'},{id:'ignore',text:'읽고 답하지 않는다'}];
-  S._monthlyMessage={event,target,isContact,choices};
+  S._monthlyMessage={event,target,isContact,isRival,choices};
   host.style.display='block';
   const now=dateInfo(S.day);
-  host.innerHTML=`<div class="phone-notification-stage"><div class="phone-shell"><div class="phone-status"><span>${now.month}월 장 마감</span><span>●●● 100%</span></div><div class="phone-lock-time"><b>${String(now.month).padStart(2,'0')}:00</b><small>${now.year}년 ${now.month}월 · 월말 알림</small></div><button class="phone-notification-card" id="monthly-message-open"><span class="phone-app-icon">💬</span><span><small>QuickTalk · 지금</small><b>${title}</b><em>${event.text}</em></span><i>›</i></button><div class="phone-chat-screen" hidden><header>${avatar}<span><b>${title}</b><small>${isContact?(target.relationLabel||role.name):relationTag(L,target.name)}</small></span></header><div class="phone-chat-log"><div class="phone-date-chip">${now.year}년 ${now.month}월 · 장 마감 후</div><div class="phone-bubble incoming">${event.text}</div><div class="phone-typing"><i></i><i></i><i></i></div><div class="phone-reply-label">이 메시지에 어떻게 답할까요?</div><div class="phone-reply-options">${choices.map(choice=>`<button data-monthly-reply="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="message-event-outcome"></div></div></div></div></div>`;
+  host.innerHTML=`<div class="phone-notification-stage"><div class="phone-shell"><div class="phone-status"><span>${now.month}월 장 마감</span><span>●●● 100%</span></div><div class="phone-lock-time"><b>${String(now.month).padStart(2,'0')}:00</b><small>${now.year}년 ${now.month}월 · 월말 알림</small></div><button class="phone-notification-card" id="monthly-message-open"><span class="phone-app-icon">${isRival?'📊':'💬'}</span><span><small>${isRival?'Market Wire':'QuickTalk'} · 지금</small><b>${title}</b><em>${event.text}</em></span><i>›</i></button><div class="phone-chat-screen" hidden><header>${avatar}<span><b>${title}</b><small>${isRival?`${target.faction} · 시장 경쟁자`:isContact?(target.relationLabel||role.name):relationTag(L,target.name)}</small></span></header><div class="phone-chat-log"><div class="phone-date-chip">${now.year}년 ${now.month}월 · 장 마감 후</div><div class="phone-bubble incoming">${event.text}</div><div class="phone-typing"><i></i><i></i><i></i></div><div class="phone-reply-label">${isRival?'시장과 작전에 관한 답장을 고르세요.':'이 메시지에 어떻게 답할까요?'}</div><div class="phone-reply-options">${choices.map(choice=>`<button data-monthly-reply="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="message-event-outcome"></div></div></div></div></div>`;
   $('monthly-message-open').addEventListener('click',()=>{const screen=host.querySelector('.phone-chat-screen');screen.hidden=false;requestAnimationFrame(()=>screen.classList.add('open'));});
   host.querySelectorAll('[data-monthly-reply]').forEach(button=>button.addEventListener('click',()=>resolveMonthlyMessage(button.dataset.monthlyReply)));
 }
@@ -2698,12 +2706,14 @@ function resolveMonthlyMessage(kind){
   const pending=S._monthlyMessage,host=$('life-event');if(!pending||!host)return;
   const choice=(pending.choices||[]).find(item=>item.id===kind);
   const replyOptions={popup:true,incoming:pending.event.text,text:choice&&choice.text};
-  const result=pending.isContact?replyToContact(pending.target,kind,replyOptions):replyToPerson(pending.target,kind,replyOptions);
+  const result=pending.isRival?replyToRival(pending.target,kind,pending.event.rivalMessage,replyOptions)
+    :pending.isContact?replyToContact(pending.target,kind,replyOptions)
+    :replyToPerson(pending.target,kind,replyOptions);
   if(!result||!result.ok)return;
   const options=host.querySelector('.phone-reply-options');if(options)options.innerHTML='';
   const room=personChat(S.life,pending.target.name);room.unread=0;
-  const unlock=!pending.isContact&&courtshipReadiness(pending.target).ready?`<div class="oc-changes">💘 충분히 가까워졌습니다. 외출 메뉴에서 ${pending.target.name}님과 정식 데이트할 수 있어요.</div>`:'';
-  $('message-event-outcome').innerHTML=`<div class="phone-bubble mine">${result.text}</div>${result.answer?`<div class="phone-bubble incoming followup">${result.answer}</div>`:''}${unlock}<button id="message-event-confirm" class="phone-chat-confirm">대화 닫기 · 다음 알림</button>`;
+  const unlock=!pending.isContact&&!pending.isRival&&courtshipReadiness(pending.target).ready?`<div class="oc-changes">💘 충분히 가까워졌습니다. 외출 메뉴에서 ${pending.target.name}님과 정식 데이트할 수 있어요.</div>`:'';
+  $('message-event-outcome').innerHTML=`<div class="phone-bubble mine">${result.text}</div>${result.answer?`<div class="phone-bubble incoming followup">${result.answer}</div>`:''}${result.meta?`<div class="oc-changes">${result.meta}</div>`:''}${unlock}<button id="message-event-confirm" class="phone-chat-confirm">대화 닫기 · 다음 알림</button>`;
   $('message-event-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._monthlyMessage=null;renderLifePanel();renderChatPanel();autoSave();showNextImportantEvent();});
 }
 
@@ -3150,7 +3160,7 @@ function showHomeLifeModal(){
   const indoor=D.HOBBIES.filter(h=>['game','study'].includes(h.id));
   const goods=(D.LUXURY_GOODS||[]).filter(g=>!L.luxuryGoods.includes(g.id));
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window home-life-window"><div class="title-bar event-bar"><div class="title-bar-text">🏠 오늘은 집에서</div><div class="title-bar-controls"><button aria-label="Close" id="home-life-x"></button></div></div><div class="window-body">${pixelHomeHTML(L)}<div class="home-life-summary"><b>${L.luxuryGoods.length?'내 취향이 보이는 공간':'아직 소박한 생활공간'}</b><small>생활 격 ${lifestylePrestige(L)>=45?'유명 인사':lifestylePrestige(L)>=20?'눈에 띄는 생활':lifestylePrestige(L)>=8?'여유 있음':'소박함'} · 보유품 ${L.luxuryGoods.length}개</small></div><div class="route-sep">이번 주를 집에서 보내기</div><div class="home-action-grid"><button class="life-btn" data-act="rest">🛌 아무 일정 없이 푹 쉰다 <small>생활비 30,000 · 스트레스 회복</small></button>${indoor.map(h=>`<button class="life-btn" data-act="hobby" data-id="${h.id}">${h.emoji} ${h.name} <small>${won(h.cost)}</small></button>`).join('')}</div><div class="route-sep">돈을 번 흔적 남기기 <span class="muted">구매는 자유시간을 쓰지 않음</span></div><div class="luxury-shop">${goods.length?goods.map(g=>`<button data-luxury-buy="${g.id}" ${S.capital<g.price?'disabled':''}><span>${g.emoji}</span><b>${g.name}</b><small>${g.desc}<br>${won(g.price)}원</small></button>`).join(''):'<div class="asset-empty">모든 생활 컬렉션을 갖췄습니다.</div>'}</div><button id="home-life-close" class="session-btn">밖으로 나가기</button></div></div>`;
+  host.innerHTML=`<div class="window event-window home-life-window"><div class="title-bar event-bar"><div class="title-bar-text">🏠 오늘은 집에서</div><div class="title-bar-controls"><button aria-label="Close" id="home-life-x"></button></div></div><div class="window-body">${pixelHomeHTML(L)}<div class="home-life-summary"><b>${L.luxuryGoods.length?'내 취향이 보이는 공간':'아직 소박한 생활공간'}</b><small>생활 격 ${lifestylePrestige(L)>=45?'유명 인사':lifestylePrestige(L)>=20?'눈에 띄는 생활':lifestylePrestige(L)>=8?'여유 있음':'소박함'} · 보유품 ${L.luxuryGoods.length}개 · 현재 스트레스 ${Math.round(L.stress||0)}/100</small></div><div class="route-sep">이번 주를 집에서 보내기</div><div class="home-action-grid"><button class="life-btn" data-act="rest">🛌 아무 일정 없이 푹 쉰다 <small>생활비 30,000 · 스트레스 -22 · 건강 +3</small></button><button class="life-btn" data-act="decompress">🌿 휴대폰을 끄고 마음을 정리한다 <small>비용 없음 · 스트레스 -16 · 행복 +3</small></button>${indoor.map(h=>`<button class="life-btn" data-act="hobby" data-id="${h.id}">${h.emoji} ${h.name} <small>${won(h.cost)}</small></button>`).join('')}</div><div class="route-sep">돈을 번 흔적 남기기 <span class="muted">구매는 자유시간을 쓰지 않음</span></div><div class="luxury-shop">${goods.length?goods.map(g=>`<button data-luxury-buy="${g.id}" ${S.capital<g.price?'disabled':''}><span>${g.emoji}</span><b>${g.name}</b><small>${g.desc}<br>${won(g.price)}원</small></button>`).join(''):'<div class="asset-empty">모든 생활 컬렉션을 갖췄습니다.</div>'}</div><button id="home-life-close" class="session-btn">밖으로 나가기</button></div></div>`;
   wireLifeHub(host);
   host.querySelectorAll('[data-luxury-buy]').forEach(button=>button.addEventListener('click',()=>buyLuxuryGood(button.dataset.luxuryBuy)));
   const close=()=>{host.style.display='none';host.innerHTML='';};
@@ -3211,7 +3221,11 @@ function buyLuxuryGood(id){
 
 function doRestMonth() {
   S.capital -= Math.min(Math.max(0,S.capital),30000);
-  HEALTH.rest(S.life); flashToast('🛌 집에서 쉬며 스트레스가 줄었습니다 · 생활비 3만원', 'good'); afterLifeAction('휴식');
+  HEALTH.rest(S.life); flashToast('🛌 푹 쉬었습니다 · 스트레스 -22 · 건강 +3', 'good'); afterLifeAction('휴식');
+}
+function doDecompressMonth() {
+  HEALTH.decompress(S.life);S.life.happy=clamp((S.life.happy||0)+3,0,100);
+  flashToast('🌿 휴대폰을 끄고 쉬었습니다 · 스트레스 -16 · 행복 +3','good');afterLifeAction('휴식');
 }
 
 function doFamilyPlan(method) {
@@ -4011,7 +4025,7 @@ function monthlyRelationshipMessages(L){
     const line=safeDangerFriend?pick(DANGEROUS_FRIEND_LINES[r.name]):childhoodLine||(window.QT_CHAT&&QT_CHAT.incoming(r,ctx))||'가끔은 먼저 연락해줘요.';
     arrivals.push({r,line});
   });
-  arrivals.sort(()=>Math.random()-.5).slice(0,2).forEach(({r,line})=>{
+  arrivals.sort(()=>Math.random()-.5).slice(0,1).forEach(({r,line})=>{
     pushPersonMessage(L,r,line,false);
     queueImportantEvent({monthlyMessage:true,targetType:'person',personName:r.name,text:line});
   });
@@ -4027,6 +4041,28 @@ function monthlySocialMessages(L){
     const line=SOCIAL.contactLine(c);pushPersonMessage(L,c,line,false);
     queueImportantEvent({monthlyMessage:true,targetType:'contact',targetId:c.id,text:line});
   });
+}
+function monthlyRivalMessages(L){
+  if(!RIVALS||!RIVALS.contactMessage)return;
+  const live=(S.bots||[]).map((bot,index)=>({bot,index})).filter(entry=>!entry.bot.bankrupt);
+  if(!live.length)return;
+  const first=!Number.isFinite(L.lastRivalMessageDay);
+  if(!first&&S.day-L.lastRivalMessageDay<1)return;
+  if(!first&&Math.random()>.78)return;
+  const faction=RIVALS.ensureFaction(L);
+  const recent=(faction.lastAttacker&&live.find(entry=>entry.bot.name===faction.lastAttacker))||null;
+  const entry=recent||pick(live);
+  const stocks=(S.stocks||[]).filter(stock=>stock.listed&&stock.type!=='etf'&&stock.history&&stock.history.length);
+  let stock=null;
+  if(stocks.length){
+    const ranked=stocks.map(item=>({item,change:changeInfo(item).rate*100}));
+    ranked.sort((a,b)=>entry.bot.style==='value'?a.change-b.change:entry.bot.style==='momentum'?Math.abs(b.change)-Math.abs(a.change):Math.random()-.5);
+    stock=ranked[0];
+  }
+  const message=RIVALS.contactMessage(entry.bot,{day:S.day,stock:{name:stock&&stock.item.name,change:stock&&stock.change}});
+  L.lastRivalMessageDay=S.day;
+  pushPersonMessage(L,entry.bot,message.text,false);
+  queueImportantEvent({monthlyMessage:true,targetType:'rival',targetId:entry.index,text:message.text,rivalMessage:message});
 }
 
 function monthlyChildhoodCircleBond(L){
@@ -4382,6 +4418,16 @@ function renderChatPanel(){
     const priority=c=>['mother','father','guardian'].includes(c.role)?0:c.role==='schoolfriend'?1:2;
     return priority(a)-priority(b)||(b.trust||0)-(a.trust||0);
   });
+  const rivals=(S.bots||[]).map((bot,index)=>({bot,index}));
+  if(S._chatRival!=null){
+    const entry=rivals.find(item=>item.index===Number(S._chatRival));
+    if(!entry){S._chatRival=null;return renderChatPanel();}
+    const bot=entry.bot,room=personChat(L,bot.name);room.unread=0;
+    const avatar=bot.portrait?`<img src="./assets/characters/${bot.portrait}" alt="${bot.leader}">`:`<span class="contact-avatar">📈</span>`;
+    host.innerHTML=`<div class="chat-room rival-chat-room"><button id="chat-back">↩ 연락처</button><div class="contact-chat-head">${avatar}<div><b>${bot.name}</b> · ${bot.faction}<br><small>시장 경쟁자 · 관계 ${Math.round(bot.playerRelation||0)} · 지난달 손익 ${won(bot.monthlyProfit||0)}</small></div></div><div class="chat-log">${room.messages.length?room.messages.map(m=>`<div class="chat-bubble ${m.mine?'mine':''}"><small>${m.mine?'나':bot.leader} · ${dateInfo(m.day).year}년 ${dateInfo(m.day).month}월</small><br>${m.text}</div>`).join(''):'<span class="muted">아직 시장에 관한 연락이 없습니다.</span>'}</div><div class="chat-readonly-note">📊 경쟁자는 종목 수급·손익·세력 상황에 따라 월말에 먼저 연락합니다.</div></div>`;
+    $('chat-back').addEventListener('click',()=>{S._chatRival=null;renderChatPanel();});
+    const log=host.querySelector('.chat-log');if(log)log.scrollTop=log.scrollHeight;return;
+  }
   if(S._chatContact){
     const c=contacts.find(x=>x.id===S._chatContact);if(!c){S._chatContact=null;return renderChatPanel();}
     const room=personChat(L,c.name),r=SOCIAL.role(c);room.unread=0;
@@ -4401,14 +4447,34 @@ function renderChatPanel(){
   }
   const contactRows=contacts.map(c=>{const room=personChat(L,c.name),last=room.messages[room.messages.length-1],r=SOCIAL.role(c);return`<button class="chat-contact social-chat-contact" data-chat-contact="${c.id}"><span class="contact-avatar">${r.icon}</span><span><b>${c.name}</b> · ${c.relationLabel||r.name}<br><span class="chat-preview">${last?last.text:'먼저 안부를 물어보세요.'}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;}).join('');
   const romanceRows=people.map(r=>{const room=personChat(L,r.name),last=room.messages[room.messages.length-1];return`<button class="chat-contact" data-chat-person="${r.name}"><img src="${characterPortrait(r)}" alt="${r.name}"><span><b>${r.name}</b> · ${relationTag(L,r.name)}<br><span class="chat-preview">${last?last.text:'대화를 시작해보세요.'}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;}).join('');
-  host.innerHTML=`<div class="chat-list"><div class="hub-note">가족·학창 친구·업계 인맥·연애 상대가 한 연락처에 함께 저장됩니다. 관계마다 대화와 효과가 다릅니다.</div>${contactRows?`<div class="chat-group-title">🏠 가족·친구·인맥</div>${contactRows}`:''}${romanceRows?`<div class="chat-group-title">💕 친구·연애 관계</div>${romanceRows}`:''}${!contactRows&&!romanceRows?'<span class="muted">아직 저장된 연락처가 없습니다.</span>':''}</div>`;
-  host.querySelectorAll('[data-chat-contact]').forEach(b=>b.addEventListener('click',()=>{S._chatPerson=null;S._chatContact=b.dataset.chatContact;renderChatPanel();autoSave();}));
-  host.querySelectorAll('[data-chat-person]').forEach(b=>b.addEventListener('click',()=>{S._chatPerson=b.dataset.chatPerson;renderChatPanel();autoSave();
+  const rivalRows=rivals.map(({bot,index})=>{const room=personChat(L,bot.name),last=room.messages[room.messages.length-1],avatar=bot.portrait?`<img src="./assets/characters/${bot.portrait}" alt="${bot.leader}">`:`<span class="contact-avatar">📈</span>`;return`<button class="chat-contact rival-chat-contact" data-chat-rival="${index}">${avatar}<span><b>${bot.name}</b> · ${bot.bankrupt?'파산·해산':bot.faction}<br><span class="chat-preview">${last?last.text:'아직 직접 연락은 없습니다.'}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;}).join('');
+  host.innerHTML=`<div class="chat-list"><div class="hub-note">시장 경쟁자·가족·학창 친구·업계 인맥·연애 상대의 연락이 한곳에 저장됩니다. 경쟁자는 실제 종목과 세력 상황을 두고 연락합니다.</div>${rivalRows?`<div class="chat-group-title">📈 경쟁자·시장</div>${rivalRows}`:''}${contactRows?`<div class="chat-group-title">🏠 가족·친구·인맥</div>${contactRows}`:''}${romanceRows?`<div class="chat-group-title">💕 친구·연애 관계</div>${romanceRows}`:''}${!rivalRows&&!contactRows&&!romanceRows?'<span class="muted">아직 저장된 연락처가 없습니다.</span>':''}</div>`;
+  host.querySelectorAll('[data-chat-rival]').forEach(b=>b.addEventListener('click',()=>{S._chatPerson=null;S._chatContact=null;S._chatRival=Number(b.dataset.chatRival);renderChatPanel();autoSave();}));
+  host.querySelectorAll('[data-chat-contact]').forEach(b=>b.addEventListener('click',()=>{S._chatPerson=null;S._chatRival=null;S._chatContact=b.dataset.chatContact;renderChatPanel();autoSave();}));
+  host.querySelectorAll('[data-chat-person]').forEach(b=>b.addEventListener('click',()=>{S._chatContact=null;S._chatRival=null;S._chatPerson=b.dataset.chatPerson;renderChatPanel();autoSave();
     // 방을 열면 상대의 최근 메시지를 그 인물 목소리로 읽어준다(사람이 부르듯)
     const rr=metRecord(L,b.dataset.chatPerson),rm=rr&&personChat(L,rr.name);
     const last=rm&&[...rm.messages].reverse().find(m=>!m.mine);
     if(last)speakPerson(rr,last.text);
   }));
+}
+function replyToRival(bot,kind,message,options){
+  const L=S.life,room=personChat(L,bot.name);options=options||{};
+  if(room.lastReplyDay===S.day){if(!options.popup)flashToast('📱 이번 달에는 이미 답장했습니다','neutral');return{ok:false};}
+  room.lastReplyDay=S.day;
+  const text=options.text||'수급과 장부를 다시 확인해보겠습니다.';
+  pushPersonMessage(L,bot,text,true);
+  const result=RIVALS.resolveContact(bot,kind,message)||{};
+  const mentor=investmentMentorState(L);
+  if(result.intel)mentor.skill=clamp(mentor.skill+result.intel,0,100);
+  if(result.reputation)SOCIAL.ensure(L).reputation=clamp(SOCIAL.ensure(L).reputation+result.reputation,0,100);
+  if(result.stress)L.stress=clamp((L.stress||0)+result.stress,0,100);
+  if(result.reply)pushPersonMessage(L,bot,result.reply,false);
+  S.rivalFeed=S.rivalFeed||[];
+  S.rivalFeed.unshift({day:S.day,text:`📞 [${bot.faction}] ${text} · ${result.reply||'답변 없음'}`});
+  if(S.rivalFeed.length>50)S.rivalFeed.length=50;
+  if(!options.popup)renderChatPanel();renderLifePanel();autoSave();
+  return{ok:true,text,answer:result.reply||'',meta:result.meta||''};
 }
 function replyToContact(c,kind,options){
   const L=S.life,room=personChat(L,c.name);options=options||{};
@@ -6110,7 +6176,7 @@ function resolveFactionTradeCall(choice) {
 }
 
 const MONTHLY_ACTION_GROUPS = {
-  date:'데이트', hobby:'취미', rest:'휴식',
+  date:'데이트', hobby:'취미', rest:'휴식', decompress:'휴식',
   'income-work':'수입',
   cert:'경력', changejob:'경력', 'investment-consult':'경력',
   'contact-meet':'인맥', 'contact-nurture':'인맥', 'contact-ask':'인맥', 'meet-special':'인맥', 'person-request':'인맥', 'character-story':'인맥',
@@ -6335,9 +6401,12 @@ function lifeHubHTML() {
     if(item){
       const plan=BUSINESS.projected(item,S.economy.id),expandCost=BUSINESS.expansionCost(L,item.id),resale=BUSINESS.resaleValue(L,item.id);
       const capacity=BUSINESS.staffCapacity(item),hireCost=BUSINESS.hireCost(item);
+      const staffEffect=BUSINESS.staffEffect(item);
+      const hirePreview=BUSINESS.projected({...item,employees:item.employees+1,hiredStaff:[...(item.hiredStaff||[]),`${item.id}-junior`]},S.economy.id);
+      const expandedPreview=BUSINESS.projected({...item,level:Math.min(5,item.level+1),morale:Math.min(100,item.morale+4),momentum:Math.min(.5,item.momentum+.08)},S.economy.id);
       const strategy=BUSINESS.strategyOf(item.strategy);
       const strategyButtons=Object.values(BUSINESS.STRATEGIES).map(option=>`<button class="${option.id===strategy.id?'active':''}" data-act="business-strategy" data-business="${item.id}" data-strategy="${option.id}" title="${option.desc}">${option.icon} ${option.name}</button>`).join('');
-      return`<article class="asset-business-card"><div class="faction-member business-staff"><img src="${managerPortrait||BUSINESS.portraitPath(manager.id,item.lastNet<0?'sad':item.lastNet>1000000?'happy':'neutral')}" alt="${managerName}"><span><b>${type.icon} ${type.name} · ${item.level}단계</b><small>${managerName} · ${manager.role}${identity&&!identity.revealed?' · 신원 비공개':''}<br>직원 ${item.employees}/${capacity}명 · 사기 ${Math.round(item.morale)} · 평판 ${Math.round(item.reputation)}<br>지난달 매출 ${won(item.lastSales)} · 비용 ${won(item.lastCost)} · <b class="${item.lastNet>=0?'up':'down'}">순익 ${item.lastNet>=0?'+':''}${won(item.lastNet)}</b><br>다음 달 기준 예상 ${plan.net>=0?'+':''}${won(plan.net)} · ${strategy.icon} ${strategy.name}</small></span></div><div class="business-strategy-row" aria-label="${type.name} 운영 방침">${strategyButtons}</div><div class="asset-card-actions"><button class="life-btn" data-act="business-hire" data-business="${item.id}" ${item.employees>=capacity?'disabled':''}>👥 직원 모집 <small>${item.employees>=capacity?'현재 정원 완료':`채용·교육 ${won(hireCost)}`}</small></button><button class="life-btn" data-act="business-expand" data-business="${item.id}" ${item.level>=5?'disabled':''}>🏗️ 확장 <small>${item.level>=5?'최대 규모':`${won(expandCost)} · ${item.level+1}단계`}</small></button><button class="life-btn hot" data-act="business-close" data-business="${item.id}">🚪 운영 종료 <small>${won(resale)} 회수</small></button></div></article>`;
+      return`<article class="asset-business-card"><div class="faction-member business-staff"><img src="${managerPortrait||BUSINESS.portraitPath(manager.id,item.lastNet<0?'sad':item.lastNet>1000000?'happy':'neutral')}" alt="${managerName}"><span><b>${type.icon} ${type.name} · ${item.level}단계</b><small>${managerName} · ${manager.role}${identity&&!identity.revealed?' · 신원 비공개':''}<br>직원 ${item.employees}/${capacity}명 · 직원 매출 기여 +${Math.round(staffEffect.salesBonus*100)}% · 월 인건비 ${won(staffEffect.wages)}<br>사기 ${Math.round(item.morale)} · 평판 ${Math.round(item.reputation)}<br>지난달 매출 ${won(item.lastSales)} · 비용 ${won(item.lastCost)} · <b class="${item.lastNet>=0?'up':'down'}">순익 ${item.lastNet>=0?'+':''}${won(item.lastNet)}</b><br>다음 달 기준 예상 ${plan.net>=0?'+':''}${won(plan.net)} · ${strategy.icon} ${strategy.name}</small></span></div><div class="business-strategy-row" aria-label="${type.name} 운영 방침">${strategyButtons}</div><div class="asset-card-actions"><button class="life-btn" data-act="business-hire" data-business="${item.id}" ${item.employees>=capacity?'disabled':''}>👥 직원 모집 <small>${item.employees>=capacity?'현재 정원 완료':`채용·교육 ${won(hireCost)} · 최소 예상 순익 +${won(Math.max(0,hirePreview.net-plan.net))}`}</small></button><button class="life-btn" data-act="business-expand" data-business="${item.id}" ${item.level>=5?'disabled':''}>🏗️ 확장 <small>${item.level>=5?'최대 규모':`${won(expandCost)} · ${item.level+1}단계 · 예상 순익 ${expandedPreview.net>=0?'+':''}${won(expandedPreview.net)}`}</small></button><button class="life-btn hot" data-act="business-close" data-business="${item.id}">🚪 운영 종료 <small>${won(resale)} 회수</small></button></div></article>`;
     }
     return`<article class="asset-business-card unopened"><div class="faction-member business-staff"><img src="${managerPortrait||BUSINESS.portraitPath(manager.id,'neutral')}" alt="${managerName}"><span><b>${manager.emoji} ${managerName} · ${manager.role}</b><small>${manager.intro}${identity&&!identity.revealed?' 실명과 얼굴은 장기 신뢰 전까지 공개하지 않습니다.':''}<br>${type.icon} ${type.name} · 월 기준 예상 ${won(type.baseSales-type.fixedCost)} · ${type.desc}</small></span></div><div class="asset-card-actions"><button class="life-btn asset-action" data-act="business-start" data-business="${type.id}">${type.icon} 사업 설립 <small>${won(type.cost)} · ${managerName} 담당</small></button></div></article>`;
   }).join(''):'';
@@ -6521,7 +6590,8 @@ function wireLifeHub(host) {
     // 별도 팝업으로 이어지는 행동은 먼저 관리 창을 닫아 한 화면에 한 레이어만 남긴다.
     if(new Set([
       'home-life','income-work','origin-ally','meet-special','person-request','character-story',
-      'business-hire','faction-recruit','date','marry','polycule','changejob','rival','faction'
+      'business-start','business-hire','business-expand','business-close','business-strategy',
+      'faction-recruit','date','marry','polycule','changejob','rival','faction'
     ]).has(act))closeWorkspace();
     if (act === 'home-life') showHomeLifeModal();
     else if (act === 'income-work') showIncomeWorkModal();
@@ -6540,6 +6610,7 @@ function wireLifeHub(host) {
     else if (act === 'checkup') doHealthCheckup();
     else if (act === 'treat') doTreatment();
     else if (act === 'rest') doRestMonth();
+    else if (act === 'decompress') doDecompressMonth();
     else if (act === 'family-plan') doFamilyPlan(b.dataset.method);
     else if (act === 'child-bond') doChildBond(b.dataset.child);
     else if (act === 'child-edu') doChildEducation(b.dataset.child);
