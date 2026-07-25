@@ -392,9 +392,11 @@
     const movement=change>0?`오늘 ${change.toFixed(1)}% 오른`:change<0?`오늘 ${Math.abs(change).toFixed(1)}% 밀린`:'가격이 멈춘';
     if(bot.settlementOffer)return{kind:'truce',stockName,text:`${bot.leader}입니다. 휴전금 ${Number(bot.settlementOffer).toLocaleString('ko-KR')}원을 걸었습니다. 다음 장까지 답을 듣고 싶군요.`};
     if(bot.reactionStage==='collapse'||bot.reactionStage==='desperate')return{kind:'pressure',stockName,text:`${movement} ${stockName}보다 지금은 현금줄이 중요하군요. 우리 세력을 여기까지 몰아붙인 다음 수가 뭡니까?`};
-    if(bot.style==='value')return{kind:'market',stockName,text:`${movement} ${stockName}, 가격보다 장부를 먼저 봤습니까? 나는 소음이 걷히면 살 생각입니다.`};
-    if(bot.style==='momentum')return{kind:'market',stockName,text:`${stockName} 수급이 평소와 다릅니다. ${change>=0?'매수세가 붙는 동안은 먼저 올라탑니다.':'반등만 기다리면 늦을 수 있어요.'} 당신은 어떻게 봅니까?`};
-    return{kind:'market',stockName,text:`${stockName} 쪽에 이상한 주문이 보이네요. 정보인지 함정인지는 모르겠지만, 당신도 그냥 지나치지는 않았겠죠?`};
+    if(ctx.lastAttacker===bot.name||bot.contactReason==='rival_attack')return{kind:'warning',stockName,text:`지난번 공격은 인사였습니다. ${movement} ${stockName} 호가에도 당신 계좌 흔적이 보이더군요. 다음에는 현금만 잃고 끝나지 않을 겁니다.`};
+    if(/^player_operation|^faction_/.test(bot.contactReason||''))return{kind:'retaliation',stockName,text:`우리 쪽을 건드린 기록은 확인했습니다. ${stockName}에서 마주치면 주문보다 먼저 당신 자금줄부터 막겠습니다.`};
+    if(bot.style==='value')return{kind:'market',stockName,text:`${movement} ${stockName}을 받치고 있는 게 당신이라면 오래 버티지 마십시오. 장부가 무너지면 우리가 반대편 물량부터 쏟을 테니까.`};
+    if(bot.style==='momentum')return{kind:'market',stockName,text:`${stockName} 수급은 우리가 먼저 잡았습니다. 뒤늦게 따라붙으면 당신 물량이 우리 출구가 될 겁니다.`};
+    return{kind:'market',stockName,text:`${stockName}의 이상 주문을 추적 중입니다. 당신 쪽 흔적이면 지금 지우는 게 좋을 겁니다. 다음번에는 경고 없이 계좌부터 묶을 테니.`};
   }
   function contactReplyOptions(bot,message){
     const kind=message&&message.kind;
@@ -413,29 +415,35 @@
       {id:'deal',text:'서로 손실을 멈출 거래를 제안한다'},
       {id:'brief',text:'답 대신 상대 반응만 기록한다'},
     ];
+    if(kind==='warning'||kind==='retaliation')return[
+      {id:'probe',text:'내 연락처와 계좌를 알아낸 경로를 역으로 캐묻는다'},
+      {id:'challenge',text:'다음 공격은 그대로 돌려주겠다고 경고한다'},
+      {id:'deal',text:'이번 장에서만 충돌을 피할 조건을 제시한다'},
+      {id:'brief',text:'읽었다는 표시만 남기고 반응을 숨긴다'},
+    ];
     return[
-      {id:'probe',text:`${stockName}${objectParticle} 고른 근거를 묻는다`},
-      {id:'challenge',text:'내 분석은 반대라고 맞받아친다'},
-      {id:'deal',text:'다음 장의 수급 정보를 교환하자고 한다'},
-      {id:'brief',text:'관심 종목에 넣어두겠다고 짧게 답한다'},
+      {id:'probe',text:`${stockName}${objectParticle} 통해 내 계좌를 추적한 경로를 캐묻는다`},
+      {id:'challenge',text:'허세는 다음 장 수익으로 증명하라고 맞받아친다'},
+      {id:'deal',text:'서로의 주문을 건드리지 않을 단기 조건을 제시한다'},
+      {id:'brief',text:'읽었다는 표시만 남기고 정보를 주지 않는다'},
     ];
   }
   function resolveContact(bot,replyId,message){
     bot.playerRelation=Number(bot.playerRelation)||0;
     const stockName=message&&message.stockName||'그 종목';
     if(replyId==='probe'){
-      bot.playerRelation-=1;
-      return{reply:`근거 없이 연락한 건 아닙니다. ${stockName}의 거래량과 현금흐름을 같이 보세요. 한쪽만 보면 틀립니다.`,intel:2,relation:-1,meta:'투자 감각 +2 · 경쟁자 관계 -1'};
+      bot.playerRelation-=3;
+      return{reply:`캐묻는다고 우리 정보원이 보이진 않습니다. ${stockName}에서 한 번 더 움직이면 어느 경로가 새는지 직접 알게 될 겁니다.`,intel:2,relation:-3,meta:'상대 추적 단서 +2 · 적대도 상승'};
     }
     if(replyId==='challenge'){
       bot.playerRelation-=4;
       return{reply:'좋습니다. 장이 끝나면 어느 쪽 판단이 맞았는지 숫자로 확인하죠.',reputation:1,stress:1,relation:-4,meta:'세력 평판 +1 · 스트레스 +1 · 경쟁자 관계 -4'};
     }
     if(replyId==='deal'){
-      bot.playerRelation+=4;
-      return{reply:bot.settlementOffer?'조건은 3개월 상호불가침입니다. 작전실에서 정식으로 수락하면 휴전금을 넘기죠.':'서로 먼저 본 수급 하나씩만 공유하죠. 동맹은 아니고, 이번 장만입니다.',intel:1,relation:4,meta:'투자 감각 +1 · 경쟁자 관계 +4'};
+      bot.playerRelation+=2;
+      return{reply:bot.settlementOffer?'조건은 3개월 상호불가침입니다. 작전실에서 정식으로 수락하면 휴전금을 넘기죠.':'이번 장에는 서로의 호가를 직접 치지 않겠습니다. 그 이상을 동맹으로 착각하지 마십시오.',intel:1,relation:2,meta:'상대 의도 파악 +1 · 긴장도 소폭 완화'};
     }
-    return{reply:'확인했습니다. 다음에는 결과가 나온 뒤 이야기하죠.',relation:0,meta:'효과 없음'};
+    return{reply:'침묵도 답으로 기록하겠습니다. 다음에는 숫자로 통보하죠.',relation:0,meta:'정보 노출 없음'};
   }
   root.QT_RIVALS={PERSONAS,REACTION_LINES,ACTIONS,ASSETS,ROLE_LABELS,MOB_RECRUITS,createBots,settleBots,botsFight,act,attackPlayer,ensureFaction,recruitOptions,recruit,settleFaction,buildFaction,defendAttack,revenge,reactionLine,updateReaction,negotiate,bankruptRival,contactMessage,contactReplyOptions,resolveContact};
 })(window);

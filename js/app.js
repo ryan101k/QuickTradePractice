@@ -2465,12 +2465,12 @@ function importantEventPriority(event) {
   if(event.crossEventId||event.story||event.bondEncounter)return 55;
   if(event.businessRomanceEvent)return 45;
   if(event.businessEvent)return 40;
-  if(event.monthlyMessage)return event.targetType==='rival'?30:20;
+  if(event.monthlyMessage)return event.targetType==='rival'?30:event.targetType==='subordinate'?25:20;
   return 50;
 }
 function importantEventKey(event) {
   if(event.factionStory)return`faction:${event.factionStory}`;
-  if(event.monthlyMessage)return`message:${event.targetType}:${event.targetId||event.personName||''}:${event.text||''}`;
+  if(event.monthlyMessage)return`message:${event.targetType}:${event.targetId!=null?event.targetId:event.personName||''}`;
   if(event.businessEvent)return`business:${event.businessId}:${event.eventId}`;
   if(event.story)return`story:${event.personName}`;
   return'';
@@ -2847,7 +2847,7 @@ function openMonthlyMessageScreen(host){
 }
 function showMonthlyMessagePopup(event){
   const host=$('life-event');if(!host)return;
-  const L=S.life,isContact=event.targetType==='contact',isRival=event.targetType==='rival';
+  const L=S.life,isSubordinate=event.targetType==='subordinate',isContact=event.targetType==='contact'||isSubordinate,isRival=event.targetType==='rival';
   const target=isContact?(SOCIAL.ensure(L).contacts||[]).find(c=>c.id===event.targetId)
     :isRival?(S.bots||[])[Number(event.targetId)]
     :metRecord(L,event.personName);
@@ -2868,10 +2868,13 @@ function showMonthlyMessagePopup(event){
       : isContact
         ? [{id:'warm',text:'다정하게 안부를 답한다'},{id:'advice',text:'고민을 솔직하게 말한다'},{id:'meet',text:'다음 달에 만나자고 한다'},{id:'brief',text:'짧게 답장한다'}]
         : [{id:'warm',text:'다정하게 답한다'},{id:'brief',text:'짧게 안부만 답한다'},{id:'boundary',text:'연락의 선을 분명히 한다'},{id:'ignore',text:'읽고 답하지 않는다'}];
-  S._monthlyMessage={event,target,isContact,isRival,choices};
+  S._monthlyMessage={event,target,isContact,isRival,isSubordinate,choices};
   host.style.display='block';
   const now=dateInfo(S.day);
-  host.innerHTML=`<div class="phone-notification-stage"><div class="phone-shell"><div class="phone-status"><span>${now.month}월 장 마감</span><span>●●● 100%</span></div><div class="phone-lock-time"><b>${String(now.month).padStart(2,'0')}:00</b><small>${now.year}년 ${now.month}월 · 월말 알림</small></div><button type="button" class="phone-notification-card" id="monthly-message-open" aria-controls="monthly-message-screen" aria-expanded="false"><span class="phone-app-icon">${isRival?'📊':'💬'}</span><span><small>${isRival?'Market Wire':'QuickTalk'} · 지금</small><b>${title}</b><em>${event.text}</em></span><i>›</i></button><div class="phone-chat-screen" id="monthly-message-screen" hidden><header>${avatar}<span><b>${title}</b><small>${isRival?`${target.faction} · 시장 경쟁자`:isContact?(target.relationLabel||role.name):relationTag(L,target.name)}</small></span></header><div class="phone-chat-log"><div class="phone-date-chip">${now.year}년 ${now.month}월 · 장 마감 후</div><div class="phone-bubble incoming">${event.text}</div><div class="phone-typing"><i></i><i></i><i></i></div><div class="phone-reply-label">${isRival?'시장과 작전에 관한 답장을 고르세요.':'이 메시지에 어떻게 답할까요?'}</div><div class="phone-reply-options">${choices.map(choice=>`<button type="button" data-monthly-reply="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="message-event-outcome"></div></div></div></div></div>`;
+  const appName=isRival?'Market Wire':isSubordinate?'작전실':'QuickTalk';
+  const appIcon=isRival?'📊':isSubordinate?'🛡️':'💬';
+  const replyLabel=isRival?'상대의 의도를 읽고 대응을 고르세요.':isSubordinate?'보고를 확인하고 지시를 내리세요.':'이 메시지에 어떻게 답할까요?';
+  host.innerHTML=`<div class="phone-notification-stage"><div class="phone-shell"><div class="phone-status"><span>${now.month}월 장 마감</span><span>●●● 100%</span></div><div class="phone-lock-time"><b>${String(now.month).padStart(2,'0')}:00</b><small>${now.year}년 ${now.month}월 · 월말 알림</small></div><button type="button" class="phone-notification-card" id="monthly-message-open" aria-controls="monthly-message-screen" aria-expanded="false"><span class="phone-app-icon">${appIcon}</span><span><small>${appName} · 지금</small><b>${title}</b><em>${event.text}</em></span><i>›</i></button><div class="phone-chat-screen" id="monthly-message-screen" hidden><header>${avatar}<span><b>${title}</b><small>${isRival?`${target.faction} · 적대 세력`:isSubordinate?'내 세력 · 직속 부하':isContact?(target.relationLabel||role.name):relationTag(L,target.name)}</small></span></header><div class="phone-chat-log"><div class="phone-date-chip">${now.year}년 ${now.month}월 · 장 마감 후</div><div class="phone-bubble incoming">${event.text}</div><div class="phone-typing"><i></i><i></i><i></i></div><div class="phone-reply-label">${replyLabel}</div><div class="phone-reply-options">${choices.map(choice=>`<button type="button" data-monthly-reply="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="message-event-outcome"></div></div></div></div></div>`;
   host.onclick=click=>{
     const opener=click.target.closest('#monthly-message-open');
     if(opener&&host.contains(opener)){openMonthlyMessageScreen(host);return;}
@@ -4432,6 +4435,7 @@ function monthlyRelationshipMessages(L){
 function monthlySocialMessages(L){
   const arrivals=[];
   (SOCIAL.ensure(L).contacts||[]).forEach(c=>{
+    if(SOCIAL.isSubordinate&&SOCIAL.isSubordinate(c))return;
     const isConcernedParent=['father','guardian'].includes(c.role)&&L.originNarrativeVersion===2;
     const chance=isConcernedParent?.42:c.role==='mother'?.24:c.role==='schoolfriend'?.18:.08;
     if(Math.random()>chance)return;
@@ -4468,9 +4472,7 @@ function resolveFreedomGuildEvent(choiceId){
 function monthlyRivalMessages(L){
   if(!RIVALS||!RIVALS.contactMessage)return;
   const faction=RIVALS.ensureFaction(L);
-  const marketFootprint=(S.assets||[]).some(asset=>(asset.qty||0)>0)||!!faction.lastAttacker||S.day>=3;
-  if(!marketFootprint)return;
-  const live=(S.bots||[]).map((bot,index)=>({bot,index})).filter(entry=>!entry.bot.bankrupt);
+  const live=(S.bots||[]).map((bot,index)=>({bot,index})).filter(({bot})=>bot.contactUnlocked&&!bot.bankrupt);
   if(!live.length)return;
   const first=!Number.isFinite(L.lastRivalMessageDay);
   if(!first&&S.day-L.lastRivalMessageDay<1)return;
@@ -4484,9 +4486,8 @@ function monthlyRivalMessages(L){
     ranked.sort((a,b)=>entry.bot.style==='value'?a.change-b.change:entry.bot.style==='momentum'?Math.abs(b.change)-Math.abs(a.change):Math.random()-.5);
     stock=ranked[0];
   }
-  const message=RIVALS.contactMessage(entry.bot,{day:S.day,stock:{name:stock&&stock.item.name,change:stock&&stock.change}});
+  const message=RIVALS.contactMessage(entry.bot,{day:S.day,contactReason:entry.bot.contactReason,lastAttacker:faction.lastAttacker,stock:{name:stock&&stock.item.name,change:stock&&stock.change}});
   L.lastRivalMessageDay=S.day;
-  unlockRivalContact(entry.bot,'first_message');
   pushPersonMessage(L,entry.bot,message.text,false);
   queueImportantEvent({monthlyMessage:true,targetType:'rival',targetId:entry.index,text:message.text,rivalMessage:message});
 }
@@ -4524,7 +4525,7 @@ function monthlyFactionMemberMessages(L){
   else if(faction.lastAttacker)message=`${faction.lastAttacker} 쪽 움직임 다시 잡았습니다. 바로 치진 말고, 형님 신호 올 때까지 기록부터 모으겠습니다.`;
   else message='이번 달은 조용합니다. 조용할 때 사람과 돈줄을 챙겨두는 게 세력 운영입니다.';
   pushPersonMessage(L,contact,message,false);
-  queueImportantEvent({monthlyMessage:true,targetType:'contact',targetId:contact.id,text:message});
+  queueImportantEvent({monthlyMessage:true,targetType:'subordinate',targetId:contact.id,text:message});
 }
 
 function monthlyChildhoodCircleBond(L){
@@ -4938,9 +4939,11 @@ function renderChatPanel(){
   const blockedPeople=knownPeople.filter(r=>r.status==='ex').map(r=>{ensureCourtship(r);return r;});
   const people=knownPeople.filter(r=>r.status!=='ex'&&hasPersonalContact(r));
   const contacts=(SOCIAL.ensure(L).contacts||[]).slice().sort((a,b)=>{
-    const priority=c=>['mother','father','guardian'].includes(c.role)?0:c.role==='schoolfriend'?1:2;
+    const priority=c=>SOCIAL.isSubordinate&&SOCIAL.isSubordinate(c)?0:['mother','father','guardian'].includes(c.role)?1:c.role==='schoolfriend'?2:3;
     return priority(a)-priority(b)||(b.trust||0)-(a.trust||0);
   });
+  const subordinateContacts=contacts.filter(c=>SOCIAL.isSubordinate&&SOCIAL.isSubordinate(c));
+  const networkContacts=contacts.filter(c=>!SOCIAL.isSubordinate||!SOCIAL.isSubordinate(c));
   const rivals=(S.bots||[]).map((bot,index)=>({bot,index})).filter(({bot})=>
     bot.contactUnlocked||((((L.chats||{})[bot.name]||{}).messages||[]).length>0)
   );
@@ -4955,8 +4958,9 @@ function renderChatPanel(){
   }
   if(S._chatContact){
     const c=contacts.find(x=>x.id===S._chatContact);if(!c){S._chatContact=null;return renderChatPanel();}
-    const room=personChat(L,c.name),r=SOCIAL.role(c);room.unread=0;
-    host.innerHTML=`<div class="chat-room contact-room"><button id="chat-back">↩ 연락처</button><div class="contact-chat-head"><span>${r.icon}</span><div><b>${c.name}</b> · ${c.relationLabel||r.name}<br><small>신뢰 ${Math.round(c.trust||0)} · 호의 ${c.favor||0}</small></div></div><div class="chat-log">${room.messages.length?room.messages.map(m=>`<div class="chat-bubble ${m.mine?'mine':''}"><small>${m.mine?'나':c.name} · ${dateInfo(m.day).year}년 ${dateInfo(m.day).month}월</small><br>${m.text}</div>`).join(''):'<span class="muted">아직 대화가 없습니다.</span>'}</div><div class="chat-readonly-note">🔒 연락은 장 마감 후 월말 팝업에서 한 번만 답할 수 있습니다.</div></div>`;
+    const room=personChat(L,c.name),r=SOCIAL.role(c),subordinate=SOCIAL.isSubordinate&&SOCIAL.isSubordinate(c);room.unread=0;
+    const member=subordinate?(RIVALS.ensureFaction(L).members||[]).find(item=>item.sourceId===c.factionMemberId):null;
+    host.innerHTML=`<div class="chat-room contact-room ${subordinate?'subordinate-chat-room':''}"><button id="chat-back">↩ 연락처</button><div class="contact-chat-head"><span>${r.icon}</span><div><b>${c.name}</b> · ${c.relationLabel||r.name}<br><small>${subordinate?`부하 신뢰 ${Math.round(c.trust||0)}${member?` · 충성도 ${Math.round(member.loyalty||0)}`:''}`:`신뢰 ${Math.round(c.trust||0)} · 호의 ${c.favor||0}`}</small></div></div><div class="chat-log">${room.messages.length?room.messages.map(m=>`<div class="chat-bubble ${m.mine?'mine':''}"><small>${m.mine?'나':c.name} · ${dateInfo(m.day).year}년 ${dateInfo(m.day).month}월</small><br>${m.text}</div>`).join(''):'<span class="muted">아직 대화가 없습니다.</span>'}</div><div class="chat-readonly-note">${subordinate?'🛡️ 상황 보고는 월말 작전실 알림에서 확인하고 지시할 수 있습니다.':'🔒 연락은 장 마감 후 월말 팝업에서 한 번만 답할 수 있습니다.'}</div></div>`;
     $('chat-back').addEventListener('click',()=>{S._chatContact=null;renderChatPanel();});
     const log=host.querySelector('.chat-log');if(log)log.scrollTop=log.scrollHeight;return;
   }
@@ -4970,11 +4974,13 @@ function renderChatPanel(){
     host.querySelectorAll('.bubble-tts').forEach(b=>b.addEventListener('click',ev=>{ev.stopPropagation();const m=room.messages[+b.dataset.msgI];if(m)speakPerson(r,m.text);}));
     const log=host.querySelector('.chat-log');if(log)log.scrollTop=log.scrollHeight;return;
   }
-  const contactRows=contacts.map(c=>{const room=personChat(L,c.name),last=room.messages[room.messages.length-1],r=SOCIAL.role(c);return`<button class="chat-contact social-chat-contact" data-chat-contact="${c.id}"><span class="contact-avatar">${r.icon}</span><span><b>${c.name}</b> · ${c.relationLabel||r.name}<br><span class="chat-preview">${last?last.text:'먼저 안부를 물어보세요.'}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;}).join('');
+  const contactRow=c=>{const room=personChat(L,c.name),last=room.messages[room.messages.length-1],r=SOCIAL.role(c),subordinate=SOCIAL.isSubordinate&&SOCIAL.isSubordinate(c);return`<button class="chat-contact social-chat-contact ${subordinate?'subordinate-chat-contact':''}" data-chat-contact="${c.id}"><span class="contact-avatar">${r.icon}</span><span><b>${c.name}</b> · ${c.relationLabel||r.name}<br><span class="chat-preview">${last?last.text:subordinate?'아직 새 상황 보고가 없습니다.':'먼저 안부를 물어보세요.'}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;};
+  const subordinateRows=subordinateContacts.map(contactRow).join('');
+  const contactRows=networkContacts.map(contactRow).join('');
   const romanceRows=people.map(r=>{const room=personChat(L,r.name),last=room.messages[room.messages.length-1];return`<button class="chat-contact" data-chat-person="${r.name}"><img src="${characterPortrait(r)}" alt="${r.name}"><span><b>${r.name}</b> · ${relationTag(L,r.name)}<br><span class="chat-preview">${last?last.text:'대화를 시작해보세요.'}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;}).join('');
   const blockedRows=blockedPeople.map(r=>`<button class="chat-contact blocked-chat-contact" disabled><img src="${characterPortrait(r,'sad')}" alt="${r.name}"><span><b>${r.name}</b> · 전 연인<br><span class="chat-preview">내가 차단한 연락처 · 메시지 수신 안 함</span></span><span class="blocked-contact-mark">🚫</span></button>`).join('');
   const rivalRows=rivals.map(({bot,index})=>{const room=personChat(L,bot.name),last=room.messages[room.messages.length-1],avatar=bot.portrait?`<img src="./assets/characters/${bot.portrait}" alt="${bot.leader}">`:`<span class="contact-avatar">📈</span>`;return`<button class="chat-contact rival-chat-contact" data-chat-rival="${index}">${avatar}<span><b>${bot.name}</b> · ${bot.bankrupt?'파산·해산':bot.faction}<br><span class="chat-preview">${last?last.text:'아직 직접 연락은 없습니다.'}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;}).join('');
-  host.innerHTML=`<div class="chat-list"><div class="hub-note">시장 경쟁자·가족·학창 친구·업계 인맥·연애 상대의 연락이 한곳에 저장됩니다. 경쟁자는 실제 종목과 세력 상황을 두고 연락합니다.</div>${rivalRows?`<div class="chat-group-title">📈 경쟁자·시장</div>${rivalRows}`:''}${contactRows?`<div class="chat-group-title">🏠 가족·친구·인맥</div>${contactRows}`:''}${romanceRows?`<div class="chat-group-title">💕 친구·연애 관계</div>${romanceRows}`:''}${blockedRows?`<div class="chat-group-title blocked-group-title">🚫 내가 차단한 연락처</div>${blockedRows}`:''}${!rivalRows&&!contactRows&&!romanceRows&&!blockedRows?'<span class="muted">아직 저장된 연락처가 없습니다.</span>':''}</div>`;
+  host.innerHTML=`<div class="chat-list"><div class="hub-note">연락처는 적대 세력, 내 부하, 사적인 인맥과 연애 관계로 나뉩니다. 서로 다른 관계의 말투와 답장 선택지는 섞이지 않습니다.</div>${rivalRows?`<div class="chat-group-title">⚔️ 적대 세력</div>${rivalRows}`:''}${subordinateRows?`<div class="chat-group-title">🛡️ 내 세력·부하 보고</div>${subordinateRows}`:''}${contactRows?`<div class="chat-group-title">🏠 가족·친구·인맥</div>${contactRows}`:''}${romanceRows?`<div class="chat-group-title">💕 친구·연애 관계</div>${romanceRows}`:''}${blockedRows?`<div class="chat-group-title blocked-group-title">🚫 내가 차단한 연락처</div>${blockedRows}`:''}${!rivalRows&&!subordinateRows&&!contactRows&&!romanceRows&&!blockedRows?'<span class="muted">아직 저장된 연락처가 없습니다.</span>':''}</div>`;
   host.onclick=click=>{
     const rival=click.target.closest('[data-chat-rival]');
     if(rival&&host.contains(rival)){
@@ -5021,6 +5027,25 @@ function replyToContact(c,kind,options){
   if(room.lastReplyDay===S.day&&!options.popup){flashToast('📱 이번 달에는 이미 답장했습니다','neutral');return{ok:false};}
   room.lastReplyDay=S.day;
   const text=options.text||SOCIAL.contactAnswer(c,kind,options.incoming);pushPersonMessage(L,c,text,true);
+  const subordinate=SOCIAL.isSubordinate&&SOCIAL.isSubordinate(c);
+  if(subordinate){
+    const faction=RIVALS.ensureFaction(L);
+    const member=(faction.members||[]).find(item=>item.sourceId===c.factionMemberId);
+    const gain={ack:2,order:3,protect:5,question:3}[kind]||1;
+    c.trust=clamp((c.trust||0)+gain,0,100);
+    if(member)member.loyalty=clamp((member.loyalty||50)+(kind==='protect'?4:kind==='order'?1:2),0,100);
+    if(kind==='question')faction.intel=clamp((faction.intel||0)+.015,0,.65);
+    const answers={
+      ack:['알겠습니다. 변동 생기면 바로 다시 보고드리겠습니다.','확인했습니다. 지시 전까지 대기하겠습니다.'],
+      order:['명령 확인했습니다. 인원에게도 같은 기준으로 전달하겠습니다.','정보부터 확보하고 움직이겠습니다. 결과로 보고드리죠.'],
+      protect:['걱정 마십시오. 그래도 제가 빠져야 할 때는 먼저 보고하고 철수하겠습니다.','부하 목숨까지 챙기는 대장이라 다행입니다. 무리하지 않고 돌아오겠습니다.'],
+      question:['근거 자료와 예상 동선을 다시 묶어서 보내겠습니다. 한 시간만 주십시오.','추측은 빼고 확인된 것만 정리해 다시 보고드리겠습니다.'],
+    };
+    const answer=pick(answers[kind]||answers.ack);pushPersonMessage(L,c,answer,false);
+    const meta=`부하 신뢰 +${gain}${member?` · 충성도 ${Math.round(member.loyalty||0)}`:''}${kind==='question'?' · 세력 정보 +2%':''}`;
+    if(!options.popup)renderChatPanel();renderLifePanel();autoSave();
+    return{ok:true,text,answer,meta};
+  }
   const gain=kind==='meet'?6:kind==='advice'?4:kind==='warm'?3:1;c.trust=clamp((c.trust||0)+gain,0,100);
   if(kind==='meet'&&Math.random()<.35)c.favor=clamp((c.favor||0)+1,0,5);
   if(['mother','father','guardian'].includes(c.role)&&['warm','meet'].includes(kind))L.familyBond=clamp((L.familyBond||0)+2,0,100);
@@ -6429,6 +6454,8 @@ function factionAttackStatus() {
 
 function registerFactionAttack(attacker) {
   if (!FACTION_CAMPAIGN || !S.life || !attacker) return;
+  const rival=(S.bots||[]).find(bot=>bot===attacker||bot.name===(attacker.name||attacker));
+  if(rival)unlockRivalContact(rival,'rival_attack');
   const result = FACTION_CAMPAIGN.onAttack(S.life, attacker.name || attacker, S.day);
   if (!result.queued) return;
   queueImportantEvent({ factionStory:'first_attack', type:'faction', scene:lifeSceneImage('faction') });
@@ -6502,7 +6529,7 @@ function foundFactionFromMentor(pathId){
   if(pathId==='legal')changeMorality(4,'합법 투자조합 창설 원칙을 세웠습니다');
   if(pathId==='underground')changeMorality(-6,'지하 세력의 규칙을 받아들였습니다');
   LEGACY.push(S.life,dateInfo(S.day).age,result.path.icon,`${result.path.name} 창설 · 장태식의 첫 제자`,'faction');
-  SOCIAL.addContact(S.life,{id:`faction-${result.member.sourceId}`,name:result.member.name,role:'schoolfriend',origin:'faction',originKey:`faction-${result.member.sourceId}`,relationLabel:'첫 부하 · 상황 보고',trust:55,favor:1,factionMemberId:result.member.sourceId});
+  SOCIAL.addContact(S.life,{id:`faction-${result.member.sourceId}`,name:result.member.name,role:'subordinate',origin:'faction',originKey:`faction-${result.member.sourceId}`,relationLabel:'첫 부하 · 상황 보고',trust:55,favor:1,factionMemberId:result.member.sourceId});
   addNews(`${result.path.icon} ${result.path.factionName} 창설 · 장태식의 소개로 ${result.member.name} 합류`,'good');
   const contact=SOCIAL.ensure(S.life).contacts.find(item=>item.originKey===`faction-${result.member.sourceId}`);
   pushPersonMessage(S.life,contact,'형님, 장 선생님한테 얘기 들었습니다. 오늘부터 제가 먼저 상황 보고드리겠습니다.',false);
@@ -7240,7 +7267,7 @@ function lifeHubHTML() {
     ? `<button class="life-btn hot" data-act="insurance-cancel" data-policy="${p.id}">${p.icon} ${p.name} 해지 <small>월 ${won(p.premium)}</small></button>`
     : `<button class="life-btn" data-act="insurance" data-policy="${p.id}">${p.icon} ${p.name} <small>${p.desc} · 월 ${won(p.premium)}</small></button>`).join('');
   const pensionBtns = [.05,.09,.15].map(rate=>`<button class="life-btn ${Math.abs(finance.pensionRate-rate)<.001?'hot':''}" data-act="pension" data-rate="${rate}">연금 ${Math.round(rate*100)}%</button>`).join('');
-  const contactBtns = social.contacts.map(c=>{const r=SOCIAL.role(c);const ready=c.trust>=30&&c.favor>=1;return `<button class="life-btn" data-act="contact-nurture" data-contact="${c.id}">${r.icon} ${c.name} 만나기 <small>신뢰 ${c.trust}/30 · 호의 ${c.favor} · 300,000</small></button><button class="life-btn ${ready?'hot':''}" data-act="contact-ask" data-contact="${c.id}" ${ready?'':'disabled'}>🙏 ${r.benefit} 부탁 <small>${ready?'가능':'신뢰30·호의1 필요'}</small></button>${c.freeRecruit&&!c.recruitedTo?`<button class="life-btn hot" data-act="origin-ally" data-contact="${c.id}">🎒 ${c.name}에게 합류 제안 <small>사업체·세력 영입비 0원</small></button>`:''}`}).join('');
+  const contactBtns = social.contacts.filter(c=>!SOCIAL.isSubordinate||!SOCIAL.isSubordinate(c)).map(c=>{const r=SOCIAL.role(c);const ready=c.trust>=30&&c.favor>=1;return `<button class="life-btn" data-act="contact-nurture" data-contact="${c.id}">${r.icon} ${c.name} 만나기 <small>신뢰 ${c.trust}/30 · 호의 ${c.favor} · 300,000</small></button><button class="life-btn ${ready?'hot':''}" data-act="contact-ask" data-contact="${c.id}" ${ready?'':'disabled'}>🙏 ${r.benefit} 부탁 <small>${ready?'가능':'신뢰30·호의1 필요'}</small></button>${c.freeRecruit&&!c.recruitedTo?`<button class="life-btn hot" data-act="origin-ally" data-contact="${c.id}">🎒 ${c.name}에게 합류 제안 <small>사업체·세력 영입비 0원</small></button>`:''}`}).join('');
   const specialMet = id => ensureMet(L).some(m => m.special === id);
   const specialRecord=id=>ensureMet(L).find(m=>m.special===id);
   const canSpecialFollowup=rec=>!!(rec&&rec.status==='acquaintance'&&!hasPersonalContact(rec)&&rec.lastSpecialFollowupDay!==S.day);
