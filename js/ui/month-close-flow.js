@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
 
-  const VERSION = 2;
+  const VERSION = 3;
 
   function makeStep(name, props) {
     return { type: 'view', name, props: props || {} };
@@ -44,6 +44,7 @@
 
   function normalize(raw) {
     if (!raw || typeof raw !== 'object' || raw.active === false) return null;
+    const sourceVersion = Number(raw.version) || 1;
     const ctx = Object.assign({}, raw);
     ctx.active = true;
     ctx.completedSteps = Array.isArray(ctx.completedSteps) ? ctx.completedSteps : [];
@@ -60,6 +61,17 @@
       const target = insertAt >= 0 ? insertAt : ctx.steps.length;
       ctx.steps.splice(target, 0, makeStep('life-action'));
       if (ctx.currentIndex >= target) ctx.currentIndex = target;
+    }
+    // v2에서는 life-action View가 등록되지 않은 환경에서 해당 단계를
+    // 완료로 잘못 기록하고 주요 사건으로 건너뛰었다. 진행 중인 월말
+    // 저장본은 행동 단계로 한 번 되돌려 실제 선택 기회를 보장한다.
+    if (sourceVersion < VERSION) {
+      const lifeIndex = ctx.steps.findIndex(step => step && step.name === 'life-action');
+      const currentName = ctx.steps[ctx.currentIndex] && ctx.steps[ctx.currentIndex].name;
+      if (lifeIndex >= 0 && ctx.currentIndex >= lifeIndex && currentName !== 'life-action') {
+        ctx.currentIndex = lifeIndex;
+        ctx.completedSteps = ctx.completedSteps.filter(name => name !== 'life-action');
+      }
     }
     ctx.version = VERSION;
     ctx.currentIndex = Math.max(0, Math.min(

@@ -44,6 +44,28 @@ const MARKET_WORKSPACE = window.QT_MARKET_WORKSPACE;
 const INFO_MARKET_PANEL = window.QT_INFO_MARKET_PANEL;
 const MONTH_CLOSE_FLOW = window.QT_MONTH_CLOSE_FLOW;
 const MONTH_CLOSE_VIEWS = window.QT_MONTH_CLOSE_VIEWS || {};
+// 분리 View 파일이 캐시·로딩 순서 문제로 누락돼도 핵심 행동 단계는
+// 절대 건너뛰지 않는다. 외부 View가 정상 등록됐으면 이 fallback은 쓰지 않는다.
+if (!MONTH_CLOSE_VIEWS['life-action']) {
+  MONTH_CLOSE_VIEWS['life-action'] = {
+    render(host, props, api) {
+      host.innerHTML = `<div class="window close-window month-flow-window life-action-flow-window">
+        <div class="title-bar life-action-flow-bar"><div class="title-bar-text">🎬 이번 달 인생 행동</div></div>
+        <div class="life-action-wallet">${api.wallet()}</div>
+        <div class="window-body month-flow-body">
+          ${api.progress()}
+          <div class="life-action-overview">${api.overview()}</div>
+          ${api.lifeHubHTML()}
+          <div class="close-actions">
+            <button class="session-btn opening" data-month-close-next>${api.actionsRemaining() > 0 ? `남은 행동 ${api.actionsRemaining()}회 포기하고 주요 사건으로` : '행동 완료 · 주요 사건 확인'}</button>
+          </div>
+        </div>
+      </div>`;
+      api.wireLifeHub(host);
+      host.querySelector('[data-month-close-next]').addEventListener('click', api.next);
+    },
+  };
+}
 const NEWS_ANCHOR = window.QT_NEWS_ANCHOR;
 
 /* ------------------------------------------------------------------ 설정 */
