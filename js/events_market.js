@@ -205,3 +205,32 @@ const EVENTS_NONE = [
   { text: '실적 발표 앞두고 관망세', impact: 0, weight: 12 },
   { text: '차익실현과 저가매수 교차', impact: 0, weight: 12 },
 ];
+
+/* ---------------------------------------------------------------- 게임형 변동 체감 보정
+ * 같은 원시 등락이라도 양봉은 더 크게, 음봉은 더 작게 느껴지도록 만든다.
+ * 사건·경기·수급의 방향은 그대로 보존하며 극단값은 app.js의 가격제한폭이 막는다. */
+(function exposeMarketBalance(root) {
+  'use strict';
+  const UP_MULTIPLIER = 1.75;
+  const DOWN_MULTIPLIER = 0.55;
+  const MIN_VISIBLE_UP = 0.0012; // +0.12%: +0.04% 같은 체감 없는 양봉 방지
+  function shapeRate(rawRate) {
+    const rate = Number(rawRate) || 0;
+    if (rate > 0) return Math.max(MIN_VISIBLE_UP, rate * UP_MULTIPLIER);
+    if (rate < 0) return rate * DOWN_MULTIPLIER;
+    return 0;
+  }
+  function limits(meta) {
+    const tick = Math.max(0, Number(meta && meta.tickLimit) || 0);
+    const session = Math.max(0, Number(meta && meta.sessionLimit) || 0);
+    return {
+      tickUp: tick * 1.25,
+      tickDown: tick * 0.58,
+      sessionUp: session * 1.25,
+      sessionDown: session * 0.58,
+    };
+  }
+  root.QT_MARKET_BALANCE = {
+    UP_MULTIPLIER, DOWN_MULTIPLIER, MIN_VISIBLE_UP, shapeRate, limits,
+  };
+})(window);

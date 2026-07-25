@@ -45,6 +45,7 @@ const MARKET_WORKSPACE = window.QT_MARKET_WORKSPACE;
 const INFO_MARKET_PANEL = window.QT_INFO_MARKET_PANEL;
 const MONTH_CLOSE_FLOW = window.QT_MONTH_CLOSE_FLOW;
 const MONTH_CLOSE_VIEWS = window.QT_MONTH_CLOSE_VIEWS || {};
+const MARKET_BALANCE = window.QT_MARKET_BALANCE;
 // 분리 View 파일이 캐시·로딩 순서 문제로 누락돼도 핵심 행동 단계는
 // 절대 건너뛰지 않는다. 외부 View가 정상 등록됐으면 이 fallback은 쓰지 않는다.
 if (!MONTH_CLOSE_VIEWS['life-action']) {
@@ -300,10 +301,13 @@ function rollIssue(stock) {
 function boundedStockChange(stock, rawRate, meta) {
   const prev = stock.history[stock.history.length - 1].c;
   const open = stock.sessionOpen || prev;
-  const tickRate = clamp(rawRate, -meta.tickLimit, meta.tickLimit);
+  const limits = MARKET_BALANCE
+    ? MARKET_BALANCE.limits(meta)
+    : { tickUp:meta.tickLimit, tickDown:meta.tickLimit, sessionUp:meta.sessionLimit, sessionDown:meta.sessionLimit };
+  const tickRate = clamp(rawRate, -limits.tickDown, limits.tickUp);
   let projected = prev * (1 + tickRate);
-  const low = open * (1 - meta.sessionLimit);
-  const high = open * (1 + meta.sessionLimit);
+  const low = open * (1 - limits.sessionDown);
+  const high = open * (1 + limits.sessionUp);
   projected = clamp(projected, low, high);
   const rate = projected / prev - 1;
   return {
@@ -419,7 +423,8 @@ function tick() {
     const noise = (Math.random() + Math.random() - 1) * meta.sigma * stock.vol;
     const economyTrend = ECONOMY.stockImpact(S.economy, stock.sector) * 2.4 / CFG.TICKS_PER_DAY;
     const factionFlow = (stock.factionFlowTicks || 0) > 0 ? (stock.factionFlowRate || 0) : 0;
-    const rawRate = stock.trend + noise + issueImpact + marketImpact + economyTrend + factionFlow;
+    const rawRateBase = stock.trend + noise + issueImpact + marketImpact + economyTrend + factionFlow;
+    const rawRate = MARKET_BALANCE ? MARKET_BALANCE.shapeRate(rawRateBase) : rawRateBase;
     const bounded = boundedStockChange(stock, rawRate, meta);
     const changeRate = bounded.rate;
     if ((stock.factionFlowTicks || 0) > 0) {
@@ -432,12 +437,14 @@ function tick() {
       stock.viTicks = 1;
       if ((S.viNewsCount || 0) < 3) {
         S.viNewsCount = (S.viNewsCount || 0) + 1;
-        logCompanyNews(stock.name, `변동성 완화장치 발동 · ${meta.label}주 틱 한도 ${pct(meta.tickLimit)}`, 0);
+        const limits=MARKET_BALANCE ? MARKET_BALANCE.limits(meta) : {tickUp:meta.tickLimit,tickDown:meta.tickLimit};
+        logCompanyNews(stock.name, `변동성 완화장치 발동 · ${meta.label}주 상승 ${pct(limits.tickUp)} / 하락 ${pct(-limits.tickDown)}`, 0);
       }
     }
     if (bounded.limitHit && stock.limitAnnouncedDay !== S.day) {
       stock.limitAnnouncedDay = S.day;
-      logCompanyNews(stock.name, `${meta.label}주 월간 가격제한폭 ${pct(meta.sessionLimit)} 도달`, changeRate);
+      const limits=MARKET_BALANCE ? MARKET_BALANCE.limits(meta) : {sessionUp:meta.sessionLimit,sessionDown:meta.sessionLimit};
+      logCompanyNews(stock.name, `${meta.label}주 월간 가격제한폭 도달 · 상승 ${pct(limits.sessionUp)} / 하락 ${pct(-limits.sessionDown)}`, changeRate);
     }
 
     // 5) 추세는 서서히 평균회귀 + 가끔 방향 전환
@@ -2208,7 +2215,7 @@ function showGameGuide(fromStart = false) {
         <div><b>거래량</b><span>해당 기간에 거래된 주식 수량</span></div>
         <div><b>시가총액</b><span>주가와 전체 주식 수를 곱한 기업의 시장 가치</span></div>
         <div><b>호재·악재</b><span>가격에 긍정적·부정적 영향을 줄 가능성이 있는 재료</span></div>
-        <div><b>상한가·하한가</b><span>한 달 장에서 오르거나 내릴 수 있는 가격 제한</span></div>
+        <div><b>상한가·하한가</b><span>게임의 돈 버는 체감을 위해 상승 한도는 넓고 하락 한도는 좁게 적용되는 월간 가격 제한</span></div>
         <div><b>공매도</b><span>주식을 빌려 먼저 판 뒤 낮은 가격에 갚아 하락 수익을 노리는 거래</span></div>
         <div><b>레버리지</b><span>빚이나 파생 구조로 가격 변동과 투자 규모를 확대하는 방식</span></div>
         <div><b>인버스·곱버스</b><span>지수와 반대로, 또는 반대 방향의 두 배로 움직이는 ETF</span></div>
@@ -5389,6 +5396,17 @@ function startBusiness(typeId){
   celebrate();afterLifeAction('사업');
 }
 
+function changeBusinessStrategy(id,strategyId){
+  if(!BUSINESS)return;
+  const result=BUSINESS.setStrategy(S.life,id,strategyId);
+  if(!result.ok){flashToast(result.message,'bad');return;}
+  const type=BUSINESS.typeOf(result.business.typeId);
+  const manager=BUSINESS.staffOf(result.business.managerId);
+  addNews(`${result.strategy.icon} ${type.name} 운영 방침 변경 · ${result.strategy.name} · ${manager.name} 담당`,'neutral');
+  flashToast(`${result.strategy.icon} 다음 달부터 ${result.strategy.name}`,'good');
+  renderLifePanel();autoSave();
+}
+
 function showPlaceEncounterModal(c,route){
   const host=$('date-host');if(!host||!c||!route)return;
   const introduced=route.key==='intro'&&S._dateCompanion&&S._dateCompanion.type!=='solo';
@@ -5967,7 +5985,7 @@ const MONTHLY_ACTION_GROUPS = {
   date:'데이트', hobby:'취미', rest:'휴식',
   cert:'경력', changejob:'경력', 'investment-consult':'경력',
   'contact-meet':'인맥', 'contact-nurture':'인맥', 'contact-ask':'인맥', 'meet-special':'인맥', 'person-request':'인맥', 'character-story':'인맥',
-  'business-start':'사업', 'business-hire':'사업', 'business-expand':'사업', 'business-close':'사업',
+  'business-start':'사업', 'business-hire':'사업', 'business-expand':'사업', 'business-close':'사업', 'business-strategy':'사업',
   rival:'라이벌', faction:'라이벌', 'faction-recruit':'라이벌', polycule:'데이트', marry:'가족', 'child-bond':'가족', 'child-edu':'가족', 'parent-care':'가족', 'family-plan':'가족'
 };
 const LIFE_ACTIONS_PER_MONTH = 4;
@@ -6179,7 +6197,9 @@ function lifeHubHTML() {
     if(item){
       const plan=BUSINESS.projected(item,S.economy.id),expandCost=BUSINESS.expansionCost(L,item.id),resale=BUSINESS.resaleValue(L,item.id);
       const capacity=BUSINESS.staffCapacity(item),hireCost=BUSINESS.hireCost(item);
-      return`<article class="asset-business-card"><div class="faction-member business-staff"><img src="${managerPortrait||BUSINESS.portraitPath(manager.id,item.lastNet<0?'sad':item.lastNet>1000000?'happy':'neutral')}" alt="${managerName}"><span><b>${type.icon} ${type.name} · ${item.level}단계</b><small>${managerName} · ${manager.role}${identity&&!identity.revealed?' · 신원 비공개':''}<br>직원 ${item.employees}/${capacity}명 · 사기 ${Math.round(item.morale)} · 평판 ${Math.round(item.reputation)}<br>지난달 매출 ${won(item.lastSales)} · 비용 ${won(item.lastCost)} · <b class="${item.lastNet>=0?'up':'down'}">순익 ${item.lastNet>=0?'+':''}${won(item.lastNet)}</b><br>다음 달 기준 예상 ${plan.net>=0?'+':''}${won(plan.net)}</small></span></div><div class="asset-card-actions"><button class="life-btn" data-act="business-hire" data-business="${item.id}" ${item.employees>=capacity?'disabled':''}>👥 직원 모집 <small>${item.employees>=capacity?'현재 정원 완료':`채용·교육 ${won(hireCost)}`}</small></button><button class="life-btn" data-act="business-expand" data-business="${item.id}" ${item.level>=5?'disabled':''}>🏗️ 확장 <small>${item.level>=5?'최대 규모':`${won(expandCost)} · ${item.level+1}단계`}</small></button><button class="life-btn hot" data-act="business-close" data-business="${item.id}">🚪 운영 종료 <small>${won(resale)} 회수</small></button></div></article>`;
+      const strategy=BUSINESS.strategyOf(item.strategy);
+      const strategyButtons=Object.values(BUSINESS.STRATEGIES).map(option=>`<button class="${option.id===strategy.id?'active':''}" data-act="business-strategy" data-business="${item.id}" data-strategy="${option.id}" title="${option.desc}">${option.icon} ${option.name}</button>`).join('');
+      return`<article class="asset-business-card"><div class="faction-member business-staff"><img src="${managerPortrait||BUSINESS.portraitPath(manager.id,item.lastNet<0?'sad':item.lastNet>1000000?'happy':'neutral')}" alt="${managerName}"><span><b>${type.icon} ${type.name} · ${item.level}단계</b><small>${managerName} · ${manager.role}${identity&&!identity.revealed?' · 신원 비공개':''}<br>직원 ${item.employees}/${capacity}명 · 사기 ${Math.round(item.morale)} · 평판 ${Math.round(item.reputation)}<br>지난달 매출 ${won(item.lastSales)} · 비용 ${won(item.lastCost)} · <b class="${item.lastNet>=0?'up':'down'}">순익 ${item.lastNet>=0?'+':''}${won(item.lastNet)}</b><br>다음 달 기준 예상 ${plan.net>=0?'+':''}${won(plan.net)} · ${strategy.icon} ${strategy.name}</small></span></div><div class="business-strategy-row" aria-label="${type.name} 운영 방침">${strategyButtons}</div><div class="asset-card-actions"><button class="life-btn" data-act="business-hire" data-business="${item.id}" ${item.employees>=capacity?'disabled':''}>👥 직원 모집 <small>${item.employees>=capacity?'현재 정원 완료':`채용·교육 ${won(hireCost)}`}</small></button><button class="life-btn" data-act="business-expand" data-business="${item.id}" ${item.level>=5?'disabled':''}>🏗️ 확장 <small>${item.level>=5?'최대 규모':`${won(expandCost)} · ${item.level+1}단계`}</small></button><button class="life-btn hot" data-act="business-close" data-business="${item.id}">🚪 운영 종료 <small>${won(resale)} 회수</small></button></div></article>`;
     }
     return`<article class="asset-business-card unopened"><div class="faction-member business-staff"><img src="${managerPortrait||BUSINESS.portraitPath(manager.id,'neutral')}" alt="${managerName}"><span><b>${manager.emoji} ${managerName} · ${manager.role}</b><small>${manager.intro}${identity&&!identity.revealed?' 실명과 얼굴은 장기 신뢰 전까지 공개하지 않습니다.':''}<br>${type.icon} ${type.name} · 월 기준 예상 ${won(type.baseSales-type.fixedCost)} · ${type.desc}</small></span></div><div class="asset-card-actions"><button class="life-btn asset-action" data-act="business-start" data-business="${type.id}">${type.icon} 사업 설립 <small>${won(type.cost)} · ${managerName} 담당</small></button></div></article>`;
   }).join(''):'';
@@ -6323,6 +6343,7 @@ function lifeHubHTML() {
 }
 
 function wireLifeHub(host) {
+  document.body.querySelectorAll(':scope > .life-workspace-layer').forEach(layer=>layer.remove());
   const workspaceLayer=host.querySelector('.life-workspace-layer');
   const closeWorkspace=()=>{
     if(!workspaceLayer)return;
@@ -6363,6 +6384,7 @@ function wireLifeHub(host) {
     else if (act === 'business-hire') recruitBusinessStaff(b.dataset.business);
     else if (act === 'business-expand') expandBusiness(b.dataset.business);
     else if (act === 'business-close') closeBusinessOperation(b.dataset.business);
+    else if (act === 'business-strategy') changeBusinessStrategy(b.dataset.business,b.dataset.strategy);
     else if (act === 'loan') takeLoan(b.dataset.provider, +b.dataset.amt);
     else if (act === 'repay') repayLoan();
     else if (act === 'checkup') doHealthCheckup();
@@ -6396,6 +6418,9 @@ function wireLifeHub(host) {
     else if (act === 'polycule') showPolyculeProposal();
     else if (act === 'changejob') showJobModal(true);
   }));
+  // 월말 창에는 좌우 이동 transform이 있어 그 안의 fixed 요소도 620px 폭에 갇힌다.
+  // 모든 핸들러를 연결한 뒤 관리 레이어만 body로 올려 큰 화면을 온전히 사용한다.
+  if(workspaceLayer)document.body.appendChild(workspaceLayer);
 }
 
 /* ------------------------------------------------------------------ AI 라이벌 */
@@ -7121,7 +7146,10 @@ function renderIssues() {
     const strength = effective >= .07 ? '강함' : effective >= .035 ? '보통' : '약함';
     return {
       name:stock.name, text:iss.text, good:iss.impact >= 0, strength,
-      limitText:`${meta.label}주 월 한도 ±${Math.round(meta.sessionLimit * 100)}%`,
+      limitText:(()=>{
+        const limits=MARKET_BALANCE ? MARKET_BALANCE.limits(meta) : {sessionUp:meta.sessionLimit,sessionDown:meta.sessionLimit};
+        return `${meta.label}주 월 한도 +${Math.round(limits.sessionUp*100)}% / -${Math.round(limits.sessionDown*100)}%`;
+      })(),
     };
   });
   INFO_MARKET_PANEL.renderIssues({

@@ -81,6 +81,13 @@ const PERSONAL_STORIES={
         {id:'routine',text:'매달 하루는 둘만의 생활일로 비운다',preview:'호감·신뢰 상승 · 공사 경계 안정',effects:{affection:10,trust:9,bond:10,boundary:5},outcome:'두 사람은 거창한 휴가보다 장보기와 저녁을 함께하는 날부터 만들었습니다.',reply:'그날은 대표님 말고 그냥 당신으로 와요. 제가 좋아하는 건 그쪽이니까.'},
         {id:'work_first',text:'일과 관계를 천천히 분리하자고 합의한다',preview:'신뢰 크게 상승',effects:{affection:5,trust:13,bond:8,boundary:8},outcome:'지수는 서운함보다 안도감을 보였습니다. 오래 가려면 지킬 선도 필요하다는 걸 알고 있었습니다.',reply:'좋아요. 대신 퇴근한 뒤에는 제 눈 보고 말해요. 결재하듯 대답하지 말고.'},
       ]},
+    {id:'rain_shift',minAffection:68,minTrust:42,title:'비 오는 날의 대체 근무',icon:'☔',scene:'./assets/event-business-office-rain-shift-pixel-v1.png',
+      desc:'폭우로 배송과 출근이 모두 꼬인 날, 지수는 대표를 부르지 않고 직원들과 현장을 수습했습니다. 일이 끝난 뒤에야 젖은 우산 하나를 들고 당신에게 연락합니다.',
+      line:'오늘은 제가 대표님 사업을 지켰어요. 그러니까 지금부터는… 대표님이 제 퇴근을 좀 챙겨 줄래요?',
+      choices:[
+        {id:'late_meal',text:'문 닫은 식당 대신 편의점 앞에서 늦은 저녁을 먹는다',preview:'호감 크게 상승 · 생활형 추억',effects:{cash:-50000,affection:13,trust:9,bond:10,boundary:4},outcome:'화려한 식사는 아니었지만 지수는 그날을 처음으로 “우리 둘의 퇴근”이라고 불렀습니다.',reply:'이런 거 좋아요. 회사가 잘된 날보다, 같이 집에 가는 날.'},
+        {id:'ride_home',text:'직원들의 귀가부터 확인하고 마지막으로 지수를 데려다준다',preview:'신뢰 크게 상승 · 업무 시너지 상승',effects:{cash:-300000,affection:8,trust:14,bond:11,synergy:5},outcome:'지수는 자신과 직원들을 같은 기준으로 챙긴 당신에게 말없이 젖은 어깨를 기댔습니다.',reply:'대표님이 마지막 순서라서 좋아요. 다 챙기고도 제 자리가 남아 있다는 뜻이니까.'},
+      ]},
   ],
   creative:[
     {id:'uncredited_frame',minAffection:28,minTrust:12,title:'크레딧에서 빠진 이름',icon:'🎬',scene:'./assets/event-business-creative-credit.png',
@@ -96,6 +103,13 @@ const PERSONAL_STORIES={
       choices:[
         {id:'coauthor',text:'서로의 동의가 있는 공동 프로젝트로 바꾼다',preview:'호감·신뢰 상승 · 공동 의사결정 상승',effects:{affection:10,trust:10,bond:9,governance:6},outcome:'카메라 앞과 뒤를 번갈아 맡으며 두 사람은 연인인 동시에 동등한 제작자가 됐습니다.',reply:'좋아. 그럼 컷을 외칠 권리도 반반. 가까이 오라는 연출도 반반.'},
         {id:'private',text:'이번 이야기는 둘만 알고 작품으로 만들지 않는다',preview:'신뢰 크게 상승 · 공사 경계 상승',effects:{affection:7,trust:13,bond:8,boundary:7},outcome:'이슬은 처음으로 공개하지 않을 장면을 선택했습니다. 대신 그 밤을 오래 기억했습니다.',reply:'세상에 안 보여 줄 장면이 생겼네. 그건 당신만 기억해요.'},
+      ]},
+    {id:'rooftop_preview',minAffection:68,minTrust:42,title:'옥상에서 보는 무음 시사회',icon:'🌌',scene:'./assets/event-business-creative-rooftop-pixel-v1.png',
+      desc:'이슬은 완성된 광고보다 폐기된 장면들만 이어 붙인 영상을 옥상 벽에 틀었습니다. 화면 속에는 직원들의 웃음과 당신을 바라보던 자신의 시선이 남아 있습니다.',
+      line:'팔 수 없는 장면만 모았어요. 이상하지? 내가 제일 갖고 싶은 건 늘 상품이 안 되더라.',
+      choices:[
+        {id:'archive',text:'둘만 보는 비공개 아카이브를 함께 만든다',preview:'호감·신뢰 크게 상승',effects:{affection:12,trust:12,bond:10,boundary:6},outcome:'두 사람은 공개하지 않아도 사라지지 않는 장면들을 매달 한 편씩 남기기로 했습니다.',reply:'좋아. 세상에는 안 팔고, 우리만 계속 업데이트하는 거야.'},
+        {id:'team_film',text:'직원 모두가 주인공인 사내 영화로 다시 편집한다',preview:'사기·업무 시너지 상승',effects:{affection:8,trust:10,bond:11,synergy:8},outcome:'이슬은 사랑을 독점하는 대신 함께 일한 사람들의 시간을 작품으로 돌려주었습니다.',reply:'당신 옆에 있으면 욕심을 나눠도 장면이 작아지지 않네.'},
       ]},
   ],
   corporate:[
@@ -113,6 +127,13 @@ const PERSONAL_STORIES={
         {id:'renew',text:'소유 조항 없이 매년 함께 갱신한다',preview:'호감·신뢰 상승 · 공사 경계 상승',effects:{affection:10,trust:11,bond:9,boundary:6},outcome:'두 사람은 서로를 담보로 잡지 않는 계약에 처음으로 함께 서명했습니다.',reply:'갱신일에는 제가 먼저 연락하죠. 대표님이 아직 제 조건을 감당할 수 있는지 확인하러.'},
         {id:'blank',text:'마지막 장은 빈 채로 두고 말로 약속한다',preview:'호감 크게 상승',effects:{affection:13,trust:7,bond:10},outcome:'서윤은 비어 있는 종이를 보관했습니다. 증명할 수 없어서 더 특별한 약속이었습니다.',reply:'증거가 없으니 배신하면 끝이군요. 그래서 더 오래 믿어 보고 싶어졌습니다.'},
       ]},
+    {id:'elevator_pause',minAffection:68,minTrust:42,title:'멈춘 엘리베이터의 11분',icon:'🛗',scene:'./assets/event-business-corporate-elevator-pixel-v1.png',
+      desc:'대형 협상을 끝낸 밤 엘리베이터가 잠시 멈췄습니다. 통신도 계약서도 없는 좁은 공간에서 서윤은 처음으로 계산하지 못한 불안을 드러냅니다.',
+      line:'지금은 해결책을 말하지 마세요. 대표님이 옆에 있다는 사실만 확인하겠습니다.',
+      choices:[
+        {id:'quiet',text:'아무 약속도 하지 않고 손만 잡는다',preview:'호감·신뢰 크게 상승 · 공사 경계 안정',effects:{affection:11,trust:13,bond:10,boundary:7},outcome:'11분 동안 아무 조건도 교환하지 않았고, 서윤은 그 침묵을 가장 확실한 합의로 기억했습니다.',reply:'문서가 없는데도 이행됐군요. 이런 신뢰는 처음입니다.'},
+        {id:'contingency',text:'나간 뒤 전 직원 비상 대응 체계를 함께 만든다',preview:'신뢰·공동 의사결정 크게 상승',effects:{affection:7,trust:15,bond:11,governance:8},outcome:'개인의 공포는 조직의 안전 규칙이 됐고 서윤은 약점을 숨기지 않아도 권한을 잃지 않았습니다.',reply:'제 약점을 비용으로 보지 않았군요. 그 판단에는 오래 투자할 가치가 있습니다.'},
+      ]},
   ],
   medical:[
     {id:'red_line',minAffection:28,minTrust:12,title:'매출보다 먼저 그은 빨간 선',icon:'🩺',scene:'./assets/event-business-medical-redline.png',
@@ -128,6 +149,13 @@ const PERSONAL_STORIES={
       choices:[
         {id:'rest',text:'센터를 하루 닫고 혜린과 조용히 쉰다',preview:'현금 -100만 · 호감·신뢰 크게 상승',effects:{cash:-1000000,affection:11,trust:10,bond:10,boundary:5},outcome:'아무도 돌보지 않는 하루에 혜린은 처음으로 당신에게 기대어 잠들었습니다.',reply:'잠들면 깨우지 말아 주세요. 오늘은 제가 먼저 기대도 되는 날이니까.'},
         {id:'system',text:'교대 책임자를 세워 누구도 희생하지 않게 한다',preview:'현금 -160만 · 신뢰·공동 의사결정 상승',effects:{cash:-1600000,affection:6,trust:14,bond:9,governance:7},outcome:'혜린은 개인의 선의보다 오래 가는 제도를 만든 당신을 새로운 눈으로 보았습니다.',reply:'이제 쉬는 날에 대표님을 만나도 환자 생각부터 하진 않아도 되겠네요.'},
+      ]},
+    {id:'dawn_round',minAffection:68,minTrust:42,title:'첫 예약 전의 새벽 순찰',icon:'🌅',scene:'./assets/event-business-medical-dawn-pixel-v1.png',
+      desc:'혜린은 확장한 여러 지점을 직접 돌다가 첫차 시간의 빈 센터에서 당신과 마주쳤습니다. 직원들이 스스로 운영할 수 있게 된 뒤에도 혼자 확인하던 습관이 남아 있습니다.',
+      line:'이제 제가 없어도 잘 돌아가는데, 자꾸 확인하러 오게 돼요. 사람도… 좋아하면 그렇게 되나 봐요.',
+      choices:[
+        {id:'breakfast',text:'점검표를 덮고 첫 예약 전까지 함께 아침을 먹는다',preview:'호감 크게 상승 · 안식감',effects:{cash:-80000,affection:13,trust:9,bond:10,boundary:5},outcome:'센터는 직원들에게 맡겨 둔 채 두 사람은 처음으로 아무도 돌보지 않는 아침을 보냈습니다.',reply:'다음에는 점검 핑계 없이 부를게요. 그냥 보고 싶다고.'},
+        {id:'rotation',text:'지점 책임자 순환 점검으로 혜린의 새벽 근무를 없앤다',preview:'신뢰·공동 의사결정 크게 상승',effects:{cash:-700000,affection:8,trust:14,bond:11,governance:8},outcome:'혜린의 책임감은 직원들에게 권한으로 나뉘었고, 그녀의 새벽은 비로소 개인의 시간이 됐습니다.',reply:'이제 새벽에 만나면 일 때문이 아니겠네요. 그게 조금 설레요.'},
       ]},
   ],
 };
@@ -168,6 +196,30 @@ const QUARTET_CHAPTERS=[
     choices:[
       {id:'clear_rules',text:'업무권한·사적 동의·질투의 선을 명확히 합의한다',preview:'공동 의사결정·공사 경계 크게 상승',effects:{synergy:7,governance:15,boundary:16,affectionEach:6,trustEach:10},outcome:'낭만적이지 않은 규칙들이 오히려 다섯 사람을 안심시켰습니다. 누구도 고용과 사랑을 거래하지 않기로 했습니다.'},
       {id:'trust_feeling',text:'규칙보다 서로의 마음을 믿고 자연스럽게 둔다',preview:'호감 크게 상승 · 공사 경계 하락',effects:{synergy:5,governance:-3,boundary:-10,affectionEach:11,trustEach:3},outcome:'그날 밤은 따뜻했지만 다음 날부터 사소한 배려와 업무 지시의 뜻을 두 번씩 해석해야 했습니다.'},
+    ]},
+  {id:'branch_tour',title:'제4장 · 대표 없이 돌아간 하루',icon:'🚌',scene:'./assets/event-business-quartet-branch-tour-pixel-v1.png',
+    desc:'당신이 자리를 비운 날 네 담당자는 여러 사업장을 함께 돌며 문제를 해결했습니다. 돌아온 당신 앞에는 결재 요청이 아니라 이미 끝난 보고서와 네 사람의 단체사진이 놓여 있습니다.',
+    dialogues:[
+      ['박지수','지점 세 곳 근무표는 제가 묶었고, 직원들 저녁도 챙겼어요.'],
+      ['한이슬','새 브랜드 간판은 현장에서 바로 고쳤어. 서윤 씨가 비용 승인도 해줬고.'],
+      ['차서윤','대표 부재 시 권한 규칙이 실제로 작동했습니다. 예외는 혜린 씨가 막았고요.'],
+      ['오혜린','아무도 무리하지 않았어요. 대표님이 없어도요. 그러니까 조금은 우리를 믿고 쉬어도 돼요.'],
+    ],
+    choices:[
+      {id:'delegate_board',text:'네 사람의 독립 운영권을 정식 규칙으로 만든다',preview:'공동 의사결정·업무 시너지 크게 상승',effects:{synergy:14,governance:16,boundary:7,affectionEach:5,trustEach:10},outcome:'사업은 대표 한 사람의 체력 대신 네 담당자와 직원들의 판단으로 굴러가기 시작했습니다.'},
+      {id:'review_together',text:'결과를 함께 검토하고 실패도 공동 책임으로 남긴다',preview:'신뢰와 공사 경계 크게 상승',effects:{synergy:9,governance:11,boundary:12,affectionEach:7,trustEach:8},outcome:'잘한 일만 칭찬하지 않고 실수까지 함께 기록하자 네 사람은 권한이 곧 희생이 아니라는 걸 확인했습니다.'},
+    ]},
+  {id:'shared_payday',title:'제5장 · 첫 공동 성과급',icon:'💸',scene:'./assets/event-business-quartet-payday-pixel-v1.png',
+    desc:'여덟 곳이 넘는 사업이 안정된 달, 네 담당자는 자신들의 몫보다 전 직원 성과급 안건을 먼저 올렸습니다. 회사가 커진 뒤 무엇을 나눌지 결정할 마지막 이사회입니다.',
+    dialogues:[
+      ['차서윤','배당과 유보금 비율은 계산했습니다. 다만 이건 대표의 가치 판단이 필요합니다.'],
+      ['박지수','이번 달을 만든 건 이름도 공개되지 않은 직원들이에요. 먼저 챙겨 주세요.'],
+      ['오혜린','쉬는 날과 안전 인력도 성과예요. 돈만 나누고 다시 지치게 하면 안 돼요.'],
+      ['한이슬','그리고 우리 다섯은 보너스 대신 여행 어때? 회사 얘기 금지로.'],
+    ],
+    choices:[
+      {id:'people_dividend',text:'전 직원 성과급과 유급휴가를 우선 지급한다',preview:'현금 -800만 · 전 지표 크게 상승',effects:{cash:-8000000,synergy:15,governance:14,boundary:10,affectionEach:7,trustEach:11},outcome:'성과는 직급이 아니라 함께 버틴 시간에 따라 나뉘었고 회사는 사람을 남기는 조직이 됐습니다.'},
+      {id:'reinvest_and_trip',text:'절반은 재투자하고 네 사람과 짧은 여행을 떠난다',preview:'현금 -400만 · 시너지와 호감 크게 상승',effects:{cash:-4000000,synergy:14,governance:8,boundary:6,affectionEach:11,trustEach:7},outcome:'직원에게 성장의 몫을 남기고 다섯 사람은 처음으로 회사 밖에서 같은 목적지를 골랐습니다.'},
     ]},
 ];
 
@@ -254,6 +306,8 @@ function nextQuartetChapter(life,ctx,allOwned){
   const totalProfit=((ctx.businessState&&ctx.businessState.owned)||[]).reduce((sum,item)=>sum+(item.totalProfit||0),0);
   if(index===1&&totalProfit<25000000)return null;
   if(index===2&&records.some(rec=>(rec.affection||0)<42||(rec.trust||0)<20))return null;
+  if(index===3&&IDS.some(id=>state.staff[id].storyChapter<2))return null;
+  if(index===4&&(((ctx.businessState&&ctx.businessState.owned)||[]).length<8||IDS.some(id=>state.staff[id].storyChapter<3)))return null;
   return{businessRomanceEvent:true,kind:'quartet-story',chapterId:chapter.id,day:ctx.day};
 }
 function monthly(life,context){
@@ -349,7 +403,7 @@ function view(life,payload,capital){
     if(!story)return null;
     return{kind:payload.kind,profile:p,identity:who,icon:story.icon,title:`${p.name} · ${story.title}`,desc:story.desc,line:story.line,
       portrait:story.scene||p.scene,choices:story.choices.map(choice=>({id:choice.id,text:choice.text,preview:choice.preview})),
-      meta:`개인 업무 이야기 ${(s.storyChapter||0)+1}/2 · 업무 신뢰 ${Math.round(s.bond)} · 개인 신뢰 ${Math.round(s.trust)}`};
+      meta:`개인 업무 이야기 ${(s.storyChapter||0)+1}/${(PERSONAL_STORIES[p.id]||[]).length} · 업무 신뢰 ${Math.round(s.bond)} · 개인 신뢰 ${Math.round(s.trust)}`};
   }
   if(payload.kind==='temptation')return{
     kind:payload.kind,profile:p,identity:who,icon:'📱',title:`${p.alias}의 심야 업무 연락`,
@@ -415,7 +469,7 @@ function resolve(life,payload,choiceId,capital){
     q.boundary=clamp(q.boundary+finite(e.boundary,0),0,100);
     return{ok:true,done:true,personalStory:true,staffId:p.id,title:story.title,text:choice.outcome,
       cash:Math.round(finite(e.cash,0)),affection:finite(e.affection,0),trust:finite(e.trust,0),reply:choice.reply||'',tone:'good',
-      meta:`${p.name} 개인 이야기 ${s.storyChapter}/2 · 업무 신뢰 ${Math.round(s.bond)}`};
+      meta:`${p.name} 개인 이야기 ${s.storyChapter}/${(PERSONAL_STORIES[p.id]||[]).length} · 업무 신뢰 ${Math.round(s.bond)}`};
   }
   if(payload.kind==='temptation'){
     if(choiceId==='boundary'){

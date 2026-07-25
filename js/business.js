@@ -27,6 +27,13 @@ const STAFF={
   },
 };
 
+const STRATEGIES={
+  balanced:{id:'balanced',icon:'⚖️',name:'균형 운영',sales:1,cost:1,reputation:0,morale:0,desc:'담당자가 매출과 현장 상태를 고르게 관리'},
+  growth:{id:'growth',icon:'🚀',name:'성장 집중',sales:1.18,cost:1.10,reputation:.25,morale:-.8,desc:'광고·영업을 늘려 매출을 키우지만 현장이 바빠짐'},
+  quality:{id:'quality',icon:'✨',name:'품질 우선',sales:1.06,cost:1.14,reputation:1.1,morale:.7,desc:'비용을 더 써서 평판과 직원 상태를 함께 관리'},
+  lean:{id:'lean',icon:'🧮',name:'비용 절감',sales:.94,cost:.82,reputation:-.7,morale:-1.3,desc:'당장 순익은 지키지만 평판과 사기가 서서히 하락'},
+};
+
 const TYPES=[
   {
     id:'commerce',name:'온라인 유통사',icon:'📦',managerId:'office',
@@ -63,6 +70,42 @@ const TYPES=[
     cost:38000000,resaleRate:.64,baseSales:7200000,fixedCost:4900000,variance:.17,
     desc:'기업 배송과 창고 운영 계약을 맡습니다. 초기 투자는 크지만 장기계약을 잡으면 안정적입니다.',
     phase:{boom:1.15,overheating:1.10,recovery:1.07,tightening:.96,recession:.90,crisis:.84,stimulus:1.03},
+  },
+  {
+    id:'franchise',name:'생활 서비스 프랜차이즈',icon:'🏪',managerId:'office',
+    cost:52000000,resaleRate:.60,baseSales:9200000,fixedCost:6200000,variance:.19,
+    desc:'여러 지점의 근무표·재고·고객 응대를 표준화합니다. 직원 수와 운영 방침의 영향을 크게 받습니다.',
+    phase:{boom:1.13,overheating:1.06,recovery:1.07,tightening:.94,recession:.89,crisis:.80,stimulus:1.08},
+  },
+  {
+    id:'game_lab',name:'인디 게임 개발사',icon:'🎮',managerId:'creative',
+    cost:36000000,resaleRate:.50,baseSales:7600000,fixedCost:5000000,variance:.34,
+    desc:'작은 팀으로 게임을 개발하고 운영합니다. 흥행 편차가 크지만 좋은 제작진과 평판이 쌓이면 폭발적으로 성장합니다.',
+    phase:{boom:1.13,overheating:1.09,recovery:1.05,tightening:.90,recession:.84,crisis:.72,stimulus:1.12},
+  },
+  {
+    id:'brand_house',name:'브랜드·광고 에이전시',icon:'🪄',managerId:'creative',
+    cost:30000000,resaleRate:.55,baseSales:6500000,fixedCost:4250000,variance:.26,
+    desc:'기업의 캠페인과 브랜드를 제작합니다. 수주 평판과 직원 사기가 곧 매출로 이어집니다.',
+    phase:{boom:1.16,overheating:1.12,recovery:1.06,tightening:.91,recession:.85,crisis:.75,stimulus:1.09},
+  },
+  {
+    id:'fitness',name:'프리미엄 피트니스 센터',icon:'🏋️',managerId:'medical',
+    cost:42000000,resaleRate:.59,baseSales:7300000,fixedCost:5000000,variance:.18,
+    desc:'회원권과 개인 프로그램을 운영합니다. 안전·트레이너 교육·재등록률을 함께 관리해야 합니다.',
+    phase:{boom:1.11,overheating:1.08,recovery:1.07,tightening:.96,recession:.91,crisis:.85,stimulus:1.05},
+  },
+  {
+    id:'petcare',name:'반려동물 케어 네트워크',icon:'🐾',managerId:'medical',
+    cost:28000000,resaleRate:.57,baseSales:5600000,fixedCost:3700000,variance:.17,
+    desc:'미용·돌봄·건강관리 예약을 묶어 운영합니다. 신뢰와 안전 기준이 무너지면 빠르게 고객을 잃습니다.',
+    phase:{boom:1.08,overheating:1.05,recovery:1.06,tightening:.99,recession:.98,crisis:.91,stimulus:1.07},
+  },
+  {
+    id:'software',name:'업무 자동화 SaaS',icon:'💻',managerId:'corporate',
+    cost:60000000,resaleRate:.68,baseSales:10500000,fixedCost:6900000,variance:.15,
+    desc:'기업에 구독형 업무 도구를 판매합니다. 초기 투자는 크지만 계약과 고객 유지가 안정되면 높은 반복 매출을 냅니다.',
+    phase:{boom:1.14,overheating:1.10,recovery:1.08,tightening:1.00,recession:.94,crisis:.88,stimulus:1.10},
   },
 ];
 
@@ -117,8 +160,52 @@ const EVENTS={
   ],
 };
 
+const MANAGER_EVENTS={
+  office:[{
+    id:'shift_gap',mood:'sad',title:'근무표에 빈 시간이 생겼습니다',
+    desc:'갑작스러운 결원으로 가장 바쁜 시간대를 맡을 사람이 없습니다. 박 매니저가 대체 인력과 영업시간 조정안을 함께 보내왔습니다.',
+    line:'대표님이 직접 매장에 올 일은 아니에요. 제가 직원들과 굴릴 수 있게 기준만 정해 주세요.',
+    choices:[
+      {id:'temp',text:'단기 인력을 투입하고 기존 직원에게 교육을 맡긴다',preview:'비용 90만 · 사기와 운영 흐름 상승',effects:{cash:-900000,reputation:2,morale:5,momentum:.07},outcome:'직원들이 역할을 나눠 빈 근무표를 메웠고 박지수는 다음 달 매뉴얼까지 정리했습니다.'},
+      {id:'shorten',text:'혼잡 시간만 운영하고 직원 휴식을 보장한다',preview:'매출 기회 감소 · 평판과 사기 상승',effects:{cash:0,reputation:4,morale:6,momentum:-.03},outcome:'당장 매출은 줄었지만 서비스 품질과 직원들의 신뢰가 남았습니다.'},
+      {id:'overtime',text:'이번 달만 기존 인원에게 추가 근무를 맡긴다',preview:'현금 +80만 · 직원 사기 하락',effects:{cash:800000,reputation:-1,morale:-7,momentum:.05},outcome:'장부는 지켰지만 다음 근무표를 받은 직원들의 표정이 굳었습니다.'},
+    ],
+  }],
+  creative:[{
+    id:'creative_credit',mood:'angry',title:'성과의 이름을 두고 제작팀이 갈라졌습니다',
+    desc:'큰 프로젝트가 성공했지만 고객사는 책임자 한 사람의 이름만 홍보하려 합니다. 한 실장이 팀 전체의 크레딧을 지킬지 묻습니다.',
+    line:'돈은 나눌 수 있어요. 그런데 이름을 빼앗기면 다음 작품을 만들 사람이 사라져요.',
+    choices:[
+      {id:'team_credit',text:'계약을 다시 열어 전 제작진의 이름을 보장한다',preview:'비용 120만 · 평판과 사기 크게 상승',effects:{cash:-1200000,reputation:6,morale:7,momentum:.08},outcome:'발표는 늦어졌지만 팀의 이름이 모두 남았고 다음 지원자가 먼저 찾아왔습니다.'},
+      {id:'bonus',text:'대외 크레딧은 유지하고 팀에 성과급을 지급한다',preview:'비용 180만 · 사기 상승',effects:{cash:-1800000,reputation:1,morale:5,momentum:.04},outcome:'불만은 누그러졌지만 한이슬은 이름을 돈으로 대신한 결정을 오래 기억했습니다.'},
+      {id:'lead_only',text:'이번 홍보는 책임자 이름만 사용한다',preview:'현금 +150만 · 평판과 사기 하락',effects:{cash:1500000,reputation:-4,morale:-8,momentum:.09},outcome:'프로젝트는 더 크게 알려졌지만 다음 기획 회의의 빈자리가 늘었습니다.'},
+    ],
+  }],
+  corporate:[{
+    id:'contract_alert',mood:'neutral',title:'담당자가 계약 체결 직전 위험 조항을 발견했습니다',
+    desc:'장기 고객을 얻을 수 있는 계약이지만 손해배상 범위가 모호합니다. 차 총괄이 서명을 멈추고 세 가지 대응안을 보냈습니다.',
+    line:'제가 관리할 수 있는 위험과 대표님이 감수해야 할 위험을 구분해 두었습니다. 어느 쪽을 선택하시겠습니까?',
+    choices:[
+      {id:'renegotiate',text:'협상팀에 권한을 주고 책임 범위를 다시 정한다',preview:'비용 160만 · 장기 성장과 신뢰 상승',effects:{cash:-1600000,reputation:6,morale:4,momentum:.13},outcome:'차서윤과 직원들이 협상을 끝내고 안정적인 반복 계약을 가져왔습니다.'},
+      {id:'insurance',text:'보험과 충당금을 마련한 뒤 계약한다',preview:'비용 240만 · 안정적인 성장',effects:{cash:-2400000,reputation:3,morale:3,momentum:.09},outcome:'수익은 얇아졌지만 직원들이 감당할 수 있는 범위 안에서 계약이 시작됐습니다.'},
+      {id:'sign',text:'선점이 중요하니 원안대로 서명한다',preview:'현금 +300만 · 평판과 현장 안정 하락',effects:{cash:3000000,reputation:-5,morale:-5,momentum:.10},outcome:'선급금은 들어왔지만 직원들은 언제 터질지 모를 책임 조항을 떠안았습니다.'},
+    ],
+  }],
+  medical:[{
+    id:'safety_call',mood:'sad',title:'현장에서 안전 기준 중단 요청이 왔습니다',
+    desc:'예약과 계약이 몰린 날 장비 점검 경고가 떴습니다. 오 책임자는 매출 손실을 알면서도 즉시 운영 중단을 요청했습니다.',
+    line:'결정만 내려 주세요. 사람을 옮기고 현장을 수습하는 건 직원들과 제가 하겠습니다.',
+    choices:[
+      {id:'stop',text:'즉시 운영을 멈추고 전 장비를 점검한다',preview:'비용 170만 · 평판과 사기 크게 상승',effects:{cash:-1700000,reputation:7,morale:7,momentum:.04},outcome:'사고 없이 점검을 마쳤고 직원들은 매출보다 자신들을 먼저 지킨 결정을 기억했습니다.'},
+      {id:'reroute',text:'협력 업체로 예약을 분산하고 핵심 설비만 점검한다',preview:'비용 90만 · 운영 흐름과 평판 상승',effects:{cash:-900000,reputation:4,morale:4,momentum:.08},outcome:'오혜린이 현장을 통제하고 직원들이 고객을 안전하게 분산했습니다.'},
+      {id:'continue',text:'경고가 뜬 구역만 막고 나머지 예약은 진행한다',preview:'현금 +100만 · 평판과 사기 하락',effects:{cash:1000000,reputation:-6,morale:-7,momentum:.05},outcome:'이번에는 사고가 없었지만 직원들은 다음 경고도 무시될까 걱정하기 시작했습니다.'},
+    ],
+  }],
+};
+
 function typeOf(id){return TYPES.find(type=>type.id===id)||null;}
 function staffOf(id){return STAFF[id]||null;}
+function strategyOf(id){return STRATEGIES[id]||STRATEGIES.balanced;}
 function portraitPath(staffId,mood){
   const person=staffOf(staffId);
   if(!person)return'';
@@ -146,6 +233,7 @@ function ensure(life){
     reputation:clamp(finite(item.reputation,45),0,100),
     morale:clamp(finite(item.morale,65),0,100),
     momentum:clamp(finite(item.momentum,0),-.35,.50),
+    strategy:strategyOf(item.strategy).id,
     employees:clamp(Math.floor(finite(item.employees,2)),2,22),
     hiredStaff:Array.isArray(item.hiredStaff)?item.hiredStaff.filter(Boolean).slice(0,20):[],
     totalProfit:Math.round(finite(item.totalProfit,0)),
@@ -164,7 +252,7 @@ function start(life,typeId,day){
   const item={
     id:type.id,typeId:type.id,managerId:type.managerId,level:1,months:0,
     employees:2,hiredStaff:[],
-    reputation:45,morale:65,momentum:0,totalProfit:0,lastSales:0,lastCost:0,lastNet:0,
+    reputation:45,morale:65,momentum:0,strategy:'balanced',totalProfit:0,lastSales:0,lastCost:0,lastNet:0,
     startedDay:Math.max(1,Math.floor(finite(day,1))),
   };
   state.owned.push(item);
@@ -186,6 +274,13 @@ function hire(life,id,candidateId){
   item.morale=clamp(item.morale+2,0,100);
   item.momentum=clamp(item.momentum+.025,-.35,.50);
   return{ok:true,business:item,type,cost};
+}
+function setStrategy(life,id,strategyId){
+  const item=owned(life,id),strategy=STRATEGIES[strategyId];
+  if(!item)return{ok:false,message:'운영 중인 사업을 찾지 못했습니다.'};
+  if(!strategy)return{ok:false,message:'알 수 없는 운영 방침입니다.'};
+  item.strategy=strategy.id;
+  return{ok:true,business:item,strategy};
 }
 function expand(life,id){
   const item=owned(life,id),type=item&&typeOf(item.typeId);
@@ -216,15 +311,16 @@ function assetValue(life){
 }
 function projected(item,phaseId){
   const type=typeOf(item.typeId);if(!type)return{sales:0,cost:0,net:0};
+  const strategy=strategyOf(item.strategy);
   const levelMul=1+(item.level-1)*.46;
   const phaseMul=(type.phase||{})[phaseId]||1;
   const qualityMul=.76+item.reputation*.004;
   const moraleMul=.86+item.morale*.0022;
   const staffExtra=Math.max(0,(item.employees||2)-2);
   const staffSales=1+Math.min(.36,staffExtra*.045);
-  const sales=Math.round(type.baseSales*levelMul*phaseMul*qualityMul*moraleMul*(1+item.momentum)*staffSales);
-  const cost=Math.round(type.fixedCost*(1+(item.level-1)*.37)+staffExtra*350000);
-  return{sales,cost,net:sales-cost};
+  const sales=Math.round(type.baseSales*levelMul*phaseMul*qualityMul*moraleMul*(1+item.momentum)*staffSales*strategy.sales);
+  const cost=Math.round((type.fixedCost*(1+(item.level-1)*.37)+staffExtra*350000)*strategy.cost);
+  return{sales,cost,net:sales-cost,strategy};
 }
 function reportLine(item){
   const type=typeOf(item.typeId),manager=staffOf(item.managerId),net=item.lastNet;
@@ -233,7 +329,7 @@ function reportLine(item){
   return`${manager.name}: “이번 달은 적자입니다. 숫자를 숨기지 않겠습니다. 다음 판단이 중요합니다.”`;
 }
 function eventPayload(life,item,day,random){
-  const pool=EVENTS[item.typeId]||[];
+  const pool=(EVENTS[item.typeId]||[]).concat(MANAGER_EVENTS[item.managerId]||[]);
   if(!pool.length)return null;
   const event=pool[Math.floor(random()*pool.length)]||pool[0];
   return{businessEvent:true,businessId:item.id,eventId:event.id,day};
@@ -252,13 +348,14 @@ function monthly(life,context){
     const cost=plan.cost;
     const net=sales-cost;
     item.lastSales=sales;item.lastCost=cost;item.lastNet=net;item.totalProfit+=net;
-    item.reputation=clamp(item.reputation+(net>=0?.35:-.8),0,100);
-    item.morale=clamp(item.morale+(net>=0?.2:-.6),0,100);
+    const strategy=strategyOf(item.strategy);
+    item.reputation=clamp(item.reputation+(net>=0?.35:-.8)+strategy.reputation,0,100);
+    item.morale=clamp(item.morale+(net>=0?.2:-.6)+strategy.morale,0,100);
     item.momentum=clamp(item.momentum*.55,-.35,.50);
     totalSales+=sales;totalCost+=cost;totalNet+=net;
     reports.push({
       businessId:item.id,typeId:item.typeId,name:type.name,icon:type.icon,managerId:item.managerId,
-      manager:staffOf(item.managerId).name,sales,cost,net,line:reportLine(item),day,
+      manager:staffOf(item.managerId).name,sales,cost,net,strategy:strategy.name,line:reportLine(item),day,
     });
   });
   const eventReady=state.owned.length&&day-state.lastEventDay>=2;
@@ -272,10 +369,12 @@ function monthly(life,context){
   state.lastNet=totalNet;
   return{sales:totalSales,cost:totalCost,net:totalNet,reports,event:pendingEvent};
 }
-function findEvent(typeId,eventId){return(EVENTS[typeId]||[]).find(event=>event.id===eventId)||null;}
+function findEvent(item,eventId){
+  return(EVENTS[item.typeId]||[]).concat(MANAGER_EVENTS[item.managerId]||[]).find(event=>event.id===eventId)||null;
+}
 function eventView(life,payload){
   const item=owned(life,payload&&payload.businessId);
-  const type=item&&typeOf(item.typeId),event=type&&findEvent(type.id,payload.eventId);
+  const type=item&&typeOf(item.typeId),event=type&&findEvent(item,payload.eventId);
   if(!item||!type||!event)return null;
   const manager=staffOf(item.managerId);
   return{
@@ -303,8 +402,8 @@ function resolveEvent(life,payload,choiceId){
 }
 
 root.QT_BUSINESS={
-  STAFF,TYPES,EVENTS,ensure,typeOf,staffOf,portraitPath,owned,start,expand,expansionCost,
+  STAFF,STRATEGIES,TYPES,EVENTS,MANAGER_EVENTS,ensure,typeOf,staffOf,strategyOf,portraitPath,owned,start,expand,expansionCost,
   resaleValue,close,assetValue,projected,monthly,eventView,resolveEvent,
-  staffCapacity,hireCost,hire,
+  staffCapacity,hireCost,hire,setStrategy,
 };
 })(window);
