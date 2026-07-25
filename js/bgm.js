@@ -62,8 +62,13 @@
     pluck:  { type: 'triangle', a: 0.002, d: 0.14, s: 0.0,  r: 0.09 },
     bell:   { type: 'sine',     a: 0.001, d: 0.5,  s: 0.0,  r: 0.5, fm: { ratio: 2.0, amt: 7, decay: 0.32 } },
     organ:  { type: 'organ',    a: 0.02,  d: 0.04, s: 0.9,  r: 0.10 },
-    pad:    { type: 'sawtooth', a: 0.18,  d: 0.3,  s: 0.75, r: 0.5, voices: 3, detune: 11, lp: 1900 },
+    pad:    { type: 'sawtooth', a: 0.22,  d: 0.3,  s: 0.78, r: 0.6, voices: 2, detune: 9, lp: 1700 },   // 현악 앙상블(부하↓: 3→2보이스)
     brass:  { type: 'sawtooth', a: 0.03,  d: 0.10, s: 0.7,  r: 0.14, lp: 2600 },
+    // --- 클래식 편성용 ---
+    viola:  { type: 'triangle', a: 0.04,  d: 0.16, s: 0.72, r: 0.32, lp: 2400 },   // 따뜻한 현악 멜로디
+    cello:  { type: 'triangle', a: 0.05,  d: 0.2,  s: 0.75, r: 0.4,  lp: 1400 },   // 저음 현
+    harp:   { type: 'triangle', a: 0.002, d: 0.5,  s: 0.0,  r: 0.35 },             // 하프/피치카토(길게 울림)
+    flute:  { type: 'sine',     a: 0.05,  d: 0.12, s: 0.85, r: 0.24 },             // 부드러운 목관
   };
 
   // 32칸 화음 패턴. entries: [[step, 'C4+E4+G4'], ...]
@@ -1173,6 +1178,18 @@
     g.gain.exponentialRampToValueAtTime(0.0001, at + 0.15);
     o.connect(g); g.connect(master); o.start(at); o.stop(at + 0.17);
   }
+  // 클래식용 팀파니 — 드럼 킷 대신 다운비트에 부드럽게 울리는 저음 타악
+  function timpani(at, vol) {
+    if (!ctx) return;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(120, at);
+    o.frequency.exponentialRampToValueAtTime(72, at + 0.14);
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.linearRampToValueAtTime(Math.max(0.0004, vol * 0.7), at + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.4);
+    o.connect(g); g.connect(master); o.start(at); o.stop(at + 0.44);
+  }
   // 노이즈 버퍼는 한 번만 만들어 재사용한다(매번 새로 만들면 할당·GC로 오디오가 끊긴다).
   let _noiseBuf = null;
   function noiseBuffer() {
@@ -1236,6 +1253,8 @@
   // 대신 베이스·패드(화음)를 살려 보컬을 받쳐 주는 반주로 만든다.
   const VOCAL_MIX = { lead: 0.22, arp: 0.42, bass: 1.05, chords: 1.15, drum: 0.5 };
   const FLAT_MIX  = { lead: 1, arp: 1, bass: 1, chords: 1, drum: 1 };
+  // 클래식 편성 — 트랙별 칩튠 악기 대신 현악·하프·목관으로 통일하고 보컬은 뺀다.
+  const CLASSIC = { lead: 'viola', arp: 'harp', bass: 'cello', chords: 'pad' };
 
   function scheduler() {
     if (!cur || !ctx) return;

@@ -234,8 +234,13 @@
   }
   function recruitOptions(life){
     const f=ensureFaction(life);
-    return MOB_RECRUITS.map(x=>({...x,locked:!f.level,reason:!f.level?'먼저 세력을 만들어야 함':''}))
-      .concat(namedRecruits().map(n=>({...n,locked:!!recruitRequirement(life,n),reason:recruitRequirement(life,n)})));
+    const reputation=Math.round((f.level||0)*18+(f.wins||0)*10+(f.members||[]).reduce((sum,m)=>sum+(m.loyalty||0),0)/20);
+    f.recruitReputation=reputation;
+    const mobLimit=reputation>=75?MOB_RECRUITS.length:reputation>=42?Math.min(3,MOB_RECRUITS.length):Math.min(2,MOB_RECRUITS.length);
+    const mobs=MOB_RECRUITS.slice(0,mobLimit).map(x=>({...x,locked:!f.level,reason:!f.level?'먼저 세력을 만들어야 함':''}));
+    const named=namedRecruits().filter(n=>reputation>=Math.max(45,(n.minLevel||1)*20+(n.minWins||0)*8))
+      .map(n=>({...n,locked:!!recruitRequirement(life,n),reason:recruitRequirement(life,n)}));
+    return mobs.concat(named);
   }
   function recruit(life,cash,candidateId){
     const f=ensureFaction(life);

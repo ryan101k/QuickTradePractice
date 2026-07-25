@@ -52,6 +52,18 @@ const TYPES=[
     desc:'예약 기반 돌봄·건강관리 서비스를 운영합니다. 경기 방어적이지만 인력과 안전 기준을 낮출 수 없습니다.',
     phase:{boom:1.04,overheating:1.02,recovery:1.05,tightening:.99,recession:1.01,crisis:.96,stimulus:1.08},
   },
+  {
+    id:'food',name:'동네 식음료 브랜드',icon:'☕',managerId:'office',
+    cost:14000000,resaleRate:.48,baseSales:3600000,fixedCost:2450000,variance:.20,
+    desc:'작은 매장에서 시작해 단골과 배달 매출을 쌓습니다. 평판과 직원 사기의 영향을 크게 받습니다.',
+    phase:{boom:1.09,overheating:1.04,recovery:1.05,tightening:.94,recession:.88,crisis:.78,stimulus:1.05},
+  },
+  {
+    id:'logistics',name:'도심 물류 대행사',icon:'🚚',managerId:'corporate',
+    cost:38000000,resaleRate:.64,baseSales:7200000,fixedCost:4900000,variance:.17,
+    desc:'기업 배송과 창고 운영 계약을 맡습니다. 초기 투자는 크지만 장기계약을 잡으면 안정적입니다.',
+    phase:{boom:1.15,overheating:1.10,recovery:1.07,tightening:.96,recession:.90,crisis:.84,stimulus:1.03},
+  },
 ];
 
 const EVENTS={
@@ -134,6 +146,8 @@ function ensure(life){
     reputation:clamp(finite(item.reputation,45),0,100),
     morale:clamp(finite(item.morale,65),0,100),
     momentum:clamp(finite(item.momentum,0),-.35,.50),
+    employees:clamp(Math.floor(finite(item.employees,2)),2,22),
+    hiredStaff:Array.isArray(item.hiredStaff)?item.hiredStaff.filter(Boolean).slice(0,20):[],
     totalProfit:Math.round(finite(item.totalProfit,0)),
     lastSales:Math.round(finite(item.lastSales,0)),
     lastCost:Math.round(finite(item.lastCost,0)),
@@ -149,6 +163,7 @@ function start(life,typeId,day){
   if(owned(life,typeId))return{ok:false,message:'이미 운영 중인 사업입니다.'};
   const item={
     id:type.id,typeId:type.id,managerId:type.managerId,level:1,months:0,
+    employees:2,hiredStaff:[],
     reputation:45,morale:65,momentum:0,totalProfit:0,lastSales:0,lastCost:0,lastNet:0,
     startedDay:Math.max(1,Math.floor(finite(day,1))),
   };
@@ -158,6 +173,19 @@ function start(life,typeId,day){
 function expansionCost(life,id){
   const item=owned(life,id),type=item&&typeOf(item.typeId);
   return item&&type?Math.round(type.cost*(.38+item.level*.12)):0;
+}
+function staffCapacity(item){return item?Math.min(22,2+item.level*4):0;}
+function hireCost(item){return item?Math.round(450000+item.level*250000):0;}
+function hire(life,id,candidateId){
+  const item=owned(life,id),type=item&&typeOf(item.typeId);
+  if(!item||!type)return{ok:false,message:'운영 중인 사업을 찾지 못했습니다.'};
+  if(item.employees>=staffCapacity(item))return{ok:false,message:'현재 규모의 직원 정원이 가득 찼습니다.'};
+  const cost=hireCost(item);
+  item.employees++;
+  if(candidateId&&!item.hiredStaff.includes(candidateId))item.hiredStaff.push(candidateId);
+  item.morale=clamp(item.morale+2,0,100);
+  item.momentum=clamp(item.momentum+.025,-.35,.50);
+  return{ok:true,business:item,type,cost};
 }
 function expand(life,id){
   const item=owned(life,id),type=item&&typeOf(item.typeId);
@@ -192,8 +220,10 @@ function projected(item,phaseId){
   const phaseMul=(type.phase||{})[phaseId]||1;
   const qualityMul=.76+item.reputation*.004;
   const moraleMul=.86+item.morale*.0022;
-  const sales=Math.round(type.baseSales*levelMul*phaseMul*qualityMul*moraleMul*(1+item.momentum));
-  const cost=Math.round(type.fixedCost*(1+(item.level-1)*.37));
+  const staffExtra=Math.max(0,(item.employees||2)-2);
+  const staffSales=1+Math.min(.36,staffExtra*.045);
+  const sales=Math.round(type.baseSales*levelMul*phaseMul*qualityMul*moraleMul*(1+item.momentum)*staffSales);
+  const cost=Math.round(type.fixedCost*(1+(item.level-1)*.37)+staffExtra*350000);
   return{sales,cost,net:sales-cost};
 }
 function reportLine(item){
@@ -275,5 +305,6 @@ function resolveEvent(life,payload,choiceId){
 root.QT_BUSINESS={
   STAFF,TYPES,EVENTS,ensure,typeOf,staffOf,portraitPath,owned,start,expand,expansionCost,
   resaleValue,close,assetValue,projected,monthly,eventView,resolveEvent,
+  staffCapacity,hireCost,hire,
 };
 })(window);

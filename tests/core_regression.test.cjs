@@ -266,13 +266,18 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.equal(decision.business.reputation > beforeReputation, true);
   assert.equal(business.assetValue(life) > 0, true, '사업체 매각가치는 총재산에 포함할 수 있어야 한다');
 
-  const assignedPortraits = business.TYPES.map(type => business.staffOf(type.managerId).portrait);
+  const assignedPortraits = [...new Set(business.TYPES.map(type => business.staffOf(type.managerId).portrait))];
   assert.deepEqual(Array.from(assignedPortraits), [
     'mob-office-neutral.png','mob-creative-neutral.png','mob-corporate.png','mob-medical.png',
   ]);
   for (const portrait of assignedPortraits) {
     assert.equal(fs.existsSync(path.join(root, 'assets', 'characters', portrait)), true, `${portrait} 모브 이미지가 실제로 존재해야 한다`);
   }
+  const staffBefore = opened.business.employees;
+  const hired = business.hire(life, 'commerce', 'commerce-junior');
+  assert.equal(hired.ok, true, '사업체는 이력서 선택 뒤 직원을 추가 채용할 수 있어야 한다');
+  assert.equal(business.owned(life, 'commerce').employees, staffBefore + 1);
+  assert.equal(business.owned(life, 'commerce').hiredStaff.includes('commerce-junior'), true);
 }
 
 {
@@ -356,11 +361,33 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
 
 {
   const appSource = fs.readFileSync(path.join(root, 'js/app.js'), 'utf8');
+  const lifeActionViewSource = fs.readFileSync(path.join(root, 'js/ui/views/life-action-view.js'), 'utf8');
   assert.match(appSource, /const LIFE_ACTIONS_PER_MONTH = 4;/, '월 행동력은 4회여야 한다');
   assert.doesNotMatch(appSource, /data-act="career-train"/, '중복된 직무교육 버튼은 제거돼야 한다');
   assert.match(appSource, /id === 'study'[\s\S]{0,160}CAREER\.train/, '자기계발이 직무 능력 성장을 대신해야 한다');
   assert.match(appSource, /allowShort:true,shortSellingPower:power/, '세력 자동 공매도는 실제 공매도 체결 경로를 사용해야 한다');
   assert.match(appSource, /class="life-action-money"/, '장 마감 행동 화면에서 보유 현금이 항상 보여야 한다');
+  assert.match(lifeActionViewSource, /class="life-action-wallet"/, '행동 화면의 현금 표시줄은 스크롤 본문 밖에 고정돼야 한다');
+  assert.match(lifeActionViewSource, /api\.wallet\(\)/, '행동 화면은 최신 현금과 총재산 표시를 렌더링해야 한다');
+  assert.match(appSource, /class="asset-portfolio-strip"/, '부동산·자동수입·사업체는 공통 자산 요약을 제공해야 한다');
+  assert.match(appSource, /data-life-panel="assets"/, '분산된 자산 메뉴는 하나의 별도 자산·사업 관리 창으로 통합돼야 한다');
+  assert.doesNotMatch(appSource, /<summary>🏪 사업체·직원/, '사업체 메뉴가 자산 운영 밖에 중복되면 안 된다');
+  assert.match(appSource, /data-act="home-life"/, '일상 행동은 집에서 보내기와 외출하기를 구분해야 한다');
+  assert.match(appSource, /r\.key!=='intro'\|\|hasIntroducer/, '지인 소개는 친구나 인맥과 동행할 때만 열려야 한다');
+  assert.doesNotMatch(appSource, /maybeActivityEncounter\('rest'\)/, '집에서 쉬는 동안 무작위 연애 조우가 발생하면 안 된다');
+  assert.match(appSource, /class="pixel-home/, '현재 집과 사치품은 생활공간 장면으로 시각화돼야 한다');
+  assert.match(appSource, /class="route-card place-card"/, '새 인물은 프로필보다 외출 장소를 먼저 선택해야 한다');
+  assert.match(appSource, /childhoodFriend=true/, '여성 시작 친구는 소꿉친구 히로인 상태로 시작해야 한다');
+  assert.match(appSource, /freeRecruit:true/, '남성 시작 친구는 무료 조력자 영입 권한을 가져야 한다');
+  assert.match(appSource, /data-act="origin-ally"/, '무료 조력자는 사업체나 세력 합류 UI를 제공해야 한다');
+  assert.match(appSource, /data-life-panel="investment"/, '나래는 별도의 투자 컨설팅 창을 가져야 한다');
+  assert.match(appSource, /state\.skill>=70.*이슈 조기 감지/, '투자 숙련이 높아지면 이슈 조기 감지가 해금돼야 한다');
+  assert.match(appSource, /data-life-panel="wellbeing"/, '취미와 건강 행동은 별도의 생활·건강 창에 있어야 한다');
+  assert.match(appSource, /data-life-panel="social"/, '가족과 인맥 행동은 별도의 창에 있어야 한다');
+  assert.match(appSource, /data-life-panel="power"/, '세력과 법정 행동은 별도의 창에 있어야 한다');
+  assert.doesNotMatch(appSource, /class="hub-more"/, '행동 화면에 다른 행동 보기 접이식 메뉴가 남으면 안 된다');
+  assert.match(appSource, /Math\.min\(Math\.max\(0,S\.capital\),30000\)/, '집에서 쉬기 실제 비용은 3만원이어야 한다');
+  assert.match(appSource, /생활비 30,000 · 스트레스 회복/, '집 화면의 휴식 비용도 3만원으로 표시해야 한다');
   assert.match(appSource, /room\.lastIncomingDay=S\.day/, '상대가 실제로 먼저 연락한 날짜를 기록해야 한다');
   assert.match(appSource, /answeredDay>=unansweredDay/, '답장한 연락은 방치로 판정하면 안 된다');
   assert.match(appSource, /if \(m\.idleMonths < 2\) return;/, '실제 수신 연락을 두 달 이상 방치한 경우에만 관계 감소가 시작돼야 한다');

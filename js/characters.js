@@ -87,11 +87,14 @@ const DATE_APPROACHES = [
  *   pool: 'any' 또는 성격키 배열 → 그 성향의 상대가 등장
  *   scoreMod: 그 경로에서의 데이트 성공 난이도 보정 */
 const DATE_ROUTES = [
-  { key:'narae', emoji:'☕', name:'나래와 커피', desc:'일과 사생활을 분명히 구분하는 사람', pool:[], fixed:'narae', cost:350000, scoreMod:0,scene:'./assets/event-narae-market-crash.png' },
   { key: 'street', emoji: '🚶', name: '번화가 산책', desc: '우연히 마주치는 다양한 사람', pool:'any', cost:120000, scoreMod:-2 },
-  { key: 'office', emoji: '🏢', name: '사내연애', desc: '같은 회사 동료',         pool: 'any',                              cost: 100000,  scoreMod: 4,  needsJob: true, office: true },
+  { key: 'office', emoji: '🏢', name: '직장 주변 라운지', desc: '같은 업계에서 몇 번 마주친 사람', pool: 'any', cost: 100000, scoreMod: 4, needsJob: true, office: true },
   { key: 'intro',  emoji: '🤝', name: '지인 소개', desc: '안정적·진중한 사람',    pool: ['frugal', 'homebody', 'caring'],    cost: 300000,  scoreMod: 6 },
-  { key: 'hobby',  emoji: '🎨', name: '취미 모임', desc: '취향이 잘 맞는 사람',   pool: ['caring', 'homebody', 'ambitious'], cost: 400000,  scoreMod: 8 },
+  { key: 'hobby',  emoji: '🎨', name: '전시·취미 모임', desc: '같은 활동을 하다 눈에 익은 사람', pool: ['caring', 'homebody', 'ambitious'], cost: 400000, scoreMod: 8 },
+  { key:'medical',emoji:'🏥',name:'병원·약국 거리',desc:'근무를 마치거나 연구 자료를 들고 나온 사람',pool:'any',cost:80000,scoreMod:2 },
+  { key:'fitness',emoji:'🏋️',name:'체육관·러닝 코스',desc:'꾸준히 같은 시간에 운동하는 사람',pool:'any',cost:150000,scoreMod:5 },
+  { key:'cafe',emoji:'🥐',name:'베이커리·카페 골목',desc:'새 메뉴와 작은 가게 이야기를 하는 사람',pool:'any',cost:180000,scoreMod:4 },
+  { key:'culture',emoji:'📚',name:'서점·공연장',desc:'책이나 공연을 혼자 천천히 즐기는 사람',pool:'any',cost:220000,scoreMod:6 },
   { key: 'club',   emoji: '🍸', name: '클럽/헌팅', desc: '화려하지만 위험한 사람', pool: ['free', 'lavish'],                 cost: 800000,  scoreMod: -6 },
   { key:'police_scene',emoji:'👮‍♀️',name:'경찰서·사건 현장',desc:'공격을 당했거나 사건·전과가 있을 때 강유진과 마주치는 특별 장면',pool:[],fixed:'yujin',cost:0,scoreMod:-5,scene:'./assets/event-yujin-rain-rescue.png',condition:(l,ctx)=>!!((l.justice&&l.justice.case)||l.criminalRecord||(ctx&&ctx.attacked))},
   { key:'chaerin_scene',emoji:'🥂',name:'세력 대표자 비공개 회동',desc:'내 세력이 2단계·조직원 3명 이상이 되면 한채린 쪽에서 먼저 접촉합니다',pool:[],fixed:'chaerin',cost:250000,scoreMod:-5,scene:'./assets/event-chaerin-contract.png',condition:(l,ctx)=>!!(ctx&&ctx.factionLevel>=2&&ctx.factionMembers>=3)},
