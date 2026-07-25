@@ -148,6 +148,57 @@ const EVENTS = [
   }
 ];
 
+EVENTS.push(
+  {
+    id:'group_dangerous_freedom_table',people:['윤세라','채원','유나','소희'],icon:'🍲',title:'잠그는 사람과 기다리는 사람',
+    scene:'./assets/event-freedom-trio-home.png',
+    condition:life=>!!(life.dangerousTrioBond&&life.dangerousTrioBond.active)&&!!(life.freedomTrioBond&&life.freedomTrioBond.active),
+    desc:'윤세라는 귀가 시각을 묻고, 자유인 세 사람은 식지만 않는 국 한 그릇만 남겨 둡니다. 위험한 세 사람이 만든 안전망과 자유인 세 사람이 만든 귀가할 곳이 처음으로 같은 식탁에서 충돌합니다.',
+    lines:{'윤세라':'기다리기만 하다 안 돌아오면 어떡해요?','채원':'그래도 돌아올 이유와 돌아오지 못할 이유는 본인이 말해야죠.','유나':'문을 잠그면 귀가는 하지만 집은 아니게 돼.','소희':'정 걱정되면 우리랑 같이 기다려요. 찾으러 가는 건 약속한 시간이 지난 뒤에.'},
+    choices:[
+      {text:'연락 없는 추적 금지 시각을 함께 정한다',outcome:'세라는 불만스럽게 타이머를 켰고, 세 사람은 기다리는 동안 국을 다시 데웠습니다.',people:{'윤세라':{trust:7,obsession:-6},'채원':{trust:6},'유나':{trust:6},'소희':{trust:6}},life:{stress:-8},flags:{groupBoundaryClock:true}},
+      {text:'세라가 불안하면 자유인 셋에게 먼저 연락하게 한다',outcome:'세라의 추적은 세 사람의 확인 전화로 바뀌었습니다. 감시는 줄고 서로의 역할은 선명해졌습니다.',people:{'윤세라':{affection:5,obsession:-3},'채원':{trust:5},'유나':{trust:5},'소희':{trust:5}},life:{happy:4},flags:{groupMediation:true}},
+      {text:'가장 먼저 찾아낸 사람이 옳다고 한다',outcome:'기다림은 다시 구조 경쟁이 됐습니다. 따뜻한 집에도 순찰표가 붙었습니다.',people:{'윤세라':{obsession:10},'채원':{trust:-7},'유나':{trust:-7},'소희':{trust:-7}},life:{stress:12}}
+    ]
+  },
+  {
+    id:'group_freedom_business_contract',people:['유나','차서윤','박지수'],icon:'📋',title:'집에는 직함을 들이지 않는다',
+    scene:'./assets/event-freedom-trio-homecoming.png',
+    condition:life=>!!(life.freedomTrioBond&&life.freedomTrioBond.active)&&!!(life.businessQuartetBond&&life.businessQuartetBond.active),
+    desc:'사업 4인조가 공동생활의 일정과 비용을 최적화하려 하자 자유인 세 사람은 집까지 성과표가 들어오면 쉴 곳이 사라진다고 막습니다.',
+    lines:{'차서윤':'공동생활도 운영입니다. 책임 소재가 없으면 결국 누군가 손해를 봐요.','박지수':'적어도 고장 난 보일러와 장보기 담당은 정해야죠.','유나':'분담은 좋아. 그런데 퇴근한 사람한테 업무 평가표를 붙이지는 마.'},
+    choices:[
+      {text:'생활 분담만 적고 성과 평가는 금지한다',outcome:'계약서는 한 장짜리 냉장고 메모가 됐습니다. 책임과 휴식이 같은 집에 남았습니다.',people:{'차서윤':{trust:6},'박지수':{trust:7},'유나':{trust:7}},life:{stress:-7},flags:{homeWorkBoundary:true}},
+      {text:'사업 문제는 사무실에서만 네 책임자에게 맡긴다',outcome:'네 사람은 집에서 직함을 내려놓았고, 자유인 셋은 업무 시간의 전문성을 건드리지 않았습니다.',people:{'차서윤':{affection:5},'박지수':{affection:5},'유나':{trust:5}},life:{happy:5}},
+      {text:'집도 가장 효율적인 사람이 관리하게 한다',outcome:'집은 깔끔해졌지만 귀가 뒤에도 결재 알림이 울렸습니다.',people:{'차서윤':{affection:6},'박지수':{trust:3},'유나':{trust:-9}},life:{stress:10}}
+    ]
+  },
+  {
+    id:'group_business_childhood_audit',people:['차서윤','미래','예린'],icon:'🔐',title:'관리 권한은 사랑의 증명이 아니다',
+    scene:'./assets/pixel-event-childhood-pact-v1.png',
+    condition:life=>!!(life.businessQuartetBond&&life.businessQuartetBond.active)&&!!(life.childhoodCircleBond&&life.childhoodCircleBond.active),
+    desc:'사업 4인조가 회사 접근 권한을 감사하다 소꿉친구 다섯의 옛 관리자 흔적을 발견했습니다. 유능한 관리와 공동 통제는 결과가 좋아 보일수록 더 구분하기 어렵습니다.',
+    lines:{'차서윤':'대표의 동의 없는 최고 권한은 연애가 아니라 내부통제 사고입니다.','미래':'인정. 과거 버전의 우리는 해고 사유 충분함.','예린':'일정을 잘 안다는 말로 허락까지 대신할 수는 없어. 이번에는 우리가 증명해야 해.'},
+    choices:[
+      {text:'모든 권한을 최소 권한 원칙으로 다시 발급한다',outcome:'사랑과 업무 어느 쪽도 백지 위임을 요구하지 못하게 됐습니다.',people:{'차서윤':{trust:8},'미래':{trust:9},'예린':{trust:9}},life:{stress:-5},flags:{relationshipAccessAudit:true}},
+      {text:'사업 4인조에게 소꿉친구 기록 감사를 맡긴다',outcome:'다섯은 불쾌해했지만 처음으로 자신들의 선의를 외부 기준 앞에 세웠습니다.',people:{'차서윤':{affection:6},'미래':{trust:5},'예린':{trust:4}},life:{stress:3}},
+      {text:'연인끼리 권한을 나누는 건 문제없다고 덮는다',outcome:'두 그룹 모두 자기 방식의 관리가 더 안전하다고 경쟁하기 시작했습니다.',people:{'차서윤':{trust:-7},'미래':{trust:-8},'예린':{trust:-8}},life:{stress:13}}
+    ]
+  },
+  {
+    id:'group_childhood_dangerous_truth',people:['윤세라','예린','보라','미래'],icon:'🖤',title:'윤세라가 선녀였던 날',
+    scene:'./assets/event-sera-doorstep.png',
+    condition:life=>!!(life.childhoodCircleBond&&life.childhoodCircleBond.active)&&!!(life.dangerousTrioBond&&life.dangerousTrioBond.active),
+    desc:'소꿉친구 다섯이 윤세라의 열쇠를 문제 삼자, 세라는 보호 계획 원본을 식탁에 펼쳤습니다. 단독 침입과 분산형 생활 탈취 중 무엇이 더 위험했는지 누구도 외면할 수 없습니다.',
+    lines:{'윤세라':'전 적어도 혼자 미쳤어요. 다섯이 계좌랑 약이랑 가족을 역할처럼 나누진 않았고.','예린':'그 말이 맞아서 더 화나네.','보라':'세라 씨가 정상인 게 아니라, 그때 우리가 비교도 안 되게 잘못한 거야.','미래':'판정 동의. 윤세라 선녀설이 아니라 우리 최악설이 정확함.'},
+    choices:[
+      {text:'다섯에게 윤세라를 비난하기 전에 자기 기록부터 공개하게 한다',outcome:'다섯은 보호 계획의 모든 원본을 현재 관계 구성원에게 공개했습니다.',people:{'윤세라':{trust:6,obsession:-3},'예린':{trust:8},'보라':{trust:8},'미래':{trust:8}},life:{stress:-6},flags:{childhoodAccountabilityPublic:true}},
+      {text:'세라에게도 열쇠를 돌려주고 같은 경계를 적용한다',outcome:'누구도 과거의 잘못을 이유로 현재의 침입을 허가받지는 못했습니다.',people:{'윤세라':{affection:-3,trust:8,obsession:-8},'예린':{trust:7},'보라':{trust:7},'미래':{trust:7}},life:{stress:-8},flags:{equalRelationshipBoundary:true}},
+      {text:'서로 감시하면 안전하다며 기록을 합치게 한다',outcome:'한 사람의 집착과 다섯의 통제망이 합쳐졌습니다. 문을 잠글 이유조차 사라졌습니다.',people:{'윤세라':{obsession:15},'예린':{trust:-9},'보라':{trust:-9},'미래':{trust:-9}},life:{stress:18}}
+    ]
+  }
+);
+
 function ensure(life) {
   if (!life.crossEvents || typeof life.crossEvents !== 'object') life.crossEvents = { seen:{}, cooldown:0, history:[], pending:null };
   if (!life.crossEvents.seen) life.crossEvents.seen = {};

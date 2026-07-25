@@ -375,6 +375,8 @@
   function monthly(life) {
     const state = ensure(life);
     if (!state.anchor || state.removed || state.pending || ['complete','fractured','removed'].includes(state.stage) || state.route === 'cut_past') return state.pending;
+    const routeGuard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'childhood');
+    if(!state.seen.reunion&&routeGuard&&!routeGuard.ok)return null;
     const anchor = met(life, state.anchor);
     if (!anchor) return null;
     let event = null;
@@ -387,7 +389,12 @@
     })()) event = 'sera_collision';
     else if (!state.seen.graduation && state.seen.motel_boundary
       && (!(function(){const sera=met(life,'윤세라');return !!sera&&!['ex','deceased'].includes(sera.status);} )() || state.seen.sera_collision)
-      && !(life.met || []).some(person => !MEMBERS.includes(person.name) && ['partner','lover','polycule'].includes(person.status))
+      && !(life.met || []).some(person => {
+        if(MEMBERS.includes(person.name)||!['partner','lover','polycule'].includes(person.status))return false;
+        if(!root.QT_ROMANCE_ROUTES)return true;
+        const groupId=root.QT_ROMANCE_ROUTES.memberGroup(person.name),routes=root.QT_ROMANCE_ROUTES.ensure(life);
+        return !groupId||!routes.completed[groupId];
+      })
       && MEMBERS.every(name => {
       const person=met(life,name);
       return person && (person.affection || 0) >= 48 && (person.trust || 0) >= 35;
@@ -409,6 +416,10 @@
     if (id === 'reunion') {
       state.stage = choice.id === 'sever' ? 'removed' : 'reunited';
       if(choice.id === 'sever'){ state.removed=true; state.route='cut_past'; }
+      if(root.QT_ROMANCE_ROUTES){
+        if(choice.id==='sever')root.QT_ROMANCE_ROUTES.complete(life,'childhood','cut_past','bad');
+        else root.QT_ROMANCE_ROUTES.begin(life,'childhood');
+      }
     }
     if (id === 'pact') {
       state.stage = choice.id === 'sever' ? 'fractured' : 'pact';
@@ -418,6 +429,7 @@
     if (id === 'graduation') {
       state.route = choice.route || (state.pressure >= 60 ? 'never_graduate' : 'old_promise');
       state.stage = 'complete';
+      if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'childhood',state.route,state.route==='never_graduate'?'bad':'good');
     }
     return state;
   }
