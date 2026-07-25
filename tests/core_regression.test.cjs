@@ -608,15 +608,26 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
 }
 
 {
+  const socialLife={social:{contacts:[{id:'first-unit',name:'박도진',role:'schoolfriend',origin:'faction',factionMemberId:'mentor-intel',trust:55,favor:1}]}};
+  const subordinate=context.QT_SOCIAL.ensure(socialLife).contacts[0];
+  assert.equal(subordinate.role,'subordinate','기존 저장의 첫 부하는 학창 친구가 아니라 세력 부하로 마이그레이션돼야 한다');
+  assert.equal(context.QT_SOCIAL.isSubordinate(subordinate),true);
+  assert.doesNotMatch(context.QT_SOCIAL.contactLine(subordinate),/학교|분식집|졸업/,'부하가 친구의 추억 대사를 보내면 안 된다');
+  assert.deepEqual(Array.from(context.QT_SOCIAL.contactReplyOptions(subordinate,'상황 보고입니다.'),option=>option.id),['ack','order','protect','question'],'부하 답장은 확인·명령·보호·추가보고로 분리돼야 한다');
+}
+
+{
   const rival=context.QT_RIVALS.createBots().find(bot=>bot.leader==='김도현');
   assert.equal(rival.contactUnlocked,false,'새 게임의 경쟁자는 시장에 존재해도 휴대폰 연락처에는 아직 없어야 한다');
   const message=context.QT_RIVALS.contactMessage(rival,{stock:{name:'노바플레이',change:6.6}});
-  assert.match(message.text,/노바플레이 수급/,'경쟁자 연락은 실제 종목을 언급해야 한다');
+  assert.match(message.text,/노바플레이 수급/,'적대 세력 연락은 실제 종목을 언급해야 한다');
+  assert.doesNotMatch(message.text,/어떻게 봅니까|생각입니다|살 생각/,'적대 세력이 처음 보는 플레이어에게 친구처럼 투자 의견을 구하면 안 된다');
   const choices=context.QT_RIVALS.contactReplyOptions(rival,message);
-  assert.match(choices[0].text,/노바플레이를 고른 근거/,'경쟁자 답장은 수신한 종목 내용에 맞고 조사가 자연스러워야 한다');
+  assert.match(choices[0].text,/노바플레이를 통해 내 계좌를 추적한 경로/,'적대 세력 답장은 종목 추천이 아니라 추적 경로를 역으로 캐야 한다');
   const relationBefore=rival.playerRelation||0;
   const reply=context.QT_RIVALS.resolveContact(rival,'probe',message);
-  assert.match(reply.reply,/거래량과 현금흐름/,'근거를 물으면 투자 판단과 관련된 후속 답장이 와야 한다');
+  assert.doesNotMatch(reply.reply,/거래량과 현금흐름을 같이 보세요|한쪽만 보면/,'적대 세력이 플레이어에게 친절한 투자 교육을 하면 안 된다');
+  assert.match(reply.reply,/정보원|흔적/,'추적 경로를 캐면 적대적인 후속 답장이 와야 한다');
   assert.ok(rival.playerRelation<relationBefore,'경쟁자를 캐묻는 답장은 경쟁 관계에도 반영돼야 한다');
 }
 
@@ -773,8 +784,15 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /data-act="decompress"/, '비용 없이 스트레스를 내릴 수 있는 마음 정리 행동이 있어야 한다');
   assert.match(appSource, /data-chat-rival=/, '연락처에 연애 상대뿐 아니라 시장 경쟁자도 표시돼야 한다');
   assert.match(appSource, /\.filter\(\(\{bot\}\)=>\s*bot\.contactUnlocked/,'경쟁자는 첫 연락·공격·직접 작전 이후에만 휴대폰 목록에 나타나야 한다');
-  assert.match(appSource, /unlockRivalContact\(entry\.bot,'first_message'\)/,'경쟁자가 먼저 연락하면 그때 연락처가 해금돼야 한다');
-  assert.match(appSource, /marketFootprint=.*S\.day>=3/,'시장 활동도 없는 시작 직후에는 경쟁자가 먼저 아는 척 연락하면 안 된다');
+  assert.doesNotMatch(appSource, /unlockRivalContact\(entry\.bot,'first_message'\)/,'모르는 경쟁자가 먼저 친근한 연락을 보내며 연락처를 해금하면 안 된다');
+  assert.doesNotMatch(appSource, /marketFootprint=.*S\.day>=3/,'3개월이 지났다는 이유만으로 모르는 적대 세력이 연락하면 안 된다');
+  assert.match(appSource, /unlockRivalContact\(rival,'rival_attack'\)/,'경쟁자는 실제 공격을 한 뒤에 연락처가 드러나야 한다');
+  assert.match(appSource, /if\(SOCIAL\.isSubordinate&&SOCIAL\.isSubordinate\(c\)\)return/,'부하는 일반 친구 월간 연락 추첨에서 제외돼야 한다');
+  assert.match(appSource, /targetType:'subordinate'/,'부하 보고는 일반 인맥이 아니라 전용 연락 유형으로 큐에 들어가야 한다');
+  assert.match(appSource, /const subordinateRows=subordinateContacts\.map\(contactRow\)/,'휴대폰 연락처에서 부하와 사적인 친구를 별도 그룹으로 나눠야 한다');
+  assert.match(appSource, /social\.contacts\.filter\(c=>!SOCIAL\.isSubordinate/,'가족·인맥 행동창에 부하를 일반 친구처럼 만나거나 부탁하는 버튼으로 노출하면 안 된다');
+  assert.match(socialNetworkSource, /ROLES\.filter\(r=>!r\.personal&&!r\.faction\)/,'일반 업계 인맥 추첨에서 세력 부하 역할을 뽑으면 안 된다');
+  assert.match(appSource, /message:\$\{event\.targetType\}:\$\{event\.targetId!=null/,'같은 상대의 월말 연락이 문구만 달리해 두 번 큐에 쌓이면 안 된다');
   assert.match(appSource, /person\.name==='나래'\|\|person\.special==='tutorial'/,'나래는 일반 성향 판정으로 하렘에 편입되면 안 된다');
   assert.match(appSource, /function retryBusinessManagementEnding\(\)/,'사업관리 배드엔딩에도 직전 선택으로 돌아가는 경로가 있어야 한다');
   assert.match(appSource, /const CONTACT_RULES=\{affection:12,trust:6,interactions:2,months:1\}/, '일반 인물은 호감·신뢰·교류·기간을 채워야 연락처를 줘야 한다');
