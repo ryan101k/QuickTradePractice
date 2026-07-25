@@ -23,6 +23,7 @@ const CHAR_TRAITS = window.QT_CHARACTER_TRAITS;
 const CROSS_EVENTS = window.QT_CHARACTER_CROSS_EVENTS;
 const DANGEROUS_TRIO = window.QT_DANGEROUS_TRIO;
 const FREEDOM_TRIO = window.QT_FREEDOM_TRIO;
+const CHILDHOOD_CIRCLE = window.QT_CHILDHOOD_CIRCLE;
 const ORIGIN = window.QT_ORIGIN;
 const HEALTH = window.QT_HEALTH;
 const FAMILY = window.QT_FAMILY;
@@ -178,6 +179,7 @@ function newLife() {
     polycule: { active:false, members:[], trust:0 }, // 모두가 합의한 다자연애/하렘 루트
     dangerousTrio: { active:false, stage:0, stability:50, axes:{balance:0,containment:0,fracture:0}, history:[], ending:null },
     freedomTrio: { active:false, stage:0, harmony:50, axes:{freedom:0,career:0,control:0}, history:[], personal:{}, ending:null, aftermathIndex:0 },
+    childhoodCircle: { anchor:null, schoolId:null, stage:'dormant', pressure:0, trust:0, seen:{}, route:null, pending:null },
     met: [],                 // 한 번이라도 만난 사람 (헤어져도 기억한다) — rememberPerson() 참고
     properties: [],          // [{id, name, emoji, value, rent}]
     passiveAssets: [],       // 주식 외 월 현금흐름 자산 [{id, boughtAt}]
@@ -1863,7 +1865,9 @@ function chooseSchoolLife(id){
     friend.childhoodFriend=true;friend.schoolTag=school.friendTag;friend.affection=Math.max(friend.affection||0,18);friend.trust=Math.max(friend.trust||0,34);
     ensureCourtship(friend).interactions=Math.max(1,ensureCourtship(friend).interactions||0);
     L.originFriend={kind:'heroine',name:friend.name,schoolId:id};
-    pushPersonMessage(L,friend,`졸업하고도 네 소식은 가끔 들었어. 우리 사이에 새삼스럽게 안부부터 물어야 하나? 시간 되면 학교 앞에서 보자.`,false);
+    if(CHILDHOOD_CIRCLE)CHILDHOOD_CIRCLE.register(L,friend,id);
+    const firstLine=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.line(friend,'first');
+    pushPersonMessage(L,friend,firstLine||`졸업하고도 네 소식은 가끔 들었어. 우리 사이에 새삼스럽게 안부부터 물어야 하나? 시간 되면 학교 앞에서 보자.`,false);
   }else if(ally){
     const friend=SOCIAL.addContact(L,{name:ally.name,role:'schoolfriend',origin:'school',originKey:'school-best-friend',relationLabel:school.friendTag,trust:60,favor:2,schoolTag:school.friendTag,worldNpcId:ally.id,freeRecruit:true});
     L.originFriend={kind:'ally',name:friend.name,npcId:ally.id,contactId:friend.id,schoolId:id};
@@ -2348,6 +2352,7 @@ function showNextImportantEvent(resumeCurrent = false) {
     maybeLifeEvent();
     return;
   }
+  if (event.childhoodCircleEvent) { showChildhoodCircleEvent(event.childhoodCircleEvent); return; }
   if (event.dangerousTrioStart) { startDangerousTrioRoute(true); return; }
   if (event.dangerousTrioChapter) { showDangerousTrioStory(); return; }
   if (event.dangerousTrioAftermath) { showDangerousTrioAftermath(); return; }
@@ -2365,7 +2370,7 @@ function showNextImportantEvent(resumeCurrent = false) {
   if (event.crossEventId) { showCrossCharacterEvent(event.crossEventId); return; }
   if (event.story && event.personName) {
     const rec = metRecord(S.life, event.personName);
-    if (rec && STORIES.get(event.personName) && STORIES.next(rec)) { S._storyFromQueue = true; showCharacterStory(event.personName); return; }
+    if (rec && STORIES.get(rec) && STORIES.next(rec)) { S._storyFromQueue = true; showCharacterStory(event.personName); return; }
   }
   if (ctx && MONTH_CLOSE_VIEWS['major-event']) {
     const marketHost = $('market-close');
@@ -3438,7 +3443,7 @@ const CHARACTER_EVENT_SCENES={
   '나래':'event-narae-market-crash.png','강유진':'event-yujin-rain-rescue.png','윤세라':'event-sera-doorstep.png','한채린':'event-chaerin-contract.png',
   '장태식':'life-debt-crisis.png',
   '서연':'event-seoyeon-repair.png','하은':'event-haeun-hospital.png','예린':'event-yerin-rain.png','채원':'event-chaewon-airport.png','유나':'event-yuna-backstage.png','수아':'event-sua-classroom.png','보라':'event-bora-pharmacy.png',
-  '다은':'event-daeun-cake.png','혜진':'event-hyejin-blackout.png','소희':'event-sohee-backstage.png','아린':'event-arin-first-snow.png','나영':'event-nayoung-wrist.png','미래':'event-mirae-launch.png'
+  '다은':'event-daeun-cake.png','혜진':'event-hyejin-blackout.png','소희':'event-sohee-backstage.png','아린':'event-arin-first-snow.png','나영':'event-nayoung-wrist-v2.png','미래':'event-mirae-launch.png'
 };
 const CHARACTER_STORY_EXTRA_SCENES={
   '강유진':['event-yujin-night-call.png','event-yujin-night-call.png'],
@@ -3450,8 +3455,101 @@ function characterEventScene(name,chapterIndex){
   const f=extraFile||CHARACTER_EVENT_SCENES[name];return f?`./assets/${f}`:lifeSceneImage('love');
 }
 
+function ensureChildhoodCircleCast(){
+  if(!CHILDHOOD_CIRCLE)return[];
+  return CHILDHOOD_CIRCLE.MEMBERS.map(name=>{
+    const def=D.CHARACTERS.find(person=>person.name===name);if(!def)return null;
+    const rec=metRecord(S.life,name)||rememberPerson(def,'acquaintance');
+    rec.childhoodFriend=true;
+    rec.oldClassmate=true;
+    rec.oldCircleRole=(CHILDHOOD_CIRCLE.META[name]||{}).role;
+    rec.affection=Math.max(rec.affection||0,name===CHILDHOOD_CIRCLE.ensure(S.life).anchor?18:12);
+    rec.trust=Math.max(rec.trust||0,name===CHILDHOOD_CIRCLE.ensure(S.life).anchor?34:18);
+    ensureCourtship(rec).interactions=Math.max(1,rec.interactions||0);
+    return rec;
+  }).filter(Boolean);
+}
+function showChildhoodCircleEvent(eventId){
+  const view=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.event(eventId),host=$('life-event');
+  if(!view||!host){showNextImportantEvent();return;}
+  const people=ensureChildhoodCircleCast(),state=CHILDHOOD_CIRCLE.ensure(S.life);
+  S._childhoodCircleEvent=eventId;
+  const speakers=view.speakers.map(([name,line])=>{
+    const person=people.find(item=>item.name===name);
+    return`<div class="trio-dialogue"><img src="${characterPortrait(person)}" alt="${name}"><div><b>${name} · ${(CHILDHOOD_CIRCLE.META[name]||{}).role||'소꿉친구'}</b><p>“${line}”</p></div></div>`;
+  }).join('');
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window trio-route-window childhood-circle-window">
+    <div class="title-bar event-bar"><div class="title-bar-text">${view.icon} 졸업하지 못한 다섯 · ${view.title}</div></div>
+    <div class="window-body">
+      <img class="life-scene-banner" src="${view.scene}" alt="${view.title} 이벤트 장면">
+      <div class="trio-meter"><span>회귀 압력</span><b class="${state.pressure>=60?'down':''}">${Math.round(state.pressure)}/100</b><span>현재 신뢰</span><b class="${state.trust>=45?'up':''}">${Math.round(state.trust)}/100</b></div>
+      <div class="event-desc">${view.desc}</div>
+      <div class="trio-dialogues">${speakers}</div>
+      <div class="event-options">${view.choices.map(choice=>`<button class="event-opt" data-childhood-choice="${choice.id}">${choice.text}<span class="opt-sub">${choice.preview}</span></button>`).join('')}</div>
+      <div class="event-outcome" id="childhood-circle-outcome"></div>
+    </div>
+  </div>`;
+  host.querySelectorAll('[data-childhood-choice]').forEach(button=>button.addEventListener('click',()=>resolveChildhoodCircleEvent(button.dataset.childhoodChoice)));
+}
+function activateChildhoodCircleBond(route){
+  const L=S.life,people=CHILDHOOD_CIRCLE.MEMBERS.map(name=>metRecord(L,name)).filter(Boolean);
+  if(people.length!==CHILDHOOD_CIRCLE.MEMBERS.length)return;
+  const main=people[0],poly=ensurePolycule(L),dangerous=route==='never_graduate';
+  L.relationship='dating';
+  L.partner=Object.assign({},main,{mood:dangerous?'angry':'happy'});
+  L.affection=Math.round(people.reduce((sum,person)=>sum+(person.affection||0),0)/people.length);
+  main.status='partner';
+  poly.active=true;
+  poly.mode=dangerous?'childhood_circle_never_graduate':'childhood_circle_old_promise';
+  poly.tone=dangerous?'nostalgic_possession':'old_friends';
+  poly.trust=Math.round(CHILDHOOD_CIRCLE.ensure(L).trust);
+  poly.members=people.slice(1).map(person=>{
+    person.status='polycule';
+    return{name:person.name,job:person.job,personality:person.personality,age:person.age,emoji:person.emoji,gender:person.gender,portrait:person.portrait};
+  });
+  L.childhoodCircleBond={active:true,since:S.day,route,members:CHILDHOOD_CIRCLE.MEMBERS.slice(),pressure:CHILDHOOD_CIRCLE.ensure(L).pressure};
+  people.forEach(person=>RELATIONSHIPS.addMember(L,person,S.day));
+  const group=RELATIONSHIPS.ensure(L).relationshipGroup;
+  group.agreement.cohabiting=dangerous;
+  group.agreement.publicity=dangerous?'private':'public';
+  FAMILY.syncCaregivers(L,RELATIONSHIPS.caregiverNames(L));
+}
+function resolveChildhoodCircleEvent(choiceId){
+  const eventId=S._childhoodCircleEvent,view=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.event(eventId);
+  const choice=view&&view.choices.find(item=>item.id===choiceId);if(!choice)return;
+  const people=ensureChildhoodCircleCast();
+  people.forEach(person=>{
+    person.affection=clamp((person.affection||0)+(choice.affection||0),0,100);
+    person.trust=clamp((person.trust||0)+(choice.trust||0),0,100);
+    addBondInteraction(person,'childhood-circle');
+    if(eventId==='reunion')person.status=choice.id==='sever'?'acquaintance':'friend';
+  });
+  const state=CHILDHOOD_CIRCLE.resolve(S.life,eventId,choice);
+  if(eventId==='graduation'&&['old_promise','never_graduate'].includes(state.route))activateChildhoodCircleBond(state.route);
+  if(eventId==='graduation'&&state.route==='cut_past')people.forEach(person=>person.status='acquaintance');
+  const ending=eventId==='graduation'
+    ?state.route==='never_graduate'
+      ?'<div class="story-ending down"><b>🎓 끝나지 않은 졸업식</b><br>다섯은 전원 연인이 되었습니다. 외출과 연락은 늘 오래된 기억의 검증을 거치며, 새로 생긴 모습은 다섯이 기억하는 “원래 당신” 쪽으로 되돌려집니다.</div>'
+      :state.route==='old_promise'
+        ?'<div class="story-ending"><b>🧷 오래된 약속</b><br>다섯은 전원 연인이 되었지만 오래 알았다는 사실을 허락으로 착각하지 않기로 했습니다. 추억은 현재를 이해하는 단서로만 남습니다.</div>'
+        :'<div class="story-ending"><b>📕 닫힌 졸업앨범</b><br>주인공은 과거의 소유권을 거절했습니다. 다섯은 옛 동창으로 남고 세트 루트가 종료됩니다.</div>'
+    :'';
+  const reaction=choice.id==='present'?'다섯은 불만스러운 눈으로 서로를 보다가, 이번만큼은 현재의 대답을 먼저 듣기로 했습니다.'
+    :choice.id==='rewind'?'다섯은 각자 자신이 가장 정상이라고 주장하면서도, 주인공을 예전 자리로 돌려놓는 일에는 완벽하게 합의했습니다.'
+    :'단체방 알림이 차례로 꺼졌습니다. 아무도 붙잡지 않았지만 다섯 모두 마지막 접속 시간을 확인했습니다.';
+  const out=$('childhood-circle-outcome'),options=out&&out.parentElement.querySelector('.event-options');if(options)options.innerHTML='';
+  out.innerHTML=`<div class="oc-text">${reaction}</div><div class="oc-changes">다섯의 호감 ${choice.affection>=0?'+':''}${choice.affection} · 현재 신뢰 ${choice.trust>=0?'+':''}${choice.trust} · 회귀 압력 ${choice.pressure>=0?'+':''}${choice.pressure}</div>${ending}<button id="childhood-circle-confirm" class="session-btn opening">확인</button>`;
+  addNews(`${view.icon} 졸업하지 못한 다섯 · ${view.title}`,choice.id==='rewind'?'bad':choice.id==='present'?'good':'neutral');
+  $('childhood-circle-confirm').addEventListener('click',()=>{
+    const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
+    S._childhoodCircleEvent=null;renderLifePanel();autoSave();showNextImportantEvent();
+  });
+  renderLifePanel();autoSave();
+}
+
 function showCharacterStory(name){
-  const r=metRecord(S.life,name),story=r&&STORIES.get(name),chapter=r&&STORIES.next(r);if(!r||!story)return;
+  const r=metRecord(S.life,name),story=r&&STORIES.get(r),chapter=r&&STORIES.next(r);if(!r||!story)return;
   if(!chapter){flashToast(STORIES.ensure(r).completed?'📖 이 인물의 개인 스토리를 모두 봤습니다':`🔒 다음 스토리는 호감도 ${story.chapters[STORIES.ensure(r).chapter].min} 필요`,'neutral');return;}
   const host=$('life-event');if(!host)return;S._storyPerson=r;host.style.display='block';
   const continuity=STORIES.context?STORIES.context(r,chapter):'';
@@ -3466,7 +3564,7 @@ function queueAvailableStories(L){
   ensureMet(L).forEach(m=>{
     const active=RELATIONSHIPS.isPartner(L,m.name)||['friend','casual','partner','polycule','lover'].includes(m.status);
     if(!active)return;
-    const st=STORIES.get(m.name);if(!st)return;
+    const st=STORIES.get(m);if(!st)return;
     const chapter=STORIES.next(m);if(!chapter)return;              // 호감도 조건 충족 & 미완결
     const state=STORIES.ensure(m);
     if((state.offeredChapter==null?-1:state.offeredChapter)>=state.chapter)return;  // 이번 챕터는 이미 자동 제시함
@@ -3479,6 +3577,11 @@ function queueAvailableStories(L){
 }
 function resolveCharacterStory(choice){
   const r=S._storyPerson,result=r&&STORIES.apply(r,choice);if(!result)return;
+  if(r.childhoodFriend&&CHILDHOOD_CIRCLE){
+    const circle=CHILDHOOD_CIRCLE.ensure(S.life);
+    circle.pressure=clamp((circle.pressure||0)+(result.choice.obsession||0),0,100);
+    circle.trust=clamp((circle.trust||0)+(result.choice.trait==='present'?6:result.choice.trait==='rewind'?1:-4),0,100);
+  }
   if(!S._storyFromQueue)markMonthAction('인맥');
   const out=$('story-outcome'),opts=out&&out.parentElement.querySelector('.event-options');if(opts)opts.innerHTML='';
   const storyScene=result.choice.tone==='good'?'storyGood':result.choice.tone==='bad'?'storyBad':'storyNeutral';
@@ -3732,7 +3835,8 @@ function monthlyRelationshipMessages(L){
     const ctx={tag:relationTag(L,r.name),personality:r.personality,special:r.special,
       obsession,affection:r.affection||0,idleMonths:r.idleMonths||0,
       married:RELATIONSHIPS.ensure(L).relationshipGroup.status==='committed'&&RELATIONSHIPS.isPartner(L,r.name),marketMood:mood};
-    const line=safeDangerFriend?pick(DANGEROUS_FRIEND_LINES[r.name]):(window.QT_CHAT&&QT_CHAT.incoming(r,ctx))||'가끔은 먼저 연락해줘요.';
+    const childhoodLine=window.QT_CHILDHOOD_CIRCLE&&QT_CHILDHOOD_CIRCLE.line(r,'incoming');
+    const line=safeDangerFriend?pick(DANGEROUS_FRIEND_LINES[r.name]):childhoodLine||(window.QT_CHAT&&QT_CHAT.incoming(r,ctx))||'가끔은 먼저 연락해줘요.';
     arrivals.push({r,line});
   });
   arrivals.sort(()=>Math.random()-.5).slice(0,2).forEach(({r,line})=>{
@@ -3751,6 +3855,39 @@ function monthlySocialMessages(L){
     const line=SOCIAL.contactLine(c);pushPersonMessage(L,c,line,false);
     queueImportantEvent({monthlyMessage:true,targetType:'contact',targetId:c.id,text:line});
   });
+}
+
+function monthlyChildhoodCircleBond(L){
+  const bond=L.childhoodCircleBond,state=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.ensure(L);
+  if(!bond||!bond.active||!state)return;
+  const people=CHILDHOOD_CIRCLE.MEMBERS.map(name=>metRecord(L,name)).filter(Boolean);
+  if(bond.route==='never_graduate'){
+    const outsider=ensureMet(L).find(person=>!CHILDHOOD_CIRCLE.MEMBERS.includes(person.name)&&['partner','lover','polycule','casual'].includes(person.status));
+    const pressureGain=outsider?10:2;
+    state.pressure=clamp(state.pressure+pressureGain,0,100);
+    bond.pressure=state.pressure;
+    L.stress=clamp((L.stress||0)+(outsider?6:2),0,100);
+    L.happy=clamp((L.happy||0)+1,0,100);
+    if(outsider){
+      const watcher=pick(people);
+      const line=CHILDHOOD_CIRCLE.line(watcher,'boundary')||'새로 만난 사람이 네 과거까지 아는 건 아니잖아.';
+      pushPersonMessage(L,watcher,`${outsider.name}보다 우리가 먼저였다는 말은 안 할게. 대신 이것만 기억해. ${line}`,false);
+      addNews(`🎓 ${outsider.name}와(과)의 새 관계를 눈치챈 소꿉친구 다섯이 서로의 기록을 맞춰 보기 시작했습니다`,'bad');
+    }else if(Math.random()<.55){
+      const watcher=pick(people),line=CHILDHOOD_CIRCLE.line(watcher,'incoming');
+      if(line){pushPersonMessage(L,watcher,line,false);addNews(`📱 ${watcher.name}: ${line}`,'neutral');}
+    }
+    if(state.pressure>=85)addNews('🧷 회귀 압력이 위험 수준입니다. 다섯은 현재의 선택보다 학창 시절의 습관을 더 진짜로 취급합니다','bad');
+  }else if(bond.route==='old_promise'){
+    state.pressure=clamp(state.pressure-3,0,100);
+    state.trust=clamp(state.trust+2,0,100);
+    bond.pressure=state.pressure;
+    L.stress=clamp((L.stress||0)-1,0,100);
+    if(Math.random()<.3){
+      const friend=pick(people),line=CHILDHOOD_CIRCLE.line(friend,'warm');
+      if(line)pushPersonMessage(L,friend,line,false);
+    }
+  }
 }
 
 function updateRelationships(L) {
@@ -3794,12 +3931,15 @@ function updateRelationships(L) {
   monthlyRelationshipMessages(L);
   queueBondEncounter(L);
   updateCharacterSignatureSystems(L);
+  const childhoodEvent=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.monthly(L);
+  if(childhoodEvent)queueImportantEvent({childhoodCircleEvent:childhoodEvent});
   const crossEvent = CROSS_EVENTS && CROSS_EVENTS.monthly(L);
   if (crossEvent) queueImportantEvent({ crossEventId:crossEvent.id });
   queueNaturalDangerousEvents(L);
   queueNaturalFreedomEvents(L);
   monthlyDangerousTrioAftermath(L);
   monthlyFreedomTrioAftermath(L);
+  monthlyChildhoodCircleBond(L);
   const poly=ensurePolycule(L);
   if(poly.active&&poly.members.length){
     if((poly.mode==='dangerous_trio'||poly.mode==='dangerous_trio_success')&&DANGEROUS_TRIO){
@@ -3808,6 +3948,8 @@ function updateRelationships(L) {
     }else if(poly.mode==='freedom_trio_success'&&FREEDOM_TRIO){
       const warning=FREEDOM_TRIO.monthly(L),trio=FREEDOM_TRIO.ensure(L);poly.trust=Math.round(trio.harmony);
       if(warning)addNews(`🛫 ${warning}`,'neutral');
+    }else if((poly.mode==='childhood_circle_never_graduate'||poly.mode==='childhood_circle_old_promise')&&CHILDHOOD_CIRCLE){
+      poly.trust=Math.round(CHILDHOOD_CIRCLE.ensure(L).trust);
     }else{
       const tense=poly.members.some(x=>['homebody','obsessive'].includes(x.personality));
       if(Math.random()<(tense?.2:.08)){poly.trust=Math.max(0,(poly.trust||0)-(tense?12:6));addNews('🌈 다자연애 구성원 사이에서 일정·질투 문제로 갈등이 생겼습니다','bad');}
@@ -5941,13 +6083,15 @@ function renderLifePanel() {
 
 /* ---- 마감 리포트에 들어갈 '이번 달 행동' 허브 ---- */
 function storyProgressHTML(L) {
-  const rows=ensureMet(L).filter(r=>STORIES.get(r.name)&&['friend','casual','partner','polycule','lover'].includes(r.status)).map(r=>{
-    const story=STORIES.get(r.name),state=STORIES.ensure(r),next=STORIES.next(r);
+  const rows=ensureMet(L).filter(r=>STORIES.get(r)&&['friend','casual','partner','polycule','lover'].includes(r.status)).map(r=>{
+    const story=STORIES.get(r),state=STORIES.ensure(r),next=STORIES.next(r);
     const title=state.completed?(state.ending&&state.ending.title||'완결'):story.chapters[state.chapter].title;
     const bars=story.chapters.map((_,i)=>`<i class="${i<state.chapter?'done':i===state.chapter&&next?'ready':''}"></i>`).join('');
     return `<div class="story-progress-card"><strong>${r.emoji||'📖'} ${r.name}</strong><div><div class="story-track" aria-label="${r.name} 개인 스토리 ${state.chapter}/3">${bars}</div><small>${state.completed?`완결 · ${title}`:next?`${state.chapter+1}장 진행 가능 · ${title}`:`${state.chapter+1}장 ${title} · 호감 ${story.chapters[state.chapter].min} 필요`}</small></div></div>`;
   });
-  return rows.length?`<div class="story-progress-list"><div class="hub-title">📖 이어지는 인물 이야기</div>${rows.slice(0,5).join('')}</div>`:'';
+  const circle=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.ensure(L);
+  const circleRow=circle&&circle.anchor?`<div class="story-progress-card childhood-circle-progress"><strong>🎓 졸업하지 못한 다섯</strong><div><small>${circle.route==='never_graduate'?'끝나지 않은 졸업식 · 전원 연인':circle.route==='old_promise'?'오래된 약속 · 전원 연인':circle.route==='cut_past'?'닫힌 졸업앨범 · 루트 종료':`${circle.stage==='anchor'?'소꿉친구 재회 대기':circle.stage==='reunited'?'다섯 명의 우정 형성 중':circle.stage==='pact'?'마지막 졸업식 조건 준비 중':'오래된 관계가 흔들리는 중'} · 회귀 압력 ${Math.round(circle.pressure)}/100 · 현재 신뢰 ${Math.round(circle.trust)}/100`}</small></div></div>`:'';
+  return rows.length||circleRow?`<div class="story-progress-list"><div class="hub-title">📖 이어지는 인물 이야기</div>${circleRow}${rows.slice(0,5).join('')}</div>`:'';
 }
 
 function lifeHubHTML() {
@@ -6013,11 +6157,13 @@ function lifeHubHTML() {
   }).join('');
   const canCommit = relationGroup.status==='dating' && L.charm >= R.MARRY_AT;
   const partnerTag = relationshipMembers.length ? `<span class="muted">💕 ${RELATIONSHIPS.joinNames(relationshipMembers)} · 동등한 구성원 ${relationshipMembers.length}명 · 안정도 ${Math.round(relationGroup.stability)} · 긴장도 ${Math.round(relationGroup.tension)} · </span>` : '';
-  const poly=ensurePolycule(L),trioBond=L.dangerousTrioBond,freedomBond=L.freedomTrioBond;
+  const poly=ensurePolycule(L),trioBond=L.dangerousTrioBond,freedomBond=L.freedomTrioBond,childhoodBond=L.childhoodCircleBond;
   const polyBtn=trioBond&&trioBond.active
     ? `<span class="down">🦂 결핍 공생 연애 · 강유진·한채린·윤세라 전원 연인 · 외출 동행 활성</span>`
     : freedomBond&&freedomBond.active
       ? `<span class="up">🏠 작은 집의 연인 · 채원·유나·소희 전원 연인 · 힐링 공동생활 중 · 회복한 스트레스 ${Math.round(freedomBond.totalStressRecovered||0)} · 누적 생활수입 ${won(freedomBond.totalIncome||0)}</span>`
+    : childhoodBond&&childhoodBond.active
+      ? `<span class="${childhoodBond.route==='never_graduate'?'down':'up'}">🎓 ${childhoodBond.route==='never_graduate'?'끝나지 않은 졸업식':'오래된 약속'} · 예린·보라·서연·나영·미래 전원 연인 · 회귀 압력 ${Math.round((CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.ensure(L).pressure)||0)}</span>`
     : relationshipMembers.length===1&&!poly.active
       ? `<button class="life-btn" data-act="polycule">🌈 일반 다자연애 제안</button>`
       : poly.active?`<span class="up">🌈 합의형 관계 진행 중 · 추가 구성원 ${poly.members.length}명 · 신뢰 ${poly.trust}</span>`:'';
@@ -6081,7 +6227,7 @@ function lifeHubHTML() {
     (!specialMet('police') && (justice.case || L.criminalRecord > 0 || sctx.attacked)) ? '<button class="life-btn" data-act="meet-special" data-special="yujin">👮‍♀️ 경찰서에서 상담한다 <small>공격·사건·전과가 만든 인연</small></button>' : '',
     (!specialMet('heiress') && sctx.factionLevel >= 2 && sctx.factionMembers >= 3) ? '<button class="life-btn" data-act="meet-special" data-special="chaerin">🥂 한채린의 비공개 회동 제안을 받는다 <small>세력 2단계 · 조직원 3명 이상</small></button>' : ''
   ].join('');
-  const personalBtns = ensureMet(L).filter(m=>['friend','casual','partner','polycule','lover'].includes(m.status)).map(m=>{const st=STORIES.get(m.name),next=st&&STORIES.next(m),state=st&&STORIES.ensure(m),sig=CHAR_TRAITS&&CHAR_TRAITS.label(m);return`<button class="life-btn" data-act="person-request" data-person="${m.name}">🙏 ${m.name}에게 부탁하기 <small>${relationTag(L,m.name)} · 호감 ${Math.round(m.affection||0)}${sig?` · ${sig}`:''}</small></button>${st?`<button class="life-btn ${next?'hot':''}" data-act="character-story" data-person="${m.name}">📖 ${m.name} 개인 스토리 <small>${state.completed?'완결':next?`${state.chapter+1}장 진행 가능`:`${state.chapter+1}장 · 호감 ${st.chapters[state.chapter].min} 필요`}</small></button>`:''}`;}).join('');
+  const personalBtns = ensureMet(L).filter(m=>['friend','casual','partner','polycule','lover'].includes(m.status)).map(m=>{const st=STORIES.get(m),next=st&&STORIES.next(m),state=st&&STORIES.ensure(m),sig=CHAR_TRAITS&&CHAR_TRAITS.label(m);return`<button class="life-btn" data-act="person-request" data-person="${m.name}">🙏 ${m.name}에게 부탁하기 <small>${relationTag(L,m.name)} · 호감 ${Math.round(m.affection||0)}${m.childhoodFriend?' · 소꿉친구':''}${sig?` · ${sig}`:''}</small></button>${st?`<button class="life-btn ${next?'hot':''}" data-act="character-story" data-person="${m.name}">📖 ${m.name} ${m.childhoodFriend?'소꿉친구':'개인'} 스토리 <small>${state.completed?'완결':next?`${state.chapter+1}장 진행 가능`:`${state.chapter+1}장 · 호감 ${st.chapters[state.chapter].min} 필요`}</small></button>`:''}`;}).join('');
   const courtBtns=justice.case?`<div class="court-status">⚖️ <b>${justice.case.crime}</b> · <b class="down">${justice.case.phase}</b> 단계 · ${justice.case.months}개월 남음<br><span class="muted">${justice.case.phase==='수사'?'변호사를 미리 선임하면 유리합니다':justice.case.phase==='기소'?'변호사 등급이 불기소 확률에 영향':'⚠️ 재판 전략 3가지 중 하나를 꼭 선택하세요'}</span></div><button class="life-btn" data-act="lawyer" data-tier="public">국선변호인</button><button class="life-btn" data-act="lawyer" data-tier="standard">전문 변호사 <small>5,000,000</small></button><button class="life-btn" data-act="lawyer" data-tier="elite">대형 로펌 <small>20,000,000</small></button>${justice.case.phase==='재판'?'<button class="life-btn" data-act="court" data-strategy="plea">혐의 인정·선처</button><button class="life-btn" data-act="court" data-strategy="contest">무죄 다툼</button><button class="life-btn" data-act="court" data-strategy="cooperate">수사 협조</button>':''}`:'<span class="muted">진행 중인 사건 없음</span>';
   const treatment=HEALTH.treatmentOffer(L);
   const actionUsed = lifeActionCount();

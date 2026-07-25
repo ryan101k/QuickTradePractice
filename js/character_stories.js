@@ -159,8 +159,18 @@ function baseChoices(i){
  ];
  return rows[i].map(x=>Object.assign({},x));
 }
-function get(name){
- const a=ARCS[name];if(!a)return null;const authored=SPECIAL[name];
+function authoredFor(personOrName){
+ const rec=personOrName&&typeof personOrName==='object'?personOrName:null;
+ if(rec&&root.QT_CHILDHOOD_CIRCLE){
+  const childhood=root.QT_CHILDHOOD_CIRCLE.storyFor(rec);
+  if(childhood)return childhood;
+ }
+ const name=typeof personOrName==='string'?personOrName:rec&&rec.name;
+ return SPECIAL[name];
+}
+function get(personOrName){
+ const name=typeof personOrName==='string'?personOrName:personOrName&&personOrName.name;
+ const a=ARCS[name];if(!a)return null;const authored=authoredFor(personOrName);
  const titles=a.slice(0,3),chapterCount=authored?authored.length:3;
  return{name,theme:a[3],chapters:Array.from({length:chapterCount},(_,i)=>{
   const scene=authored&&authored[i],title=(scene&&scene.title)||titles[i]||`${i+1}장`;
@@ -168,14 +178,19 @@ function get(name){
    desc:scene&&scene.desc||[`‘${title}’에서 ${name}이(가) 남들에게 감춰온 사정을 처음 이야기합니다. ${a[3]} 아직은 해결보다 당신의 반응이 더 중요한 순간입니다.`,`‘${title}’가 현실의 문제로 번졌습니다. 첫 장에서 보여준 태도를 ${name}도 기억하고 있습니다. ${a[3]} 이번 선택은 말이 아니라 행동으로 남습니다.`,`‘${title}’ 앞에서 두 사람은 더는 결정을 미룰 수 없습니다. 지난 선택들이 만든 신뢰와 거리 위에서 ${a[3]} 어떤 관계로 남을지 정해야 합니다.`][i],
    speaker:scene&&scene.speaker||['이 얘기를 누구에게 해야 할지 오래 망설였어요. 당신이라면 끝까지 들어줄 것 같았어요.','전에 했던 말, 아직 기억해요? 이번에는 말로만 끝나지 않을 것 같아요.','좋은 말 말고 솔직한 답을 듣고 싶어요. 우리는 앞으로 어떤 사이예요?'][i],
    choices:scene&&scene.choices||baseChoices(i)};
- })};
+ }),variant:personOrName&&personOrName.childhoodFriend?'childhood':'adult'};
 }
-function ensure(rec){if(!rec.story)rec.story={chapter:0,completed:false,history:[],traits:{}};if(!Array.isArray(rec.story.history))rec.story.history=[];if(!rec.story.traits||typeof rec.story.traits!=='object')rec.story.traits={};const expanded=(SPECIAL[rec.name]||[]).length;if(rec.story.completed&&expanded>(rec.story.chapter||0)){rec.story.completed=false;rec.story.ending=null;rec.story.offeredChapter=Math.min(rec.story.offeredChapter==null?-1:rec.story.offeredChapter,(rec.story.chapter||0)-1);}return rec.story;}
-function next(rec){const s=get(rec.name),state=ensure(rec);if(!s||state.completed)return null;const ch=s.chapters[state.chapter];return ch&&(rec.affection||0)>=ch.min?ch:null;}
+function ensure(rec){if(!rec.story)rec.story={chapter:0,completed:false,history:[],traits:{}};if(!Array.isArray(rec.story.history))rec.story.history=[];if(!rec.story.traits||typeof rec.story.traits!=='object')rec.story.traits={};const variant=rec.childhoodFriend?'childhood':'adult';if(rec.story.variant&&rec.story.variant!==variant&&(rec.story.chapter||0)===0){rec.story.history=[];rec.story.traits={};rec.story.completed=false;rec.story.ending=null;}rec.story.variant=variant;const expanded=(authoredFor(rec)||[]).length;if(rec.story.completed&&expanded>(rec.story.chapter||0)){rec.story.completed=false;rec.story.ending=null;rec.story.offeredChapter=Math.min(rec.story.offeredChapter==null?-1:rec.story.offeredChapter,(rec.story.chapter||0)-1);}return rec.story;}
+function next(rec){const s=get(rec),state=ensure(rec);if(!s||state.completed)return null;const ch=s.chapters[state.chapter];return ch&&(rec.affection||0)>=ch.min?ch:null;}
 function context(rec,ch){const state=ensure(rec),prev=state.history[state.history.length-1];if(!prev)return'이번 장면이 두 사람의 첫 번째 갈림길입니다.';const labels={support:'그때 당신은 곁에 남아 함께 결정했습니다.',lead:'그때 당신은 문제를 대신 결정했습니다.',avoid:'그때 당신은 관계에서 한걸음 물러났습니다.',depend:'그때 당신은 혼자 버티지 않고 상대에게 매달렸습니다.',boundary:'그때 당신은 도움과 통제의 선을 분명히 했습니다.',complicity:'그때 당신은 원칙보다 서로를 먼저 택했습니다.',command:'그때 당신은 상대의 권력 앞에서도 거칠게 명령했습니다.',equal:'그때 당신은 힘겨루기 대신 같은 자리를 골랐습니다.',conspire:'그때 당신은 상대의 어두운 권력과 손을 잡았습니다.',anchor:'그때 당신은 기다림에 끝이 있는 약속을 만들었습니다.',fuse:'그때 당신은 여러 사람의 감시와 보호를 하나로 묶었습니다.',sever:'그때 당신은 관계를 끊어 불안을 끝내려 했습니다.'};return`${labels[prev.choice]||'이전 선택의 결과가 아직 두 사람 사이에 남아 있습니다.'} ${ch.index+1}장은 그 기억에서 이어집니다.`;}
 function withJosa(name,batchim,plain){const code=(name.charCodeAt(name.length-1)||0)-0xac00;return`${name}${code>=0&&code<=11171&&code%28?batchim:plain}`;}
 function endingFor(name,state){
  const traits=state.traits||{};
+ if(state.variant==='childhood'){
+  if((traits.rewind||0)>=2)return{route:'never_graduate',title:`${name} · 졸업하지 않은 관계`,text:'가장 오래된 이해가 가장 강한 소유권으로 바뀌었습니다. 편안하고 익숙하지만, 지금의 선택보다 과거의 버릇이 두 사람의 생활을 결정합니다.'};
+  if((traits.sever||0)>=2)return{route:'cut_past',title:`${name} · 닫힌 졸업앨범`,text:'과거가 현재를 대신 결정하지 못하게 했지만, 함께 자란 시간까지 관계 밖으로 밀어냈습니다. 자유는 남고 오래된 안전망은 사라졌습니다.'};
+  return{route:'old_promise',title:`${name} · 다시 만나는 소꿉친구`,text:'서로의 흑역사와 약점을 알면서도 지금의 모습을 새로 묻기로 했습니다. 오래 알았다는 사실은 권리가 아니라 다시 믿어볼 이유가 됐습니다.'};
+ }
  if(name==='강유진'){
   if((traits.depend||0)>=2)return{route:'dangerous_dependence',title:'강유진 · 필요해지는 사람',text:'당신이 무너질 때마다 유진을 먼저 불렀고, 유진은 당신이 혼자 설 수 없도록 보호를 일상으로 만들었습니다. 다정한 구조와 의존의 경계가 흐려진 관계입니다.'};
   if((traits.complicity||0)>=2)return{route:'accomplice',title:'강유진 · 제복 안의 공범',text:'법과 보호를 서로의 편의를 위해 비틀었습니다. 유진은 당신을 지키기 위해 자신이 지키던 선까지 함께 넘었습니다.'};
@@ -196,6 +211,6 @@ function endingFor(name,state){
  if(count.lead>=2)return{route:'control',title:`${withJosa(name,'과','와')} 기울어진 관계`,text:'위기마다 한 사람이 결정을 독점했습니다. 관계는 이어지지만 애정과 통제의 경계가 오래 흔들립니다.'};
  return{route:'distance',title:`${withJosa(name,'과','와')} 남은 거리`,text:'중요한 순간마다 거리를 두었습니다. 서로를 미워하지는 않지만, 깊어질 수 있었던 관계는 조심스러운 기억으로 남습니다.'};
 }
-function apply(rec,choiceId){const s=get(rec.name),state=ensure(rec),ch=s&&s.chapters[state.chapter];if(!ch)return null;const c=ch.choices.find(x=>x.id===choiceId);if(!c)return null;rec.affection=Math.max(0,Math.min(100,(rec.affection||0)+c.affection));rec.trust=Math.max(0,Math.min(100,(rec.trust||0)+c.trust));if(rec.name==='윤세라')rec.obsession=Math.max(0,Math.min(100,(rec.obsession||0)+c.obsession));else if(['강유진','한채린'].includes(rec.name))rec.dangerLevel=Math.max(0,Math.min(100,(rec.dangerLevel||0)+c.obsession));else{rec.obsession=0;rec.obsessionGrowth=0;}if(c.trait)state.traits[c.trait]=(state.traits[c.trait]||0)+1;state.history.push({chapter:state.chapter,title:ch.title,choice:choiceId,trait:c.trait||null});state.chapter++;state.completed=state.chapter>=s.chapters.length;if(state.completed)state.ending=endingFor(rec.name,state);return{story:s,chapter:ch,choice:c,completed:state.completed,ending:state.ending||null};}
+function apply(rec,choiceId){const s=get(rec),state=ensure(rec),ch=s&&s.chapters[state.chapter];if(!ch)return null;const c=ch.choices.find(x=>x.id===choiceId);if(!c)return null;rec.affection=Math.max(0,Math.min(100,(rec.affection||0)+c.affection));rec.trust=Math.max(0,Math.min(100,(rec.trust||0)+c.trust));if(rec.name==='윤세라')rec.obsession=Math.max(0,Math.min(100,(rec.obsession||0)+c.obsession));else if(['강유진','한채린'].includes(rec.name))rec.dangerLevel=Math.max(0,Math.min(100,(rec.dangerLevel||0)+c.obsession));else{rec.obsession=0;rec.obsessionGrowth=0;}if(c.trait)state.traits[c.trait]=(state.traits[c.trait]||0)+1;state.history.push({chapter:state.chapter,title:ch.title,choice:choiceId,trait:c.trait||null});state.chapter++;state.completed=state.chapter>=s.chapters.length;if(state.completed)state.ending=endingFor(rec.name,state);return{story:s,chapter:ch,choice:c,completed:state.completed,ending:state.ending||null};}
 root.QT_CHARACTER_STORIES={ARCS,WORLD_ARCS,SPECIAL,get,ensure,next,context,apply};
 })(window);

@@ -223,7 +223,13 @@
 
   function pick(list){ return list && list.length ? list[Math.floor(Math.random()*list.length)] : ''; }
   function profile(personOrName){ const name=typeof personOrName==='string'?personOrName:personOrName&&personOrName.name; return DIALOGUE[name]||null; }
-  function line(personOrName,scene){ const p=profile(personOrName); return p ? pick(p[scene]) : ''; }
+  function line(personOrName,scene){
+    if(personOrName&&typeof personOrName==='object'&&root.QT_CHILDHOOD_CIRCLE){
+      const childhood=root.QT_CHILDHOOD_CIRCLE.line(personOrName,scene);
+      if(childhood)return childhood;
+    }
+    const p=profile(personOrName); return p ? pick(p[scene]) : '';
+  }
 
   /* Dates already use QT_VOICES. Overlay those banks so they inherit the same voice. */
   if(root.QT_VOICES && root.QT_VOICES.CHARACTER_VOICES){
