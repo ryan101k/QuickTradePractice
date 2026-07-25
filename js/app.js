@@ -3847,6 +3847,13 @@ function resolveChildhoodCircleEvent(choiceId){
     if(eventId==='reunion')person.status=choice.id==='sever'?'acquaintance':'friend';
   });
   const state=CHILDHOOD_CIRCLE.resolve(S.life,eventId,choice);
+  if(eventId==='motel_boundary'&&choice.rivalMotive){
+    registerFactionMotive(
+      'childhood_circle',
+      '졸업 직전 조작 사건의 발주자',
+      '지방 보관소의 원본 로그에서 경쟁 세력이 동아리 계정을 조작하고 성과 자료를 빼돌린 흔적이 발견됐다. 다섯 사람의 이별은 그 공작의 부수 피해였다.'
+    );
+  }
   if(eventId==='graduation'&&['old_promise','never_graduate'].includes(state.route))activateChildhoodCircleBond(state.route);
   if(eventId==='graduation'&&state.route==='cut_past')people.forEach(person=>person.status='acquaintance');
   const ending=eventId==='graduation'
@@ -5267,6 +5274,14 @@ function wireRomanceChoice(c) {
 function relationshipReaction(c,rec,kind){
   const per=D.PERSONALITIES[c.personality]||{};
   const chastity=rec.chastity==null?(per.chastity==null?55:per.chastity):rec.chastity;
+  if(kind==='casual'&&FREEDOM_TRIO&&FREEDOM_TRIO.NAMES.includes(c.name)){
+    const refusal={
+      '채원':'“비행 끝나고 지친다고 아무 품에나 기대진 않아요. 나를 쉬운 사람으로 봤다면 오늘은 여기까지예요.”',
+      '유나':'“화려하게 보이는 직업이랑 가볍게 사는 건 다른 얘기예요. 그런 제안 받을 거였으면 당신한테 내 진짜 모습을 안 보여줬어요.”',
+      '소희':'“무대에서는 감정을 빌려도, 내 마음까지 하룻밤 빌려주진 않아요.”',
+    }[c.name];
+    return{chastity:100,text:refusal};
+  }
   const lines={
     caring:{friend:'잠깐 아쉬운 표정을 지었지만, 관계를 오래 지키는 쪽을 택하자며 웃었다.',casual:'웃고는 있지만 “가볍게”라는 단어에서 시선이 흔들렸다.',decline:'당신을 곤란하게 하고 싶지 않았다며 애써 먼저 괜찮다고 말했다.'},
     homebody:{friend:'천천히 가까워지는 편이 좋다며 연락은 계속하자고 했다.',casual:'애매한 관계가 오래가면 힘들 것 같다며 확답을 요구했다.'},
@@ -5320,6 +5335,18 @@ function romanceResolve(kind, confirmed) {
   if(!confirmed){previewRomanceChoice(kind);return;}
   const rec = rememberPerson(c);
   const preview=$('date-outcome')&&$('date-outcome').querySelector('.relation-preview');if(preview)preview.remove();
+  if(kind==='casual'&&FREEDOM_TRIO&&FREEDOM_TRIO.NAMES.includes(c.name)){
+    const reaction=relationshipReaction(c,rec,'casual');
+    rec.affection=Math.max(0,(rec.affection||0)-12);
+    rec.trust=Math.max(0,(rec.trust||0)-15);
+    rec.freedomCasualRefused=true;
+    pushPersonMessage(S.life,rec,'아까 말은 분명히 해둘게요. 천천히 진지하게 알아갈 생각이 아니면 다시 제안하지 말아요.',false);
+    const out=$('date-outcome'),div=document.createElement('div');
+    div.className='oc-text down';div.innerHTML=`🛑 <b>${c.name}이 가벼운 만남을 단호하게 거절했습니다.</b><br>${reaction.text}<br><span class="muted">호감 -12 · 신뢰 -15 · 이 세 사람은 개인 스토리와 공동 사건을 거쳐야만 연애가 열립니다.</span>`;
+    out.appendChild(div);
+    const btn=document.createElement('button');btn.className='session-btn opening';btn.textContent='선을 받아들이고 돌아간다';btn.addEventListener('click',closeDateModal);out.appendChild(btn);
+    S._romance=null;renderLifePanel();autoSave();return;
+  }
   let resultHTML = '';
   if (kind === 'accept') {
     startDating(c);
@@ -5687,11 +5714,31 @@ function freedomTrioCheckpoint(){
     people:FREEDOM_TRIO.NAMES.map(name=>{const r=metRecord(L,name);return r&&{name,status:r.status,affection:r.affection,trust:r.trust};}).filter(Boolean)
   };
 }
+function registerFactionMotive(source,title,detail,preferredName){
+  const L=S.life,faction=RIVALS.ensureFaction(L);
+  faction.personalMotives=faction.personalMotives||[];
+  if(faction.personalMotives.some(m=>m.source===source))return;
+  const viable=(S.bots||[]).filter(bot=>!bot.bankrupt&&bot.name!=='장태식');
+  const target=viable.find(bot=>preferredName&&bot.name.includes(preferredName))
+    ||viable.slice().sort((a,b)=>(b.pressure||0)-(a.pressure||0))[0];
+  if(!target)return;
+  faction.personalMotives.push({source,title,detail,target:target.name,day:S.day,resolved:false});
+  addNews(`🕵️ 배후 특정 · ${target.name} — ${title}`,'bad');
+}
 function resolveFreedomTrioStory(choiceId){
   const chapter=FREEDOM_TRIO.next(S.life),choice=chapter&&chapter.choices.find(item=>item.id===choiceId);if(!choice)return;
   if(choice.cash<0&&S.capital<Math.abs(choice.cash)){flashToast('💸 이 선택에 필요한 현금이 부족합니다','bad');return;}
+  const chapterIndex=FREEDOM_TRIO.ensure(S.life).stage;
   S._freedomRetry=freedomTrioCheckpoint();
   const result=FREEDOM_TRIO.apply(S.life,choiceId);if(!result)return;
+  if(chapterIndex===1&&result.choice.tag!=='control'){
+    registerFactionMotive(
+      'freedom_trio',
+      '세 사람의 사생활을 거래한 세력',
+      '유나의 허위 기사, 채원의 일정 유출, 소희 공연의 투자 철회가 한 경쟁 세력의 공작비에서 나왔다. 세 사람의 소박한 일상을 되찾으려면 그 정보망부터 끊어야 한다.',
+      '라이브'
+    );
+  }
   if(result.choice.cash)S.capital+=result.choice.cash;
   if(result.choice.happy)S.life.happy=clamp((S.life.happy||0)+result.choice.happy,0,100);
   if(result.choice.stress)S.life.stress=clamp((S.life.stress||0)+result.choice.stress,0,100);
@@ -6267,6 +6314,10 @@ function doFactionAction(kind, targetIndex) {
   S.rivalFeed=S.rivalFeed||[];S.rivalFeed.unshift({day:S.day,text:`${icon} [${kind==='build'?'세력':kind==='bankrupt'?'파산작전':kind==='negotiate'?'협상':'역공'}] ${result.message}`});
   flashToast(result.message,result.success===false?'neutral':'good');
   if(kind==='bankrupt'&&result.success){
+    const faction=RIVALS.ensureFaction(L);
+    (faction.personalMotives||[]).forEach(motive=>{
+      if(motive.target===S.bots[targetIndex].name)motive.resolved=true;
+    });
     result.campaignComplete=CAMPAIGN.campaignProgress(S.bots).complete;
   }
   afterLifeAction('라이벌');
@@ -6801,6 +6852,9 @@ function lifeHubHTML() {
   const campaignGoal=campaignProgress
     ?`<div class="faction-status">🏆 <b>메인 목표 · 경쟁 세력 전부 파산</b><br>파산·해산 <b class="${campaignProgress.complete?'up':''}">${campaignProgress.defeated}/${campaignProgress.total}곳</b> · 남은 세력 ${campaignProgress.remaining}곳 · 현재 순자산 랭킹 ${playerRank}위${campaignProgress.complete?'<br><b class="up">✓ 세력전 메인 엔딩 달성</b>':`<br>${attackStatus.unlocked?'👁️ 경쟁 세력이 당신을 위험한 상대로 인식했습니다.':`🔒 공격 보호 기간 · ${attackStatus.reason}`}`}</div>`
     :'';
+  const motiveGoal=(faction.personalMotives||[]).length
+    ?`<div class="faction-status"><b>🎯 개인적인 전쟁</b>${faction.personalMotives.map(motive=>`<br><span class="${motive.resolved?'up':'down'}">${motive.resolved?'✓':'•'} ${motive.title} · ${motive.target}</span><br><small>${motive.detail}</small>`).join('')}</div>`
+    :'';
   const campaignLocked=['locked','attacked','legal_wait'].includes(faction.storyStage);
   const queuedFactionStory=(S._importantEvents||[]).find(event=>event.factionStory);
   const factionCampaignNote=faction.storyStage==='attacked'
@@ -6814,7 +6868,7 @@ function lifeHubHTML() {
     :faction.storyStage==='forming'&&!faction.level
       ?'<button class="life-btn hot" data-act="faction" data-faction="build">🏗️ 창립 거점 마련 <small>스토리 지원 적용 · 세력 정식 출범</small></button>'
       :`<button class="life-btn" data-act="faction" data-faction="build">🏗️ ${faction.level?'세력 강화·정원 확장':'내 세력 만들기'}</button><button class="life-btn" data-act="faction-recruit" ${faction.level&&faction.members.length<faction.capacity?'':'disabled'}>👥 인원 모집 <small>${faction.members.length}/${faction.capacity}명 · 일반 인력/특별 아군</small></button><button class="life-btn hot" data-act="faction" data-faction="revenge" ${faction.level&&faction.members.length?'':'disabled'}>🔥 선택한 라이벌 압박 <small>현금·사업가치·신용을 낮추고 반응을 끌어냅니다</small></button><button class="life-btn" data-act="faction" data-faction="negotiate" ${faction.level?'':'disabled'}>🤝 휴전 협상 수락 <small>도착한 휴전금을 받는 대신 상대가 3개월 재정비</small></button><button class="life-btn hot" data-act="faction" data-faction="bankrupt" ${faction.level>=2&&faction.members.filter(m=>(m.injuredMonths||0)<=0).length>=2?'':'disabled'}>🏦 최종 파산 압박 <small>세력 2단계·활동 인원 2명·상대 약화 필요</small></button>${fundBox}`;
-  const factionBox=`${campaignGoal}${factionStatus}${factionMembers?`<div class="faction-members">${factionMembers}</div>`:faction.level?'<div class="hub-note">구성원이 없어도 거점 기본 수입은 발생합니다. 인원을 모집하면 사업 수익과 방어력이 함께 늘어납니다.</div>':''}${factionControls}`;
+  const factionBox=`${campaignGoal}${motiveGoal}${factionStatus}${factionMembers?`<div class="faction-members">${factionMembers}</div>`:faction.level?'<div class="hub-note">구성원이 없어도 거점 기본 수입은 발생합니다. 인원을 모집하면 사업 수익과 방어력이 함께 늘어납니다.</div>':''}${factionControls}`;
   const planBtns = relationshipMembers.length&&relationGroup.agreement.cohabiting&&!L.familyPlan ? `<button class="life-btn" data-act="family-plan" data-method="birth">👶 공동양육 출산 계획 <small>5,000,000 · 현재 구성원 전원 양육자 등록</small></button><button class="life-btn" data-act="family-plan" data-method="adopt">🫶 공동양육 입양 신청 <small>12,000,000 · 현재 구성원 전원 양육자 등록</small></button>` : '';
   const childBtns = L.children.map(c=>`<button class="life-btn" data-act="child-bond" data-child="${c.id}">🫶 ${c.name}와 시간 보내기 <small>200,000</small></button><button class="life-btn" data-act="child-edu" data-child="${c.id}">📚 ${c.name} 교육 투자 <small>1,000,000</small></button>`).join('');
   const certBtns = CAREER.CERTS.filter(c=>!CAREER.ensure(L).certifications.includes(c.id)).map(c=>`<button class="life-btn" data-act="cert" data-cert="${c.id}">${c.icon} ${c.name} <small>${won(c.cost)}</small></button>`).join('');
