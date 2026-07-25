@@ -39,6 +39,7 @@ const BUSINESS = window.QT_BUSINESS;
 const BUSINESS_ROMANCE = window.QT_BUSINESS_ROMANCE;
 const HOUSING = window.QT_HOUSING;
 const LIFE_FINANCE = window.QT_LIFE_FINANCE;
+const WEALTH = window.QT_WEALTH;
 const COMPANY = window.QT_COMPANY;
 const PAGE_LIFECYCLE = window.QT_PAGE_LIFECYCLE;
 const MARKET_WORKSPACE = window.QT_MARKET_WORKSPACE;
@@ -1393,7 +1394,7 @@ function renderCurrentMonthCloseStep() {
     lifeHubHTML,
     wireLifeHub,
     actionsRemaining:lifeActionRemaining,
-    wallet:() => `<span class="life-action-money"><small>지금 쓸 수 있는 돈</small><b>💵 ${won(S.capital)}원</b></span><span class="life-action-worth"><small>주식·집·사업 포함</small><b>💼 총 재산 ${won(totalWealth())}원</b></span>`,
+    wallet:() => `<span class="life-action-money"><small>지금 쓸 수 있는 돈</small><b>💵 ${won(S.capital)}원</b></span><span class="life-action-worth"><small>금융·집·사업·연금−개인대출</small><b>💼 총 재산 ${won(totalWealth())}원</b></span>`,
     overview:() => {
       const L = S.life, job = jobOf();
       const condition=L.health<35?'치료 필요':L.stress>=70?'과로 위험':L.health>=70&&L.stress<45?'좋음':'보통';
@@ -1497,11 +1498,12 @@ function relationshipJobMod(c){
   return 0;
 }
 
-// 총 재산 = 투자 순자산 + 부동산 시세 − 개인 대출
-function totalWealth() {
+// 총 재산 = 투자 순자산 + 실물·사업·주거 자산 + 연금 − 개인 대출
+function wealthBreakdown() {
   const L = S.life;
-  if (!L) return netWorthClean();
+  if (!L) return WEALTH.breakdown({liquid:netWorthClean()});
   LOAN.ensure(L);
+  const finance=LIFE_FINANCE.ensure(L);
   const propVal = L.properties.reduce((s, p) => s + p.value, 0);
   const passiveVal = (L.passiveAssets || []).reduce((s, a) => {
     const item = D.PASSIVE_ASSETS.find(x => x.id === a.id);
@@ -1509,7 +1511,18 @@ function totalWealth() {
   }, 0);
   const businessVal = BUSINESS ? BUSINESS.assetValue(L) : 0;
   // 세력 운영 투자는 회수할 수 없는 조직 인프라 비용이므로 개인 순자산에 포함하지 않는다.
-  return netWorthClean() + propVal + passiveVal + businessVal + HOUSING.assetValue(L) - L.loan;
+  return WEALTH.breakdown({
+    liquid:netWorthClean(),
+    property:propVal,
+    passive:passiveVal,
+    business:businessVal,
+    housing:HOUSING.assetValue(L),
+    pension:finance.pensionBalance,
+    personalDebt:L.loan,
+  });
+}
+function totalWealth() {
+  return wealthBreakdown().total;
 }
 
 // 축하 연출(canvas-confetti) — 라이브러리 없으면 조용히 무시
@@ -2821,6 +2834,7 @@ function showMonthlyMessagePopup(event){
   const target=isContact?(SOCIAL.ensure(L).contacts||[]).find(c=>c.id===event.targetId)
     :isRival?(S.bots||[])[Number(event.targetId)]
     :metRecord(L,event.personName);
+  if(!isContact&&!isRival&&target&&FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(L,target.name)){showNextImportantEvent();return;}
   if(!target){showNextImportantEvent();return;}
   const role=isContact?SOCIAL.role(target):null;
   const title=isContact?`${role.icon} ${target.name}`:target.name;
@@ -2866,13 +2880,14 @@ const BOND_ENCOUNTER_SCENES=[
   {icon:'🥡',title:'늦은 저녁의 안부',scene:'./assets/date-route-friend.png',desc:'각자 바쁜 하루를 끝낸 뒤 간단한 저녁을 함께 먹게 됐습니다.'}
 ];
 function queueBondEncounter(L){
-  const pool=ensureMet(L).filter(r=>['acquaintance','friend'].includes(r.status)&&!courtshipReadiness(r).ready&&r.lastBondEncounterDay!==S.day);
+  const pool=ensureMet(L).filter(r=>(!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,r.name))&&['acquaintance','friend'].includes(r.status)&&!courtshipReadiness(r).ready&&r.lastBondEncounterDay!==S.day);
   if(!pool.length||Math.random()>.55)return;
   const r=pick(pool);r.lastBondEncounterDay=S.day;
   queueImportantEvent({bondEncounter:true,personName:r.name,sceneIndex:Math.floor(Math.random()*BOND_ENCOUNTER_SCENES.length)});
 }
 function showBondEncounter(event){
   const host=$('life-event'),r=metRecord(S.life,event.personName);
+  if(r&&FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(S.life,r.name)){showNextImportantEvent();return;}
   if(!host||!r){showNextImportantEvent();return;}
   const scene=BOND_ENCOUNTER_SCENES[event.sceneIndex]||BOND_ENCOUNTER_SCENES[0],per=D.PERSONALITIES[r.personality]||{};
   S._bondEncounter={event,r,scene};
@@ -3795,6 +3810,11 @@ function showActivityEncounter() {
 function closeActivityEncounter() { const h = $('life-event'); if (h) { h.style.display = 'none'; h.innerHTML = ''; } S._activityMeet = null; }
 function resolveActivityEncounter(kind) {
   const m = S._activityMeet; if (!m) return; const c = m.c;
+  if(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(S.life,c.name)){
+    addNews(`${m.emoji} ${c.name}님은 짧게 인사만 하고 더는 대화를 이어가지 않았습니다`,'neutral');
+    flashToast('아직은 낯선 사람에게 관심이 없는 것 같습니다','neutral');
+    closeActivityEncounter();renderLifePanel();autoSave();return;
+  }
   const rec = rememberPerson(c, 'acquaintance');
   addBondInteraction(rec,'activity-meeting');
   rec.affection = Math.max(rec.affection || 0, kind === 'talk' ? 7 : 3);
@@ -4004,6 +4024,7 @@ function resolveChildhoodCircleEvent(choiceId){
 
 function showCharacterStory(name){
   const r=metRecord(S.life,name),story=r&&STORIES.get(r),chapter=r&&STORIES.next(r);if(!r||!story)return;
+  if(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(S.life,r.name))return;
   if(!chapter){flashToast(STORIES.ensure(r).completed?'📖 이 사람과 나눌 이야기는 모두 들었습니다':'📖 아직은 꺼내지 않은 이야기가 있는 것 같습니다','neutral');return;}
   const host=$('life-event');if(!host)return;S._storyPerson=r;host.style.display='block';
   const continuity=STORIES.context?STORIES.context(r,chapter):'';
@@ -4021,6 +4042,7 @@ function closeCharacterStory(){
  * 챕터마다 한 번만 제시하고, 미뤄두면 인맥 목록의 📖 버튼으로 다시 볼 수 있다. */
 function queueAvailableStories(L){
   ensureMet(L).forEach(m=>{
+    if(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(L,m.name))return;
     const active=RELATIONSHIPS.isPartner(L,m.name)||['friend','casual','partner','polycule','lover'].includes(m.status);
     if(!active)return;
     const st=STORIES.get(m);if(!st)return;
@@ -4282,6 +4304,7 @@ function monthlyRelationshipMessages(L){
   const mood=currentMarketMood();
   const arrivals=[];
   ensureMet(L).forEach(r=>{
+    if(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(L,r.name))return;
     const active=RELATIONSHIPS.isPartner(L,r.name)||['acquaintance','friend','casual','lover','polycule'].includes(r.status);
     // 전 연인도 아주 가끔은 안부를 보내온다(연락이 완전히 끊기지 않은 경우)
     const exReach=r.status==='ex'&&(r.affection||0)>15&&Math.random()<.05;
@@ -4385,7 +4408,7 @@ function monthlyFactionMemberMessages(L){
   if(!member)return;
   const contact=(SOCIAL.ensure(L).contacts||[]).find(item=>item.factionMemberId===member.sourceId);
   if(!contact)return;
-  const women=ensureMet(L).filter(person=>person.gender!=='m'&&['friend','casual','partner','lover','polycule'].includes(person.status));
+  const women=ensureMet(L).filter(person=>(!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,person.name))&&person.gender!=='m'&&['friend','casual','partner','lover','polycule'].includes(person.status));
   const partners=RELATIONSHIPS.names(L);
   const loan=(L.loan||0)+(S.loan||0);
   let message;
@@ -4441,7 +4464,7 @@ function monthlyChildhoodCircleBond(L){
 }
 
 function updateRelationships(L) {
-  const met = ensureMet(L);
+  const met = ensureMet(L).filter(person=>!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,person.name));
   if (!met.length) return;
   const partnerNames = new Set(RELATIONSHIPS.names(L));
   const faded = [];
@@ -4530,8 +4553,8 @@ const SIGNATURE_EVENTS={
 function signatureContext(L){return{prestige:playerJobPrestige(),debtRatio:(L.loan||0)/Math.max(1,totalWealth()),marginCalled:!!S.marginCalled};}
 function signatureEvent(result){const rec=result.rec,s=result.spec,copy=SIGNATURE_EVENTS[rec.name]||[`${s.name} 변화`,`${s.name} 수치가 관계를 바꾸기 시작했습니다.`];queueImportantEvent({type:'love',scene:`./assets/${s.scene}`,icon:s.icon,title:`${rec.name} · ${copy[0]}`,desc:copy[1],detail:`${s.name} ${Math.round(result.state.value)}/100 · ${CHAR_TRAITS.stageText(rec)}`,tone:s.good?'good':result.afterStage>=2?'bad':'neutral'});}
 function updateCharacterSignatureSystems(L){
-  if(!CHAR_TRAITS)return;const results=CHAR_TRAITS.monthly(L,signatureContext(L));results.forEach(x=>{if(x.changed)signatureEvent(x);});
-  ensureMet(L).forEach(r=>{const s=CHAR_TRAITS.system(r.name),st=CHAR_TRAITS.ensure(r);if(!s||!st)return;const stage=CHAR_TRAITS.stageOf(s,st.value);if(stage<3)return;
+  if(!CHAR_TRAITS)return;const results=CHAR_TRAITS.monthly(L,signatureContext(L));results.forEach(x=>{if((!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,x.rec.name))&&x.changed)signatureEvent(x);});
+  ensureMet(L).forEach(r=>{if(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(L,r.name))return;const s=CHAR_TRAITS.system(r.name),st=CHAR_TRAITS.ensure(r);if(!s||!st)return;const stage=CHAR_TRAITS.stageOf(s,st.value);if(stage<3)return;
     if(r.name==='강유진'){r.menhera=true;r.affection=clamp((r.affection||0)+3,0,100);L.legalShield=Math.min(5,(L.legalShield||0)+1);L.stress=clamp((L.stress||0)+1,0,100);r.protectionEnjoyed=true;}
     else if(r.name==='하은'||r.name==='수아'){r.affection=Math.max(0,(r.affection||0)-3);}
     else if(r.name==='유나'){SOCIAL.ensure(L).reputation-=2;}
@@ -4756,7 +4779,7 @@ function relationshipImage(L,name){
 
 function renderChatPanel(){
   const host=$('chat-panel');if(!host||!S.life)return;const L=S.life;
-  const people=ensureMet(L).filter(r=>hasPersonalContact(r));
+  const people=ensureMet(L).filter(r=>(!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,r.name))&&hasPersonalContact(r));
   const contacts=(SOCIAL.ensure(L).contacts||[]).slice().sort((a,b)=>{
     const priority=c=>['mother','father','guardian'].includes(c.role)?0:c.role==='schoolfriend'?1:2;
     return priority(a)-priority(b)||(b.trust||0)-(a.trust||0);
@@ -4781,7 +4804,7 @@ function renderChatPanel(){
     const log=host.querySelector('.chat-log');if(log)log.scrollTop=log.scrollHeight;return;
   }
   if(S._chatPerson){
-    const r=metRecord(L,S._chatPerson);if(!r){S._chatPerson=null;return renderChatPanel();}
+    const r=metRecord(L,S._chatPerson);if(!r||(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(L,r.name))){S._chatPerson=null;return renderChatPanel();}
     const room=personChat(L,r.name);room.unread=0;
     const ttsOn=S.ttsOn&&VOICE;
     const risk=dangerousRiskMeta(r);
@@ -4915,6 +4938,9 @@ function makeCandidate(route, exclude) {
     return fixed;
   }
   let pool = D.CHARACTERS;
+  if(FREEDOM_TRIO){
+    pool=pool.filter(character=>FREEDOM_TRIO.canMeetOffline(L,character.name));
+  }
   if(CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.ensure(L).removed){
     pool=pool.filter(character=>!CHILDHOOD_CIRCLE.MEMBERS.includes(character.name));
   }
@@ -4933,7 +4959,7 @@ function makeCandidate(route, exclude) {
   }
   const taken = exclude || [];
   // 아는 사람이 초면인 척 다시 소개되지 않도록, 정말 처음 보는 사람만 뽑는다
-  const fresh = pool.filter(c => !isKnownPerson(L, c.name) && !taken.includes(c.name));
+  const fresh = pool.filter(c => (!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,c.name))&&!isKnownPerson(L, c.name) && !taken.includes(c.name));
   if (!fresh.length) return null;   // 로스터를 다 만났다 — 새로 소개받을 사람 없음
   const c = Object.assign({}, pick(fresh));
   const pAge = dateInfo(S.day).age;              // 플레이어 또래 위주로 만난다
@@ -5087,7 +5113,7 @@ function showRouteModal() {
   const currentPartners=RELATIONSHIPS.consensualMembers(L);
   const inRel = currentPartners.length > 0;
   const ctx = specialRouteContext(L);
-  const friends=L.met.filter(m=>m.status!=='ex'&&hasPersonalContact(m)&&!RELATIONSHIPS.isPartner(L,m.name))
+  const friends=L.met.filter(m=>m.status!=='ex'&&hasPersonalContact(m)&&!RELATIONSHIPS.isPartner(L,m.name)&&(!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,m.name)))
     .sort((a,b)=>(b.affection||0)-(a.affection||0)).slice(0,2);
   const contacts=(SOCIAL.ensure(L).contacts||[]).filter(c=>!['mother','father','guardian'].includes(c.role))
     .sort((a,b)=>(b.trust||0)-(a.trust||0)).slice(0,2);
@@ -5115,7 +5141,7 @@ function showRouteModal() {
 
   // 이미 아는 사람들 — 연인은 따로, 양다리 상대·전 연인·그냥 아는 사람은 여기에
   const formerPartners = L.met.filter(m => m.status === 'ex');
-  S._dateKnown = L.met.filter(m => m.status !== 'ex' && !RELATIONSHIPS.isPartner(L,m.name)).map(candidateFromRecord);
+  S._dateKnown = L.met.filter(m => m.status !== 'ex' && !RELATIONSHIPS.isPartner(L,m.name)&&(!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,m.name))).map(candidateFromRecord);
 
   let cards = `<div class="route-sep">🌙 혼자 밤을 보내는 방법</div><div class="date-place-grid"><button class="route-card place-card club-relief-card" data-club-night><div class="rc-head">🍸 클럽에서 밤 보내기</div><small>히로인이 아닌 처음 보는 여성과 가볍게 어울립니다. 연락이 와도 답하지 않습니다.</small><em>${won(180000)} · 스트레스 -20 · 체력 -2</em></button></div>`;
   S._datePartners=currentPartners;
@@ -6897,6 +6923,7 @@ function renderLifePanel() {
   const passiveOwned = L.passiveAssets || [];
   const passiveExpected = passiveOwned.reduce((sum, owned) => { const a=D.PASSIVE_ASSETS.find(x=>x.id===owned.id); return sum+(a?Math.max(0,a.monthlyIncome-a.maintenance):0); },0);
   const businessValue=BUSINESS?BUSINESS.assetValue(L):0;
+  const wealth=wealthBreakdown();
   const charmHint = L.relationship === 'single' ? `(연애까지 ${R.DATING_AT})`
     : RELATIONSHIPS.ensure(L).relationshipGroup.status==='dating' ? `(공동생활 서약까지 ${R.MARRY_AT})` : '';
   const risk = jobRiskTier(job);
@@ -6918,7 +6945,7 @@ function renderLifePanel() {
     partnerRow += `<div class="life-stat"><span>양다리 😈</span><strong class="down">${L.lovers.map(x => (x.emoji || '💔') + x.name).join(', ')} <span class="muted">(발각 주의!)</span></strong></div>`;
   }
   if(relationshipMembers.length)partnerRow+=`<div class="life-stat"><span>관계 합의 🌈</span><strong class="${relationGroup.tension>=60?'down':'up'}">${RELATIONSHIPS.publicityLabel(L)} · ${relationGroup.agreement.cohabiting?'공동생활':'각자 생활'} · 안정도 ${Math.round(relationGroup.stability)} · 긴장도 ${Math.round(relationGroup.tension)}</strong></div>`;
-  const met = ensureMet(L);
+  const met = ensureMet(L).filter(person=>!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,person.name));
   if (met.length) {
     partnerRow += `<div class="life-stat"><span>아는 사람 📇</span><strong>${met.length}명</strong></div>` +
       `<div class="life-props">${met.map(m => {const risk=dangerousRiskMeta(m);return`${m.emoji || '🙂'}<b>${m.name}</b> ${relationTag(L, m.name)} · ${stageBadge(m.affection)} ${Math.round(m.affection || 0)} · 신뢰 ${Math.round(m.trust||0)} · 교류 ${ensureCourtship(m).interactions||0}회${CHAR_TRAITS&&CHAR_TRAITS.label(m)?` · <span class="muted">${CHAR_TRAITS.label(m)} · ${CHAR_TRAITS.stageText(m)}</span>`:''}${risk?` · <span class="${risk.value>=70?'down':'muted'}">${risk.icon}${risk.label} ${Math.round(risk.value)}</span>`:''}${m.idleMonths >= 3 ? ` <span class="muted">(${m.idleMonths}개월째 연락 없음)</span>` : ''}`;}).join('<br>')}</div>`;
@@ -6976,13 +7003,14 @@ function renderLifePanel() {
      ${L.jailMonths > 0 ? `<div class="life-stat"><span>신분</span><strong class="down">🔒 수감 중 · ${L.jailMonths}개월 남음</strong></div>` : ''}
      ${L.criminalRecord > 0 ? `<div class="life-stat"><span>전과</span><strong class="down">${L.criminalRecord}범</strong></div>` : ''}
      ${L.collectionLevel ? `<div class="life-stat"><span>추심 상태</span><strong class="down">${['','상환 독촉','방문 추심','위험한 추심'][L.collectionLevel]}</strong></div>` : ''}
-     <div class="life-stat total"><span>총 재산</span><strong>${won(totalWealth())}원</strong></div>
+     <div class="life-stat total"><span>총 재산</span><strong>${won(wealth.total)}원</strong></div>
+     <div class="life-props wealth-breakdown">금융 ${won(wealth.liquid)} + 투자부동산 ${won(wealth.property)} + 자동수입 자산 ${won(wealth.passive)} + 사업 ${won(wealth.business)} + 주거 ${won(wealth.housing)} + 연금 ${won(wealth.pension)} − 개인대출 ${won(wealth.personalDebt)}</div>
      ${L.properties.length ? '<div class="life-props">' + L.properties.map(p => `${p.emoji}${p.name}`).join(' · ') + '</div>' : ''}`;
 }
 
 /* ---- 마감 리포트에 들어갈 '이번 달 행동' 허브 ---- */
 function storyProgressHTML(L) {
-  const rows=ensureMet(L).filter(r=>STORIES.get(r)&&['friend','casual','partner','polycule','lover'].includes(r.status)).map(r=>{
+  const rows=ensureMet(L).filter(r=>(!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,r.name))&&STORIES.get(r)&&['friend','casual','partner','polycule','lover'].includes(r.status)).map(r=>{
     const story=STORIES.get(r),state=STORIES.ensure(r),next=STORIES.next(r);
     const title=state.completed?(state.ending&&state.ending.title||'마무리된 이야기'):story.chapters[state.chapter].title;
     const bars=story.chapters.map((_,i)=>`<i class="${i<state.chapter?'done':i===state.chapter&&next?'ready':''}"></i>`).join('');
@@ -7141,7 +7169,7 @@ function lifeHubHTML() {
     (!specialMet('police') && (justice.case || L.criminalRecord > 0 || sctx.attacked)) ? '<button class="life-btn" data-act="meet-special" data-special="yujin">👮‍♀️ 경찰서에서 상담한다 <small>공격·사건·전과가 만든 인연</small></button>' : '',
     (!specialMet('heiress') && sctx.factionLevel >= 2 && sctx.factionMembers >= 3) ? '<button class="life-btn" data-act="meet-special" data-special="chaerin">🥂 한채린의 비공개 회동 제안을 받는다 <small>세력 2단계 · 조직원 3명 이상</small></button>' : ''
   ].join('');
-  const personalBtns = ensureMet(L).filter(m=>['friend','casual','partner','polycule','lover'].includes(m.status)).map(m=>{const sig=CHAR_TRAITS&&CHAR_TRAITS.label(m);return`<button class="life-btn" data-act="person-request" data-person="${m.name}">🙏 ${m.name}에게 부탁하기 <small>${relationTag(L,m.name)} · 호감 ${Math.round(m.affection||0)}${m.childhoodFriend?' · 소꿉친구':''}${sig?` · ${sig}`:''}</small></button>`;}).join('');
+  const personalBtns = ensureMet(L).filter(m=>(!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,m.name))&&['friend','casual','partner','polycule','lover'].includes(m.status)).map(m=>{const sig=CHAR_TRAITS&&CHAR_TRAITS.label(m);return`<button class="life-btn" data-act="person-request" data-person="${m.name}">🙏 ${m.name}에게 부탁하기 <small>${relationTag(L,m.name)} · 호감 ${Math.round(m.affection||0)}${m.childhoodFriend?' · 소꿉친구':''}${sig?` · ${sig}`:''}</small></button>`;}).join('');
   const courtBtns=justice.case?`<div class="court-status">⚖️ <b>${justice.case.crime}</b> · <b class="down">${justice.case.phase}</b> 단계 · ${justice.case.months}개월 남음<br><span class="muted">${justice.case.phase==='수사'?'변호사를 미리 선임하면 유리합니다':justice.case.phase==='기소'?'변호사 등급이 불기소 확률에 영향':'⚠️ 재판 전략 3가지 중 하나를 꼭 선택하세요'}</span></div><button class="life-btn" data-act="lawyer" data-tier="public">국선변호인</button><button class="life-btn" data-act="lawyer" data-tier="standard">전문 변호사 <small>5,000,000</small></button><button class="life-btn" data-act="lawyer" data-tier="elite">대형 로펌 <small>20,000,000</small></button>${justice.case.phase==='재판'?'<button class="life-btn" data-act="court" data-strategy="plea">혐의 인정·선처</button><button class="life-btn" data-act="court" data-strategy="contest">무죄 다툼</button><button class="life-btn" data-act="court" data-strategy="cooperate">수사 협조</button>':''}`:'<span class="muted">진행 중인 사건 없음</span>';
   const treatment=HEALTH.treatmentOffer(L);
   const actionUsed = lifeActionCount();
