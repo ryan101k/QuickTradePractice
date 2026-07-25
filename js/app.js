@@ -1605,6 +1605,7 @@ function settleMonth() {
         day:S.day,totalNet:businessMonth.net,businessState:BUSINESS.ensure(L),
         hasPartner:RELATIONSHIPS.consensualMembers(L).length>0,
         partnerNames:RELATIONSHIPS.names(L),met:ensureMet(L),
+        rivalName:(S.bots||[]).filter(bot=>!bot.bankrupt&&bot.name!=='장태식').sort((a,b)=>(b.pressure||0)-(a.pressure||0))[0]?.name,
       });
       if(romanceEvent)queueImportantEvent(romanceEvent);
     }
@@ -2716,6 +2717,24 @@ function resolveBusinessRomanceEvent(choiceId){
     });
     LEGACY.push(S.life,dateInfo(S.day).age,'🏢',`${result.title} · 사업 담당자 공동 이사회`,'career');
   }
+  if(result.rivalCounter&&result.rivalName){
+    const rival=(S.bots||[]).find(bot=>bot.name===result.rivalName);
+    if(rival){
+      rival.pressure=clamp((rival.pressure||0)+(choiceId==='counter'?18:10),0,100);
+      rival.credibility=clamp((rival.credibility==null?100:rival.credibility)-(choiceId==='counter'?12:6),0,100);
+      S.rivalFeed=S.rivalFeed||[];
+      S.rivalFeed.unshift({day:S.day,text:`🏢 [사업 4인조 역공] ${rival.name} · 압박 ${Math.round(rival.pressure)} · 신뢰도 ${Math.round(rival.credibility)}`});
+    }
+  }
+  if(result.chaerinCross){
+    const chaerin=metRecord(S.life,'한채린');
+    if(chaerin){
+      chaerin.affection=clamp((chaerin.affection||0)+(choiceId==='refuse'?6:3),0,100);
+      chaerin.trust=clamp((chaerin.trust||0)+(choiceId==='seat'?5:2),0,100);
+      chaerin.businessQuartetRivalry=(chaerin.businessQuartetRivalry||0)+1;
+      pushPersonMessage(S.life,chaerin,choiceId==='refuse'?'돈보다 네 말을 택한 사람이 넷이라… 마음에 안 들 만큼 잘 키웠네. 다음엔 내가 직접 흔들어 볼게.':'투자자 자리만 주고 사람은 못 건드리게 한다? 좋아. 네 회사에서 누가 진짜 결정권자인지 지켜보지.',false);
+    }
+  }
   if(result.soloEnding){
     LEGACY.push(S.life,dateInfo(S.day).age,'💍',`${result.title} · 사업 담당자 순애엔딩`,'love');
     celebrate();
@@ -3406,7 +3425,7 @@ function attendIndustryGathering(id){
     message=`${person.emoji} ${person.name} 소개 · ${person.rivalFirm} ${person.role}`;
     addNews(`${message} · 자산·사업 관리실에서 특별 책임자 계약 가능`,'good');
   }else addNews(message,'good');
-  flashToast(result.introduced?`새 업계 인물을 소개받았습니다: ${BUSINESS_ROMANCE.profile(result.introduced).name}`:message,'good');
+  flashToast(result.introduced?`새 업계 인물을 소개받았습니다: ${BUSINESS_ROMANCE.identity(S.life,result.introduced).displayName}`:message,'good');
   const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
   afterLifeAction('인맥');
 }
@@ -4241,7 +4260,9 @@ function monthlyFactionMemberMessages(L){
   const loan=(L.loan||0)+(S.loan||0);
   let message;
   const sera=metRecord(L,'윤세라'),circle=L.childhoodCircleBond&&L.childhoodCircleBond.active;
+  const businessWomen=BUSINESS_ROMANCE?BUSINESS_ROMANCE.IDS.filter(id=>BUSINESS_ROMANCE.staffState(L,id).hired):[];
   if(circle&&sera&&['friend','casual','partner','lover','polycule'].includes(sera.status))message='목숨이 여러 개입니까? 집에는 스토커가 열쇠를 들고 있고, 소꿉친구 다섯은 출입 기록을 맞춰 보고 있습니다. 신고해야죠. 아니, 경찰도 같이 저러네. 이 나라는 망했습니다.';
+  else if(businessWomen.length===4)message='형님, 직원은 왜 전부 여자입니까? 우연이라고 하기엔 유통·제작·계약·현장까지 정확히 한 명씩인데요. 회사 조직도인지 소개팅 명단인지 저도 이제 모르겠습니다.';
   else if(circle)message='형님, 차라리 조직 생활할 때가 더 좋았습니다. 적은 밖에 있고 보고서라도 남기죠. 저 다섯 분은 형님 과거와 현재를 동시에 포위하고 있습니다.';
   else if(sera&&sera.yandere)message='세력 보고보다 먼저 묻겠습니다. 왜 윤세라 씨가 사무실 예비 열쇠를 갖고 있습니까? 정보원과 스토커는 종이 한 장 차이입니다.';
   else if(women.length>=5)message=`형님, 여사친이 ${women.length}명이나 되는데 일정표는 제가 봐도 위험합니다. 칼보다 단체 채팅방이 먼저 터지겠어요.`;
@@ -5975,7 +5996,7 @@ function showSpecialManagerRecruit(id){
     return staff.introduced&&!staff.hired&&BUSINESS.compatibleManager(item,staffId);
   });
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">🤝 ${type.name} · 특별 책임자 계약</div><div class="title-bar-controls"><button aria-label="Close" id="special-manager-x"></button></div></div><div class="window-body"><div class="event-desc">특별 책임자는 공개 채용 지원자가 아닙니다. 사교 모임에서 정식 소개를 받은 경쟁자를 업종별로 영입합니다. 네 명은 모두 고용할 수 있지만 서로를 업계와 연애 양쪽의 경쟁자로 봅니다.</div>${candidates.length?`<div class="resume-grid">${candidates.map(staffId=>{const p=BUSINESS_ROMANCE.profile(staffId);return`<button class="resume-card" data-special-manager="${staffId}"><img class="char-portrait" src="./assets/characters/${p.portrait}" alt="${p.name}"><b>${p.name}</b><small>${p.rivalFirm} · ${p.role}</small><em>“${p.style}”</em><strong>전속 계약금 ${won(2500000)}</strong></button>`;}).join('')}</div>`:`<div class="asset-empty">이 업종에 맞는 새 소개 인물이 없습니다. 가족·인맥의 사교 모임 등급을 올려 먼저 소개받으세요.</div>`}<button id="special-manager-close" class="session-btn">닫기</button></div></div>`;
+  host.innerHTML=`<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">🤝 ${type.name} · 특별 책임자 계약</div><div class="title-bar-controls"><button aria-label="Close" id="special-manager-x"></button></div></div><div class="window-body"><div class="event-desc">특별 책임자는 공개 채용 지원자가 아닙니다. 사교 모임에서 정식 소개를 받은 경쟁자를 업종별로 영입합니다. 처음에는 직급과 가린 얼굴로만 일하며, 큰 위기에서 실적보다 사람을 먼저 지켜 줬을 때 본명과 얼굴을 공개합니다.</div>${candidates.length?`<div class="resume-grid">${candidates.map(staffId=>{const p=BUSINESS_ROMANCE.profile(staffId),identity=BUSINESS_ROMANCE.identity(S.life,staffId);return`<button class="resume-card" data-special-manager="${staffId}"><img class="char-portrait" src="${identity.portrait||p.maskedScene}" alt="${identity.displayName}"><b>${identity.displayName}</b><small>${p.rivalFirm} · ${p.role}</small><em>“${p.style}”</em><strong>전속 계약금 ${won(2500000)}</strong></button>`;}).join('')}</div>`:`<div class="asset-empty">이 업종에 맞는 새 소개 인물이 없습니다. 가족·인맥의 사교 모임 등급을 올려 먼저 소개받으세요.</div>`}<button id="special-manager-close" class="session-btn">닫기</button></div></div>`;
   const close=()=>{host.style.display='none';host.innerHTML='';};
   host.querySelectorAll('[data-special-manager]').forEach(button=>button.addEventListener('click',()=>finishSpecialManagerRecruit(id,button.dataset.specialManager)));
   $('special-manager-x').addEventListener('click',close);$('special-manager-close').addEventListener('click',close);
