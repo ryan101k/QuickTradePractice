@@ -62,8 +62,13 @@
     pluck:  { type: 'triangle', a: 0.002, d: 0.14, s: 0.0,  r: 0.09 },
     bell:   { type: 'sine',     a: 0.001, d: 0.5,  s: 0.0,  r: 0.5, fm: { ratio: 2.0, amt: 7, decay: 0.32 } },
     organ:  { type: 'organ',    a: 0.02,  d: 0.04, s: 0.9,  r: 0.10 },
-    pad:    { type: 'sawtooth', a: 0.18,  d: 0.3,  s: 0.75, r: 0.5, voices: 3, detune: 11, lp: 1900 },
+    pad:    { type: 'sawtooth', a: 0.22,  d: 0.3,  s: 0.78, r: 0.6, voices: 2, detune: 9, lp: 1700 },   // 현악 앙상블(부하↓: 3→2보이스)
     brass:  { type: 'sawtooth', a: 0.03,  d: 0.10, s: 0.7,  r: 0.14, lp: 2600 },
+    // --- 클래식 편성용 ---
+    viola:  { type: 'triangle', a: 0.04,  d: 0.16, s: 0.72, r: 0.32, lp: 2400 },   // 따뜻한 현악 멜로디
+    cello:  { type: 'triangle', a: 0.05,  d: 0.2,  s: 0.75, r: 0.4,  lp: 1400 },   // 저음 현
+    harp:   { type: 'triangle', a: 0.002, d: 0.5,  s: 0.0,  r: 0.35 },             // 하프/피치카토(길게 울림)
+    flute:  { type: 'sine',     a: 0.05,  d: 0.12, s: 0.85, r: 0.24 },             // 부드러운 목관
   };
 
   // 32칸 화음 패턴. entries: [[step, 'C4+E4+G4'], ...]
@@ -1173,6 +1178,18 @@
     g.gain.exponentialRampToValueAtTime(0.0001, at + 0.15);
     o.connect(g); g.connect(master); o.start(at); o.stop(at + 0.17);
   }
+  // 클래식용 팀파니 — 드럼 킷 대신 다운비트에 부드럽게 울리는 저음 타악
+  function timpani(at, vol) {
+    if (!ctx) return;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(120, at);
+    o.frequency.exponentialRampToValueAtTime(72, at + 0.14);
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.linearRampToValueAtTime(Math.max(0.0004, vol * 0.7), at + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.4);
+    o.connect(g); g.connect(master); o.start(at); o.stop(at + 0.44);
+  }
   // 노이즈 버퍼는 한 번만 만들어 재사용한다(매번 새로 만들면 할당·GC로 오디오가 끊긴다).
   let _noiseBuf = null;
   function noiseBuffer() {
@@ -1236,6 +1253,8 @@
   // 대신 베이스·패드(화음)를 살려 보컬을 받쳐 주는 반주로 만든다.
   const VOCAL_MIX = { lead: 0.22, arp: 0.42, bass: 1.05, chords: 1.15, drum: 0.5 };
   const FLAT_MIX  = { lead: 1, arp: 1, bass: 1, chords: 1, drum: 1 };
+  // 클래식 편성 — 트랙별 칩튠 악기 대신 현악·하프·목관으로 통일하고 보컬은 뺀다.
+  const CLASSIC = { lead: 'viola', arp: 'harp', bass: 'cello', chords: 'pad' };
 
   function scheduler() {
     if (!cur || !ctx) return;
@@ -1257,24 +1276,20 @@
       const at = nextTime + ((i % 2) ? swing * spb : 0);   // 홀수 칸을 살짝 밀어 스윙감
 
       try {   // 한 음이 실패해도 재생 루프는 절대 멈추지 않게
-        layerNote(cur.leadInst || 'square', layerOf(cur, sec, 'lead'), i, at, spb * 1.7, (cur.leadVol || 0.05) * mix.lead);
-        layerNote(cur.bassInst || 'tri', layerOf(cur, sec, 'bass'), i, at, spb * 2.6, (cur.bassVol || 0.06) * mix.bass);
+        // 클래식 편성 — 보컬 없음(부하↓). 현악 멜로디 + 첼로 + 하프 아르페지오 + 현악 화음.
+        layerNote(CLASSIC.lead, layerOf(cur, sec, 'lead'), i, at, spb * 2.6, (cur.leadVol || 0.05) * 0.95);   // 레가토로 길게
+        layerNote(CLASSIC.bass, layerOf(cur, sec, 'bass'), i, at, spb * 3.2, (cur.bassVol || 0.06) * 1.0);
         const arp = layerOf(cur, sec, 'arp');
-        if (arp) layerNote(cur.arpInst || 'pluck', arp, i, at, spb * 0.9,
-          (cur.arpVol != null ? cur.arpVol : (cur.leadVol || 0.05) * 0.55) * mix.arp);
+        if (arp) layerNote(CLASSIC.arp, arp, i, at, spb * 1.4,
+          (cur.arpVol != null ? cur.arpVol : (cur.leadVol || 0.05) * 0.5) * 0.85);
         const chords = layerOf(cur, sec, 'chords');
-        if (chords) chordVoice(cur.chordInst || 'pad', chords[i % chords.length], at, spb * 7, (cur.chordVol || 0.03) * mix.chords);
+        if (chords) chordVoice(CLASSIC.chords, chords[i % chords.length], at, spb * 7.5, (cur.chordVol || 0.03) * 1.35);
+        // 드럼 킷 대신 다운비트에 옅은 팀파니만(딸깍이는 하이햇·스네어 제거)
         const drum = layerOf(cur, sec, 'drum');
         if (drum && drum.length && cur.drumVol) {
           const d = drum[i % drum.length];
-          if (d && d !== '-') {
-            const soft = vocal && (d === 'h' || d === 'H') ? 0.5 : 1;
-            drumHit(d, at, cur.drumVol * mix.drum * soft * (0.9 + Math.random() * 0.18));
-          }
+          if (d === 'k' || d === 'c') timpani(at, cur.drumVol * 1.1);
         }
-        advanced.schedule(wanted, cur, sec, i, at, spb, arrIdx);
-        // 보컬은 둘 중 하나만 — SAM 고급 엔진이 켜졌으면 그쪽, 아니면 webaudio 포먼트 보컬
-        if (!advanced.ready) singVocalStep(vocal, i, at, spb, arrIdx, 1);
       } catch (e) { /* noop — 다음 스텝 계속 */ }
 
       nextTime += spb;
