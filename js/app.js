@@ -50,6 +50,7 @@ const MONTH_CLOSE_VIEWS = window.QT_MONTH_CLOSE_VIEWS || {};
 if (!MONTH_CLOSE_VIEWS['life-action']) {
   MONTH_CLOSE_VIEWS['life-action'] = {
     render(host, props, api) {
+      const remaining=api.actionsRemaining();
       host.innerHTML = `<div class="window close-window month-flow-window life-action-flow-window">
         <div class="title-bar life-action-flow-bar"><div class="title-bar-text">🎬 이번 달 인생 행동</div></div>
         <div class="life-action-wallet">${api.wallet()}</div>
@@ -58,7 +59,7 @@ if (!MONTH_CLOSE_VIEWS['life-action']) {
           <div class="life-action-overview">${api.overview()}</div>
           ${api.lifeHubHTML()}
           <div class="close-actions">
-            <button class="session-btn opening" data-month-close-next>${api.actionsRemaining() > 0 ? `남은 행동 ${api.actionsRemaining()}회 포기하고 주요 사건으로` : '행동 완료 · 주요 사건 확인'}</button>
+            <button class="session-btn opening" data-month-close-next ${remaining>0?'disabled':''}>${remaining>0 ? `일정 ${remaining}회 더 선택해야 진행할 수 있습니다` : '4주 일정 완료 · 주요 사건 확인'}</button>
           </div>
         </div>
       </div>`;
@@ -1294,9 +1295,26 @@ function monthCloseProgress() {
   return `<div class="month-flow-progress"><span style="width:${Math.round(position / ctx.steps.length * 100)}%"></span><b>${position}/${ctx.steps.length}</b></div>`;
 }
 
+function restoreRequiredLifeActionStep(ctx) {
+  if (!ctx || !ctx.active || !Array.isArray(ctx.steps)) return false;
+  const lifeIndex=ctx.steps.findIndex(step=>step&&step.name==='life-action');
+  if(lifeIndex<0)return false;
+  const actionCount=lifeActionCount(ctx.day);
+  if(ctx.currentIndex>lifeIndex&&(!ctx.lifeActionConfirmed||actionCount<LIFE_ACTIONS_PER_MONTH)){
+    ctx.currentIndex=lifeIndex;
+    ctx.lifeActionConfirmed=false;
+    ctx.completedSteps=(ctx.completedSteps||[]).filter(name=>name!=='life-action');
+    S._monthCloseEventPhase=false;
+    S._monthCloseRandomEvent=false;
+    return true;
+  }
+  return false;
+}
+
 function renderCurrentMonthCloseStep() {
   const ctx = S.monthCloseContext;
   if (!ctx || !ctx.active) return;
+  restoreRequiredLifeActionStep(ctx);
   const step = MONTH_CLOSE_FLOW.current(ctx);
   if (!step) return;
   const host = $('market-close');
@@ -1353,6 +1371,21 @@ function renderCurrentMonthCloseStep() {
 function advanceMonthCloseFlow() {
   const ctx = S.monthCloseContext;
   if (!ctx || !ctx.active) return;
+  if(restoreRequiredLifeActionStep(ctx)){
+    autoSave();
+    renderCurrentMonthCloseStep();
+    return;
+  }
+  const step=MONTH_CLOSE_FLOW.current(ctx);
+  if(step&&step.name==='life-action'){
+    const remaining=lifeActionRemaining();
+    if(remaining>0){
+      flashToast(`📅 ${remaining}주 일정이 남았습니다. 행동을 모두 선택해야 다음 단계로 진행됩니다`,'neutral');
+      renderCurrentMonthCloseStep();
+      return;
+    }
+    ctx.lifeActionConfirmed=true;
+  }
   MONTH_CLOSE_FLOW.advance(ctx);
   S._monthCloseEventPhase = false;
   autoSave();
@@ -3557,7 +3590,12 @@ function showCharacterStory(name){
   host.querySelectorAll('[data-story-choice]').forEach(b=>b.addEventListener('click',()=>resolveCharacterStory(b.dataset.storyChoice)));
   [$('story-x'),$('story-close')].forEach(b=>{if(b)b.addEventListener('click',closeCharacterStory);});
 }
-function closeCharacterStory(){const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}S._storyPerson=null;if(S._storyFromQueue){S._storyFromQueue=false;showNextImportantEvent();}}
+function closeCharacterStory(){
+  const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}
+  S._storyPerson=null;
+  if(S._storyFromQueue){S._storyFromQueue=false;showNextImportantEvent();return;}
+  if(S.phase==='closed'&&S.monthCloseContext&&S.monthCloseContext.active)renderCurrentMonthCloseStep();
+}
 /* 호감도 조건이 충족되면 개인 스토리를 클릭 없이 자동으로 꺼내 온다 —
  * 챕터마다 한 번만 제시하고, 미뤄두면 인맥 목록의 📖 버튼으로 다시 볼 수 있다. */
 function queueAvailableStories(L){
@@ -5927,10 +5965,10 @@ function markMonthAction(group) {
   S.life.monthActions = S.life.monthActions || {};
   S.life.monthActions[monthActionKey(group)] = true;
 }
-function lifeActionCount() {
+function lifeActionCount(day=S.day) {
   if (!S.life) return 0;
   S.life.monthActions = S.life.monthActions || {};
-  const prefix = `${S.day}:`;
+  const prefix = `${day}:`;
   return Object.keys(S.life.monthActions).filter(key => key.startsWith(prefix) && S.life.monthActions[key]).length;
 }
 function lifeActionRemaining() { return Math.max(0, LIFE_ACTIONS_PER_MONTH - lifeActionCount()); }
@@ -5980,7 +6018,7 @@ function renderLifePanel() {
   LOAN.ensure(L);
   HEALTH.ensure(L);
   FAMILY.ensure(L);
-  CAREER.ensure(L);
+  const career=CAREER.ensure(L);
   HOUSING.ensure(L);
   const businessState = BUSINESS ? BUSINESS.ensure(L) : {owned:[],lastNet:0};
   const finance = LIFE_FINANCE.ensure(L);
@@ -6101,7 +6139,7 @@ function lifeHubHTML() {
   LOAN.ensure(L);
   HEALTH.ensure(L);
   FAMILY.ensure(L);
-  CAREER.ensure(L);
+  const career=CAREER.ensure(L);
   HOUSING.ensure(L);
   const businessState=BUSINESS?BUSINESS.ensure(L):{owned:[]};
   const finance = LIFE_FINANCE.ensure(L);
