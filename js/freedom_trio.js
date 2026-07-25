@@ -289,10 +289,12 @@ function progress(life){
   });
 }
 function eligibility(life){
-  const state=ensure(life),rows=progress(life),partner=!!life.partner&&NAMES.includes(life.partner.name);
-  const poly=life.polycule||{},outsiders=(poly.members||[]).filter(person=>!NAMES.includes(person.name));
-  const dangerous=!!(life.dangerousTrioBond&&life.dangerousTrioBond.active);
-  return{ok:!state.encountered&&!state.active&&!state.ending&&partner&&!dangerous&&!outsiders.length&&rows.every(row=>row.ready),partner,dangerous,outsiders,rows};
+  const state=ensure(life),rows=progress(life),integratedDangerous=!!(life.dangerousTrioBond&&life.dangerousTrioBond.active);
+  const partner=!!life.partner&&(NAMES.includes(life.partner.name)||integratedDangerous);
+  const allowed=new Set([...NAMES,...(integratedDangerous?['강유진','한채린','윤세라']:[])]);
+  const poly=life.polycule||{},outsiders=(poly.members||[]).filter(person=>!allowed.has(person.name));
+  const guard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'freedom');
+  return{ok:(!guard||guard.ok)&&!state.encountered&&!state.active&&!state.ending&&partner&&!outsiders.length&&rows.every(row=>row.ready),partner,dangerous:integratedDangerous,integratedDangerous,outsiders,rows,guard};
 }
 function queue(life){
   const check=eligibility(life),state=ensure(life);
@@ -301,6 +303,7 @@ function queue(life){
 }
 function start(life){
   const check=eligibility(life);if(!check.ok)return{ok:false,check};
+  if(root.QT_ROMANCE_ROUTES&&!root.QT_ROMANCE_ROUTES.begin(life,'freedom').ok)return{ok:false,check:eligibility(life)};
   const state=ensure(life);
   state.active=true;state.queued=false;state.encountered=true;state.stage=Math.max(0,state.stage||0);state.harmony=Math.max(50,state.harmony||0);state.rest=Math.max(45,state.rest||0);state.ending=null;
   NAMES.forEach(name=>{const person=rec(life,name);if(person){person.trust=clamp((person.trust||0)+3,0,100);if(person.status==='acquaintance')person.status='friend';}});
@@ -333,7 +336,7 @@ function apply(life,choiceId){
     person.affection=clamp((person.affection||0)+(choice.tag==='control'?-3:3),0,100);
   });
   state.stage++;
-  if(state.stage>=CHAPTERS.length){state.ending=endingFor(state);state.active=false;}
+  if(state.stage>=CHAPTERS.length){state.ending=endingFor(state);state.active=false;if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'freedom',state.ending.id,state.ending.tone);}
   return{chapter,choice,state,ending:state.ending};
 }
 function monthly(life){

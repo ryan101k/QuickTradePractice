@@ -134,7 +134,8 @@ function eligibility(life){
  const sera=rec(life,'윤세라');
  const legacyHome=life.seraHousing==null&&sera&&sera.pickedUpAfterRuin;
  const seraHome=(life.seraHousing==='cohabit'||legacyHome)&&!state.lockedOut;
- return{ok:!state.encountered&&!state.active&&!state.ending&&partner&&clean&&seraHome&&rows.every(row=>row.ready),partner,clean,seraHome,outsiders,rows};
+ const guard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'dangerous');
+ return{ok:(!guard||guard.ok)&&!state.encountered&&!state.active&&!state.ending&&partner&&clean&&seraHome&&rows.every(row=>row.ready),partner,clean,seraHome,outsiders,rows,guard};
 }
 function queue(life){
  const check=eligibility(life),state=ensure(life);
@@ -144,6 +145,7 @@ function queue(life){
 }
 function start(life){
  const check=eligibility(life);if(!check.ok)return{ok:false,check};
+ if(root.QT_ROMANCE_ROUTES&&!root.QT_ROMANCE_ROUTES.begin(life,'dangerous').ok)return{ok:false,check:eligibility(life)};
  const state=ensure(life);state.active=true;state.queued=false;state.encountered=true;state.friendRoute=true;state.stage=Math.max(0,state.stage||0);state.stability=Math.max(50,state.stability||0);state.ending=null;
  NAMES.forEach(name=>{const r=rec(life,name);if(r){r.status='friend';r.trust=clamp((r.trust||0)+4,0,100);}});
  return{ok:true,state,chapter:CHAPTERS[state.stage]};
@@ -159,7 +161,7 @@ function apply(life,choiceId){
  const state=ensure(life),chapter=next(life);if(!chapter)return null;const choice=chapter.choices.find(c=>c.id===choiceId);if(!choice)return null;
  state.stability=clamp((state.stability||0)+(choice.stability||0),0,100);state.axes[choice.tag]=(state.axes[choice.tag]||0)+1;state.history.push({stage:state.stage,choice:choice.id,tag:choice.tag});
  NAMES.forEach(name=>{const r=rec(life,name);if(!r)return;r.trust=clamp((r.trust||0)+(choice.trust||0),0,100);r.affection=clamp((r.affection||0)+(choice.tag==='fracture'?-2:3),0,100);if(choice.obsession)r.obsession=clamp((r.obsession||0)+choice.obsession,0,100);});
- state.stage++;if(state.stage>=CHAPTERS.length){state.ending=endingFor(state);state.active=false;}
+ state.stage++;if(state.stage>=CHAPTERS.length){state.ending=endingFor(state);state.active=false;if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'dangerous',state.ending.id,state.ending.tone);}
  return{chapter,choice,state,ending:state.ending};
 }
 function monthly(life){

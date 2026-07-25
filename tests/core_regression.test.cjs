@@ -92,6 +92,7 @@ for (const file of [
   'js/core/trading.js',
   'js/core/time.js',
   'js/core/campaign.js',
+  'js/romance_route_guard.js',
   'js/relationship_group.js',
   'js/childhood_circle.js',
   'js/character_stories.js',
@@ -113,6 +114,25 @@ for (const file of [
   'js/faction_campaign.js',
 ]) {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename:file });
+}
+
+{
+  const routes=context.QT_ROMANCE_ROUTES,life={day:7,met:[],polycule:{active:false,members:[]}};
+  assert.equal(routes.begin(life,'dangerous').ok,true,'한 번에 한 그룹 루트만 진행을 시작해야 한다');
+  assert.equal(routes.canStart(life,'freedom').reason,'another_route','진행 중인 그룹이 있으면 다른 그룹 사건의 역주행을 막아야 한다');
+  routes.complete(life,'dangerous','bad_friends','good');
+  assert.equal(routes.canStart(life,'freedom').ok,true,'앞 그룹을 완료하면 다음 그룹 루트를 진행할 수 있어야 한다');
+  assert.equal(routes.begin(life,'freedom').ok,true);
+  routes.complete(life,'freedom','small_days','good');
+  life.partner={name:'강유진'};life.polycule.members=[{name:'한채린'},{name:'윤세라'}];
+  routes.preserveMembers(life,[{name:'채원'},{name:'유나'},{name:'소희'}]);
+  assert.deepEqual(Array.from(life.polycule.members,x=>x.name).sort(),['소희','윤세라','유나','채원','한채린'].sort(),'후속 그룹이 성립해도 기존 그룹 구성원을 덮어쓰면 안 된다');
+  const crossSource=fs.readFileSync(path.join(root,'js/character_cross_events.js'),'utf8');
+  for(const id of ['group_dangerous_freedom_table','group_freedom_business_contract','group_business_childhood_audit','group_childhood_dangerous_truth']){
+    assert.match(crossSource,new RegExp(id),`${id} 그룹 대치 사건이 있어야 한다`);
+  }
+  const appSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  assert.match(appSource,/while\(event&&!routeEventAllowed\(event\)\)event=queue\.shift\(\)/,'조건이 사라진 그룹 사건은 중요 사건 큐에서 건너뛰어야 한다');
 }
 
 {

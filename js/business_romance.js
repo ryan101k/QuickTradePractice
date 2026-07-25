@@ -342,6 +342,8 @@ function nextPersonal(life,ctx){
 }
 function nextQuartetChapter(life,ctx,allOwned){
   const state=ensure(life),index=state.quartet.chapter||0,chapter=QUARTET_CHAPTERS[index];
+  const guard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'business');
+  if(guard&&!guard.ok&&!(root.QT_ROMANCE_ROUTES.ensure(life).active==='business'))return null;
   if(!chapter||!allOwned||!IDS.every(id=>state.staff[id].revealed&&state.staff[id].storyChapter>=1))return null;
   const records=IDS.map(id=>(ctx.met||[]).find(person=>person.name===PROFILES[id].name));
   if(records.some(rec=>!rec||rec.status==='ex'))return null;
@@ -561,7 +563,9 @@ function resolve(life,payload,choiceId,capital){
     q.synergy=clamp(q.synergy+finite(e.synergy,0),0,100);
     q.governance=clamp(q.governance+finite(e.governance,0),0,100);
     q.boundary=clamp(q.boundary+finite(e.boundary,0),0,100);
+    if(root.QT_ROMANCE_ROUTES&&q.chapter===0)root.QT_ROMANCE_ROUTES.begin(life,'business');
     q.chapter=Math.max(q.chapter,QUARTET_CHAPTERS.indexOf(chapter)+1);q.lastStoryDay=payload.day||1;
+    if(root.QT_ROMANCE_ROUTES&&q.chapter>=QUARTET_CHAPTERS.length)root.QT_ROMANCE_ROUTES.complete(life,'business','industry_competition_pact','good');
     return{ok:true,done:true,groupStory:true,title:chapter.title,text:choice.outcome,cash:Math.round(finite(e.cash,0)),
       affectionEach:finite(e.affectionEach,0),trustEach:finite(e.trustEach,0),tone:'good',
       meta:`업무 시너지 ${Math.round(q.synergy)} · 공동 의사결정 ${Math.round(q.governance)} · 공과 사 경계 ${Math.round(q.boundary)}`};
@@ -586,6 +590,7 @@ function resolve(life,payload,choiceId,capital){
     if(choiceId==='romance_first'){
       state.quartetEnding={id:'management_failure',day:payload.day||1};
       state.managementRisk=100;
+      if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'business','management_failure','bad');
       return{ok:true,done:true,badEnding:true,managementBadEnding:true,businessCollapse:true,title:'네 개의 사직서와 빈 대표실',
         text:'네 사람은 서로를 탓하지 않고 각자 담당 사업의 직원과 거래처부터 살렸습니다. 마지막 공동 결재는 플레이어의 대표 권한을 회수하는 안건이었습니다. 여성편력이 아니라, 누구도 사업을 관리하지 않은 결과로 모든 공동 경영권을 잃었습니다.',tone:'bad'};
     }

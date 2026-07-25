@@ -2460,8 +2460,28 @@ function importantEventKey(event) {
   if(event.story)return`story:${event.personName}`;
   return'';
 }
+function importantEventRouteGroup(event){
+  if(!event)return null;
+  if(event.childhoodCircleEvent)return'childhood';
+  if(event.dangerousTrioStart||event.dangerousTrioChapter)return'dangerous';
+  if(event.freedomTrioStart||event.freedomTrioChapter)return'freedom';
+  if(event.businessRomanceEvent&&['quartet-story','quartet-ending'].includes(event.kind))return'business';
+  return null;
+}
+function routeEventAllowed(event){
+  const id=importantEventRouteGroup(event),routes=window.QT_ROMANCE_ROUTES&&S.life&&QT_ROMANCE_ROUTES.ensure(S.life);
+  if(!id||!routes)return true;
+  if(routes.active&&routes.active!==id)return false;
+  if((routes.completed[id]||routes.failed[id])&&(
+    event.dangerousTrioStart||event.freedomTrioStart||
+    (event.childhoodCircleEvent==='reunion')||
+    (event.businessRomanceEvent&&event.kind==='quartet-story')
+  ))return false;
+  return true;
+}
 function queueImportantEvent(event) {
   S._importantEvents = S._importantEvents || [];
+  if(!routeEventAllowed(event))return;
   const key=importantEventKey(event);
   if(key&&S._importantEvents.some(item=>importantEventKey(item)===key))return;
   event._priority=importantEventPriority(event);
@@ -2494,6 +2514,7 @@ function showNextImportantEvent(resumeCurrent = false) {
   } else {
     if (ctx) ctx.currentImportantEvent = null;
     event = queue.shift();
+    while(event&&!routeEventAllowed(event))event=queue.shift();
     if (ctx && event) {
       ctx.currentImportantEvent = event;
       autoSave();
@@ -5852,6 +5873,7 @@ function resolveDangerousTrioStory(choiceId){
 function retryDangerousTrioChoice(){
   const checkpoint=S._trioRetry;if(!checkpoint)return;
   S.life.dangerousTrio=JSON.parse(JSON.stringify(checkpoint.state));
+  if(S.life.romanceRoutes){delete S.life.romanceRoutes.failed.dangerous;delete S.life.romanceRoutes.completed.dangerous;S.life.romanceRoutes.active='dangerous';}
   checkpoint.people.forEach(saved=>{const r=metRecord(S.life,saved.name);if(r){r.affection=saved.affection;r.trust=saved.trust;r.obsession=saved.obsession;}});
   S.life.dangerousTrioBond=null;
   showDangerousTrioStory();renderLifePanel();autoSave();
@@ -5951,6 +5973,7 @@ function applyFreedomTrioBadEnding(){
 function retryFreedomTrioChoice(){
   const checkpoint=S._freedomRetry;if(!checkpoint)return;const L=S.life;
   L.freedomTrio=JSON.parse(JSON.stringify(checkpoint.state));S.capital=checkpoint.capital;L.relationship=checkpoint.relationship;
+  if(L.romanceRoutes){delete L.romanceRoutes.failed.freedom;delete L.romanceRoutes.completed.freedom;L.romanceRoutes.active='freedom';}
   L.partner=checkpoint.partner?JSON.parse(JSON.stringify(checkpoint.partner)):null;L.affection=checkpoint.affection;
   L.relationshipGroup=checkpoint.relationshipGroup?JSON.parse(JSON.stringify(checkpoint.relationshipGroup)):null;
   L.polycule=JSON.parse(JSON.stringify(checkpoint.polycule));L.freedomTrioBond=checkpoint.bond?JSON.parse(JSON.stringify(checkpoint.bond)):null;
@@ -5959,10 +5982,11 @@ function retryFreedomTrioChoice(){
 }
 function activateFreedomTrioBond(endingId){
   const L=S.life,people=FREEDOM_TRIO.NAMES.map(name=>metRecord(L,name)).filter(Boolean);if(people.length!==3)return;
-  const main=people[0],others=people.slice(1),poly=ensurePolycule(L);
+  const existingMembers=RELATIONSHIPS.consensualMembers(L).slice(),main=people[0],others=people.slice(1),poly=ensurePolycule(L);
   L.relationship='dating';L.partner=Object.assign({},main,{mood:'happy'});L.affection=Math.round(people.reduce((sum,r)=>sum+(r.affection||0),0)/3);main.status='partner';
   poly.active=true;poly.mode='freedom_trio_success';poly.tone='freedom';poly.trust=Math.round(FREEDOM_TRIO.ensure(L).harmony);
-  poly.members=others.map(r=>{r.status='polycule';return{name:r.name,job:r.job,personality:r.personality,age:r.age,emoji:r.emoji,gender:r.gender,portrait:r.portrait};});
+  const added=others.map(r=>{r.status='polycule';return{name:r.name,job:r.job,personality:r.personality,age:r.age,emoji:r.emoji,gender:r.gender,portrait:r.portrait};});
+  if(window.QT_ROMANCE_ROUTES)QT_ROMANCE_ROUTES.preserveMembers(L,[...existingMembers,...added]);else poly.members=added;
   L.freedomTrioBond={active:true,since:S.day,endingId,members:FREEDOM_TRIO.NAMES.slice(),totalIncome:0,totalStressRecovered:0};
   people.forEach(person=>RELATIONSHIPS.addMember(L,person,S.day));const group=RELATIONSHIPS.ensure(L).relationshipGroup;group.agreement.cohabiting=endingId!=='world_tour';group.agreement.publicity='private';
   if(group.agreement.cohabiting)FAMILY.syncCaregivers(L,RELATIONSHIPS.caregiverNames(L));
