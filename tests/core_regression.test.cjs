@@ -157,12 +157,25 @@ for (const file of [
   assert.equal(context.QT_CHARACTER_STORIES.get({name:'나영'}).variant,'adult','같은 인물의 성인 초면 이야기는 별도 변형을 유지해야 한다');
   assert.match(circle.line(anchor,'first'),/도망|잡았/,'나영의 소꿉친구 첫 대사는 추적자 개성을 보여야 한다');
   const reunion=circle.event('reunion');
+  const severedLife={met:[{...anchor}]};
+  circle.register(severedLife,severedLife.met[0],'athletics');
+  circle.resolve(severedLife,'reunion',reunion.choices.find(choice=>choice.id==='sever'));
+  assert.equal(severedLife.childhoodCircle.removed,true,'단체방 초대를 거부하면 소꿉친구 세트가 영구 이탈해야 한다');
+  assert.equal(circle.monthly(severedLife),null,'영구 이탈한 소꿉친구 사건은 다시 예약되면 안 된다');
   circle.resolve(life,'reunion',reunion.choices[1]);
   assert.equal(life.childhoodCircle.stage,'reunited');
   assert.ok(life.childhoodCircle.pressure>0,'과거로 돌아가는 선택은 회귀 압력을 올려야 한다');
   const graduation=circle.event('graduation');
   circle.resolve(life,'graduation',graduation.choices[1]);
   assert.equal(life.childhoodCircle.route,'never_graduate','위험 선택은 끝나지 않은 졸업식 결말로 이어져야 한다');
+}
+
+{
+  const appSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  assert.match(appSource,/childhoodNightContract/,'소꿉친구 하룻밤 계약 상태가 저장돼야 한다');
+  assert.match(appSource,/showChildhoodRelapseEnding\('클럽의 낯선 사람','club'\)/,'계약 뒤 클럽 하룻밤은 즉시 배드엔딩으로 연결돼야 한다');
+  assert.match(appSource,/removeChildhoodCircleFromGame\(\)/,'단체방 거부 시 다섯 명을 게임 시스템에서 제거해야 한다');
+  assert.match(appSource,/pool=pool\.filter\(character=>!CHILDHOOD_CIRCLE\.MEMBERS\.includes\(character\.name\)\)/,'제거된 다섯 명은 새 만남 후보로 재등장하면 안 된다');
 }
 
 {
