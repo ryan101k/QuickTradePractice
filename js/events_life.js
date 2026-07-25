@@ -15,6 +15,7 @@
 const LIFE_EVENTS = [
   {
     id: 'life_rainy_canvas', cat: 'life', emoji: '🖤', title: '불 꺼진 작업실의 마지막 상자',
+    scene: './assets/event-sera-1.png',
     desc: '당신을 공격한 세력이 신인 작가들의 정산금까지 빼돌렸다는 제보를 따라가자, 텅 빈 작업실에 윤세라가 혼자 남아 있습니다. 전 재산과 계약을 잃고 자포자기한 세라는 마지막 그림 상자 위에 앉아 “이제 어디로 가야 하죠?”라고 묻습니다.',
     cond: c => !c.seraKnown && c.seraRescueReady,
     options: [

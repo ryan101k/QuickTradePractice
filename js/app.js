@@ -3010,6 +3010,8 @@ function resolveDangerousHeroineEvent(choiceIndex){
     if(r.name==='윤세라')r.obsession=clamp((r.obsession||0)+choice.danger,0,100);
     else r.dangerLevel=clamp((r.dangerLevel||0)+choice.danger,0,100);
   }
+  if(choice.mutualObsession)r.mutualObsession=(r.mutualObsession||0)+choice.mutualObsession;
+  if(choice.flags)Object.assign(r,choice.flags);
   if(choice.cash)S.capital=Math.max(0,S.capital+choice.cash);
   if(choice.happy)S.life.happy=clamp(S.life.happy+choice.happy,0,100);
   r.dangerEvents=r.dangerEvents||{};r.dangerEvents[pending.id]='seen';
@@ -3122,7 +3124,7 @@ function showLifeEvent(ev) {
     `<div class="window event-window">
        <div class="title-bar event-bar"><div class="title-bar-text">❗ 사건 발생 · ${EVENT_CAT[ev.cat] || ''}</div></div>
        <div class="window-body">
-         <img class="life-scene-banner" src="${lifeSceneImage(ev.cat)}" alt="${EVENT_CAT[ev.cat] || '인생'} 사건 장면">
+         <img class="life-scene-banner" src="${ev.scene || lifeSceneImage(ev.cat)}" alt="${EVENT_CAT[ev.cat] || '인생'} 사건 장면">
          <div class="event-title">${ev.emoji} ${ev.title}</div>
          ${who}
          <div class="event-desc">${ev.desc}</div>
@@ -4011,7 +4013,8 @@ function showCharacterStory(name){
   if(!chapter){flashToast(STORIES.ensure(r).completed?'📖 이 사람과 나눌 이야기는 모두 들었습니다':'📖 아직은 꺼내지 않은 이야기가 있는 것 같습니다','neutral');return;}
   const host=$('life-event');if(!host)return;S._storyPerson=r;host.style.display='block';
   const continuity=STORIES.context?STORIES.context(r,chapter):'';
-  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">📖 ${r.name} · ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${characterEventScene(r.name,chapter.index)}" alt="${r.name} 특별 이벤트 장면"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(r,chapter.index===1?'sad':'neutral')}" alt="${r.name}"><div><strong>${chapter.title}</strong><br><span class="muted">${story.theme}</span></div></div>${continuity?`<div class="story-continuity">🧷 ${continuity}</div>`:''}<div class="event-desc">${chapter.desc}</div>${chapter.speaker?`<div class="story-dialogue"><b>${r.name}</b> “${chapter.speaker}”</div>`:''}<div class="event-options">${chapter.choices.map(c=>`<button class="event-opt" data-story-choice="${c.id}">${c.text}</button>`).join('')}<button class="event-opt" id="story-close">지금은 답하지 않는다</button></div><div class="event-outcome" id="story-outcome"></div></div></div>`;
+  const chapterScene=chapter.scene?`./assets/${chapter.scene}`:characterEventScene(r.name,chapter.index);
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">📖 ${r.name} · ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${chapterScene}" alt="${r.name} 특별 이벤트 장면"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(r,chapter.index===1?'sad':'neutral')}" alt="${r.name}"><div><strong>${chapter.title}</strong><br><span class="muted">${story.theme}</span></div></div>${continuity?`<div class="story-continuity">🧷 ${continuity}</div>`:''}<div class="event-desc">${chapter.desc}</div>${chapter.speaker?`<div class="story-dialogue"><b>${r.name}</b> “${chapter.speaker}”</div>`:''}<div class="event-options">${chapter.choices.map(c=>`<button class="event-opt" data-story-choice="${c.id}">${c.text}</button>`).join('')}<button class="event-opt" id="story-close">지금은 답하지 않는다</button></div><div class="event-outcome" id="story-outcome"></div></div></div>`;
   host.querySelectorAll('[data-story-choice]').forEach(b=>b.addEventListener('click',()=>resolveCharacterStory(b.dataset.storyChoice)));
   [$('story-x'),$('story-close')].forEach(b=>{if(b)b.addEventListener('click',closeCharacterStory);});
 }
@@ -4033,7 +4036,7 @@ function queueAvailableStories(L){
     const state=STORIES.ensure(m);
     if((state.offeredChapter==null?-1:state.offeredChapter)>=state.chapter)return;  // 이번 챕터는 이미 자동 제시함
     state.offeredChapter=state.chapter;
-    queueImportantEvent({type:'love',story:true,personName:m.name,scene:characterEventScene(m.name,chapter.index),icon:'📖',
+    queueImportantEvent({type:'love',story:true,personName:m.name,scene:chapter.scene?`./assets/${chapter.scene}`:characterEventScene(m.name,chapter.index),icon:'📖',
       title:`${m.name}와의 이야기 · ${chapter.title}`,
       desc:`${m.name}와(과)의 사이가 깊어지자, 지금까지 보이지 않던 사정이 드러나기 시작했습니다.`,
       detail:`평소와 다른 연락이 왔습니다. ${m.name}에게는 아직 끝내지 못한 이야기가 있는 것 같습니다.`,tone:'neutral'});
@@ -4052,10 +4055,22 @@ function resolveCharacterStory(choice){
   const authored=window.QT_CHARACTER_DIALOGUE&&QT_CHARACTER_DIALOGUE.line(r,storyScene);
   const reaction=result.choice.reaction||authored||(result.choice.tone==='good'?'당신이 자기 편이라는 사실을 오래 기억하겠다고 했습니다.':result.choice.tone==='bad'?'필요할 때 외면당한 일을 쉽게 잊지 못할 것 같습니다.':'당신의 방식에 동의하진 않지만 결과를 지켜보기로 했습니다.');
   const lifeChanges=result.choice.effects?applyEventEffects(result.choice.effects):[];
-  const ending=result.completed&&result.ending?`<div class="story-ending"><b>📕 ${result.ending.title}</b><br>${result.ending.text}</div>`:'';
+  const endingScene=result.completed&&result.ending?characterStoryEndingScene(r,result.ending):null;
+  const ending=result.completed&&result.ending?`<div class="story-ending">${endingScene?`<img class="relationship-scene" src="${endingScene}" alt="${result.ending.title} 엔딩 컷신">`:''}<b>📕 ${result.ending.title}</b><br>${result.ending.text}</div>`:'';
   const risk=dangerousRiskMeta(r);
   out.innerHTML=`<div class="oc-text"><b class="${result.choice.tone==='good'?'up':result.choice.tone==='bad'?'down':''}">${r.name}의 반응:</b> “${reaction}”${result.completed?'<br><b>개인 스토리 완결</b>':''}</div><div class="oc-changes">호감 ${result.choice.affection>=0?'+':''}${result.choice.affection} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust}${risk?` · ${risk.label} ${result.choice.obsession>=0?'+':''}${result.choice.obsession}`:''}${lifeChanges.length?` · ${lifeChanges.join(' · ')}`:''}</div>${ending}<button id="story-confirm" class="session-btn opening">확인</button>`;
   pushPersonMessage(S.life,r,reaction,false);addNews(`📖 ${r.name} 개인 스토리 · ${result.chapter.title}`,result.choice.tone);$('story-confirm').addEventListener('click',closeCharacterStory);renderLifePanel();autoSave();
+}
+function characterStoryEndingScene(r,ending){
+  if(!r||!ending)return null;
+  if(r.name!=='윤세라')return null;
+  return{
+    mutual_salvation:'./assets/event-sera-story.png',
+    mutual_captivity:'./assets/event-sera-mutual-captivity.png',
+    shared_cage:'./assets/event-sera-mutual-captivity.png',
+    anchored:'./assets/event-sera-shoulder-confession.png',
+    distance:'./assets/event-sera-1.png'
+  }[ending.route]||'./assets/event-sera-story.png';
 }
 
 /* 호감도 단계 — 사람마다 따로 쌓인다 (어색한 사이 → 알아가는 중 → 썸 → 진지한 사이 → 깊은 사이) */
@@ -4143,6 +4158,11 @@ const DANGEROUS_AFFECTION_EVENTS={
     {text:'연락 시간과 방문 규칙을 분명히 정한다',result:'세라는 싫어했지만 규칙을 메시지 상단에 고정했습니다. 아직은 약속이 집착보다 강합니다.',trust:7,danger:-10},
     {text:'불안하지 않게 항상 위치를 공유한다',result:'세라는 안심했습니다. 그리고 그 안심을 잃지 않기 위해 더 많은 것을 요구하기 시작했습니다.',affection:10,danger:18}
   ]},
+  sera_reverse_outing:{name:'윤세라',kind:'romance',min:60,after:'sera_romance',scene:'./assets/event-sera-8.png',icon:'☔',title:'윤세라 · 너무 풀어준 외출',desc:'함께 걷는 내내 세라는 쇼윈도 반사로 뒤를 확인하고, 횡단보도마다 당신 소매를 붙들었습니다. 결국 “이런 건 잘못된 집착인 거 알아요. 오늘은 많이 참았어요”라고 사과하려는데, 당신의 대답이 예상과 달랐습니다.',choices:[
+    {text:'“이 정도면 너무 풀어준 거 아니야? 아까 세 번이나 날 놓쳤잖아.”',result:'세라는 두 손을 모은 채 정말로 말문이 막혔습니다. “제가… 사과할 차례 아니었어요? 왜 당신이 더 이상한 말을 해요.” 처음으로 세라 쪽이 관계의 속도를 무서워했습니다.',affection:12,trust:4,danger:10,mutualObsession:1,flags:{seraReverseCourtship:true}},
+    {text:'집착인 건 맞지만 오늘은 숨기지 말고 내 옆에서 걷자고 한다',result:'세라는 부끄러워하면서도 더는 우연을 연기하지 않았습니다. 손을 잡기 전에는 먼저 물었고, 놓쳐도 뛰어오지 않고 이름을 불렀습니다.',affection:8,trust:11,danger:-7,flags:{seraOutingBoundary:true}},
+    {text:'잘못인 걸 알면 다음부터 따라오기 전에 먼저 연락하라고 한다',result:'세라는 당황한 얼굴로 고개를 끄덕였습니다. 그날 밤 위치 사진 대신 “같이 나가도 돼요?”라는 짧은 메시지가 왔습니다.',affection:5,trust:13,danger:-10,flags:{seraOutingBoundary:true}}
+  ]},
 
   /* ── 강유진 · 일상/연애 외출 진행 ── (단정한 존댓말, 확인 질문, 보호가 통제로) */
   yujin_daily1:{name:'강유진',kind:'friend',min:27,after:'yujin_friend',scene:'./assets/event-yujin-riverside-date.png',icon:'🛒',title:'강유진 · 비번 날의 장보기',desc:'유진이 사복 차림으로 마트 앞에 서 있었습니다. “오늘은 근무 아니에요. 그냥… 혼자 장 보기 싫어서요.” 카트를 미는 내내 당신 냉장고 사정까지 확인 질문이 이어집니다.',choices:[
@@ -4189,13 +4209,13 @@ const DANGEROUS_AFFECTION_EVENTS={
     {text:'좋았던 밤이라고 말해 주되 집 앞에서 인사한다',result:'세라는 “오늘은 여기까지… 맞죠? 그래도 괜찮아요”라며 스스로 문을 닫았습니다. 헤어짐을 견디는 연습을 조금 한 밤이었습니다.',affection:6,trust:10,danger:-5,cash:-50000},
     {text:'날이 밝을 때까지 계속 달린다',result:'세라는 처음으로 크게 웃었습니다. 다만 해가 뜨자 “이 밤이 끝나면 또 혼자죠?”라며 당신 소매를 오래 놓지 못했습니다.',affection:10,danger:10,happy:3,cash:-50000}
   ]},
-  sera_romance2:{name:'윤세라',kind:'romance',min:62,after:'sera_romance',scene:'./assets/event-sera-doorstep.png',icon:'📷',title:'윤세라 · 우리라는 증거',desc:'세라가 커플 계정과 함께 찍은 사진들을 보여 줍니다. “우리가 진짜라는 걸… 남들도 알면 제가 덜 불안할 것 같아서요. 이상한가요?”',choices:[
-    {text:'우리 관계는 남에게 증명할 필요 없다고 안심시킨다',result:'세라는 울먹이며 “그 말… 저장해도 돼요? 불안할 때 볼게요”라고 했습니다. 증거 대신 약속을 믿어 보기로 했습니다.',trust:10,danger:-10},
-    {text:'세라가 안심하게 커플 공개를 전부 받아들인다',result:'세라는 환하게 웃으며 프로필을 바꿨습니다. 그날부터 사진이 없는 시간은 “왜 안 올렸어요?”라는 질문으로 돌아왔습니다.',affection:10,danger:16}
+  sera_romance2:{name:'윤세라',kind:'romance',min:66,after:'sera_reverse_outing',scene:'./assets/event-sera-7.png',icon:'📷',title:'윤세라 · 우리라는 증거',desc:'세라가 같은 방에서 찍은 셀카와 커플 계정을 보여 줍니다. “우리가 진짜라는 걸… 남들도 알면 제가 덜 불안할 것 같아서요. 이상한가요?” 사진 속 세라는 행복하지만, 게시 시각은 당신 일정표와 정확히 맞아 있습니다.',choices:[
+    {text:'우리 관계는 남에게 증명할 필요 없다고 안심시킨다',result:'세라는 울먹이며 “그 말… 저장해도 돼요? 불안할 때 볼게요”라고 했습니다. 증거 대신 약속을 믿어 보기로 했습니다.',trust:10,danger:-10,flags:{seraProofBoundary:true}},
+    {text:'세라가 안심하게 커플 공개와 실시간 기록을 전부 받아들인다',result:'세라는 환하게 웃으며 프로필을 바꿨습니다. 그날부터 사진이 없는 시간은 “왜 안 올렸어요?”라는 질문으로 돌아왔고, 다른 연락처는 사진 밖으로 밀려나기 시작했습니다.',affection:10,danger:16,flags:{seraPublicProof:true}}
   ]},
-  sera_romance3:{name:'윤세라',kind:'romance',min:72,after:'sera_romance2',scene:'./assets/event-sera-doorstep.png',icon:'🔑',title:'윤세라 · 복사한 열쇠 한 개',desc:'세라가 손바닥 위에 열쇠 하나를 올려놓습니다. “당신 집… 언제든 갈 수 있게요. 허락받고 쓸게요. 정말이에요. 안 되면… 안 되는 이유만 말해 줘요.”',choices:[
+  sera_romance3:{name:'윤세라',kind:'romance',min:74,after:'sera_romance2',scene:'./assets/event-sera-mutual-captivity.png',icon:'🔑',title:'윤세라 · 복사한 열쇠 두 개',desc:'세라가 손바닥 위에 똑같은 열쇠 두 개를 올려놓습니다. “하나는 당신 것, 하나는 제 것. 언제든 들어오는 권리 말고… 언제든 돌아올 수 있다는 뜻이면 안 돼요?”',choices:[
     {text:'열쇠는 돌려주고 올 때는 꼭 먼저 연락하자고 정한다',result:'세라는 한참 손을 떨다 열쇠를 내려놓았습니다. “먼저 연락하는 것도… 사랑이라고 생각할게요.” 집착보다 약속을 택한 밤입니다.',trust:12,danger:-13},
-    {text:'언제든 와도 된다고 열쇠를 쥐여 준다',result:'세라는 열쇠를 가슴에 안았습니다. 다음 날부터 당신이 문을 열면, 세라가 이미 안에서 기다리고 있는 날이 늘었습니다.',affection:12,danger:20}
+    {text:'서로 언제든 들어올 수 있게 열쇠를 하나씩 나눠 갖는다',result:'세라는 열쇠 하나를 당신 손에 직접 쥐여 줬습니다. 다음 날부터 누가 누구를 기다리는지 구분하기 어려운 생활이 시작됐습니다.',affection:12,danger:20,mutualObsession:1,flags:{hasHomeKey:true}}
   ]}
 };
 function isDangerousHeroine(person){return!!person&&DANGEROUS_HEROINE_NAMES.includes(person.name);}
@@ -4556,6 +4576,23 @@ function updateCharacterSignatureSystems(L){
   });
 }
 
+function seraStoryRoute(r){
+  const state=r&&r.story;
+  return r&&r.seraEndingRoute||state&&state.ending&&state.ending.route||null;
+}
+function seraCaptivityVariant(L,r,origin){
+  if(origin==='club')return'club';
+  const route=seraStoryRoute(r);
+  const mutual=route==='mutual_captivity'
+    &&RELATIONSHIPS.isPartner(L,r.name)
+    &&(L.seraHousing==='cohabit'||r.hasHomeKey)
+    &&(r.trust||0)>=45
+    &&(r.mutualObsession||0)>=3;
+  if(mutual)return'mutual';
+  if(r.seraPublicProof)return'proof';
+  if(route==='distance'||(r.seraRupture||0)>=3)return'abandonment';
+  return'closed';
+}
 function updateObsession(L) {
   let captivity=null;
   ensureMet(L).forEach(r=>{
@@ -4567,8 +4604,17 @@ function updateObsession(L) {
     const before=r.obsession||0;
     const neglect=Math.max(0,(r.idleMonths||0)-1);
     const loopGrace=r.name==='윤세라'&&L.seraLoop&&L.seraLoop.active&&(L.seraLoop.grace||0)>0;
+    const storyRoute=seraStoryRoute(r);
+    if(storyRoute==='mutual_salvation'){
+      r.obsession=clamp(before-(neglect>=3?2:7),28,100);
+      r.obsessionGrowth=1;
+      if(r.obsession<70)r.yandere=false;
+      if(before>=70&&r.obsession<70)queueImportantEvent({type:'love',scene:'./assets/event-sera-shoulder-confession.png',icon:'🌅',title:'윤세라 · 기다린 뒤의 귀가',desc:'세라는 위치를 확인하러 나오지 않고 약속한 시간까지 집에서 기다렸습니다. 당신도 약속대로 돌아와 문을 직접 열었습니다.',detail:'집착이 사랑의 증명 대신, 말할 수 있는 불안으로 내려오기 시작했습니다.',tone:'good'});
+      return;
+    }
     const growth=r.obsessionGrowth||(specialObs?5:r.personality==='obsessive'?4:1);
-    r.obsession=Math.min(100,before+(loopGrace?1:growth+(r.status==='casual'?5:3)+neglect*2));
+    const anchoredDelta=storyRoute==='anchored'?(neglect>=2?1+neglect:-3):null;
+    r.obsession=clamp(before+(loopGrace?1:anchoredDelta==null?growth+(r.status==='casual'?5:3)+neglect*2:anchoredDelta),0,100);
     if(loopGrace)L.seraLoop.grace=Math.max(0,L.seraLoop.grace-1);
     if(r.name==='윤세라'&&r.obsession>=70)r.yandere=true; // 구버전 세이브·이미 임계치를 넘긴 기록 호환
     if(before<45&&r.obsession>=45)queueImportantEvent({type:'love',icon:'📱',title:`${r.name}의 확인`,desc:'답장이 늦자 부재중 전화와 메시지가 반복해서 쌓였습니다.',detail:'집착이 관심의 수준을 넘어 통제로 변하기 시작했습니다. 요구를 들어주거나 애매한 관계를 유지하면 더 빨리 올라갈 수 있습니다.',tone:'bad'});
@@ -4576,7 +4622,23 @@ function updateObsession(L) {
       if(r.name==='윤세라'){r.yandere=true;queueImportantEvent({type:'love',scene:'./assets/event-sera-doorstep.png',icon:'🖤',title:'윤세라 · 얀데레 전환',desc:'새벽 두 시, 알려준 적 없는 집 앞에 세라가 서 있었습니다. “이제 우연인 척 안 해도 되죠?”',detail:'이후 병원·직장·취미·다른 사람과의 외출에도 세라가 나타날 수 있습니다. 관계를 끊는 것만으로는 즉시 멈추지 않습니다.',tone:'bad'});}
       else queueImportantEvent({type:'love',icon:'🚪',title:`${r.name}가 집 앞에 왔다`,desc:'알려준 적 없는 일정과 장소를 알고 기다리고 있었습니다.',detail:'관계를 분명히 정리하거나 주변 사람에게 도움을 구해야 할 위험 단계입니다.',tone:'bad'});
     }
-    if(r.obsession>=95&&!L.captivityEnding){L.captivityEnding=true;captivity=r;}
+    if(r.obsession>=95&&!L.captivityEnding){
+      const storyState=r.story,traits=storyState&&storyState.traits||{};
+      const mutualInProgress=storyState&&!storyState.completed
+        &&(traits.fuse||0)>=2
+        &&(traits.fuse||0)>Math.max(traits.anchor||0,traits.sever||0);
+      if(mutualInProgress){
+        r.obsession=94;
+        if(!r.mutualThresholdSeen){
+          r.mutualThresholdSeen=true;
+          queueImportantEvent({type:'love',scene:'./assets/event-sera-lip-confession.png',icon:'🗝️',title:'윤세라 · 누가 먼저 잠그는지',desc:'세라가 현관 앞에서 열쇠를 숨기려다 멈췄습니다. 당신이 이미 안쪽 잠금장치에 손을 올리고 있었기 때문입니다.',detail:'“잠깐만요. 왜 당신이 먼저 그래요? 이러면… 제가 말려야 하는 쪽이잖아요.”',tone:'neutral'});
+        }
+      }else{
+        L.captivityEnding=true;
+        r.seraEndingVariant=seraCaptivityVariant(L,r);
+        captivity=r;
+      }
+    }
   });
   ensureMet(L).filter(r=>!(L.dangerousTrioBond&&L.dangerousTrioBond.active)&&['강유진','한채린'].includes(r.name)&&dangerousRomanceActive(L,r)).forEach(r=>{
     const before=r.dangerLevel||28,signature=CHAR_TRAITS&&CHAR_TRAITS.ensure(r),sig=signature?signature.value||0:0;
@@ -4624,7 +4686,11 @@ function rewindDangerousRelationship(r){
   const poly=ensurePolycule(L);
   if(!poly.members.length){poly.active=false;poly.mode=null;poly.trust=0;}
   r.status='friend';r.spentNight=false;r.nightsTogether=0;r.dangerAwakened=false;r.dangerSource=null;
-  if(r.name==='윤세라'){r.obsession=55;r.yandere=false;}else r.dangerLevel=42;
+  if(r.name==='윤세라'){
+    r.obsession=55;r.yandere=false;r.mutualObsession=0;r.mutualCaptivityReady=false;r.mutualThresholdSeen=false;
+    r.seraEndingVariant=null;r.seraPublicProof=false;r.seraReverseCourtship=false;r.seraEndingRoute='anchored';
+    if(r.story&&r.story.ending)r.story.ending={route:'anchored',title:'윤세라 · 돌아올 시간을 아는 사람',text:'위험한 결말 직전으로 돌아와, 잠금장치 대신 기다릴 시간과 연락 약속을 다시 정했습니다.'};
+  }else r.dangerLevel=42;
   L.captivityEnding=false;L.dangerousEnding=null;L.seraIntrusionDay=null;
   S.paused=false;
   resolveMonthCloseTerminal();
@@ -4651,11 +4717,21 @@ function showCaptivityEnding(r,origin){
     $('captivity-restart').addEventListener('click',()=>{localStorage.removeItem(LS_KEY);location.reload();});
     autoSave();playSound('crash');return;
   }
-  const rescuers=captivityRescuers(S.life);
+  const variant=origin||r.seraEndingVariant||seraCaptivityVariant(S.life,r);
+  const mutual=variant==='mutual';
+  const copies={
+    club:{title:'지워진 밤',scene:'./assets/event-sera-doorstep.png',alt:'기억이 끊긴 밤의 윤세라',quote:'“즐거웠어요? 기억 안 나면 더 좋고요.”',desc:'클럽 입장 버튼을 누른 뒤의 기억이 없습니다. 눈을 뜬 곳은 세라와 살던 집이지만 휴대전화의 다른 연락처와 현관 손잡이가 사라져 있습니다. 세라는 애초에 혼자 나가는 선택 같은 건 없었다며 부서진 버튼 조각을 보여줍니다.'},
+    proof:{title:'사진 밖에서 지워진 사람',scene:'./assets/event-sera-7.png',alt:'둘만의 사진을 남기는 윤세라',quote:'“사진에 없는 시간은 우리한테 필요 없잖아요.”',desc:'커플 계정에는 행복한 두 사람의 사진이 매일 올라옵니다. 대신 사진에 나오지 않는 친구, 직장, 세력 연락처는 하나씩 차단됐고 당신이 비어 있던 시간은 세라가 고른 사진으로 덮였습니다. 세상에는 완벽한 연인만 남았지만, 그 사진을 올리는 사람이 누구인지는 더는 중요하지 않습니다.'},
+    abandonment:{title:'비어 있던 작업실',scene:'./assets/event-sera-1.png',alt:'비 내리는 골목의 윤세라',quote:'“이번에는 제가 먼저 버려질 이유가 없게 했어요.”',desc:'세라를 두고 말없이 떠났던 날들이 반복된 뒤, 이번에는 세라 쪽이 흔적 없이 사라졌습니다. 며칠 뒤 정신을 차린 곳은 처음 만났던 작업실을 그대로 옮긴 방입니다. 파산 통지서 자리에는 당신 이름이, 문밖의 빗소리 자리에는 세라의 발소리가 있습니다.'},
+    mutual:{title:'서로 잠근 문',scene:'./assets/event-sera-mutual-captivity.png',alt:'두 개의 열쇠를 내미는 윤세라',quote:'“이번에는 제가 먼저 잠근 게 아니에요. 우리 둘이 같이 한 거예요.”',desc:'세라가 당신을 가둔 것도, 당신이 세라를 붙잡은 것도 아닙니다. 두 사람은 바깥에서 잃은 것과 서로에게 구해진 밤을 전부 이야기한 뒤, 두 개의 열쇠를 안쪽에 내려놓았습니다. 누가 구원자고 누가 피해자인지 지워진 채, 둘만의 생활은 가장 다정하고 가장 닫힌 모양으로 완성됩니다.'},
+    closed:{title:'닫힌 방',scene:'./assets/event-sera-doorstep.png',alt:'잠긴 방 앞에 선 윤세라',quote:'“이제 아무도 우리 사이를 방해하지 못해.”',desc:'세라는 휴대전화와 열쇠를 치우고, 당신이 알던 일상의 흔적을 하나씩 지웠습니다. 이것은 사랑의 결말이 아니라 경고와 경계를 계속 미룬 결과입니다.'}
+  };
+  const copy=copies[variant]||copies.closed;
+  const rescuers=mutual?[]:captivityRescuers(S.life);
   const rescueButtons=rescuers.map(rescuer=>`<button class="event-opt ${rescuer.success?'':'hot'}" data-captivity-rescue="${rescuer.id}">${rescuer.icon} ${rescuer.label}<small>${rescuer.hint}</small></button>`).join('');
   host.className='life-modal-host captivity-meta-host';
-  const clubTrap=origin==='club';
-  host.innerHTML=`<div class="window event-window captivity-ending-window"><div class="title-bar"><div class="title-bar-text">🔒 윤세라 배드엔딩 · ${clubTrap?'지워진 밤':'닫힌 방'}</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-sera-doorstep.png" alt="잠긴 방 앞에 선 윤세라"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(r,'sad')}" alt="${r.name}"><div><strong>${r.name}</strong><br><span class="down">집착 ${Math.round(r.obsession||100)}/100 · 얀데레 고착</span></div></div><div class="event-title">${clubTrap?'“즐거웠어요? 기억 안 나면 더 좋고요.”':'“이제 아무도 우리 사이를 방해하지 못해.”'}</div><div class="event-desc" id="captivity-ending-text">${clubTrap?'클럽 입장 버튼을 누른 뒤의 기억이 없습니다. 눈을 뜬 곳은 세라와 살던 집이지만 휴대전화의 다른 연락처와 현관 손잡이가 사라져 있습니다. 세라는 애초에 혼자 나가는 선택 같은 건 없었다며 부서진 버튼 조각을 보여줍니다.':'세라는 휴대전화와 열쇠를 치우고, 당신이 알던 일상의 흔적을 하나씩 지웠습니다. 이것은 사랑의 결말이 아니라 경고와 경계를 계속 미룬 결과입니다.'}</div>${rescueButtons?`<div class="captivity-rescue-box"><b>문 밖에서 움직이는 사람들</b><div class="event-options">${rescueButtons}</div></div>`:'<div class="important-event-detail">남겨 둔 증거도, 위기를 알아챌 만큼 가까운 사람도 없습니다.</div>'}<button id="captivity-rewind" class="session-btn opening">↩️ 위험해지기 전 관계 선택으로 돌아가기</button><button id="captivity-restart" class="hot">🔁 완전히 새 인생 시작</button></div></div>`;
+  S.life.dangerousEnding={name:r.name,variant,day:S.day};
+  host.innerHTML=`<div class="window event-window captivity-ending-window"><div class="title-bar"><div class="title-bar-text">🔒 윤세라 ${mutual?'다크엔딩':'배드엔딩'} · ${copy.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${copy.scene}" alt="${copy.alt}"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(r,mutual?'happy':'sad')}" alt="${r.name}"><div><strong>${r.name}</strong><br><span class="${mutual?'muted':'down'}">${mutual?'상호집착 '+Math.round(r.mutualObsession||0)+' · 두 사람이 고른 폐쇄':'집착 '+Math.round(r.obsession||100)+'/100 · 얀데레 고착'}</span></div></div><div class="event-title">${copy.quote}</div><div class="event-desc" id="captivity-ending-text">${copy.desc}</div>${rescueButtons?`<div class="captivity-rescue-box"><b>문 밖에서 움직이는 사람들</b><div class="event-options">${rescueButtons}</div></div>`:mutual?'<div class="important-event-detail">구조 신호는 없습니다. 문밖에서 누군가 이름을 불러도, 두 사람 모두 서로의 대답만 듣고 있습니다.</div>':'<div class="important-event-detail">남겨 둔 증거도, 위기를 알아챌 만큼 가까운 사람도 없습니다.</div>'}<button id="captivity-rewind" class="session-btn opening">↩️ ${mutual?'문을 열어두는 약속으로 돌아가기':'위험해지기 전 관계 선택으로 돌아가기'}</button><button id="captivity-restart" class="hot">🔁 완전히 새 인생 시작</button></div></div>`;
   host.querySelectorAll('[data-captivity-rescue]').forEach(button=>button.addEventListener('click',()=>resolveCaptivityRescue(button.dataset.captivityRescue,r)));
   const rewind=$('captivity-rewind');if(rewind)rewind.addEventListener('click',()=>rewindDangerousRelationship(r));
   const restart=$('captivity-restart');if(restart)restart.addEventListener('click',()=>captivityRestartAttempt(r));

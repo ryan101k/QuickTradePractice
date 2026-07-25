@@ -115,15 +115,19 @@ function ensure(life){
 }
 function progress(life){
  const rows=NAMES.map(name=>{
-  const r=rec(life,name),stories=root.QT_CHARACTER_STORIES,state=r&&stories&&stories.ensure(r),story=r&&stories&&stories.get(r.name);
-  const route=state&&state.ending&&state.ending.route;
+  const r=rec(life,name),stories=root.QT_CHARACTER_STORIES;
+  const legacyCompleted=!!(r&&r.story&&r.story.completed&&r.story.ending);
+  const legacyEnding=legacyCompleted?r.story.ending:null;
+  const state=legacyCompleted?r.story:r&&stories&&stories.ensure(r),story=r&&stories&&stories.get(r.name);
+  const route=legacyEnding&&legacyEnding.route||state&&state.ending&&state.ending.route;
   const accepted=name==='강유진'?['dangerous_dependence','accomplice'].includes(route)
    :name==='한채린'?['private_submission','boardroom_pair'].includes(route)
    :name==='윤세라'?['shared_cage','anchored'].includes(route):false;
   const active=!!r&&!['ex','deceased'].includes(r.status);
   const chapter=state?state.chapter:0,total=story?story.chapters.length:0;
-  return{name,met:!!r,active,chapter,total,route,ready:active&&!!state&&state.completed&&accepted,
-   need:!r?'아직 만나지 못함':!active?`현재 관계: ${r.status||'지인'} · 관계가 끊김`:!state||!state.completed?`개인 스토리 ${chapter}/${total} 진행`:accepted?`전용 결핍 엔딩 · ${state.ending.title}`:`현재 엔딩(${state.ending&&state.ending.title||'미정'})은 결핍 공생 조건과 다름`};
+  const completed=legacyCompleted||!!(state&&state.completed),ending=legacyEnding||state&&state.ending;
+  return{name,met:!!r,active,chapter,total,route,ready:active&&!!state&&completed&&accepted,
+   need:!r?'아직 만나지 못함':!active?`현재 관계: ${r.status||'지인'} · 관계가 끊김`:!state||!completed?`개인 스토리 ${chapter}/${total} 진행`:accepted?`전용 결핍 엔딩 · ${ending.title}`:`현재 엔딩(${ending&&ending.title||'미정'})은 결핍 공생 조건과 다름`};
  });
  return rows;
 }
