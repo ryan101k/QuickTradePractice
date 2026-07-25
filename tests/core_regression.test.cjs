@@ -96,6 +96,7 @@ for (const file of [
   'js/relationship_group.js',
   'js/childhood_circle.js',
   'js/character_stories.js',
+  'js/character_traits.js',
   'js/dangerous_trio.js',
   'js/character_cross_events.js',
   'js/family.js',
@@ -136,6 +137,20 @@ for (const file of [
   });
   assert.equal(wealth.total,14500000,'총재산은 금융·실물·연금에서 개인대출을 한 번만 차감해야 한다');
   assert.equal(wealth.pension,500000,'현금에서 옮겨 적립한 연금도 총재산에 포함해야 한다');
+}
+
+{
+  const traits=context.QT_CHARACTER_TRAITS;
+  const acquaintance={name:'서연',status:'acquaintance',signature:{key:'inspiration',value:49}};
+  const former={name:'서연',status:'ex',signature:{key:'inspiration',value:49}};
+  const friend={name:'서연',status:'friend',signature:{key:'inspiration',value:49}};
+  const life={met:[acquaintance,former,friend],happy:80,health:70,stress:20};
+  const changes=traits.monthly(life,{});
+  assert.equal(typeof traits.action,'undefined','관계없는 플레이어 행동으로 인물 신뢰를 바꾸는 API는 없어야 한다');
+  assert.equal(acquaintance.signature.value,49,'연락처도 없는 지인은 월간 인연 수치가 자동 상승하면 안 된다');
+  assert.equal(former.signature.value,49,'차단한 전 연인의 인연 수치는 자동 상승하면 안 된다');
+  assert.ok(friend.signature.value>49,'실제 친구 관계는 월간 관계 맥락의 영향을 받을 수 있어야 한다');
+  assert.equal(changes.length,1,'활성 관계에서 단계가 바뀐 인물만 사건 후보가 되어야 한다');
 }
 
 {
@@ -264,7 +279,7 @@ for (const file of [
   assert.match(appSource,/childhoodNightContract/,'소꿉친구 하룻밤 계약 상태가 저장돼야 한다');
   assert.match(appSource,/showChildhoodRelapseEnding\('클럽의 낯선 사람','club'\)/,'계약 뒤 클럽 하룻밤은 즉시 배드엔딩으로 연결돼야 한다');
   assert.match(appSource,/removeChildhoodCircleFromGame\(\)/,'단체방 거부 시 다섯 명을 게임 시스템에서 제거해야 한다');
-  assert.match(appSource,/pool=pool\.filter\(character=>!CHILDHOOD_CIRCLE\.MEMBERS\.includes\(character\.name\)\)/,'제거된 다섯 명은 새 만남 후보로 재등장하면 안 된다');
+  assert.doesNotMatch(appSource,/function makeCandidate/,'외출의 무작위 새 만남이 없어야 제거된 다섯 명도 후보로 재등장하지 않는다');
 }
 
 {
@@ -662,6 +677,8 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
 {
   const appSource = fs.readFileSync(path.join(root, 'js/app.js'), 'utf8');
   const lifeActionViewSource = fs.readFileSync(path.join(root, 'js/ui/views/life-action-view.js'), 'utf8');
+  const socialNetworkSource = fs.readFileSync(path.join(root, 'js/social_network.js'), 'utf8');
+  const lifeEventsSource = fs.readFileSync(path.join(root, 'js/events_life.js'), 'utf8');
   assert.match(appSource, /const LIFE_ACTIONS_PER_MONTH = 4;/, '월 행동력은 4회여야 한다');
   assert.match(appSource, /monthActionCount\(group\) \+ 1/, '같은 행동군을 다시 선택하면 횟수가 누적돼야 한다');
   assert.doesNotMatch(appSource, /monthActionUsed\(group\)\|\|lifeActionExhausted\(\)/, '이미 한 행동군이라는 이유로 버튼을 막으면 안 된다');
@@ -687,16 +704,18 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /읽지 않고 알림을 지웠다/, '클럽 일반 여성의 후속 연락은 답장하지 않고 무시해야 한다');
   assert.match(appSource, /function showFactionMentorPhoneStory/, '첫 세력 공격은 장태식의 스마트폰 연락으로 이어져야 한다');
   assert.match(appSource, /function monthlyFactionMemberMessages/, '첫 부하는 플레이어 상태에 맞춘 월간 보고 연락을 보내야 한다');
-  assert.match(appSource, /r\.key!=='intro'\|\|hasIntroducer/, '지인 소개는 친구나 인맥과 동행할 때만 열려야 한다');
   assert.doesNotMatch(appSource, /showDateCompanyModal/, '데이트 진입 전에 별도 동행 선택 관문을 다시 만들면 안 된다');
-  assert.match(appSource, /class="date-companion-strip"/, '새 인연을 위한 동행 도움은 사람·장소 선택창 안에서 고를 수 있어야 한다');
+  assert.doesNotMatch(appSource, /class="date-companion-strip"/, '외출에서 새 인연을 뽑는 동행 선택을 다시 노출하면 안 된다');
+  assert.match(appSource, /data-solo-outing=/, '외출에는 관계와 무관한 혼자 하는 활동이 있어야 한다');
   assert.match(appSource, /class="date-person-grid"/, '데이트 대상은 설명 목록이 아니라 간결한 인물 카드로 보여야 한다');
   assert.match(appSource, /class="event-options date-choice-grid"/, '데이트 행동은 장면 아래의 짧은 전용 선택 영역에 모여야 한다');
   assert.match(appSource, /S\._dateApproaches\|\|D\.DATE_APPROACHES/, '화면에 고른 성격별 데이트 행동이 결과 판정에도 그대로 사용돼야 한다');
   assert.match(appSource, /Number\.isFinite\(Number\(c\.age\)\)/, '나이가 없는 인물에게 undefined세를 표시하면 안 된다');
-  assert.doesNotMatch(appSource, /maybeActivityEncounter\('rest'\)/, '집에서 쉬는 동안 무작위 연애 조우가 발생하면 안 된다');
+  assert.doesNotMatch(appSource, /maybeActivityEncounter/, '취미나 외출이 무작위 히로인 조우로 이어지면 안 된다');
   assert.match(appSource, /class="pixel-home/, '현재 집과 사치품은 생활공간 장면으로 시각화돼야 한다');
-  assert.match(appSource, /class="route-card place-card"/, '새 인물은 프로필보다 외출 장소를 먼저 선택해야 한다');
+  assert.match(appSource, /class="route-card place-card solo-outing-card"/, '혼자 하는 외출은 간결한 장소 카드로 보여야 한다');
+  assert.doesNotMatch(appSource, /function makeCandidate/, '외출 화면이 전체 히로인 명부에서 새 사람을 추첨하면 안 된다');
+  assert.match(appSource, /외출 장소에서 새 히로인이 자동으로 생기지는 않습니다/, '외출과 히로인 조우의 경계를 화면에서 분명히 알려야 한다');
   assert.match(appSource, /formerClubEx:true/, '옛 동아리 여성 다섯은 과거 연인 기록으로 시작해야 한다');
   assert.match(appSource, /former\.status='ex'/, '옛 동아리 여성 다섯은 현재 친구가 아니라 전 연인 상태여야 한다');
   assert.match(appSource, /function showOriginFriendReferral/, '직업 결정 뒤 고정 친구의 투자지원센터 소개 장면이 있어야 한다');
@@ -721,8 +740,15 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /person\.name==='나래'\|\|person\.special==='tutorial'/,'나래는 일반 성향 판정으로 하렘에 편입되면 안 된다');
   assert.match(appSource, /function retryBusinessManagementEnding\(\)/,'사업관리 배드엔딩에도 직전 선택으로 돌아가는 경로가 있어야 한다');
   assert.match(appSource, /const CONTACT_RULES=\{affection:12,trust:6,interactions:2,months:1\}/, '일반 인물은 호감·신뢰·교류·기간을 채워야 연락처를 줘야 한다');
-  assert.match(appSource, /const people=ensureMet\(L\)\.filter\(r=>.*hasPersonalContact\(r\)\)/, '한 번 본 사람은 연락처 목록에 바로 나타나면 안 된다');
-  assert.match(appSource, /if\(!hasPersonalContact\(r\)&&!exReach\)return/, '개인 연락처가 없는 인물은 월말 선연락을 보내면 안 된다');
+  assert.match(appSource, /const people=knownPeople\.filter\(r=>r\.status!=='ex'&&hasPersonalContact\(r\)\)/, '한 번 본 사람은 연락처 목록에 바로 나타나면 안 된다');
+  assert.match(appSource, /내가 차단한 연락처 · 메시지 수신 안 함/, '전 연인은 플레이어가 차단한 연락처로 보여야 한다');
+  assert.match(appSource, /if\(r\.status==='ex'\)\{ensureCourtship\(r\);return;\}/, '차단한 전 연인이 월말 선연락을 보내면 안 된다');
+  assert.doesNotMatch(appSource, /CHAR_TRAITS\.action/, '일반 플레이어 행동이 관계없는 인물의 고유 신뢰 수치를 올리면 안 된다');
+  assert.match(appSource, /r\.status==='friend'&&hasPersonalContact\(r\)/, '정체도 연락처도 모르는 인물에게 우연한 인연 상승 사건이 뜨면 안 된다');
+  assert.match(appSource, /m\.status!=='ex'&&hasPersonalContact\(m\)/, '차단한 전 연인이나 연락처 없는 인물의 근황이 월말 뉴스로 뜨면 안 된다');
+  assert.match(socialNetworkSource, /집에만 있지 말고 밖에도 나가 봐라/, '아버지는 과거 연인과 재회시키기보다 현재 생활을 살라고 조언해야 한다');
+  assert.doesNotMatch(socialNetworkSource, /예린이네하고 다시 연락/, '아버지가 차단한 전 연인과 다시 연락하라고 말하면 안 된다');
+  assert.match(lifeEventsSource, /새 연락처는 생기지 않았지만/, '일반 외출 사건이 자동으로 히로인 연락처를 만들면 안 된다');
   assert.match(appSource, /r\.name==='윤세라'\?\.72:earlyContact\?\.10:\.16/, '위험 히로인 중 윤세라만 초반 고빈도 연락 예외여야 한다');
   assert.doesNotMatch(appSource, /첫인사를 나누고 연락처를 저장했습니다/, '첫 조우가 자동 연락처 저장으로 처리되면 안 된다');
   assert.doesNotMatch(appSource, /data-ameet="casual"/, '활동 중 첫 만남에서 곧바로 가벼운 관계를 제안하면 안 된다');

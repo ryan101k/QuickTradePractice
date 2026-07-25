@@ -93,6 +93,10 @@ body {
 .contact-chat-head > span { width:48px; height:48px; display:grid; place-items:center; background:#fff; border:2px outset #fff; font-size:29px; }
 .contact-chat-head small { color:#555; }
 .chat-contact .chat-preview { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#555; font-size:11px; }
+.blocked-group-title { background:#5a4a4a; }
+.blocked-chat-contact[disabled] { opacity:.72; filter:grayscale(.8); cursor:not-allowed; background:#e9e5e5; color:#5e5555; }
+.blocked-chat-contact[disabled] .chat-preview { color:#756a6a; }
+.blocked-contact-mark { font-size:18px; }
 .chat-unread { min-width:18px; height:18px; border-radius:9px; background:#c22; color:#fff; text-align:center; line-height:18px; font-weight:bold; }
 .chat-room { display:flex; flex-direction:column; gap:6px; }
 .relationship-scene { width:100%; max-height:150px; object-fit:cover; border:2px inset #fff; image-rendering:auto; }

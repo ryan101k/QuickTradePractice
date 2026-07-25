@@ -108,20 +108,20 @@ const LIFE_EVENTS = [
     ],
   },
   {
-    id: 'love_ex', cat: 'love', emoji: '💌', title: '전 애인의 연락',
-    desc: '전 애인에게서 갑자기 연락이 왔습니다.',
+    id: 'love_ex', cat: 'life', emoji: '🚫', title: '오래된 연락처 정리',
+    desc: '백업된 휴대폰에서 오래전에 차단한 연락처 목록이 다시 나타났습니다.',
     cond: c => c.rel !== 'single',
     options: [
-      { text: '무시한다', effects: { charm: 5 }, outcome: '현재의 사랑에 충실하기로 했다.' },
-      { text: '몰래 만난다', effects: { happy: -3, endRelationshipChance: 0.5 }, outcome: '현 연인이 알면 큰일인데...' },
+      { text: '차단 상태를 그대로 둔다', effects: { happy: 2, stress: -2 }, outcome: '지나간 관계는 다시 열지 않기로 했습니다.' },
+      { text: '기록만 보관하고 화면을 닫는다', effects: {}, outcome: '연락할 수 없는 기록으로만 남겨 두었습니다.' },
     ],
   },
   {
-    id: 'love_blind', cat: 'love', emoji: '☕', title: '소개팅 제안',
-    desc: '친구가 괜찮은 사람이 있다며 소개팅을 주선합니다.',
+    id: 'love_blind', cat: 'life', emoji: '🌆', title: '주말 외출 제안',
+    desc: '친구가 집에만 있지 말고 같이 바람이나 쐬자고 부릅니다.',
     cond: c => c.rel === 'single',
     options: [
-      { text: '나간다', effects: { cash: -200000, charm: [6, 20] }, outcome: '좋은 인연이 될지도?' },
+      { text: '나간다', effects: { cash: -80000, happy: 6, stress: -7 }, outcome: '새 연락처는 생기지 않았지만 답답했던 기분은 풀렸습니다.' },
       { text: '안 나간다', effects: { happy: 3 }, outcome: '집이 최고다.' },
     ],
   },
