@@ -222,7 +222,7 @@
     return f;
   }
   function namedRecruits(){
-    const data=root.QT_DATA&&root.QT_DATA.WORLD_MALE_NPCS;
+    const data=root.QT_DATA&&(root.QT_DATA.WORLD_FACTION_NPCS||root.QT_DATA.WORLD_MALE_NPCS);
     return (data||[]).filter(n=>n.recruitable);
   }
   function recruitRequirement(life,npc){

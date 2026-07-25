@@ -13,8 +13,44 @@ const ROLES=[
  {id:'lawyer',icon:'⚖️',name:'변호사',benefit:'법적 위험 방어'},
 ];
 const NAMES=['김현우','박서진','이도윤','최유나','정민석','한지수','윤태호','송하린','오세훈','임채원'];
+const INDUSTRY_GATHERINGS=[
+ {id:'open',tier:0,icon:'☕',name:'공개 네트워킹',cost:300000,minReputation:0,minStanding:0,
+  desc:'작은 명함 교환회입니다. 평판과 사교 실적을 쌓는 출발점입니다.',candidates:[]},
+ {id:'lounge',tier:1,icon:'🥂',name:'업계 라운지',cost:800000,minReputation:22,minStanding:1,
+  desc:'현장 운영자들이 모이는 초청 라운지입니다.',candidates:['office']},
+ {id:'forum',tier:2,icon:'🏛️',name:'비공개 포럼',cost:1800000,minReputation:30,minStanding:3,
+  desc:'제작·서비스 분야의 실력자들이 계약 전 서로를 살피는 자리입니다.',candidates:['creative','medical']},
+ {id:'salon',tier:3,icon:'💎',name:'대표자 살롱',cost:3500000,minReputation:38,minStanding:6,
+  desc:'기업 대표와 자문 책임자만 초대받는 최상위 사교 모임입니다.',candidates:['corporate']},
+];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),pick=a=>a[Math.floor(Math.random()*a.length)];
-function ensure(life){if(!life.social)life.social={contacts:[],reputation:20,favorsUsed:0};return life.social;}
+function ensure(life){
+ if(!life.social)life.social={contacts:[],reputation:20,favorsUsed:0};
+ const s=life.social;
+ if(!Array.isArray(s.contacts))s.contacts=[];
+ s.reputation=clamp(Number(s.reputation)||20,0,100);
+ if(!s.industry||typeof s.industry!=='object')s.industry={standing:0,meetings:0,introduced:[]};
+ s.industry.standing=Math.max(0,Math.floor(Number(s.industry.standing)||0));
+ s.industry.meetings=Math.max(0,Math.floor(Number(s.industry.meetings)||0));
+ if(!Array.isArray(s.industry.introduced))s.industry.introduced=[];
+ return s;
+}
+function gatheringStatus(life,gatheringId){
+ const s=ensure(life),g=INDUSTRY_GATHERINGS.find(item=>item.id===gatheringId);
+ if(!g)return{available:false,reason:'알 수 없는 모임입니다.'};
+ if(s.reputation<g.minReputation)return{available:false,gathering:g,reason:`사회 평판 ${g.minReputation} 필요`};
+ if(s.industry.standing<g.minStanding)return{available:false,gathering:g,reason:`사교 실적 ${g.minStanding} 필요`};
+ return{available:true,gathering:g,reason:''};
+}
+function attendIndustry(life,gatheringId,random){
+ const status=gatheringStatus(life,gatheringId);if(!status.available)return{ok:false,message:status.reason};
+ const s=ensure(life),g=status.gathering,rng=typeof random==='function'?random:Math.random;
+ s.industry.meetings++;s.industry.standing+=1+g.tier;s.reputation=clamp(s.reputation+2+g.tier,0,100);
+ const candidates=g.candidates.filter(id=>!s.industry.introduced.includes(id));
+ const introduced=candidates.length?candidates[Math.floor(rng()*candidates.length)]:null;
+ if(introduced)s.industry.introduced.push(introduced);
+ return{ok:true,gathering:g,introduced,standing:s.industry.standing,reputation:s.reputation};
+}
 function addContact(life,spec){const s=ensure(life),same=s.contacts.find(c=>(spec.originKey&&c.originKey===spec.originKey)||(c.name===spec.name&&c.role===spec.role));if(same)return same;const c=Object.assign({id:'contact-'+Date.now()+'-'+Math.random(),name:'연락처',role:'schoolfriend',trust:15,favor:0,months:0},spec||{});s.contacts.push(c);return c;}
 function meet(life){const s=ensure(life),networkRoles=ROLES.filter(r=>!r.personal),available=networkRoles.filter(r=>!s.contacts.some(c=>c.role===r.id));if(!available.length)return null;const r=pick(available),c={id:'contact-'+Date.now()+'-'+Math.random(),name:pick(NAMES),role:r.id,trust:15,favor:0,months:0};s.contacts.push(c);return c;}
 function role(c){return ROLES.find(r=>r.id===c.role)||ROLES[0];}
@@ -48,5 +84,5 @@ function contactAnswer(c,kind,incomingText){const family=['mother','father','gua
  meet:family?['이번 달에는 시간 내서 집에 갈게. 같이 밥 먹자.']:c.role==='schoolfriend'?['우리 학교 앞에서 한번 보자. 내가 밥 살게.']:['이번 달에 시간 괜찮으면 직접 뵙고 싶어요.'],
 };return pick(lines[kind]||lines.brief);}
 function contactReplyOptions(c,incomingText){return['warm','advice','meet','brief'].map(id=>({id,text:contactAnswer(c,id,incomingText)}));}
-root.QT_SOCIAL={ROLES,ensure,addContact,meet,role,nurture,ask,monthly,legalShield,contactLine,contactAnswer,contactReplyOptions};
+root.QT_SOCIAL={ROLES,INDUSTRY_GATHERINGS,ensure,addContact,meet,gatheringStatus,attendIndustry,role,nurture,ask,monthly,legalShield,contactLine,contactAnswer,contactReplyOptions};
 })(window);

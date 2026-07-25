@@ -1,6 +1,7 @@
 /* QuickTrade Life — 인물별 고유 관계 시스템 */
 (function(root){'use strict';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const RETIRED_HEROINES=new Set(['하은','수아','다은','혜진','아린']);
 const SYSTEMS={
  '나래':{key:'discipline',icon:'📉',name:'투자 원칙 신뢰',good:true,scene:'event-narae-market-crash.png',monthly:(l,c)=>c.marginCalled?-18:c.debtRatio<.5&&c.morality>=55?5:-1,actions:{경력:4,휴식:2,라이벌:-4}},
  '강유진':{key:'savior',icon:'🚨',name:'구원 강박',scene:'event-yujin-rain-rescue.png',monthly:(l,c)=>(c.crime*7)+(c.hasCase?8:0)+(c.debtRatio>1?5:0)+(c.morality<40?6:-3)+(c.job==='none'?3:0),actions:{라이벌:7,인맥:1,가족:-2}},
@@ -20,7 +21,7 @@ const SYSTEMS={
  '나영':{key:'rivalry',icon:'🏋️',name:'승부욕',scene:'event-nayoung-wrist.png',monthly:(l,c)=>c.fitness>=45?5:-2,actions:{취미:6,경력:5,라이벌:7}},
  '미래':{key:'sync',icon:'🎮',name:'취향 싱크',good:true,scene:'event-mirae-launch.png',monthly:(l,c)=>c.hobbies>2?4:1,actions:{취미:8,휴식:3,경력:4}}
 };
-function system(name){return SYSTEMS[name]||null;}
+function system(name){return RETIRED_HEROINES.has(name)?null:SYSTEMS[name]||null;}
 function ensure(rec){const s=rec&&system(rec.name);if(!s)return null;if(!rec.signature||rec.signature.key!==s.key)rec.signature={key:s.key,value:s.good?35:10,stage:0};return rec.signature;}
 function stageOf(s,v){if(!s)return 0;if(s.good)return v>=75?3:v>=50?2:v>=25?1:0;return v>=75?3:v>=45?2:v>=20?1:0;}
 function label(rec){const s=rec&&system(rec.name),st=ensure(rec);return s&&st?`${s.icon} ${s.name} ${Math.round(st.value)}/100`:'';}

@@ -7,10 +7,10 @@ const finite=(value,fallback)=>Number.isFinite(Number(value))?Number(value):fall
 const PROFILES={
   office:{
     id:'office',businessId:'commerce',hiddenName:'박○○',alias:'박 매니저',name:'박지수',
-    role:'운영 매니저',emoji:'📋',gender:'f',age:30,job:'온라인 유통사 운영 매니저',
+    role:'유통 운영 책임자',emoji:'📋',gender:'f',age:30,job:'한빛리테일 운영 책임자',rivalFirm:'한빛리테일',
     personality:'caring',moneyStyle:'support',portrait:'business-office-reveal.png',scene:'./assets/event-business-office-night.png',maskedScene:'./assets/event-business-office-masked.png',
     style:'말보다 먼저 재고표와 식사를 챙기는 생활형 실무자',
-    revealLine:'대표님이 사람보다 숫자를 먼저 보는 분은 아니라는 걸 확인하고 싶었어요. 이제는 박 매니저 말고, 지수라고 불러요.',
+    revealLine:'세 달 동안 보고 방식은 충분히 봤어요. 개인 연락망을 열어두죠. 다만 업무와 사적인 약속은 천천히 구분해요.',
     temptation:'오늘 보고는 메신저로 끝내도 되는데요. 굳이 둘만 남아서 정리하면… 대표님 애인은 싫어하겠죠?',
     boundary:'선을 먼저 말해줘서 다행이에요. 적어도 대표님을 잘못 보진 않았네요.',
     trap:'exposure',
@@ -21,10 +21,10 @@ const PROFILES={
   },
   creative:{
     id:'creative',businessId:'studio',hiddenName:'한○○',alias:'한 실장',name:'한이슬',
-    role:'콘텐츠 제작 실장',emoji:'🎨',gender:'f',age:29,job:'콘텐츠 스튜디오 제작 실장',
+    role:'콘텐츠 제작 실장',emoji:'🎨',gender:'f',age:29,job:'프리즘스튜디오 제작 실장',rivalFirm:'프리즘스튜디오',
     personality:'free',moneyStyle:'independent',portrait:'business-creative-reveal.png',scene:'./assets/event-business-creative-night.png',maskedScene:'./assets/event-business-creative-masked.png',
     style:'위험한 아이디어를 웃으며 현실로 만드는 자유로운 제작자',
-    revealLine:'가린 얼굴이 콘셉트인 줄 알았어요? 대표님이 끝까지 팀을 팔지 않는지 본 거예요. 한이슬. 이제 이름으로 불러요.',
+    revealLine:'회의실 밖에서도 아이디어를 주고받을 정도의 신뢰는 생겼네요. 번호는 줄게요. 재미없는 선부터 지켜 봐요.',
     temptation:'애인 있는 사람은 영감이 더 복잡해서 재밌던데. 오늘 밤, 촬영 답사라는 핑계 어때요?',
     boundary:'재미없는 답인데… 그래서 좀 마음에 드네요. 작품 밖에서는 선을 지키는 사람.',
     trap:'blackmail',blackmailRate:.10,blackmailMin:6000000,blackmailMax:40000000,
@@ -35,10 +35,10 @@ const PROFILES={
   },
   corporate:{
     id:'corporate',businessId:'advisory',hiddenName:'차○○',alias:'차 총괄',name:'차서윤',
-    role:'재무·계약 총괄',emoji:'📑',gender:'f',age:33,job:'기업 자문사 재무·계약 총괄',
+    role:'재무·계약 총괄',emoji:'📑',gender:'f',age:33,job:'서린파트너스 계약 총괄',rivalFirm:'서린파트너스',
     personality:'cold',moneyStyle:'independent',portrait:'business-corporate-reveal.png',scene:'./assets/event-business-corporate-night.png',maskedScene:'./assets/event-business-corporate-masked.png',
     style:'감정보다 계약의 빈칸을 먼저 읽는 냉정한 협상가',
-    revealLine:'실명은 계약 상대에게만 공개합니다. 차서윤. 오늘부터 대표님을 단순한 고용주가 아니라 제 선택의 상대로 보겠습니다.',
+    revealLine:'업무 연락처 외에 개인 번호를 공유할 조건은 충족됐습니다. 오해는 금물이에요. 신뢰의 범위를 한 단계 넓힌 겁니다.',
     temptation:'연인에게 보고할 의무가 없는 계약도 있습니다. 서명은 둘만 있는 곳에서 받죠.',
     boundary:'충동보다 손실을 먼저 계산하는군요. 좋아요. 신뢰할 수 있는 대표라는 뜻이니까.',
     trap:'blackmail',blackmailRate:.16,blackmailMin:10000000,blackmailMax:70000000,
@@ -49,10 +49,10 @@ const PROFILES={
   },
   medical:{
     id:'medical',businessId:'care',hiddenName:'오○○',alias:'오 책임자',name:'오혜린',
-    role:'현장 서비스 책임자',emoji:'🩺',gender:'f',age:31,job:'웰니스 센터 현장 책임자',
+    role:'현장 서비스 책임자',emoji:'🩺',gender:'f',age:31,job:'온케어네트워크 현장 책임자',rivalFirm:'온케어네트워크',
     personality:'frugal',moneyStyle:'support',portrait:'business-medical-reveal.png',scene:'./assets/event-business-medical-night.png',maskedScene:'./assets/event-business-medical-masked.png',
     style:'안전과 양심을 타협하지 않는 차분한 현장 책임자',
-    revealLine:'끝까지 사람을 비용으로만 보지 않으셨네요. 오혜린이에요. 이제 업무 밖의 제 얼굴도 기억해 주세요.',
+    revealLine:'현장을 무리시키지 않는다는 건 확인했어요. 급한 일이 생기면 개인 번호로 연락하세요. 안부는 그다음이고요.',
     temptation:'좋은 사람이 늘 좋은 선택만 하는 건 아니잖아요. 오늘은 센터 밖에서, 아무도 모르게 만날래요?',
     boundary:'거절해 줘서 고마워요. 흔들린 건 저였고, 멈춰야 할 사람도 저였어요.',
     trap:'exposure',
@@ -225,6 +225,7 @@ const QUARTET_CHAPTERS=[
 
 function freshStaff(){
   return{bond:0,trust:0,revealed:false,revealDay:0,temptationSeen:false,trapTriggered:false,
+    introduced:false,hired:false,assignedBusinessId:null,rival:false,profitStreak:0,
     boundaryKept:false,ending:null,lastContactDay:0,eventsSeen:[],storyChapter:0};
 }
 function ensure(life){
@@ -238,6 +239,11 @@ function ensure(life){
     state.staff[id]=Object.assign(freshStaff(),old,{
       bond:clamp(finite(old.bond,0),0,100),
       trust:clamp(finite(old.trust,0),0,100),
+      introduced:!!old.introduced,
+      hired:!!old.hired,
+      assignedBusinessId:old.assignedBusinessId||null,
+      rival:!!old.rival,
+      profitStreak:Math.max(0,Math.floor(finite(old.profitStreak,0))),
       revealed:!!old.revealed,
       temptationSeen:!!old.temptationSeen,
       trapTriggered:!!old.trapTriggered,
@@ -247,6 +253,8 @@ function ensure(life){
     });
   });
   state.profitableStreak=Math.max(0,Math.floor(finite(state.profitableStreak,0)));
+  state.selectedId=IDS.includes(state.selectedId)?state.selectedId:null;
+  state.rivalChapter=clamp(Math.floor(finite(state.rivalChapter,0)),0,3);
   state.lastEventDay=Math.max(0,Math.floor(finite(state.lastEventDay,0)));
   if(!state.quartet||typeof state.quartet!=='object')state.quartet={chapter:0,synergy:40,governance:40,boundary:45,lastStoryDay:0};
   state.quartet.chapter=clamp(Math.floor(finite(state.quartet.chapter,0)),0,QUARTET_CHAPTERS.length);
@@ -261,10 +269,10 @@ function identity(life,id){
   const p=profile(id),s=p&&staffState(life,id);
   if(!p)return null;
   return{
-    ...p,revealed:!!s.revealed,
-    displayName:s.revealed?p.name:p.alias,
-    listName:s.revealed?p.name:p.hiddenName,
-    portrait:s.revealed?`./assets/characters/${p.portrait}`:null,
+    ...p,revealed:!!s.revealed,introduced:!!s.introduced,hired:!!s.hired,rival:!!s.rival,
+    displayName:s.introduced?p.name:p.alias,
+    listName:s.introduced?p.name:p.hiddenName,
+    portrait:s.introduced?`./assets/characters/${p.portrait}`:null,
     bond:Math.round(s.bond),trust:Math.round(s.trust),
   };
 }
@@ -274,10 +282,32 @@ function asCharacter(id){
     personality:p.personality,portrait:p.portrait,special:'business',moneyStyle:p.moneyStyle};
 }
 function ownedIds(businessState){
-  return new Set(((businessState&&businessState.owned)||[]).map(item=>item.managerId));
+  return new Set(((businessState&&businessState.owned)||[]).map(item=>item.specialManagerId||item.managerId).filter(id=>IDS.includes(id)));
+}
+function introduce(life,id){
+  const state=ensure(life),s=state.staff[id],p=profile(id);if(!s||!p)return null;
+  s.introduced=true;
+  if(state.selectedId&&state.selectedId!==id)s.rival=true;
+  return identity(life,id);
+}
+function recruit(life,id,businessId){
+  const state=ensure(life),s=state.staff[id],p=profile(id);
+  if(!s||!p)return{ok:false,message:'소개받지 못한 책임자입니다.'};
+  if(!s.introduced)return{ok:false,message:'사교 모임에서 먼저 정식 소개를 받아야 합니다.'};
+  s.hired=true;s.assignedBusinessId=businessId||null;s.rival=true;
+  return{ok:true,staffId:id,profile:p};
+}
+function canRomance(life,nameOrId){
+  const state=ensure(life);
+  const id=IDS.includes(nameOrId)?nameOrId:IDS.find(key=>PROFILES[key].name===nameOrId);
+  const activeNames=new Set((life.met||[]).filter(rec=>['partner','polycule','lover'].includes(rec.status)).map(rec=>rec.name));
+  (((life.relationshipGroup||{}).members)||[]).forEach(member=>activeNames.add(typeof member==='string'?member:member&&member.name));
+  const outside=[...activeNames].filter(Boolean).some(name=>!IDS.some(key=>PROFILES[key].name===name));
+  return !!(id&&!outside&&state.staff[id].hired&&state.staff[id].revealed&&state.staff[id].storyChapter>=3);
 }
 function applyDecision(life,id,effects){
   const s=staffState(life,id);if(!s)return null;
+  if(!s.hired)return null;
   const e=effects||{};
   const care=Math.max(0,finite(e.morale,0))+Math.max(0,finite(e.reputation,0))*.7;
   const harm=Math.max(0,-finite(e.morale,0))+Math.max(0,-finite(e.reputation,0))*.6;
@@ -291,8 +321,9 @@ function nextPersonal(life,ctx){
   for(const id of IDS){
     const s=state.staff[id],rec=(ctx.met||[]).find(person=>person.name===PROFILES[id].name);
     const story=(PERSONAL_STORIES[id]||[])[s.storyChapter||0];
-    if(!story||!s.revealed||!rec||rec.status==='ex')continue;
-    if((rec.affection||0)>=story.minAffection&&(rec.trust||0)>=story.minTrust){
+    if(!story||!s.hired||!s.revealed||!rec||rec.status==='ex')continue;
+    const index=s.storyChapter||0,affectionGate=[40,58,72][index]||story.minAffection,trustGate=[20,35,50][index]||story.minTrust;
+    if((rec.affection||0)>=Math.max(story.minAffection,affectionGate)&&(rec.trust||0)>=Math.max(story.minTrust,trustGate)){
       return{businessRomanceEvent:true,kind:'personal-story',staffId:id,eventId:story.id,day:ctx.day};
     }
   }
@@ -312,48 +343,51 @@ function nextQuartetChapter(life,ctx,allOwned){
 }
 function monthly(life,context){
   const state=ensure(life),ctx=context||{},day=Math.max(1,Math.floor(finite(ctx.day,1)));
-  const owned=ownedIds(ctx.businessState),allOwned=IDS.every(id=>owned.has(id));
+  const owned=ownedIds(ctx.businessState);
   IDS.forEach(id=>{
     if(!owned.has(id))return;
     const s=state.staff[id],item=((ctx.businessState&&ctx.businessState.owned)||[]).find(x=>x.managerId===id);
     if(item&&item.lastNet>0){
-      s.bond=clamp(s.bond+2+Math.min(3,Math.max(0,item.level-1)),0,100);
+      s.bond=clamp(s.bond+2+Math.min(3,Math.max(0,finite(item.level,1)-1)),0,100);
       s.trust=clamp(s.trust+(item.reputation>=60?1:0),0,100);
     }else if(item&&item.lastNet<0)s.bond=clamp(s.bond-1,0,100);
   });
-  state.profitableStreak=allOwned&&finite(ctx.totalNet,0)>0?state.profitableStreak+1:0;
+  IDS.forEach(id=>{
+    const s=state.staff[id],item=((ctx.businessState&&ctx.businessState.owned)||[]).find(x=>(x.specialManagerId||x.managerId)===id);
+    s.profitStreak=item&&item.lastNet>0?Math.max(0,finite(s.profitStreak,0))+1:0;
+  });
   if(day-state.lastEventDay<1)return null;
 
-  if(ctx.hasPartner){
+  const partnerNames=ctx.partnerNames||[],businessPartners=partnerNames.filter(name=>IDS.some(id=>PROFILES[id].name===name));
+  const outsidePartners=partnerNames.filter(name=>!IDS.some(id=>PROFILES[id].name===name));
+  if(businessPartners.length&&outsidePartners.length===0){
     const target=IDS.find(id=>{
-      const item=((ctx.businessState&&ctx.businessState.owned)||[]).find(x=>x.managerId===id);
-      const s=state.staff[id];
-      return owned.has(id)&&item&&item.months>=2&&item.lastNet>0&&!s.revealed&&!s.temptationSeen;
+      const s=state.staff[id],item=((ctx.businessState&&ctx.businessState.owned)||[]).find(x=>(x.specialManagerId||x.managerId)===id);
+      return !businessPartners.includes(PROFILES[id].name)&&item&&item.months>=6&&s.revealed&&s.storyChapter>=2&&s.bond>=30&&!s.temptationSeen;
     });
     if(target){
       state.staff[target].temptationSeen=true;
       state.staff[target].lastContactDay=day;
       state.lastEventDay=day;
-      return event('temptation',target,day);
+      return{...event('temptation',target,day),currentPartner:businessPartners[0]};
     }
   }
 
-  if(!ctx.hasPartner&&allOwned&&state.profitableStreak>=3){
-    const target=IDS.find(id=>!state.staff[id].revealed&&state.staff[id].bond>=6);
-    if(target){
+  const revealTarget=IDS.find(id=>{
+    const s=state.staff[id],item=((ctx.businessState&&ctx.businessState.owned)||[]).find(x=>(x.specialManagerId||x.managerId)===id);
+    return item&&s.hired&&!s.revealed&&(s.profitStreak||0)>=3&&s.bond>=12;
+  });
+  if(revealTarget){
       state.lastEventDay=day;
-      return event('reveal',target,day);
-    }
+      return event('reveal',revealTarget,day);
   }
 
   const personalEvent=nextPersonal(life,{...ctx,day});
   if(personalEvent){state.lastEventDay=day;return personalEvent;}
-  const quartetChapter=nextQuartetChapter(life,{...ctx,day},allOwned);
-  if(quartetChapter){state.lastEventDay=day;return quartetChapter;}
 
   const solo=IDS.find(id=>{
     const s=state.staff[id],rec=(ctx.met||[]).find(person=>person.name===PROFILES[id].name);
-    const item=((ctx.businessState&&ctx.businessState.owned)||[]).find(x=>x.managerId===id);
+    const item=((ctx.businessState&&ctx.businessState.owned)||[]).find(x=>(x.specialManagerId||x.managerId)===id);
     return s.revealed&&!s.ending&&rec&&['partner','polycule'].includes(rec.status)&&
       rec.affection>=80&&rec.trust>=45&&item&&item.level>=4&&item.totalProfit>=20000000;
   });
@@ -362,15 +396,6 @@ function monthly(life,context){
     return event('solo-ending',solo,day);
   }
 
-  const quartetReady=allOwned&&!state.quartetEnding&&state.quartet.chapter>=QUARTET_CHAPTERS.length&&
-    state.quartet.synergy>=65&&state.quartet.governance>=58&&state.quartet.boundary>=55&&IDS.every(id=>{
-    const s=state.staff[id],rec=(ctx.met||[]).find(person=>person.name===PROFILES[id].name);
-    return s.revealed&&rec&&rec.affection>=55&&rec.trust>=25;
-  })&&!(ctx.partnerNames||[]).some(name=>!IDS.some(id=>PROFILES[id].name===name));
-  if(quartetReady){
-    state.lastEventDay=day;
-    return{businessRomanceEvent:true,kind:'quartet-ending',day};
-  }
   return null;
 }
 function view(life,payload,capital){
@@ -385,14 +410,14 @@ function view(life,payload,capital){
   }
   if(payload.kind==='quartet-ending'){
     return{
-      kind:payload.kind,icon:'🏢',title:'네 개의 명함, 하나의 동업',
-      desc:'네 사업의 담당자들이 같은 회의실에 앉았습니다. 서로의 방식은 다르지만, 당신과 함께 일하며 쌓은 신뢰만큼은 같습니다.',
-      line:'“대표 한 사람을 두고 경쟁하기보다, 다섯 명이 함께 키울 회사를 정하죠.”',
+      kind:payload.kind,icon:'🏢',title:'네 개의 명함, 경쟁 협약',
+      desc:'이전 저장에서 대기 중이던 공동 이사회 사건입니다. 연애 합류 대신 네 회사의 경쟁 규칙을 정하는 업계 협약으로 전환됩니다.',
+      line:'“사적인 경쟁은 끝내지 않아요. 대신 직원과 회사를 볼모로 삼지는 말죠.”',
       portrait:'./assets/event-business-quartet-afterhours.png',
       meta:`업무 시너지 ${Math.round(state.quartet.synergy)} · 공동 의사결정 ${Math.round(state.quartet.governance)} · 공과 사 경계 ${Math.round(state.quartet.boundary)}`,
       choices:[
-        {id:'accept',text:'🤝 네 사람과 공동대표이자 연인이 된다',preview:'4인 세트 엔딩 · 전원 합의형 연인'},
-        {id:'wait',text:'📋 지금은 동업 관계를 지킨다',preview:'조건이 유지되면 나중에 다시 제안받을 수 있음'},
+        {id:'accept',text:'🤝 공정 경쟁 협약을 맺는다',preview:'연애 관계 변화 없음 · 업계 경쟁 사건으로 전환'},
+        {id:'wait',text:'📋 각자 경쟁하게 둔다',preview:'연애 관계 변화 없음'},
       ],
     };
   }
@@ -406,22 +431,22 @@ function view(life,payload,capital){
       meta:`개인 업무 이야기 ${(s.storyChapter||0)+1}/${(PERSONAL_STORIES[p.id]||[]).length} · 업무 신뢰 ${Math.round(s.bond)} · 개인 신뢰 ${Math.round(s.trust)}`};
   }
   if(payload.kind==='temptation')return{
-    kind:payload.kind,profile:p,identity:who,icon:'📱',title:`${p.alias}의 심야 업무 연락`,
-    desc:'업무 이야기로 시작한 메시지가 노골적인 개인 약속으로 바뀌었습니다. 지금 선을 넘으면 우연한 만남으로 끝나지 않습니다.',
+    kind:payload.kind,profile:p,identity:who,icon:'⚔️',title:`${p.name}의 경쟁 선언`,
+    desc:`${payload.currentPartner||'다른 책임자'}와 사귀고 있다는 걸 알면서도 물러서지 않았습니다. 이 네 사람에게 연애는 합의형 공동 관계가 아니라, 서로가 당신을 빼앗으려는 업계 쟁탈전입니다.`,
     line:p.temptation,portrait:p.maskedScene,
     choices:[
-      {id:'boundary',text:'🧱 연인이 있다고 분명히 말하고 업무만 답한다',preview:'함정을 피하고 숨은 신뢰 상승'},
-      {id:'meet',text:'🌙 아무도 모르게 둘만 만나러 간다',preview:'확정 불륜 함정 · 관계 파탄 또는 금전 협박'},
+      {id:'boundary',text:`🧱 ${payload.currentPartner||'현재 연인'}과의 관계를 지킨다`,preview:'현재 관계 안정 · 유혹한 책임자의 경쟁심 상승'},
+      {id:'meet',text:`⚔️ ${p.name}의 손을 잡고 현재 관계를 끝낸다`,preview:'불륜 배드엔딩이 아니라 연인 교체 · 전 연인의 반격 사건이 시작됨'},
     ],
   };
   if(payload.kind==='reveal')return{
-    kind:payload.kind,profile:p,identity:who,icon:'🎭',title:`${p.alias}의 비공개 사업 미팅`,
-    desc:'네 사업이 연속 흑자를 내자 담당자가 업무 시간 밖의 회의를 요청했습니다. 늘 얼굴을 가리던 머리카락을 걷어내고 실명을 밝힙니다.',
+    kind:payload.kind,profile:p,identity:who,icon:'📇',title:`${p.name}의 개인 연락망`,
+    desc:'전속 계약 뒤 세 달 동안 흑자와 현장 대응을 함께 겪었습니다. 업무용 채널 밖에서도 연락할 만큼 신뢰할 수 있는지 묻는 조용한 자리입니다.',
     line:p.revealLine,
     portrait:p.scene,
     choices:[
-      {id:'meet',text:'☕ 이름을 저장하고 업무 밖에서도 만나 본다',preview:'얼굴·이름 공개 · 친구와 연락처에 추가'},
-      {id:'postpone',text:'📅 오늘은 사업 이야기만 하고 돌아간다',preview:'공개를 미룸 · 2개월 뒤 다시 가능'},
+      {id:'meet',text:'📱 개인 연락처를 교환하되 업무와 사생활의 선을 정한다',preview:'친구와 연락처에 추가 · 연애는 아직 열리지 않음'},
+      {id:'postpone',text:'📅 아직은 업무용 연락만 유지한다',preview:'개인 연락을 미룸 · 흑자를 이어가면 다시 가능'},
     ],
   };
   if(payload.kind==='solo-ending')return{
@@ -451,8 +476,8 @@ function resolve(life,payload,choiceId,capital){
   }
   if(payload.kind==='quartet-ending'){
     if(choiceId==='accept'){
-      state.quartetEnding={id:'four_directors',day:payload.day||1};
-      return{ok:true,done:true,quartet:true,title:'네 개의 명함',text:'네 사람은 서로의 약점을 견제하고 강점을 나눴습니다. 다섯 명의 공동대표이자 연인으로 만든 회사는 어느 한 사람의 소유가 아닌 공동의 삶이 됐습니다.'};
+      state.quartetEnding={id:'industry_competition_pact',day:payload.day||1};
+      return{ok:true,done:true,industryAlliance:true,title:'네 개의 명함',text:'네 사람은 연애 경쟁을 멈추지 않았지만 직원과 사업체를 공격 수단으로 쓰지 않는다는 협약에는 서명했습니다.'};
     }
     state.lastEventDay=Math.max(0,(payload.day||1)-2);
     return{ok:true,done:true,text:'네 사람과 동업 관계를 유지했습니다. 마음이 같다면 다음 흑자 보고 뒤에 다시 이야기가 나올 수 있습니다.'};
@@ -474,21 +499,18 @@ function resolve(life,payload,choiceId,capital){
   if(payload.kind==='temptation'){
     if(choiceId==='boundary'){
       s.boundaryKept=true;s.bond=clamp(s.bond+10,0,100);s.trust=clamp(s.trust+14,0,100);
-      return{ok:true,done:true,text:p.boundary,tone:'good'};
+      return{ok:true,done:true,rivalRefused:true,staffId:p.id,currentPartner:payload.currentPartner,text:`${p.boundary} 하지만 ${p.name}은 포기했다기보다 다음 기회를 계산하는 눈치입니다.`,tone:'good'};
     }
     if(choiceId==='meet'){
-      s.trapTriggered=true;s.bond=clamp(s.bond+6,0,100);s.trust=0;
-      if(p.trap==='blackmail'){
-        const loss=Math.max(p.blackmailMin,Math.min(p.blackmailMax,Math.round(Math.max(0,finite(capital,0))*p.blackmailRate)));
-        return{ok:true,done:true,badEnding:true,blackmail:true,cash:-loss,title:p.trapTitle,text:p.trapText,tone:'bad'};
-      }
-      return{ok:true,done:true,badEnding:true,breakupAll:true,title:p.trapTitle,text:p.trapText,tone:'bad'};
+      s.bond=clamp(s.bond+12,0,100);s.trust=clamp(s.trust+8,0,100);
+      return{ok:true,done:true,rivalTakeover:true,staffId:p.id,currentPartner:payload.currentPartner,
+        character:asCharacter(p.id),title:'빼앗긴 자리',text:`${p.name}은 숨어 만나는 관계를 거부하고, 당신이 먼저 기존 관계를 끝내게 했습니다. ${payload.currentPartner||'전 연인'}은 물러나지 않았고 다음 사업 보고부터 두 사람의 경쟁이 노골적으로 시작됩니다.`,tone:'bad'};
     }
   }
   if(payload.kind==='reveal'){
     if(choiceId==='meet'){
       s.revealed=true;s.revealDay=payload.day||1;s.bond=clamp(s.bond+12,0,100);s.trust=clamp(s.trust+10,0,100);
-      return{ok:true,done:true,revealed:true,character:asCharacter(p.id),affection:Math.max(24,Math.round(s.bond*.55)),trust:Math.max(12,Math.round(s.trust)),text:`${p.name}의 얼굴과 이름이 연락처에 저장됐습니다. 이제 업무 밖의 외출과 데이트가 열립니다.`,tone:'good'};
+      return{ok:true,done:true,revealed:true,character:asCharacter(p.id),affection:Math.max(10,Math.round(s.bond*.28)),trust:Math.max(12,Math.round(s.trust)),text:`${p.name}의 개인 연락처가 저장됐습니다. 당분간은 친구로 만나며 세 번의 개인 업무 이야기를 거쳐야 연애 가능성이 열립니다.`,tone:'good'};
     }
     state.profitableStreak=Math.max(0,state.profitableStreak-2);
     return{ok:true,done:true,text:`${p.alias}와 사업 이야기만 나눴습니다. 흑자를 이어가면 다시 개인 연락이 올 수 있습니다.`,tone:'neutral'};
@@ -505,15 +527,14 @@ function resolve(life,payload,choiceId,capital){
 }
 function endingSummary(life){
   const state=ensure(life);
-  if(state.quartetEnding)return'🏢 사업 담당자 4인 세트 엔딩 · 네 개의 명함';
   return IDS.map(id=>state.staff[id].ending&&`${PROFILES[id].emoji} ${PROFILES[id].name} 순애 엔딩`).filter(Boolean).join(' · ');
 }
 function progressSummary(life){
   const state=ensure(life),q=state.quartet;
   const personal=IDS.reduce((sum,id)=>sum+(state.staff[id].storyChapter||0),0);
-  return{personal,total:IDS.length*2,chapter:q.chapter,chapters:QUARTET_CHAPTERS.length,
+  return{personal,total:IDS.length*3,chapter:state.rivalChapter,chapters:3,
     synergy:Math.round(q.synergy),governance:Math.round(q.governance),boundary:Math.round(q.boundary)};
 }
 
-root.QT_BUSINESS_ROMANCE={PROFILES,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,applyDecision,monthly,view,resolve,endingSummary,progressSummary};
+root.QT_BUSINESS_ROMANCE={PROFILES,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,introduce,recruit,canRomance,applyDecision,monthly,view,resolve,endingSummary,progressSummary};
 })(window);

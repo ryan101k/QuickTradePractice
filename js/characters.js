@@ -26,18 +26,23 @@ const PERSONALITIES = {
  * '-v2-' 는 표정별로 새로 그린 640px 버전이 있는 인물. */
 const CHARACTERS = [
   { name: '서연', gender: 'f', emoji: '👩', job: '디자이너', income: 8000000, personality: 'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.30, portrait: 'seoyeon-v2-neutral.webp' },
-  { name: '하은', gender: 'f', emoji: '👩', job: '간호사', income: 9000000, personality: 'frugal', moneyStyle:'support', datingMoneyRate:.04, marriedShareRate:.38, portrait: 'haeun-v2-neutral.webp' },
   { name: '예린', gender: 'f', emoji: '👩', job: '공무원', income: 7000000, personality: 'homebody', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.34, portrait: 'yerin-v2-neutral.webp' },
   { name: '채원', gender: 'f', emoji: '👩', job: '승무원', income: 10000000, personality: 'lavish', moneyStyle:'dependent', datingMoneyRate:-.08, marriedShareRate:.20, portrait: 'chaewon-v2-neutral.webp' },
   { name: '유나', gender: 'f', emoji: '👩', job: '모델', income: 11000000, personality: 'free', moneyStyle:'dependent', datingMoneyRate:-.12, marriedShareRate:.15, portrait: 'yuna-v2-neutral.webp' },
-  { name: '수아', gender: 'f', emoji: '👩', job: '교사', income: 7500000, personality: 'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.33, portrait: 'sua-v2-neutral.webp' },
   { name: '보라', gender: 'f', emoji: '👩', job: '약사', income: 13000000, personality: 'homebody', moneyStyle:'support', datingMoneyRate:.05, marriedShareRate:.40, portrait: 'bora-v2-neutral.webp' },
-  { name:'다은', gender:'f', emoji:'👩‍🍳', job:'파티시에', income:8000000, personality:'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.32, portrait:'daeun-portrait.png' },
-  { name:'혜진', gender:'f', emoji:'👩‍🔬', job:'연구원', income:12000000, personality:'cold', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.38, portrait:'hyejin-portrait.png' },
   { name:'소희', gender:'f', emoji:'🎻', job:'연주자', income:8500000, personality:'free', moneyStyle:'dependent', datingMoneyRate:-.05, marriedShareRate:.20, portrait:'sohee-portrait.png' },
-  { name:'아린', gender:'f', emoji:'📚', job:'편집자', income:9000000, personality:'homebody', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.35, portrait:'arin-portrait.png' },
   { name:'나영', gender:'f', emoji:'🏋️‍♀️', job:'트레이너', income:10000000, personality:'ambitious', moneyStyle:'support', datingMoneyRate:.03, marriedShareRate:.36, portrait:'nayoung-v2-portrait.png' },
   { name:'미래', gender:'f', emoji:'🎮', job:'게임 기획자', income:11000000, personality:'frugal', moneyStyle:'support', datingMoneyRate:.03, marriedShareRate:.37, portrait:'mirae-portrait.png' },
+];
+
+/* 기획만 있던 두 세트의 인물은 연애 풀에서 제외한다.
+ * 만들어 둔 초상화는 버리지 않고 평판에 따라 나타나는 세력 네임드 직원으로 사용한다. */
+const FACTION_SUPPORT_NPCS = [
+  {id:'faction-haeun',name:'하은',gender:'f',emoji:'🩺',job:'현장 의무지원 간호사',portrait:'haeun-v2-neutral.webp',role:'medical',side:'ally',recruitable:true,minLevel:2,cost:4500000,upkeep:320000,loyalty:78,stats:{defense:.01,medical:18,income:250000},desc:'부상자를 먼저 살피고 장기 이탈을 줄이는 현장 의무지원 담당.'},
+  {id:'faction-sua',name:'수아',gender:'f',emoji:'🏫',job:'교육·조정 담당',portrait:'sua-v2-neutral.webp',role:'operations',side:'ally',recruitable:true,minLevel:2,cost:4000000,upkeep:280000,loyalty:82,stats:{defense:.02,legal:5,income:450000},desc:'신입 교육과 민원 조정을 맡아 세력의 사고를 줄이는 실무자.'},
+  {id:'faction-daeun',name:'다은',gender:'f',emoji:'🧁',job:'거점 보급 책임자',portrait:'daeun-portrait.png',role:'operations',side:'ally',recruitable:true,minLevel:1,cost:3500000,upkeep:260000,loyalty:80,stats:{defense:.01,income:850000},desc:'거점 식음·보급망을 운영해 안정적인 현금 흐름과 사기를 책임진다.'},
+  {id:'faction-hyejin',name:'혜진',gender:'f',emoji:'🔬',job:'분석·증거 보전 연구원',portrait:'hyejin-portrait.png',role:'intel',side:'ally',recruitable:true,minLevel:3,cost:7000000,upkeep:420000,loyalty:68,stats:{intel:.11,legal:8,income:500000},desc:'자료의 진위를 검증하고 공격 흔적을 증거로 보전하는 분석 담당.'},
+  {id:'faction-arin',name:'아린',gender:'f',emoji:'📚',job:'기록·대외문서 편집자',portrait:'arin-portrait.png',role:'intel',side:'ally',recruitable:true,minLevel:2,cost:4800000,upkeep:300000,loyalty:75,stats:{intel:.07,legal:4,income:550000},desc:'보고서와 대외 메시지를 다듬어 정보전과 평판 방어를 돕는다.'},
 ];
 
 /* 남성 인물은 연애 로스터와 분리한다.
@@ -52,6 +57,7 @@ const WORLD_MALE_NPCS = [
   { id:'taeyang', name:'태양', gender:'m', emoji:'🦁', job:'태양캐피탈 대표', portrait:'taeyang-v2-neutral.webp', role:'leader', side:'rival', recruitable:false, stats:{defense:.12,intel:.08}, desc:'돈과 사람을 함께 사들이는 공격적인 경쟁 세력 수장.' },
   { id:'hantaeseok', name:'한태석', gender:'m', emoji:'🤜', job:'의리파 해결사', portrait:'hantaeseok-neutral.png', role:'guardian', side:'special', recruitable:true, minLevel:4, minWins:3, cost:15000000, upkeep:250000, loyalty:95, stats:{defense:.22,intel:.05,legal:8,medical:5,income:300000}, desc:'쉽게 마음을 열지 않지만 한번 사람으로 인정하면 감옥·빚·위기에서 끝까지 책임지는 특별 아군.' },
 ];
+const WORLD_FACTION_NPCS = WORLD_MALE_NPCS.concat(FACTION_SUPPORT_NPCS);
 
 /* 구버전 세이브 호환 — 이름이 바뀐 인물(초상화 성별과 맞추느라 교체) */
 const CHARACTER_NAME_MIGRATIONS = { '준서': '수아' };
@@ -122,3 +128,5 @@ const DATE_LINES = {
     '계산할 때 분위기가 급격히 식었다.',
   ],
 };
+
+window.QT_CHARACTER_ROSTER={CHARACTERS,WORLD_MALE_NPCS,WORLD_FACTION_NPCS,FACTION_SUPPORT_NPCS,SPECIAL_CHARACTERS};

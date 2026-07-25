@@ -5,6 +5,11 @@ const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 const finite=(value,fallback)=>Number.isFinite(Number(value))?Number(value):fallback;
 
 const STAFF={
+  internal:{
+    id:'internal',name:'내부 운영팀',role:'사업 운영 담당',emoji:'🧑‍💼',
+    portrait:'mob-faction-intel.png',
+    intro:'사업 설립과 동시에 배치되는 일반 운영팀입니다. 특별 책임자는 사교 모임에서 소개받은 뒤 별도로 영입할 수 있습니다.',
+  },
   corporate:{
     id:'corporate',name:'차서윤',role:'재무·계약 총괄',emoji:'📑',
     portrait:'mob-corporate.png',
@@ -224,24 +229,35 @@ function ensure(life){
   state.lastEventDay=Math.max(0,Math.floor(finite(state.lastEventDay,0)));
   state.sequence=Math.max(0,Math.floor(finite(state.sequence,0)));
   state.lastNet=Math.round(finite(state.lastNet,0));
-  state.owned=state.owned.filter(item=>item&&typeOf(item.typeId)).map(item=>({
-    id:item.id||item.typeId,
-    typeId:item.typeId,
-    managerId:item.managerId||typeOf(item.typeId).managerId,
-    level:clamp(Math.floor(finite(item.level,1)),1,5),
-    months:Math.max(0,Math.floor(finite(item.months,0))),
-    reputation:clamp(finite(item.reputation,45),0,100),
-    morale:clamp(finite(item.morale,65),0,100),
-    momentum:clamp(finite(item.momentum,0),-.35,.50),
-    strategy:strategyOf(item.strategy).id,
-    employees:clamp(Math.floor(finite(item.employees,2)),2,22),
-    hiredStaff:Array.isArray(item.hiredStaff)?item.hiredStaff.filter(Boolean).slice(0,20):[],
-    totalProfit:Math.round(finite(item.totalProfit,0)),
-    lastSales:Math.round(finite(item.lastSales,0)),
-    lastCost:Math.round(finite(item.lastCost,0)),
-    lastNet:Math.round(finite(item.lastNet,0)),
-    startedDay:Math.max(1,Math.floor(finite(item.startedDay,1))),
-  }));
+  state.owned=state.owned.filter(item=>item&&typeOf(item.typeId));
+  state.owned.forEach(item=>{
+    const type=typeOf(item.typeId);
+    const explicitSpecial=item.specialManagerId&&STAFF[item.specialManagerId]&&item.specialManagerId!=='internal'
+      ?item.specialManagerId:null;
+    // 과거 저장은 사업 종류만으로 네 명을 자동 배치했다. 새 구조에서는 일반
+    // 운영팀으로 이관하고, 사교 모임을 통해 실제 영입한 경우에만 특별 책임자를 둔다.
+    const managerId=explicitSpecial||'internal';
+    Object.assign(item,{
+      id:item.id||item.typeId,
+      typeId:item.typeId,
+      sectorId:item.sectorId||type.managerId,
+      managerId,
+      specialManagerId:explicitSpecial,
+      level:clamp(Math.floor(finite(item.level,1)),1,5),
+      months:Math.max(0,Math.floor(finite(item.months,0))),
+      reputation:clamp(finite(item.reputation,45),0,100),
+      morale:clamp(finite(item.morale,65),0,100),
+      momentum:clamp(finite(item.momentum,0),-.35,.50),
+      strategy:strategyOf(item.strategy).id,
+      employees:clamp(Math.floor(finite(item.employees,2)),2,22),
+      hiredStaff:Array.isArray(item.hiredStaff)?item.hiredStaff.filter(Boolean).slice(0,20):[],
+      totalProfit:Math.round(finite(item.totalProfit,0)),
+      lastSales:Math.round(finite(item.lastSales,0)),
+      lastCost:Math.round(finite(item.lastCost,0)),
+      lastNet:Math.round(finite(item.lastNet,0)),
+      startedDay:Math.max(1,Math.floor(finite(item.startedDay,1))),
+    });
+  });
   return state;
 }
 function owned(life,id){return ensure(life).owned.find(item=>item.id===id||item.typeId===id)||null;}
@@ -250,7 +266,7 @@ function start(life,typeId,day){
   if(!type)return{ok:false,message:'알 수 없는 사업입니다.'};
   if(owned(life,typeId))return{ok:false,message:'이미 운영 중인 사업입니다.'};
   const item={
-    id:type.id,typeId:type.id,managerId:type.managerId,level:1,months:0,
+    id:type.id,typeId:type.id,sectorId:type.managerId,managerId:'internal',specialManagerId:null,level:1,months:0,
     employees:2,hiredStaff:[],
     reputation:45,morale:65,momentum:0,strategy:'balanced',totalProfit:0,lastSales:0,lastCost:0,lastNet:0,
     startedDay:Math.max(1,Math.floor(finite(day,1))),
@@ -278,9 +294,25 @@ function staffEffect(item){
   hired.forEach(id=>{const profile=staffProfile(id);salesBonus+=profile.sales;wages+=profile.wage;});
   const untracked=Math.max(0,staffExtra-hired.length);
   salesBonus+=untracked*.14;wages+=untracked*180000;
+  if(item.specialManagerId){salesBonus+=.10;wages+=900000;}
   // 이력서 후보 수와 사업 단계의 정원이 이미 증원을 제한한다. 여기서 다시 상한을
   // 씌우면 마지막 채용은 매출 기여가 사라지고 인건비만 늘어나는 역전이 생긴다.
   return{salesBonus,wages,tracked:hired.length};
+}
+function compatibleManager(item,staffId){
+  const type=item&&typeOf(item.typeId);
+  return !!(type&&STAFF[staffId]&&staffId!=='internal'&&type.managerId===staffId);
+}
+function assignSpecialManager(life,id,staffId){
+  const state=ensure(life),item=state.owned.find(entry=>entry.id===id||entry.typeId===id);
+  if(!item)return{ok:false,message:'운영 중인 사업을 찾지 못했습니다.'};
+  if(!compatibleManager(item,staffId))return{ok:false,message:'이 책임자의 전문 업종과 맞지 않는 사업체입니다.'};
+  const occupied=state.owned.find(entry=>entry.specialManagerId===staffId&&entry.id!==item.id);
+  if(occupied)return{ok:false,message:'이 책임자는 이미 다른 사업체를 맡고 있습니다.'};
+  item.managerId=staffId;item.specialManagerId=staffId;
+  item.morale=clamp(item.morale+5,0,100);
+  item.momentum=clamp(item.momentum+.04,-.35,.50);
+  return{ok:true,business:item,manager:staffOf(staffId),type:typeOf(item.typeId)};
 }
 function hire(life,id,candidateId){
   const item=owned(life,id),type=item&&typeOf(item.typeId);
@@ -349,7 +381,7 @@ function reportLine(item){
   return`${manager.name}: “이번 달은 적자입니다. 숫자를 숨기지 않겠습니다. 다음 판단이 중요합니다.”`;
 }
 function eventPayload(life,item,day,random){
-  const pool=(EVENTS[item.typeId]||[]).concat(MANAGER_EVENTS[item.managerId]||[]);
+  const pool=(EVENTS[item.typeId]||[]).concat(MANAGER_EVENTS[item.sectorId]||[]);
   if(!pool.length)return null;
   const event=pool[Math.floor(random()*pool.length)]||pool[0];
   return{businessEvent:true,businessId:item.id,eventId:event.id,day};
@@ -390,7 +422,7 @@ function monthly(life,context){
   return{sales:totalSales,cost:totalCost,net:totalNet,reports,event:pendingEvent};
 }
 function findEvent(item,eventId){
-  return(EVENTS[item.typeId]||[]).concat(MANAGER_EVENTS[item.managerId]||[]).find(event=>event.id===eventId)||null;
+  return(EVENTS[item.typeId]||[]).concat(MANAGER_EVENTS[item.sectorId]||[]).find(event=>event.id===eventId)||null;
 }
 function eventView(life,payload){
   const item=owned(life,payload&&payload.businessId);
@@ -425,5 +457,6 @@ root.QT_BUSINESS={
   STAFF,STRATEGIES,TYPES,EVENTS,MANAGER_EVENTS,ensure,typeOf,staffOf,strategyOf,portraitPath,owned,start,expand,expansionCost,
   resaleValue,close,assetValue,projected,monthly,eventView,resolveEvent,
   staffCapacity,hireCost,staffProfile,staffEffect,hire,setStrategy,
+  compatibleManager,assignSpecialManager,
 };
 })(window);

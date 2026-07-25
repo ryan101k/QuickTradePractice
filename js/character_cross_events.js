@@ -5,6 +5,7 @@
 'use strict';
 
 const ACTIVE = new Set(['friend', 'casual', 'partner', 'lover', 'polycule']);
+const RETIRED_HEROINES = new Set(['하은','수아','다은','혜진','아린']);
 const met = (life, name) => (life.met || []).find(person => person.name === name);
 const active = (life, name) => {
   const person = met(life, name);
@@ -154,12 +155,12 @@ function ensure(life) {
   if (!Number.isFinite(life.crossEvents.cooldown)) life.crossEvents.cooldown = 0;
   return life.crossEvents;
 }
-function get(id) { return EVENTS.find(event => event.id === id) || null; }
+function get(id) { return EVENTS.find(event => event.id === id&&!event.people.some(name=>RETIRED_HEROINES.has(name))) || null; }
 function monthly(life) {
   const state = ensure(life);
   if (state.pending) return get(state.pending);
   if (state.cooldown > 0) { state.cooldown--; return null; }
-  const eligible = EVENTS.filter(event => !state.seen[event.id] && event.condition(life));
+  const eligible = EVENTS.filter(event => !event.people.some(name=>RETIRED_HEROINES.has(name))&&!state.seen[event.id] && event.condition(life));
   if (!eligible.length || Math.random() > .42) return null;
   const event = eligible[Math.floor(Math.random() * eligible.length)];
   state.pending = event.id;

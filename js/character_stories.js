@@ -1,5 +1,6 @@
 /* QuickTrade Life — 전 캐릭터 개인 스토리 엔진 */
 (function(root){'use strict';
+const RETIRED_HEROINES=new Set(['하은','수아','다은','혜진','아린']);
 const ARCS={
  '서연':['마감 뒤의 빈 작업실','표절 시비','둘만의 전시회','일과 사랑 사이에서 자기 이름을 지키려 한다.'],
  '하은':['끝나지 않는 야간근무','병동의 민원','쉬어도 되는 날','모두를 돌보느라 자신을 잊은 사람이 도움을 받는 법을 배운다.'],
@@ -30,7 +31,12 @@ const WORLD_ARCS={
  '수빈':{side:'rival',role:'media',chapters:['썸네일 속 내 이름','조작된 생방송','꺼지지 않는 카메라'],theme:'여론과 폭로를 무기로 세력의 약점을 파고든다.'},
  '태양':{side:'rival',role:'leader',chapters:['대규모 공개매수','내부 인재 사냥','태양캐피탈 포위전'],theme:'돈과 평판으로 경쟁 세력을 흡수하는 핵심 라이벌이다.'},
  '장태식':{side:'enemy',role:'collector',chapters:['목숨값 장부','비어 있는 수금 칸','찢어진 차용증'],theme:'빚과 공포로 움직이는 추심 세력의 수장이다.'},
- '한태석':{side:'special',role:'guardian',chapters:['세 번의 거절','감옥 문 앞의 약속','사람으로 갚는 빚'],theme:'친해지기는 어렵지만 인정한 사람은 끝까지 책임지는 대협형 특별 아군이다.'}
+ '한태석':{side:'special',role:'guardian',chapters:['세 번의 거절','감옥 문 앞의 약속','사람으로 갚는 빚'],theme:'친해지기는 어렵지만 인정한 사람은 끝까지 책임지는 대협형 특별 아군이다.'},
+ '하은':{side:'ally',role:'medical',chapters:['응급 처치 교육','부상자 후송로','쉬어도 되는 의무실'],theme:'세력원이 무리해서 쓰러지지 않도록 현장 의료 체계를 만든다.'},
+ '수아':{side:'ally',role:'operations',chapters:['신입 교육표','민원 조정 회의','사고 없는 거점'],theme:'사람을 소모품으로 쓰지 않는 교육과 조정 규칙을 만든다.'},
+ '다은':{side:'ally',role:'operations',chapters:['비어 있는 보급창고','거점의 첫 식사','사람이 모이는 가게'],theme:'보급과 작은 매장을 통해 세력의 생활 기반을 지킨다.'},
+ '혜진':{side:'ally',role:'intel',chapters:['조작된 자료','증거 보전실','반박할 수 없는 기록'],theme:'추측이 아닌 검증 가능한 증거로 정보전을 방어한다.'},
+ '아린':{side:'ally',role:'intel',chapters:['흐린 보고서','왜곡된 보도자료','세력의 공식 기록'],theme:'말과 기록이 공격의 빌미가 되지 않도록 대외 문서를 책임진다.'}
 };
 const MIN=[18,42,68,78,88];
 const C=(id,text,preview,affection,trust,obsession,tone,reaction,effects,trait)=>({id,text,preview,affection,trust,obsession,tone,reaction,effects,trait});
@@ -170,6 +176,7 @@ function authoredFor(personOrName){
 }
 function get(personOrName){
  const name=typeof personOrName==='string'?personOrName:personOrName&&personOrName.name;
+ if(RETIRED_HEROINES.has(name))return null;
  const a=ARCS[name];if(!a)return null;const authored=authoredFor(personOrName);
  const titles=a.slice(0,3),chapterCount=authored?authored.length:3;
  return{name,theme:a[3],chapters:Array.from({length:chapterCount},(_,i)=>{
