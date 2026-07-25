@@ -12,6 +12,7 @@
 }
 
 * { box-sizing: border-box; }
+button, a, input, select, [role="button"] { touch-action: manipulation; }
 
 body {
   margin: 0;
@@ -95,6 +96,7 @@ body {
 .chat-unread { min-width:18px; height:18px; border-radius:9px; background:#c22; color:#fff; text-align:center; line-height:18px; font-weight:bold; }
 .chat-room { display:flex; flex-direction:column; gap:6px; }
 .relationship-scene { width:100%; max-height:150px; object-fit:cover; border:2px inset #fff; image-rendering:auto; }
+img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixelated; }
 .chat-log { min-height:220px; max-height:330px; overflow:auto; padding:7px; background:#d9e8d4; border:2px inset #fff; }
 .chat-bubble { max-width:84%; margin:5px 0; padding:6px 8px; border:1px solid #777; background:#fff; box-shadow:1px 1px #888; }
 .chat-bubble.mine { margin-left:auto; background:#fff59d; }
@@ -676,6 +678,7 @@ body {
 .life-workspace-launchers button { display:grid; grid-template-columns:auto 1fr; grid-template-rows:auto auto; gap:1px 7px; align-items:center; padding:9px; border:1px solid #8295b6; background:linear-gradient(#fff,#e5ecf7); text-align:left; }
 .life-workspace-launchers span { grid-row:1/3; font-size:25px; }.life-workspace-launchers b { font-size:12px; }.life-workspace-launchers small { color:#667085; font-size:9px; }
 .life-workspace-layer { position:fixed; inset:0; z-index:1100; display:grid; place-items:center; padding:18px; background:rgba(17,25,39,.72); }
+.life-workspace-layer[hidden], .phone-notification-stage[hidden] { display:none !important; pointer-events:none !important; }
 .life-workspace-window { overflow:hidden; width:min(1080px,100%); height:min(760px,calc(100dvh - 36px)); border:2px outset #dce5f3; background:#edf1f7; box-shadow:0 12px 35px rgba(0,0,0,.42); }
 .life-workspace-window > header { display:flex; justify-content:space-between; align-items:center; min-height:54px; padding:7px 9px; color:#fff; background:linear-gradient(90deg,#143d79,#2d68a8); }
 .life-workspace-window > header > div { display:grid; grid-template-columns:auto 1fr; gap:1px 8px; align-items:center; }.life-workspace-window > header span { grid-row:1/3; font-size:27px; }.life-workspace-window > header b { font-size:15px; }.life-workspace-window > header small { color:#dcecff; font-size:10px; }
@@ -873,6 +876,7 @@ body {
   .col-right .tab-body { height: 260px; }
 }
 @media (max-width: 560px) {
+  html, body { touch-action: pan-y pinch-zoom; }
   body { padding: 3px; padding-bottom: env(safe-area-inset-bottom); }
   .status-strip .stat { min-width: 46%; flex: 1 1 46%; }
   .status-strip .stat:last-child { flex-basis:100%; }

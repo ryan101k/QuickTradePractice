@@ -1722,7 +1722,7 @@ function settleMonth() {
     rivalNews.push(`⚔️ [나 대상] ${attack.message}`);
     addNews(`⚔️ ${attack.message}`, defended ? 'good' : 'bad');
     flashToast(`⚔️ ${attack.message}`, defended ? 'good' : 'bad');
-    queueImportantEvent({ type:'faction', scene:'./assets/life-faction-war.png', icon:defended?'🛡️':'⚔️', title:'라이벌이 나를 노렸습니다', desc:attack.message, detail:attack.caught ? '상대의 공작이 적발되어 직접 피해를 피했습니다.' : attack.blocked ? '내 세력이 공격을 포착하고 피해를 완전히 막았습니다.' : `직접 손실 ${won(attack.loss || 0)}원이 반영됐습니다.`, tone:defended ? 'good' : 'bad' });
+    queueImportantEvent({ type:'faction', scene:'./assets/pixel-event-faction-court-v1.png', icon:defended?'🛡️':'⚔️', title:'라이벌이 나를 노렸습니다', desc:attack.message, detail:attack.caught ? '상대의 공작이 적발되어 직접 피해를 피했습니다.' : attack.blocked ? '내 세력이 공격을 포착하고 피해를 완전히 막았습니다.' : `직접 손실 ${won(attack.loss || 0)}원이 반영됐습니다.`, tone:defended ? 'good' : 'bad' });
   }
   queueFactionStoryProgress();
   queueFactionRankEnding();
@@ -2336,17 +2336,21 @@ function startNextGeneration() {
 /* ---- 선택지 이벤트 (직업/연애/빚/일상) ---- */
 const EVENT_CAT = { job: '직업', love: '연애', debt: '빚', life: '일상', family: '자녀·가족', business:'사업' };
 const LIFE_SCENE_IMAGES = {
-  job: './assets/life-career.png',
-  love: './assets/life-relationship-conflict.png',
-  debt: './assets/life-property.png',
-  life: './assets/life-network.png',
-  family: './assets/life-family-turning-point.png',
-  business: './assets/life-network.png',
-  faction: './assets/life-faction-war.png',
-  incident: './assets/life-incident.png',
-  property: './assets/life-property.png',
-  court: './assets/life-court.png',
-  network: './assets/life-network.png',
+  market: './assets/pixel-event-market-v1.png',
+  job: './assets/pixel-event-career-v1.png',
+  career: './assets/pixel-event-career-v1.png',
+  love: './assets/pixel-event-love-conflict-v1.png',
+  debt: './assets/pixel-event-debt-property-v1.png',
+  home: './assets/pixel-event-debt-property-v1.png',
+  property: './assets/pixel-event-market-v1.png',
+  life: './assets/pixel-event-family-life-v1.png',
+  family: './assets/pixel-event-family-life-v1.png',
+  network: './assets/pixel-event-family-life-v1.png',
+  business: './assets/pixel-event-business-v1.png',
+  faction: './assets/pixel-event-faction-court-v1.png',
+  court: './assets/pixel-event-faction-court-v1.png',
+  incident: './assets/pixel-event-health-incident-v1.png',
+  health: './assets/pixel-event-health-incident-v1.png',
 };
 function lifeSceneImage(key) { return LIFE_SCENE_IMAGES[key] || LIFE_SCENE_IMAGES.life; }
 function queueImportantEvent(event) {
@@ -3502,10 +3506,21 @@ function ensureChildhoodCircleCast(){
     return rec;
   }).filter(Boolean);
 }
+function childhoodCircleNarrative(state){
+  if(!state)return{title:'오래된 인연',detail:'다섯의 관계가 아직 모습을 드러내지 않았습니다.',tone:''};
+  if(state.route==='never_graduate')return{title:'끝나지 않은 졸업식',detail:'다섯이 현재보다 학창 시절의 당신을 더 진짜라고 여기며 일상에 깊이 들어와 있습니다.',tone:'down'};
+  if(state.route==='old_promise')return{title:'오래된 약속',detail:'추억은 소유권이 아니라 서로의 현재를 이해하는 단서로 남았습니다.',tone:'up'};
+  if(state.route==='cut_past')return{title:'닫힌 졸업앨범',detail:'다섯과의 오래된 관계를 추억으로만 남기고 각자의 현재로 돌아갔습니다.',tone:'muted'};
+  if((state.pressure||0)>=75)return{title:'과거가 현재를 덮는 중',detail:'연락과 간섭이 촘촘해지고, 다섯은 예전의 생활 규칙을 다시 적용하려 합니다.',tone:'down'};
+  if((state.pressure||0)>=45)return{title:'되살아난 옛 규칙',detail:'다섯이 서로의 기록을 맞추며 당신의 현재 생활에 자주 관여합니다.',tone:''};
+  if(state.stage==='pact')return{title:'현재와 과거의 경계',detail:'오래 알았다는 사실을 어디까지 관계의 권리로 인정할지 정해야 합니다.',tone:''};
+  if(state.stage==='reunited')return{title:'다시 가까워진 다섯',detail:'학창 시절 친구들이 어른이 된 서로의 현재를 다시 알아가고 있습니다.',tone:'up'};
+  return{title:'복구된 단체방',detail:'끊겼던 연락이 돌아오며 오래된 친구들이 하나둘 모이기 시작했습니다.',tone:''};
+}
 function showChildhoodCircleEvent(eventId){
   const view=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.event(eventId),host=$('life-event');
   if(!view||!host){showNextImportantEvent();return;}
-  const people=ensureChildhoodCircleCast(),state=CHILDHOOD_CIRCLE.ensure(S.life);
+  const people=ensureChildhoodCircleCast(),state=CHILDHOOD_CIRCLE.ensure(S.life),mood=childhoodCircleNarrative(state);
   S._childhoodCircleEvent=eventId;
   const speakers=view.speakers.map(([name,line])=>{
     const person=people.find(item=>item.name===name);
@@ -3516,7 +3531,7 @@ function showChildhoodCircleEvent(eventId){
     <div class="title-bar event-bar"><div class="title-bar-text">${view.icon} 졸업하지 못한 다섯 · ${view.title}</div></div>
     <div class="window-body">
       <img class="life-scene-banner" src="${view.scene}" alt="${view.title} 이벤트 장면">
-      <div class="trio-meter"><span>회귀 압력</span><b class="${state.pressure>=60?'down':''}">${Math.round(state.pressure)}/100</b><span>현재 신뢰</span><b class="${state.trust>=45?'up':''}">${Math.round(state.trust)}/100</b></div>
+      <div class="important-event-detail ${mood.tone}"><b>${mood.title}</b><br>${mood.detail}</div>
       <div class="event-desc">${view.desc}</div>
       <div class="trio-dialogues">${speakers}</div>
       <div class="event-options">${view.choices.map(choice=>`<button class="event-opt" data-childhood-choice="${choice.id}">${choice.text}<span class="opt-sub">${choice.preview}</span></button>`).join('')}</div>
@@ -3572,7 +3587,8 @@ function resolveChildhoodCircleEvent(choiceId){
     :choice.id==='rewind'?'다섯은 각자 자신이 가장 정상이라고 주장하면서도, 주인공을 예전 자리로 돌려놓는 일에는 완벽하게 합의했습니다.'
     :'단체방 알림이 차례로 꺼졌습니다. 아무도 붙잡지 않았지만 다섯 모두 마지막 접속 시간을 확인했습니다.';
   const out=$('childhood-circle-outcome'),options=out&&out.parentElement.querySelector('.event-options');if(options)options.innerHTML='';
-  out.innerHTML=`<div class="oc-text">${reaction}</div><div class="oc-changes">다섯의 호감 ${choice.affection>=0?'+':''}${choice.affection} · 현재 신뢰 ${choice.trust>=0?'+':''}${choice.trust} · 회귀 압력 ${choice.pressure>=0?'+':''}${choice.pressure}</div>${ending}<button id="childhood-circle-confirm" class="session-btn opening">확인</button>`;
+  const changedMood=childhoodCircleNarrative(state);
+  out.innerHTML=`<div class="oc-text">${reaction}</div><div class="oc-changes ${changedMood.tone}"><b>${changedMood.title}</b> · ${changedMood.detail}</div>${ending}<button id="childhood-circle-confirm" class="session-btn opening">확인</button>`;
   addNews(`${view.icon} 졸업하지 못한 다섯 · ${view.title}`,choice.id==='rewind'?'bad':choice.id==='present'?'good':'neutral');
   $('childhood-circle-confirm').addEventListener('click',()=>{
     const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
@@ -3915,7 +3931,7 @@ function monthlyChildhoodCircleBond(L){
       const watcher=pick(people),line=CHILDHOOD_CIRCLE.line(watcher,'incoming');
       if(line){pushPersonMessage(L,watcher,line,false);addNews(`📱 ${watcher.name}: ${line}`,'neutral');}
     }
-    if(state.pressure>=85)addNews('🧷 회귀 압력이 위험 수준입니다. 다섯은 현재의 선택보다 학창 시절의 습관을 더 진짜로 취급합니다','bad');
+    if(state.pressure>=85)addNews('🧷 다섯의 연락과 간섭이 일상을 덮기 시작했습니다. 현재의 선택보다 학창 시절의 습관을 더 진짜로 취급합니다','bad');
   }else if(bond.route==='old_promise'){
     state.pressure=clamp(state.pressure-3,0,100);
     state.trust=clamp(state.trust+2,0,100);
@@ -6128,7 +6144,8 @@ function storyProgressHTML(L) {
     return `<div class="story-progress-card"><strong>${r.emoji||'📖'} ${r.name}</strong><div><div class="story-track" aria-label="${r.name} 개인 스토리 ${state.chapter}/3">${bars}</div><small>${state.completed?`완결 · ${title}`:next?`${state.chapter+1}장 진행 가능 · ${title}`:`${state.chapter+1}장 ${title} · 호감 ${story.chapters[state.chapter].min} 필요`}</small></div></div>`;
   });
   const circle=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.ensure(L);
-  const circleRow=circle&&circle.anchor?`<div class="story-progress-card childhood-circle-progress"><strong>🎓 졸업하지 못한 다섯</strong><div><small>${circle.route==='never_graduate'?'끝나지 않은 졸업식 · 전원 연인':circle.route==='old_promise'?'오래된 약속 · 전원 연인':circle.route==='cut_past'?'닫힌 졸업앨범 · 루트 종료':`${circle.stage==='anchor'?'소꿉친구 재회 대기':circle.stage==='reunited'?'다섯 명의 우정 형성 중':circle.stage==='pact'?'마지막 졸업식 조건 준비 중':'오래된 관계가 흔들리는 중'} · 회귀 압력 ${Math.round(circle.pressure)}/100 · 현재 신뢰 ${Math.round(circle.trust)}/100`}</small></div></div>`:'';
+  const circleMood=childhoodCircleNarrative(circle);
+  const circleRow=circle&&circle.anchor?`<div class="story-progress-card childhood-circle-progress"><strong>🎓 졸업하지 못한 다섯</strong><div><small class="${circleMood.tone}"><b>${circleMood.title}</b> · ${circleMood.detail}</small></div></div>`:'';
   return rows.length||circleRow?`<div class="story-progress-list"><div class="hub-title">📖 이어지는 인물 이야기</div>${circleRow}${rows.slice(0,5).join('')}</div>`:'';
 }
 
@@ -6201,7 +6218,7 @@ function lifeHubHTML() {
     : freedomBond&&freedomBond.active
       ? `<span class="up">🏠 작은 집의 연인 · 채원·유나·소희 전원 연인 · 힐링 공동생활 중 · 회복한 스트레스 ${Math.round(freedomBond.totalStressRecovered||0)} · 누적 생활수입 ${won(freedomBond.totalIncome||0)}</span>`
     : childhoodBond&&childhoodBond.active
-      ? `<span class="${childhoodBond.route==='never_graduate'?'down':'up'}">🎓 ${childhoodBond.route==='never_graduate'?'끝나지 않은 졸업식':'오래된 약속'} · 예린·보라·서연·나영·미래 전원 연인 · 회귀 압력 ${Math.round((CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.ensure(L).pressure)||0)}</span>`
+      ? `<span class="${childhoodBond.route==='never_graduate'?'down':'up'}">🎓 ${childhoodBond.route==='never_graduate'?'끝나지 않은 졸업식 · 다섯이 일상을 공유하며 옛 규칙을 되살리는 중':'오래된 약속 · 다섯이 현재의 경계를 지키는 중'} · 예린·보라·서연·나영·미래 전원 연인</span>`
     : relationshipMembers.length===1&&!poly.active
       ? `<button class="life-btn" data-act="polycule">🌈 일반 다자연애 제안</button>`
       : poly.active?`<span class="up">🌈 합의형 관계 진행 중 · 추가 구성원 ${poly.members.length}명 · 신뢰 ${poly.trust}</span>`:'';
@@ -6289,7 +6306,7 @@ function lifeHubHTML() {
     <section class="life-workspace-window" data-life-panel="investment" hidden><header><div><span>📘</span><b>나래의 투자 컨설팅</b><small>연애가 아니라 시장 분석을 배우는 정기 상담</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="./assets/life-guide.png" alt="나래의 투자 컨설팅"><div class="workspace-content"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래 · 투자교육 매니저</strong><br><span class="muted">“정답을 찍어드리진 않아요. 대신 무엇을 먼저 봐야 하는지는 알려드릴게요.”</span></div></div><div class="home-life-summary"><b>투자 감각 · ${mentor.skill>=70?'통찰':mentor.skill>=45?'분석':mentor.skill>=20?'기초':'입문'}</b><small>상담 ${mentor.sessions}회 · 해금 ${mentor.unlocks.length?mentor.unlocks.join(' · '):'아직 없음'}</small></div>${investmentInsightHTML()}<div class="workspace-card-grid"><button class="life-btn" data-act="investment-consult">📚 월간 컨설팅 받기 <small>500,000 · 시장 읽기 능력 성장 · 이번 달 경력 행동 사용</small></button></div></div></section>
     <section class="life-workspace-window" data-life-panel="career" hidden><header><div><span>📈</span><b>경력 관리</b><small>${jobOf().name} · 능력 ${Math.round(career.skill||0)}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('career')}" alt="경력 관리 장면"><div class="workspace-content"><div class="hub-note">직장은 이직으로 바꾸고, 자격증은 지원 가능한 직업과 직무 능력을 넓힙니다.</div><div class="workspace-card-grid"><button class="life-btn" data-act="changejob">💼 이직 알아보기</button>${certBtns}</div></div></section>
     <section class="life-workspace-window" data-life-panel="housing" hidden><header><div><span>🏠</span><b>거주지 선택</b><small>현재 ${HOUSING.home(L).name} · ${HOUSING.TENURES[L.housing.tenure].name}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('home')}" alt="거주지 선택 장면"><div class="workspace-content"><div class="hub-note">월세는 초기 부담이 작고, 전세는 보증금을 맡기는 대신 월 부담이 낮습니다. 매매 주택에는 월 임대료가 없습니다.</div><div class="workspace-card-grid">${housingBtns}</div></div></section>
-    <section class="life-workspace-window" data-life-panel="assets" hidden><header><div><span>🏢</span><b>자산·사업 관리실</b><small>서로 다른 업종을 동시에 운영하고 직원을 모집할 수 있습니다.</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('property')}" alt="자산과 사업을 관리하는 사무실"><div class="workspace-content">${assetPortfolioStrip}<nav class="workspace-tabs"><button data-workspace-tab="business" class="active">사업체·직원</button><button data-workspace-tab="property">투자 부동산</button><button data-workspace-tab="income">자동수입</button><button data-workspace-tab="finance">금융·보장</button></nav><div data-workspace-page="business"><div class="hub-note">각 업종은 매출 구조와 경기 민감도가 다릅니다. 직원을 늘리면 매출 여력이 커지지만 매달 인건비도 증가합니다.</div><div class="asset-business-grid">${businessBox}</div></div><div data-workspace-page="property" hidden>${propertyOwned}<div class="asset-action-grid">${propBtns}</div></div><div data-workspace-page="income" hidden><div class="asset-action-grid">${passiveBtns}</div></div><div data-workspace-page="finance" hidden><div class="hub-btns">${loanBtns}<button class="life-btn" data-act="repay">상환${L.loan>0?' '+won(L.loan):''}</button>${insuranceBtns}${pensionBtns}</div></div></div></section>
+    <section class="life-workspace-window" data-life-panel="assets" hidden><header><div><span>🏢</span><b>자산·사업 관리실</b><small>서로 다른 업종을 동시에 운영하고 직원을 모집할 수 있습니다.</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('business')}" alt="자산과 사업을 관리하는 사무실"><div class="workspace-content">${assetPortfolioStrip}<nav class="workspace-tabs"><button data-workspace-tab="business" class="active">사업체·직원</button><button data-workspace-tab="property">투자 부동산</button><button data-workspace-tab="income">자동수입</button><button data-workspace-tab="finance">금융·보장</button></nav><div data-workspace-page="business"><div class="hub-note">각 업종은 매출 구조와 경기 민감도가 다릅니다. 직원을 늘리면 매출 여력이 커지지만 매달 인건비도 증가합니다.</div><div class="asset-business-grid">${businessBox}</div></div><div data-workspace-page="property" hidden>${propertyOwned}<div class="asset-action-grid">${propBtns}</div></div><div data-workspace-page="income" hidden><div class="asset-action-grid">${passiveBtns}</div></div><div data-workspace-page="finance" hidden><div class="hub-btns">${loanBtns}<button class="life-btn" data-act="repay">상환${L.loan>0?' '+won(L.loan):''}</button>${insuranceBtns}${pensionBtns}</div></div></div></section>
   </div>`;
   return `
     <div class="life-hub">
@@ -7540,25 +7557,35 @@ function restoreBGMPref() {
   BGM.setEnabled(false);
   const btn = $('bgm-toggle');
   if (btn) { btn.textContent = '🎵 음악 ON'; btn.classList.add('on'); }
-  const arm = async () => {
-    const unlocked = !BGM.unlock || await BGM.unlock();
-    if (unlocked) {
-      BGM.setEnabled(true);
-      syncBGM(true);
-    }
-    else {
-      S.bgmOn = false;
-      BGM.setEnabled(false);
-      const failedBtn = $('bgm-toggle');
-      if (failedBtn) { failedBtn.textContent = '🎵 음악 OFF'; failedBtn.classList.remove('on'); }
-    }
+  let armed = true;
+  const disarm = () => {
+    if (!armed) return false;
+    armed = false;
     document.removeEventListener('pointerdown', arm);
     document.removeEventListener('touchend', arm);
     document.removeEventListener('keydown', arm);
-    setTimeout(renderBGMStatus, 450);
+    return true;
   };
-  document.addEventListener('pointerdown', arm);
-  document.addEventListener('touchend', arm);
+  const arm = () => {
+    if (!disarm()) return;
+    // 클릭/터치의 기본 동작과 게임 버튼 click이 먼저 끝나게 한다.
+    setTimeout(async () => {
+      const unlocked = !BGM.unlock || await BGM.unlock();
+      if (unlocked) {
+        BGM.setEnabled(true);
+        syncBGM(true);
+      }
+      else {
+        S.bgmOn = false;
+        BGM.setEnabled(false);
+        const failedBtn = $('bgm-toggle');
+        if (failedBtn) { failedBtn.textContent = '🎵 음악 OFF'; failedBtn.classList.remove('on'); }
+      }
+      setTimeout(renderBGMStatus, 450);
+    }, 0);
+  };
+  if (window.PointerEvent) document.addEventListener('pointerdown', arm, { passive:true });
+  else document.addEventListener('touchend', arm, { passive:true });
   document.addEventListener('keydown', arm);
 }
 

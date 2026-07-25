@@ -38,6 +38,7 @@ vm.createContext(context);
   const bgmContext = {
     console,
     AudioContext:MobileAudioContext,
+    PointerEvent:function PointerEvent(){},
     setInterval,
     clearInterval,
     setTimeout,
@@ -727,6 +728,20 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
     children:[], health:80, morality:70, criminalRecord:0,
   }, { totalWealth:150000000, debt:0, path:'network' });
   assert.equal(normal.id, 'victory_normal');
+}
+
+{
+  const appSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  assert.doesNotMatch(appSource,/회귀 압력<\/span>|현재 신뢰<\/span>/,'소꿉친구 내부 판정값을 숫자 계기판으로 노출하면 안 된다');
+  for(const file of [
+    'pixel-event-market-v1.png','pixel-event-career-v1.png','pixel-event-debt-property-v1.png',
+    'pixel-event-health-incident-v1.png','pixel-event-family-life-v1.png',
+    'pixel-event-love-conflict-v1.png','pixel-event-business-v1.png','pixel-event-faction-court-v1.png',
+    'pixel-event-childhood-reunion-v1.png','pixel-event-childhood-pact-v1.png',
+    'pixel-event-childhood-graduation-v1.png','characters/yerin-childhood-pixel-v1.png',
+  ]) assert.equal(fs.existsSync(path.join(root,'assets',file)),true,`${file} 도트 컷신이 누락되면 안 된다`);
+  assert.match(context.QT_CHILDHOOD_CIRCLE.event('reunion').scene,/pixel-event-childhood-reunion-v1/);
+  assert.match(context.QT_CHILDHOOD_CIRCLE.event('graduation').scene,/pixel-event-childhood-graduation-v1/);
 }
 
 console.log('core regression tests: ok');
