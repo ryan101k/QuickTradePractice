@@ -264,6 +264,24 @@ function expansionCost(life,id){
 }
 function staffCapacity(item){return item?Math.min(22,2+item.level*4):0;}
 function hireCost(item){return item?Math.round(450000+item.level*250000):0;}
+function staffProfile(candidateId){
+  const id=String(candidateId||'');
+  if(id.includes('-lead')||id.startsWith('mystery-'))return{sales:.23,wage:300000,label:'숙련'};
+  if(id.includes('-field'))return{sales:.18,wage:230000,label:'경력'};
+  return{sales:.14,wage:180000,label:'신입'};
+}
+function staffEffect(item){
+  if(!item)return{salesBonus:0,wages:0,tracked:0};
+  const staffExtra=Math.max(0,(item.employees||2)-2);
+  const hired=Array.isArray(item.hiredStaff)?item.hiredStaff.slice(0,staffExtra):[];
+  let salesBonus=0,wages=0;
+  hired.forEach(id=>{const profile=staffProfile(id);salesBonus+=profile.sales;wages+=profile.wage;});
+  const untracked=Math.max(0,staffExtra-hired.length);
+  salesBonus+=untracked*.14;wages+=untracked*180000;
+  // 이력서 후보 수와 사업 단계의 정원이 이미 증원을 제한한다. 여기서 다시 상한을
+  // 씌우면 마지막 채용은 매출 기여가 사라지고 인건비만 늘어나는 역전이 생긴다.
+  return{salesBonus,wages,tracked:hired.length};
+}
 function hire(life,id,candidateId){
   const item=owned(life,id),type=item&&typeOf(item.typeId);
   if(!item||!type)return{ok:false,message:'운영 중인 사업을 찾지 못했습니다.'};
@@ -286,7 +304,9 @@ function expand(life,id){
   const item=owned(life,id),type=item&&typeOf(item.typeId);
   if(!item||!type)return{ok:false,message:'운영 중인 사업을 찾지 못했습니다.'};
   if(item.level>=5)return{ok:false,message:'이미 최대 규모입니다.'};
-  const cost=expansionCost(life,id);
+  // expansionCost()가 ensure()를 다시 거치면 owned 배열이 정규화되며 현재 item
+  // 참조가 낡아진다. 같은 식을 현재 객체에 바로 적용해야 단계 상승이 저장된다.
+  const cost=Math.round(type.cost*(.38+item.level*.12));
   item.level++;
   item.morale=clamp(item.morale+4,0,100);
   item.momentum=clamp(item.momentum+.08,-.35,.50);
@@ -316,10 +336,10 @@ function projected(item,phaseId){
   const phaseMul=(type.phase||{})[phaseId]||1;
   const qualityMul=.76+item.reputation*.004;
   const moraleMul=.86+item.morale*.0022;
-  const staffExtra=Math.max(0,(item.employees||2)-2);
-  const staffSales=1+Math.min(.36,staffExtra*.045);
+  const staff=staffEffect(item);
+  const staffSales=1+staff.salesBonus;
   const sales=Math.round(type.baseSales*levelMul*phaseMul*qualityMul*moraleMul*(1+item.momentum)*staffSales*strategy.sales);
-  const cost=Math.round((type.fixedCost*(1+(item.level-1)*.37)+staffExtra*350000)*strategy.cost);
+  const cost=Math.round((type.fixedCost*(1+(item.level-1)*.37)+staff.wages)*strategy.cost);
   return{sales,cost,net:sales-cost,strategy};
 }
 function reportLine(item){
@@ -404,6 +424,6 @@ function resolveEvent(life,payload,choiceId){
 root.QT_BUSINESS={
   STAFF,STRATEGIES,TYPES,EVENTS,MANAGER_EVENTS,ensure,typeOf,staffOf,strategyOf,portraitPath,owned,start,expand,expansionCost,
   resaleValue,close,assetValue,projected,monthly,eventView,resolveEvent,
-  staffCapacity,hireCost,hire,setStrategy,
+  staffCapacity,hireCost,staffProfile,staffEffect,hire,setStrategy,
 };
 })(window);

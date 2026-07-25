@@ -326,11 +326,14 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   for (const portrait of assignedPortraits) {
     assert.equal(fs.existsSync(path.join(root, 'assets', 'characters', portrait)), true, `${portrait} 모브 이미지가 실제로 존재해야 한다`);
   }
-  const staffBefore = opened.business.employees;
+  const currentBusiness=business.owned(life,'commerce');
+  const staffBefore = currentBusiness.employees;
+  const netBeforeHire = business.projected(currentBusiness,'boom').net;
   const hired = business.hire(life, 'commerce', 'commerce-junior');
   assert.equal(hired.ok, true, '사업체는 이력서 선택 뒤 직원을 추가 채용할 수 있어야 한다');
   assert.equal(business.owned(life, 'commerce').employees, staffBefore + 1);
   assert.equal(business.owned(life, 'commerce').hiredStaff.includes('commerce-junior'), true);
+  assert.ok(business.projected(business.owned(life,'commerce'),'boom').net > netBeforeHire, '직원 한 명을 채용하면 인건비보다 매출 기여가 커야 한다');
   const growth=business.setStrategy(life,'commerce','growth');
   assert.equal(growth.ok,true);
   assert.equal(business.owned(life,'commerce').strategy,'growth','사업별 운영 방침은 저장 상태에 남아야 한다');
@@ -338,6 +341,34 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   business.setStrategy(life,'commerce','balanced');
   const balancedPlan=business.projected(business.owned(life,'commerce'),'boom');
   assert.ok(growthPlan.sales>balancedPlan.sales&&growthPlan.cost>balancedPlan.cost,'성장 집중은 매출과 비용을 함께 늘려야 한다');
+  const levelBefore=business.owned(life,'commerce').level,netBeforeExpand=balancedPlan.net;
+  const expanded=business.expand(life,'commerce');
+  assert.equal(expanded.ok,true);
+  assert.equal(business.owned(life,'commerce').level,levelBefore+1,'확장 비용을 내면 사업 단계가 실제 저장 상태에서 올라야 한다');
+  assert.ok(business.projected(business.owned(life,'commerce'),'boom').net>netBeforeExpand,'사업 확장은 다음 달 예상 순익도 높여야 한다');
+  const applicantIds=['unit-junior','unit-field','unit-lead','mystery-office','mystery-creative','mystery-corporate','mystery-medical'];
+  for(const type of business.TYPES){
+    const staffedLife={};business.start(staffedLife,type.id,1);
+    for(let level=1;level<5;level++)assert.equal(business.expand(staffedLife,type.id).ok,true);
+    for(const applicantId of applicantIds){
+      const before=business.projected(business.owned(staffedLife,type.id),'crisis').net;
+      assert.equal(business.hire(staffedLife,type.id,applicantId).ok,true);
+      const after=business.projected(business.owned(staffedLife,type.id),'crisis').net;
+      assert.ok(after>before,`${type.name}은 불황에도 ${applicantId} 채용 뒤 예상 순익이 줄면 안 된다`);
+    }
+  }
+}
+
+{
+  const rival=context.QT_RIVALS.createBots().find(bot=>bot.leader==='김도현');
+  const message=context.QT_RIVALS.contactMessage(rival,{stock:{name:'노바플레이',change:6.6}});
+  assert.match(message.text,/노바플레이 수급/,'경쟁자 연락은 실제 종목을 언급해야 한다');
+  const choices=context.QT_RIVALS.contactReplyOptions(rival,message);
+  assert.match(choices[0].text,/노바플레이를 고른 근거/,'경쟁자 답장은 수신한 종목 내용에 맞고 조사가 자연스러워야 한다');
+  const relationBefore=rival.playerRelation||0;
+  const reply=context.QT_RIVALS.resolveContact(rival,'probe',message);
+  assert.match(reply.reply,/거래량과 현금흐름/,'근거를 물으면 투자 판단과 관련된 후속 답장이 와야 한다');
+  assert.ok(rival.playerRelation<relationBefore,'경쟁자를 캐묻는 답장은 경쟁 관계에도 반영돼야 한다');
 }
 
 {
@@ -417,6 +448,12 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
     context.QT_HEALTH.monthly(highStress, { age:20, jobRisk:0, debtRatio:0, happy:50, random:()=>0 });
   }
   assert.equal(highStress.conditions.includes('burnout'), false, '번아웃 치료 뒤 12개월 동안 즉시 재발하면 안 된다');
+  const resting={health:70,stress:80,fitness:10,conditions:[]};
+  context.QT_HEALTH.rest(resting);
+  assert.equal(resting.stress,58,'집에서 푹 쉬면 윤세라 위험 이벤트 한두 번을 상쇄할 만큼 스트레스가 회복돼야 한다');
+  const quiet={health:70,stress:80,fitness:10,conditions:[]};
+  context.QT_HEALTH.decompress(quiet);
+  assert.equal(quiet.stress,64,'무료 마음 정리 행동도 확실한 스트레스 회복 수단이어야 한다');
 }
 
 {
@@ -462,7 +499,9 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /data-life-panel="power"/, '세력과 법정 행동은 별도의 창에 있어야 한다');
   assert.doesNotMatch(appSource, /class="hub-more"/, '행동 화면에 다른 행동 보기 접이식 메뉴가 남으면 안 된다');
   assert.match(appSource, /Math\.min\(Math\.max\(0,S\.capital\),30000\)/, '집에서 쉬기 실제 비용은 3만원이어야 한다');
-  assert.match(appSource, /생활비 30,000 · 스트레스 회복/, '집 화면의 휴식 비용도 3만원으로 표시해야 한다');
+  assert.match(appSource, /생활비 30,000 · 스트레스 -22/, '집 화면은 휴식 비용과 실제 스트레스 회복량을 함께 표시해야 한다');
+  assert.match(appSource, /data-act="decompress"/, '비용 없이 스트레스를 내릴 수 있는 마음 정리 행동이 있어야 한다');
+  assert.match(appSource, /data-chat-rival=/, '연락처에 연애 상대뿐 아니라 시장 경쟁자도 표시돼야 한다');
   assert.match(appSource, /room\.lastIncomingDay=S\.day/, '상대가 실제로 먼저 연락한 날짜를 기록해야 한다');
   assert.match(appSource, /answeredDay>=unansweredDay/, '답장한 연락은 방치로 판정하면 안 된다');
   assert.match(appSource, /if \(m\.idleMonths < 2\) return;/, '실제 수신 연락을 두 달 이상 방치한 경우에만 관계 감소가 시작돼야 한다');

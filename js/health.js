@@ -37,12 +37,13 @@ function monthly(life,ctx){
  const died=life.health<=0||rng()<naturalRisk+criticalRisk;
  return{died,news,health:life.health,stress:life.stress};
 }
-function exercise(life){ensure(life);life.fitness=clamp(life.fitness+4,0,100);life.health=clamp(life.health+3,0,100);life.stress=clamp(life.stress-6,0,100);}
-function rest(life){ensure(life);life.health=clamp(life.health+2,0,100);life.stress=clamp(life.stress-12,0,100);}
+function exercise(life){ensure(life);life.fitness=clamp(life.fitness+4,0,100);life.health=clamp(life.health+3,0,100);life.stress=clamp(life.stress-10,0,100);}
+function rest(life){ensure(life);life.health=clamp(life.health+3,0,100);life.stress=clamp(life.stress-22,0,100);}
+function decompress(life){ensure(life);life.health=clamp(life.health+1,0,100);life.stress=clamp(life.stress-16,0,100);}
 function checkup(life){ensure(life);life.checkups++;life.stress=clamp(life.stress-3,0,100);return life.conditions.map(id=>CONDITIONS.find(c=>c.id===id)).filter(Boolean);}
 function treatmentOffer(life){ensure(life);const c=life.conditions.map(id=>CONDITIONS.find(x=>x.id===id)).filter(Boolean).sort((a,b)=>b.cost-a.cost)[0];return c||null;}
 function treat(life){const c=treatmentOffer(life);if(!c)return null;life.conditions=life.conditions.filter(id=>id!==c.id);life.conditionHistory[c.id]=life.healthMonths;life.health=clamp(life.health+12,0,100);life.stress=clamp(life.stress-8,0,100);return c;}
 function conditionDetails(life){ensure(life);return life.conditions.map(id=>CONDITIONS.find(c=>c.id===id)).filter(Boolean);}
 function inheritance(wealth){const gross=Math.max(0,wealth);const rate=gross<100000000?.10:gross<1000000000?.20:.30;const tax=Math.round(gross*rate);return{gross,rate,tax,net:Math.max(1000000,gross-tax)};}
-root.QT_HEALTH={CONDITIONS,ensure,monthly,exercise,rest,checkup,treatmentOffer,treat,conditionDetails,inheritance};
+root.QT_HEALTH={CONDITIONS,ensure,monthly,exercise,rest,decompress,checkup,treatmentOffer,treat,conditionDetails,inheritance};
 })(window);
