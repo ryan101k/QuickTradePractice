@@ -177,6 +177,7 @@ app.js
 - 감정과 건강: `happy`, `charm`, `health`, `stress`, `fitness`, `conditions`
 - 관계: `relationship`, `partner`, `relationshipGroup`, `lovers`, `polycule`, `met`
 - 캐릭터 세트: `dangerousTrio`, `freedomTrio`, `childhoodCircle`
+- 소꿉친구 위험 계약: `childhoodNightContract` — 다섯 중 한 명과 가벼운 하룻밤을 보내면 반드시 성립한다. 같은 상대는 다시 만날 수 있지만, 이후 클럽 또는 실제로 하룻밤을 받아들인 다른 상대가 생기면 즉시 `끝나지 않은 졸업식` 배드엔딩으로 간다.
 - 연락: `chats`
 - 생활 경제: `properties`, `passiveAssets`, `loans`, `housing`, `finance`, `business`
 - 가족과 계승: `children`, `familyPlan`, `parentAge`, `parentHealth`, `familyBond`, `generation`
@@ -184,6 +185,8 @@ app.js
 - 이벤트 기억: `memories`, `crossEvents`, `seraLoop`, `monthActions`
 
 `relationship`, `partner`, `polycule`은 구버전 호환용 표현도 겸한다. 새 관계 로직은 `relationshipGroup`을 우선하고 `QT_RELATIONSHIPS`를 통해 동기화한다.
+
+소꿉친구 단체방 최초 사건에서 `단체방을 다시 나간다`를 고르면 `childhoodCircle.removed=true`가 된다. 이 선택은 다섯 명을 `met`, 연락처, 만남 후보, 대기 중 세트 사건에서 영구 제거하며 새 게임 전까지 다시 등장시키지 않는다.
 
 ## 6. 기능별 지도
 

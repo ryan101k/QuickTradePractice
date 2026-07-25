@@ -182,6 +182,7 @@ function newLife() {
     dangerousTrio: { active:false, stage:0, stability:50, axes:{balance:0,containment:0,fracture:0}, history:[], ending:null },
     freedomTrio: { active:false, stage:0, harmony:50, axes:{freedom:0,career:0,control:0}, history:[], personal:{}, ending:null, aftermathIndex:0 },
     childhoodCircle: { anchor:null, schoolId:null, stage:'dormant', pressure:0, trust:0, seen:{}, route:null, pending:null },
+    childhoodNightContract: null, // 소꿉친구와 하룻밤 뒤 다른 상대를 택했는지 추적
     met: [],                 // 한 번이라도 만난 사람 (헤어져도 기억한다) — rememberPerson() 참고
     properties: [],          // [{id, name, emoji, value, rent}]
     passiveAssets: [],       // 주식 외 월 현금흐름 자산 [{id, boughtAt}]
@@ -3805,7 +3806,7 @@ function characterEventScene(name,chapterIndex){
 }
 
 function ensureChildhoodCircleCast(){
-  if(!CHILDHOOD_CIRCLE)return[];
+  if(!CHILDHOOD_CIRCLE||CHILDHOOD_CIRCLE.ensure(S.life).removed)return[];
   return CHILDHOOD_CIRCLE.MEMBERS.map(name=>{
     const def=D.CHARACTERS.find(person=>person.name===name);if(!def)return null;
     const rec=metRecord(S.life,name)||rememberPerson(def,'acquaintance');
@@ -3817,6 +3818,21 @@ function ensureChildhoodCircleCast(){
     ensureCourtship(rec).interactions=Math.max(1,rec.interactions||0);
     return rec;
   }).filter(Boolean);
+}
+function removeChildhoodCircleFromGame(){
+  const L=S.life,state=CHILDHOOD_CIRCLE.ensure(L),names=new Set(CHILDHOOD_CIRCLE.MEMBERS);
+  state.removed=true;state.route='cut_past';state.stage='removed';state.pending=null;
+  L.childhoodNightContract=null;
+  L.met=ensureMet(L).filter(person=>!names.has(person.name));
+  if(Array.isArray(L.lovers))L.lovers=L.lovers.filter(person=>!names.has(person.name));
+  if(L.partner&&names.has(L.partner.name))L.partner=null;
+  if(L.relationshipGroup&&Array.isArray(L.relationshipGroup.members)){
+    L.relationshipGroup.members=L.relationshipGroup.members.filter(member=>!names.has(typeof member==='string'?member:member&&member.name));
+  }
+  if(L.polycule&&Array.isArray(L.polycule.members))L.polycule.members=L.polycule.members.filter(person=>!names.has(person.name));
+  const chats=ensureChats(L);names.forEach(name=>delete chats[name]);
+  S._importantEvents=(S._importantEvents||[]).filter(event=>!event.childhoodCircleEvent);
+  if(S._dateCandidate&&names.has(S._dateCandidate.name))closeDateModal();
 }
 function childhoodCircleNarrative(state){
   if(!state)return{title:'오래된 인연',detail:'다섯의 관계가 아직 모습을 드러내지 않았습니다.',tone:''};
@@ -3879,6 +3895,15 @@ function resolveChildhoodCircleEvent(choiceId){
   const eventId=S._childhoodCircleEvent,view=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.event(eventId);
   const choice=view&&view.choices.find(item=>item.id===choiceId);if(!choice)return;
   const people=ensureChildhoodCircleCast();
+  if(eventId==='reunion'&&choice.id==='sever'){
+    CHILDHOOD_CIRCLE.resolve(S.life,eventId,choice);
+    removeChildhoodCircleFromGame();
+    const out=$('childhood-circle-outcome'),options=out&&out.parentElement.querySelector('.event-options');if(options)options.innerHTML='';
+    out.innerHTML='<div class="story-ending"><b>🚪 단체방을 나갔습니다.</b><br>다섯 사람의 연락처, 만남 후보, 개인 사건과 세트 사건이 이번 인생에서 모두 사라집니다. 과거를 다시 부르는 우연도 발생하지 않습니다.</div><button id="childhood-circle-confirm" class="session-btn opening">이 인생에서는 다시 만나지 않는다</button>';
+    addNews('🚪 닫힌 단체방 · 다섯 전 연인과 완전히 단절했습니다','neutral');
+    $('childhood-circle-confirm').addEventListener('click',()=>{const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}S._childhoodCircleEvent=null;renderLifePanel();autoSave();showNextImportantEvent();});
+    renderLifePanel();autoSave();return;
+  }
   people.forEach(person=>{
     person.affection=clamp((person.affection||0)+(choice.affection||0),0,100);
     person.trust=clamp((person.trust||0)+(choice.trust||0),0,100);
@@ -4813,6 +4838,9 @@ function makeCandidate(route, exclude) {
     return fixed;
   }
   let pool = D.CHARACTERS;
+  if(CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.ensure(L).removed){
+    pool=pool.filter(character=>!CHILDHOOD_CIRCLE.MEMBERS.includes(character.name));
+  }
   if(route&&route.key&&!['intro','street'].includes(route.key)){
     const placed=pool.filter(character=>heroinePlaceKeys(character).includes(route.key));
     if(placed.length)pool=placed;
@@ -5344,6 +5372,9 @@ function wireRomanceChoice(c) {
 function relationshipReaction(c,rec,kind){
   const per=D.PERSONALITIES[c.personality]||{};
   const chastity=rec.chastity==null?(per.chastity==null?55:per.chastity):rec.chastity;
+  if(kind==='casual'&&CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.MEMBERS.includes(c.name)){
+    return{chastity:0,text:'“우리 사이에 새삼 허락이 필요해?” 거절이 아니라, 이 밤을 또 과거처럼 모른 척할 것인지 되묻습니다.'};
+  }
   if(kind==='casual'&&FREEDOM_TRIO&&FREEDOM_TRIO.NAMES.includes(c.name)){
     const refusal={
       '채원':'“비행 끝나고 지친다고 아무 품에나 기대진 않아요. 나를 쉬운 사람으로 봤다면 오늘은 여기까지예요.”',
@@ -5398,6 +5429,23 @@ function showTrioBlocksAffair(c){
   div.innerHTML=`<img class="relationship-scene" src="./assets/event-trio-secure-home-ending.png" alt="세 연인이 바람 선택을 가로막는 장면"><b class="down">🦂 공동생활의 세 사람이 선택지를 지웠다</b><p>${blockers.join('와(과) ')}가 이미 약속 장소와 연락처를 확인했습니다. ${c.name}에게 고백하거나 하룻밤을 제안하는 선택만 실행되지 않습니다.</p><div class="important-event-detail">강유진·한채린·윤세라 본인과의 데이트와 대화는 유지됩니다. 공동생활 해피엔딩 동안 다른 히로인에게 새 연애를 시작하는 행동만 세 사람이 막습니다.</div><button id="trio-block-confirm" class="session-btn opening">세 사람이 있는 집으로 돌아간다</button>`;
   box.appendChild(div);$('trio-block-confirm').addEventListener('click',closeDateModal);playSound('crash');autoSave();
 }
+function activeChildhoodNightContract(){
+  const contract=S.life&&S.life.childhoodNightContract;
+  return contract&&contract.active&&!contract.ended?contract:null;
+}
+function showChildhoodRelapseEnding(triggerName,triggerType){
+  const L=S.life,contract=activeChildhoodNightContract();if(!contract||triggerName===contract.anchorName)return false;
+  const circle=CHILDHOOD_CIRCLE.ensure(L),checkpoint={pressure:circle.pressure,stress:L.stress};
+  circle.pressure=100;L.stress=clamp((L.stress||0)+30,0,100);contract.breached=true;
+  closeDateModal();
+  const host=$('life-event');if(!host)return true;host.style.display='block';
+  ensureChildhoodCircleCast();
+  const people=CHILDHOOD_CIRCLE.MEMBERS.join('·');
+  host.innerHTML=`<div class="window event-window captivity-ending-window"><div class="title-bar"><div class="title-bar-text">🎓 BAD END · 한 번으로 끝난 적 없던 사이</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/pixel-event-childhood-graduation-v1.png" alt="끝나지 않은 졸업식"><div class="event-title">“가볍게라고 말한 건 너뿐이었어.”</div><div class="event-desc">${contract.anchorName}와 밤을 보낸 뒤 ${triggerType==='club'?'클럽에서 낯선 사람과 다시 밤을 보낸 사실':`${triggerName}에게 같은 관계를 제안한 사실`}이 다섯 사람의 기록망에 동시에 잡혔습니다. 누구도 독점 관계를 요구한 적은 없지만, 다섯에게 그 밤은 학창 시절의 관계가 다시 시작됐다는 합의였습니다.</div><div class="trio-dialogues">${CHILDHOOD_CIRCLE.MEMBERS.map(name=>{const person=metRecord(L,name);return`<div class="trio-dialogue"><img src="${characterPortrait(person,'sad')}" alt="${name}"><div><b>${name}</b><p>“우리는 네가 또 모르는 척할 때를 대비해서 전부 남겨 뒀어.”</p></div></div>`;}).join('')}</div><div class="important-event-detail down">${people} 전원 · 회귀 압력 최대 · 현재의 관계 선택권 상실</div><button id="childhood-relapse-retry" class="session-btn opening">↩️ 다른 사람에게 가기 전으로 돌아간다</button><button id="childhood-relapse-accept" class="hot">🎓 끝나지 않은 졸업식 엔딩을 받아들인다</button></div></div>`;
+  $('childhood-relapse-retry').addEventListener('click',()=>{circle.pressure=checkpoint.pressure;L.stress=checkpoint.stress;contract.breached=false;host.style.display='none';host.innerHTML='';renderLifePanel();autoSave();});
+  $('childhood-relapse-accept').addEventListener('click',()=>{contract.ended=true;circle.route='never_graduate';circle.stage='complete';ensureChildhoodCircleCast();activateChildhoodCircleBond('never_graduate');host.style.display='none';host.innerHTML='';addNews('🎓 BAD END · 한 번으로 끝난 적 없던 사이','bad');renderLifePanel();autoSave();});
+  playSound('crash');autoSave();return true;
+}
 
 function romanceResolve(kind, confirmed) {
   const c = S._dateCandidate; if (!c) return;
@@ -5405,6 +5453,19 @@ function romanceResolve(kind, confirmed) {
   if(!confirmed){previewRomanceChoice(kind);return;}
   const rec = rememberPerson(c);
   const preview=$('date-outcome')&&$('date-outcome').querySelector('.relation-preview');if(preview)preview.remove();
+  if(kind==='casual'&&CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.MEMBERS.includes(c.name)){
+    const contract=activeChildhoodNightContract();
+    if(contract&&c.name!==contract.anchorName){showChildhoodRelapseEnding(c.name,'casual');return;}
+    rec.status='casual';rec.spentNight=true;rec.nightsTogether=(rec.nightsTogether||0)+1;
+    rec.affection=clamp((rec.affection||0)+10,0,100);rec.trust=clamp((rec.trust||0)+3,0,100);
+    const circle=CHILDHOOD_CIRCLE.ensure(S.life);circle.pressure=clamp(circle.pressure+22,0,100);circle.stage='relapse';
+    S.life.childhoodNightContract={active:true,anchorName:c.name,day:S.day,ended:false,breached:false};
+    CHILDHOOD_CIRCLE.MEMBERS.forEach(name=>{const person=metRecord(S.life,name);if(person)pushPersonMessage(S.life,person,name===c.name?'가볍게라고 해도 돼. 우리 사이가 정말 한 번으로 끝난 적은 없었잖아.':`${c.name}한테 들었어. 이번에는 우리 중 누구도 나중에 몰랐다고 하지 않을 거야.`,false);});
+    const out=$('date-outcome'),div=document.createElement('div');div.className='oc-text down';
+    div.innerHTML=`🌙 <b>${c.name}은 한 번도 거절할 생각이 없었습니다.</b><br>“우리 사이에 새삼 허락이 필요해?”<br><span class="muted">호감 +10 · 회귀 압력 +22 · 이후 클럽 또는 다른 사람과의 하룻밤은 즉시 배드엔딩으로 이어집니다. 이 관계는 순애 루트가 아닙니다.</span>`;
+    out.appendChild(div);const btn=document.createElement('button');btn.className='session-btn opening';btn.textContent='예전처럼 같은 방에서 아침을 맞는다';btn.addEventListener('click',closeDateModal);out.appendChild(btn);
+    S._romance=null;renderLifePanel();autoSave();return;
+  }
   if(kind==='casual'&&FREEDOM_TRIO&&FREEDOM_TRIO.NAMES.includes(c.name)){
     const reaction=relationshipReaction(c,rec,'casual');
     rec.affection=Math.max(0,(rec.affection||0)-12);
@@ -5435,6 +5496,8 @@ function romanceResolve(kind, confirmed) {
     const per=D.PERSONALITIES[c.personality]||{},chastity=rec.chastity==null?(per.chastity==null?55:per.chastity):rec.chastity;
     const accepts=Math.random()<clamp(.82-chastity*.006+(c.personality==='free'?.18:0),.18,.9);
     if(accepts){
+      const contract=activeChildhoodNightContract();
+      if(contract&&c.name!==contract.anchorName){showChildhoodRelapseEnding(c.name,'casual');return;}
       rec.status='casual';rec.trust=Math.max(0,(rec.trust||0)-3);rec.affection=Math.max(20,rec.affection||0);
       if(isDangerousHeroine(rec))awakenDangerousHeroine(rec,'night');
       const tender=['caring','homebody','frugal'].includes(rec.personality),special=isDangerousHeroine(rec);
@@ -5940,6 +6003,7 @@ function showClubNight(){
 
 function resolveClubNight(){
   const cost=180000;if(S.capital<cost)return;
+  if(activeChildhoodNightContract()){showChildhoodRelapseEnding('클럽의 낯선 사람','club');return;}
   const L=S.life;
   S.capital-=cost;
   L.stress=clamp((L.stress||0)-20,0,100);
