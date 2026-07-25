@@ -429,6 +429,12 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.doesNotMatch(appSource, /<summary>🏪 사업체·직원/, '사업체 메뉴가 자산 운영 밖에 중복되면 안 된다');
   assert.match(appSource, /data-act="home-life"/, '일상 행동은 집에서 보내기와 외출하기를 구분해야 한다');
   assert.match(appSource, /r\.key!=='intro'\|\|hasIntroducer/, '지인 소개는 친구나 인맥과 동행할 때만 열려야 한다');
+  assert.doesNotMatch(appSource, /showDateCompanyModal/, '데이트 진입 전에 별도 동행 선택 관문을 다시 만들면 안 된다');
+  assert.match(appSource, /class="date-companion-strip"/, '새 인연을 위한 동행 도움은 사람·장소 선택창 안에서 고를 수 있어야 한다');
+  assert.match(appSource, /class="date-person-grid"/, '데이트 대상은 설명 목록이 아니라 간결한 인물 카드로 보여야 한다');
+  assert.match(appSource, /class="event-options date-choice-grid"/, '데이트 행동은 장면 아래의 짧은 전용 선택 영역에 모여야 한다');
+  assert.match(appSource, /S\._dateApproaches\|\|D\.DATE_APPROACHES/, '화면에 고른 성격별 데이트 행동이 결과 판정에도 그대로 사용돼야 한다');
+  assert.match(appSource, /Number\.isFinite\(Number\(c\.age\)\)/, '나이가 없는 인물에게 undefined세를 표시하면 안 된다');
   assert.doesNotMatch(appSource, /maybeActivityEncounter\('rest'\)/, '집에서 쉬는 동안 무작위 연애 조우가 발생하면 안 된다');
   assert.match(appSource, /class="pixel-home/, '현재 집과 사치품은 생활공간 장면으로 시각화돼야 한다');
   assert.match(appSource, /class="route-card place-card"/, '새 인물은 프로필보다 외출 장소를 먼저 선택해야 한다');
