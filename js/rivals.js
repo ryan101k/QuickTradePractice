@@ -85,6 +85,7 @@
     const assets=i%3===0?[{...ASSETS[i%ASSETS.length]}]:[];
     const initial=1000000+assets.reduce((sum,a)=>sum+(a.value||0),0);
     return{...p,capital:1000000,owned:{},assets,relations:{},defense:.05,jailMonths:0,criminalRecord:0,monthlyProfit:0,
+      contactUnlocked:false,contactDay:null,contactReason:null,
       initialWorth:initial,peakWorth:initial,pressure:0,credibility:100,reactionStage:'stable',reactionHistory:[],bankrupt:false,settlementOffer:null};
   });}
   const campaign=()=>root.QT_CAMPAIGN;

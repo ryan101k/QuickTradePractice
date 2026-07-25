@@ -2677,6 +2677,14 @@ function showBusinessRomanceEvent(event){
 function resolveBusinessRomanceEvent(choiceId){
   const pending=S._businessRomanceEvent,host=$('life-event');
   if(!pending||!host||!BUSINESS_ROMANCE)return;
+  if(pending.kind==='management-collapse'&&!S._businessBadRetry){
+    S._businessBadRetry={
+      capital:S.capital,
+      business:JSON.parse(JSON.stringify(BUSINESS.ensure(S.life))),
+      romance:JSON.parse(JSON.stringify(BUSINESS_ROMANCE.ensure(S.life))),
+      bond:S.life.businessQuartetBond?JSON.parse(JSON.stringify(S.life.businessQuartetBond)):null
+    };
+  }
   const result=BUSINESS_ROMANCE.resolve(S.life,pending,choiceId,S.capital);
   if(!result.ok){flashToast(result.message||'사업 인연 선택을 처리하지 못했습니다','bad');return;}
   if(result.cash>0)S.capital+=result.cash;
@@ -2789,13 +2797,26 @@ function resolveBusinessRomanceEvent(choiceId){
   const cashText=result.cash<0
     ?`<br><b class="down">합의·수습 비용 ${won(Math.abs(result.cash))}원${S.capital<=0?' · 부족액은 채무 처리':''}</b>`
     :result.cash>0?`<br><b class="up">사업 현금 유입 +${won(result.cash)}원</b>`:'';
-  $('business-romance-outcome').innerHTML=`<div class="oc-text ${result.tone==='bad'?'down':result.tone==='good'?'up':''}">${result.badEnding?`<b>BAD END · ${result.title}</b><br>`:''}${result.text}${result.reply?`<div class="story-dialogue"><b>${BUSINESS_ROMANCE.profile(result.staffId).name}</b> “${result.reply}”</div>`:''}${cashText}${result.meta?`<div class="oc-changes">${result.meta}</div>`:''}</div><button id="business-romance-confirm" class="session-btn opening">기록하고 다음 사건 보기</button>`;
+  const retry=result.managementBadEnding?'<button id="business-romance-retry" class="session-btn opening">↩️ 사업을 방치하기 전 선택으로 돌아간다</button>':'';
+  $('business-romance-outcome').innerHTML=`<div class="oc-text ${result.tone==='bad'?'down':result.tone==='good'?'up':''}">${result.badEnding?`<b>BAD END · ${result.title}</b><br>`:''}${result.text}${result.reply?`<div class="story-dialogue"><b>${BUSINESS_ROMANCE.profile(result.staffId).name}</b> “${result.reply}”</div>`:''}${cashText}${result.meta?`<div class="oc-changes">${result.meta}</div>`:''}</div>${retry}<button id="business-romance-confirm" class="session-btn ${result.managementBadEnding?'':'opening'}">기록하고 다음 사건 보기</button>`;
   addNews(`${result.badEnding?'🕳️':result.quartet||result.groupStory?'🏢':result.revealed?'🎭':'💼'} ${result.text}`,result.tone||'neutral');
   $('business-romance-confirm').addEventListener('click',()=>{
-    host.style.display='none';host.innerHTML='';S._businessRomanceEvent=null;
+    host.style.display='none';host.innerHTML='';S._businessRomanceEvent=null;S._businessBadRetry=null;
     renderCapital();renderLifePanel();autoSave();showNextImportantEvent();
   });
+  const retryButton=$('business-romance-retry');if(retryButton)retryButton.addEventListener('click',retryBusinessManagementEnding);
   renderCapital();renderLifePanel();autoSave();
+}
+
+function retryBusinessManagementEnding(){
+  const checkpoint=S._businessBadRetry,event=S._businessRomanceEvent;if(!checkpoint||!event)return;
+  S.capital=checkpoint.capital;
+  S.life.business=JSON.parse(JSON.stringify(checkpoint.business));
+  S.life.businessRomance=JSON.parse(JSON.stringify(checkpoint.romance));
+  S.life.businessQuartetBond=checkpoint.bond?JSON.parse(JSON.stringify(checkpoint.bond)):null;
+  if(S.life.romanceRoutes){delete S.life.romanceRoutes.failed.business;S.life.romanceRoutes.active=null;}
+  S._businessBadRetry=null;
+  showBusinessRomanceEvent(event);renderCapital();renderLifePanel();autoSave();
 }
 
 function showMonthlyMessagePopup(event){
@@ -4328,12 +4349,14 @@ function resolveFreedomGuildEvent(choiceId){
 }
 function monthlyRivalMessages(L){
   if(!RIVALS||!RIVALS.contactMessage)return;
+  const faction=RIVALS.ensureFaction(L);
+  const marketFootprint=(S.assets||[]).some(asset=>(asset.qty||0)>0)||!!faction.lastAttacker||S.day>=3;
+  if(!marketFootprint)return;
   const live=(S.bots||[]).map((bot,index)=>({bot,index})).filter(entry=>!entry.bot.bankrupt);
   if(!live.length)return;
   const first=!Number.isFinite(L.lastRivalMessageDay);
   if(!first&&S.day-L.lastRivalMessageDay<1)return;
   if(!first&&Math.random()>.78)return;
-  const faction=RIVALS.ensureFaction(L);
   const recent=(faction.lastAttacker&&live.find(entry=>entry.bot.name===faction.lastAttacker))||null;
   const entry=recent||pick(live);
   const stocks=(S.stocks||[]).filter(stock=>stock.listed&&stock.type!=='etf'&&stock.history&&stock.history.length);
@@ -4345,8 +4368,18 @@ function monthlyRivalMessages(L){
   }
   const message=RIVALS.contactMessage(entry.bot,{day:S.day,stock:{name:stock&&stock.item.name,change:stock&&stock.change}});
   L.lastRivalMessageDay=S.day;
+  unlockRivalContact(entry.bot,'first_message');
   pushPersonMessage(L,entry.bot,message.text,false);
   queueImportantEvent({monthlyMessage:true,targetType:'rival',targetId:entry.index,text:message.text,rivalMessage:message});
+}
+
+function unlockRivalContact(bot,reason){
+  if(!bot)return false;
+  const first=!bot.contactUnlocked;
+  bot.contactUnlocked=true;
+  if(!Number.isFinite(bot.contactDay))bot.contactDay=S.day;
+  if(!bot.contactReason)bot.contactReason=reason||'market_contact';
+  return first;
 }
 
 function monthlyFactionMemberMessages(L){
@@ -4732,7 +4765,9 @@ function renderChatPanel(){
     const priority=c=>['mother','father','guardian'].includes(c.role)?0:c.role==='schoolfriend'?1:2;
     return priority(a)-priority(b)||(b.trust||0)-(a.trust||0);
   });
-  const rivals=(S.bots||[]).map((bot,index)=>({bot,index}));
+  const rivals=(S.bots||[]).map((bot,index)=>({bot,index})).filter(({bot})=>
+    bot.contactUnlocked||((((L.chats||{})[bot.name]||{}).messages||[]).length>0)
+  );
   if(S._chatRival!=null){
     const entry=rivals.find(item=>item.index===Number(S._chatRival));
     if(!entry){S._chatRival=null;return renderChatPanel();}
@@ -4779,6 +4814,7 @@ function replyToRival(bot,kind,message,options){
   const text=options.text||'수급과 장부를 다시 확인해보겠습니다.';
   pushPersonMessage(L,bot,text,true);
   const result=RIVALS.resolveContact(bot,kind,message)||{};
+  unlockRivalContact(bot,'player_reply');
   const mentor=investmentMentorState(L);
   if(result.intel)mentor.skill=clamp(mentor.skill+result.intel,0,100);
   if(result.reputation)SOCIAL.ensure(L).reputation=clamp(SOCIAL.ensure(L).reputation+result.reputation,0,100);
@@ -5742,7 +5778,8 @@ function doMarriage() {
 }
 
 function relationshipGroupTone(person){
-  if(!person)return'exclusive';if(person.personality==='obsessive'||person.special==='obsessive')return'exclusive';
+  if(!person)return'exclusive';
+  if(person.name==='나래'||person.special==='tutorial'||person.personality==='obsessive'||person.special==='obsessive')return'exclusive';
   if(['free','lavish'].includes(person.personality))return'freedom';
   if(['cold','ambitious'].includes(person.personality))return'independent';
   return'home';
@@ -6251,6 +6288,7 @@ function doRivalAction(actionId, targetIndex) {
   const player = { cash: S.capital, jailMonths: S.life.jailMonths || 0, criminalRecord: S.life.criminalRecord || 0 };
   const result = RIVALS.act(player, target, actionId);
   if (!result.ok) { flashToast(`⛔ ${result.message}`, 'bad'); return; }
+  unlockRivalContact(target,'player_operation');
   S.capital = player.cash;
   S.life.jailMonths = player.jailMonths;
   S.life.criminalRecord = player.criminalRecord;
@@ -6527,6 +6565,7 @@ function doFactionAction(kind, targetIndex) {
   else if(kind==='negotiate')result=RIVALS.negotiate(L,S.bots,targetIndex,S.capital,S.day);
   else result=RIVALS.revenge(L,S.bots,targetIndex,S.capital);
   if(!result.ok){flashToast(`⛔ ${result.message}`,'bad');return;}
+  if(kind!=='build'&&S.bots[targetIndex])unlockRivalContact(S.bots[targetIndex],`faction_${kind}`);
   S.capital=result.cash;
   const icon=kind==='build'?'🛡️':kind==='bankrupt'?'🏦':kind==='negotiate'?'🤝':'🔥';
   addNews(`${icon} ${result.message}`,result.success===false?'bad':'good');
@@ -7293,6 +7332,7 @@ function maybeRivalRaid() {
   const targets = S.bots.filter(b => !b.bankrupt && b.jailMonths <= 0 && (!b.truceUntil||b.truceUntil<=S.day) && (b.aggression || 0) >= 0.22);
   if (!targets.length) return;
   const attacker = pick(targets);
+  unlockRivalContact(attacker,'rival_attack');
   const idx = S.bots.indexOf(attacker);
   const worth = Math.max(0, totalWealth());
   const illegal = attacker.aggression > 0.4 && Math.random() < 0.5;

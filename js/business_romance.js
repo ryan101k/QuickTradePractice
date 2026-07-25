@@ -565,8 +565,9 @@ function resolve(life,payload,choiceId,capital){
     q.boundary=clamp(q.boundary+finite(e.boundary,0),0,100);
     if(root.QT_ROMANCE_ROUTES&&q.chapter===0)root.QT_ROMANCE_ROUTES.begin(life,'business');
     q.chapter=Math.max(q.chapter,QUARTET_CHAPTERS.indexOf(chapter)+1);q.lastStoryDay=payload.day||1;
-    if(root.QT_ROMANCE_ROUTES&&q.chapter>=QUARTET_CHAPTERS.length)root.QT_ROMANCE_ROUTES.complete(life,'business','industry_competition_pact','good');
-    return{ok:true,done:true,groupStory:true,title:chapter.title,text:choice.outcome,cash:Math.round(finite(e.cash,0)),
+    const quartetComplete=q.chapter>=QUARTET_CHAPTERS.length;
+    if(root.QT_ROMANCE_ROUTES&&quartetComplete)root.QT_ROMANCE_ROUTES.complete(life,'business','four_business_partners','good');
+    return{ok:true,done:true,groupStory:true,quartet:quartetComplete,title:chapter.title,text:choice.outcome,cash:Math.round(finite(e.cash,0)),
       affectionEach:finite(e.affectionEach,0),trustEach:finite(e.trustEach,0),tone:'good',
       meta:`업무 시너지 ${Math.round(q.synergy)} · 공동 의사결정 ${Math.round(q.governance)} · 공과 사 경계 ${Math.round(q.boundary)}`};
   }

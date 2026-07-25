@@ -96,6 +96,8 @@ for (const file of [
   'js/relationship_group.js',
   'js/childhood_circle.js',
   'js/character_stories.js',
+  'js/dangerous_trio.js',
+  'js/character_cross_events.js',
   'js/family.js',
   'js/health.js',
   'js/housing.js',
@@ -135,6 +137,32 @@ for (const file of [
   assert.match(appSource,/while\(event&&!routeEventAllowed\(event\)\)event=queue\.shift\(\)/,'조건이 사라진 그룹 사건은 중요 사건 큐에서 건너뛰어야 한다');
   assert.doesNotMatch(appSource,/data-act="character-story"/,'행동창에 개인 스토리 직접 실행 버튼을 다시 만들면 안 된다');
   assert.doesNotMatch(appSource,/장 진행 가능/,'개인 스토리는 진행 버튼 대신 다음 중요 사건 대기로 안내해야 한다');
+}
+
+{
+  const trio=context.QT_DANGEROUS_TRIO;
+  const endings={강유진:'dangerous_dependence',한채린:'private_submission',윤세라:'anchored'};
+  const life={
+    day:9,seraHousing:'cohabit',partner:{name:'강유진'},polycule:{active:false,members:[]},
+    met:trio.NAMES.map(name=>({name,status:'friend',affection:85,trust:70,story:{chapter:5,completed:true,history:[],traits:{},variant:'adult',ending:{route:endings[name],title:name}}}))
+  };
+  assert.equal(trio.eligibility(life).ok,true,'위험 3인조는 세 개인 결핍 루트를 완성하고 윤세라와 동거하면 시작돼야 한다');
+  assert.equal(trio.start(life).ok,true);
+  while(trio.next(life))trio.apply(life,trio.next(life).choices.find(choice=>choice.tag==='balance').id);
+  assert.equal(trio.ensure(life).ending.id,'bad_friends','균형 선택은 위험 3인조 악우 공동생활 결말이어야 한다');
+  assert.ok(context.QT_ROMANCE_ROUTES.ensure(life).completed.dangerous,'그룹 엔딩은 공통 진행 장부에 완료로 기록돼야 한다');
+
+  life.dangerousTrioBond={active:true,members:trio.NAMES.slice()};
+  life.polycule={active:true,members:[{name:'한채린'},{name:'윤세라'}]};
+  const freedom=context.QT_FREEDOM_TRIO;
+  freedom.NAMES.forEach(name=>life.met.push({name,status:'friend',affection:80,trust:60}));
+  const freedomState=freedom.ensure(life);
+  Object.keys(freedom.PERSONAL_EVENTS).forEach(id=>freedomState.personal[id]='seen');
+  assert.equal(freedom.eligibility(life).ok,true,'완료된 위험 3인조 뒤에는 자유인 3인조가 자연스럽게 편입될 수 있어야 한다');
+  assert.equal(freedom.start(life).ok,true);
+  while(freedom.next(life))freedom.apply(life,freedom.next(life).choices.find(choice=>choice.tag!=='control').id);
+  assert.equal(freedom.ensure(life).ending.tone,'good','통제하지 않는 선택은 자유인 3인조 힐링 결말이어야 한다');
+  assert.ok(context.QT_ROMANCE_ROUTES.ensure(life).completed.freedom,'편입된 자유인 그룹도 완료 상태를 남겨야 한다');
 }
 
 {
@@ -312,6 +340,15 @@ for (const file of [
   assert.equal(collapse.kind,'management-collapse','사적 경쟁 중 사업을 방치하면 경영 실패 분기가 열려야 한다');
   const badManagement=romance.resolve(life,collapse,'romance_first',20000000);
   assert.equal(badManagement.managementBadEnding,true,'사업 4인조의 배드엔딩은 불륜 폭로가 아니라 사업관리 실패여야 한다');
+
+  const quartetLife={day:12,met:romance.IDS.map(id=>({name:romance.profile(id).name,status:'friend',affection:85,trust:70}))};
+  const quartetState=romance.ensure(quartetLife);
+  romance.IDS.forEach(id=>Object.assign(quartetState.staff[id],{introduced:true,hired:true,revealed:true,storyChapter:3,bond:70,trust:60,romanticRival:true}));
+  quartetState.quartet.chapter=romance.QUARTET_CHAPTERS.length-1;
+  const finalChapter=romance.QUARTET_CHAPTERS[romance.QUARTET_CHAPTERS.length-1];
+  const quartetResult=romance.resolve(quartetLife,{kind:'quartet-story',chapterId:finalChapter.id,day:12},finalChapter.choices[0].id,50000000);
+  assert.equal(quartetResult.quartet,true,'사업 4인조 마지막 공동 이야기는 실제 전원 하렘 성립 신호를 반환해야 한다');
+  assert.ok(context.QT_ROMANCE_ROUTES.ensure(quartetLife).completed.business,'사업 4인조 하렘 완성은 공통 그룹 장부에 기록돼야 한다');
 }
 
 {
@@ -492,6 +529,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
 
 {
   const rival=context.QT_RIVALS.createBots().find(bot=>bot.leader==='김도현');
+  assert.equal(rival.contactUnlocked,false,'새 게임의 경쟁자는 시장에 존재해도 휴대폰 연락처에는 아직 없어야 한다');
   const message=context.QT_RIVALS.contactMessage(rival,{stock:{name:'노바플레이',change:6.6}});
   assert.match(message.text,/노바플레이 수급/,'경쟁자 연락은 실제 종목을 언급해야 한다');
   const choices=context.QT_RIVALS.contactReplyOptions(rival,message);
@@ -643,6 +681,11 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /생활비 30,000 · 스트레스 -22/, '집 화면은 휴식 비용과 실제 스트레스 회복량을 함께 표시해야 한다');
   assert.match(appSource, /data-act="decompress"/, '비용 없이 스트레스를 내릴 수 있는 마음 정리 행동이 있어야 한다');
   assert.match(appSource, /data-chat-rival=/, '연락처에 연애 상대뿐 아니라 시장 경쟁자도 표시돼야 한다');
+  assert.match(appSource, /\.filter\(\(\{bot\}\)=>\s*bot\.contactUnlocked/,'경쟁자는 첫 연락·공격·직접 작전 이후에만 휴대폰 목록에 나타나야 한다');
+  assert.match(appSource, /unlockRivalContact\(entry\.bot,'first_message'\)/,'경쟁자가 먼저 연락하면 그때 연락처가 해금돼야 한다');
+  assert.match(appSource, /marketFootprint=.*S\.day>=3/,'시장 활동도 없는 시작 직후에는 경쟁자가 먼저 아는 척 연락하면 안 된다');
+  assert.match(appSource, /person\.name==='나래'\|\|person\.special==='tutorial'/,'나래는 일반 성향 판정으로 하렘에 편입되면 안 된다');
+  assert.match(appSource, /function retryBusinessManagementEnding\(\)/,'사업관리 배드엔딩에도 직전 선택으로 돌아가는 경로가 있어야 한다');
   assert.match(appSource, /const CONTACT_RULES=\{affection:12,trust:6,interactions:2,months:1\}/, '일반 인물은 호감·신뢰·교류·기간을 채워야 연락처를 줘야 한다');
   assert.match(appSource, /const people=ensureMet\(L\)\.filter\(r=>hasPersonalContact\(r\)\)/, '한 번 본 사람은 연락처 목록에 바로 나타나면 안 된다');
   assert.match(appSource, /if\(!hasPersonalContact\(r\)&&!exReach\)return/, '개인 연락처가 없는 인물은 월말 선연락을 보내면 안 된다');
