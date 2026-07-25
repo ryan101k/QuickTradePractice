@@ -1930,7 +1930,7 @@ function chooseSchoolLife(id){
   const childhood=school.childhood||{},heroine=D.CHARACTERS.find(person=>person.name===childhood.heroine),ally=(D.WORLD_MALE_NPCS||[]).find(person=>person.name===childhood.ally);
   if(heroine&&(!ally||Math.random()<.55)){
     const friend=rememberPerson({...heroine,childhoodFriend:true,schoolTag:school.friendTag},'friend');
-    friend.childhoodFriend=true;friend.schoolTag=school.friendTag;friend.affection=Math.max(friend.affection||0,18);friend.trust=Math.max(friend.trust||0,34);
+    friend.childhoodFriend=true;friend.schoolTag=school.friendTag;unlockPersonalContact(friend);friend.affection=Math.max(friend.affection||0,18);friend.trust=Math.max(friend.trust||0,34);
     ensureCourtship(friend).interactions=Math.max(1,ensureCourtship(friend).interactions||0);
     L.originFriend={kind:'heroine',name:friend.name,schoolId:id};
     if(CHILDHOOD_CIRCLE)CHILDHOOD_CIRCLE.register(L,friend,id);
@@ -2622,6 +2622,7 @@ function resolveBusinessRomanceEvent(choiceId){
   }
   if(result.revealed&&result.character){
     const rec=rememberPerson(result.character,'friend');
+    unlockPersonalContact(rec);
     rec.affection=Math.max(rec.affection||0,result.affection||0);
     rec.trust=Math.max(rec.trust||0,result.trust||0);
     rec.businessHeroineId=pending.staffId;
@@ -2630,6 +2631,7 @@ function resolveBusinessRomanceEvent(choiceId){
   if(result.personalStory&&result.staffId){
     const profile=BUSINESS_ROMANCE.profile(result.staffId);
     const rec=metRecord(S.life,profile.name)||rememberPerson(BUSINESS_ROMANCE.asCharacter(result.staffId),'friend');
+    unlockPersonalContact(rec);
     rec.affection=clamp((rec.affection||0)+(result.affection||0),0,100);
     rec.trust=clamp((rec.trust||0)+(result.trust||0),0,100);
     pushPersonMessage(S.life,rec,`${result.text} 다음에는 업무 보고가 아니라, 제 얘기도 들으러 와요.`,false);
@@ -2639,6 +2641,7 @@ function resolveBusinessRomanceEvent(choiceId){
     BUSINESS_ROMANCE.IDS.forEach(id=>{
       const profile=BUSINESS_ROMANCE.profile(id);
       const rec=metRecord(S.life,profile.name)||rememberPerson(BUSINESS_ROMANCE.asCharacter(id),'friend');
+      unlockPersonalContact(rec);
       rec.affection=clamp((rec.affection||0)+(result.affectionEach||0),0,100);
       rec.trust=clamp((rec.trust||0)+(result.trustEach||0),0,100);
     });
@@ -3432,21 +3435,52 @@ function migrateLifePeople(L) {
 function ensureMet(L) { if (!Array.isArray(L.met)) L.met = []; return L.met; }
 function metRecord(L, name) { return ensureMet(L).find(m => m.name === name); }
 
+const CONTACT_RULES={affection:12,trust:6,interactions:2,months:1};
 const COURTSHIP_RULES={affection:15,trust:8,interactions:3,months:1};
+function establishedContactStatus(status){return['partner','lover','casual','polycule','ex'].includes(status);}
 function ensureCourtship(rec){
   if(!rec)return rec;
   if(!Number.isFinite(rec.firstDay))rec.firstDay=S.day;
   if(!Number.isFinite(rec.interactions)){
-    const established=['partner','lover','casual','polycule','ex'].includes(rec.status);
+    const established=establishedContactStatus(rec.status);
     rec.interactions=established?Math.max(3,rec.dates||0):Math.max(0,rec.dates||0);
+  }
+  if(typeof rec.contactUnlocked!=='boolean'){
+    const months=Math.max(0,S.day-(rec.firstDay||S.day));
+    rec.contactUnlocked=rec.name==='윤세라'||!!rec.childhoodFriend||establishedContactStatus(rec.status)||
+      (rec.status==='friend'&&(rec.interactions||0)>=CONTACT_RULES.interactions&&(rec.trust||0)>=CONTACT_RULES.trust&&months>=CONTACT_RULES.months);
   }
   return rec;
 }
 function knownMonths(rec){return Math.max(0,S.day-(ensureCourtship(rec).firstDay||S.day));}
+function hasPersonalContact(rec){return!!(ensureCourtship(rec)&&rec.contactUnlocked);}
+function contactReadiness(rec){
+  ensureCourtship(rec);
+  if(hasPersonalContact(rec))return{ready:true,missing:[],months:knownMonths(rec)};
+  const missing=[];
+  if((rec.affection||0)<CONTACT_RULES.affection)missing.push(`호감 ${Math.round(rec.affection||0)}/${CONTACT_RULES.affection}`);
+  if((rec.trust||0)<CONTACT_RULES.trust)missing.push(`신뢰 ${Math.round(rec.trust||0)}/${CONTACT_RULES.trust}`);
+  if((rec.interactions||0)<CONTACT_RULES.interactions)missing.push(`교류 ${rec.interactions||0}/${CONTACT_RULES.interactions}`);
+  if(knownMonths(rec)<CONTACT_RULES.months)missing.push(`알게 된 기간 ${knownMonths(rec)}/${CONTACT_RULES.months}개월`);
+  return{ready:missing.length===0,missing,months:knownMonths(rec)};
+}
+function contactProgress(rec){
+  const r=contactReadiness(rec);
+  return r.ready?'📱 연락처 교환 가능':`📵 연락처까지 ${r.missing.join(' · ')}`;
+}
+function unlockPersonalContact(rec){
+  if(!rec)return false;
+  const was=hasPersonalContact(rec);
+  rec.contactUnlocked=true;
+  if(!Number.isFinite(rec.contactDay))rec.contactDay=S.day;
+  if(rec.status==='acquaintance')rec.status='friend';
+  return!was;
+}
 function courtshipReadiness(rec){
   ensureCourtship(rec);
-  const established=['partner','lover','casual','polycule','ex'].includes(rec.status);
+  const established=establishedContactStatus(rec.status);
   const missing=[];
+  if(!hasPersonalContact(rec))missing.push('연락처 교환');
   if((rec.affection||0)<COURTSHIP_RULES.affection)missing.push(`호감 ${Math.round(rec.affection||0)}/${COURTSHIP_RULES.affection}`);
   if((rec.trust||0)<COURTSHIP_RULES.trust)missing.push(`신뢰 ${Math.round(rec.trust||0)}/${COURTSHIP_RULES.trust}`);
   if((rec.interactions||0)<COURTSHIP_RULES.interactions)missing.push(`교류 ${rec.interactions||0}/${COURTSHIP_RULES.interactions}`);
@@ -3486,11 +3520,14 @@ function rememberPerson(c, status) {
             datingMoneyRate:c.datingMoneyRate||0, datingMoneyFlat:c.datingMoneyFlat||0, marriedShareRate:c.marriedShareRate,
             affection: 0, trust: 0, obsession: DANGEROUS_HEROINE_NAMES.includes(c.name)?(c.obsession||0):0, obsessionGrowth:DANGEROUS_HEROINE_NAMES.includes(c.name)?(c.obsessionGrowth||0):0,
             chastity:(D.PERSONALITIES[c.personality]||{}).chastity==null?55:(D.PERSONALITIES[c.personality]||{}).chastity,
+            childhoodFriend:!!c.childhoodFriend, schoolTag:c.schoolTag, contactUnlocked:c.name==='윤세라'||!!c.childhoodFriend||!!c.contactUnlocked,
             dates: 0, interactions:0, status: 'acquaintance', firstDay: S.day };
     met.push(rec);
   }
   if (status) rec.status = status;
   ensureCourtship(rec);
+  if(c.childhoodFriend){rec.childhoodFriend=true;rec.contactUnlocked=true;}
+  if(c.contactUnlocked||c.name==='윤세라'||establishedContactStatus(rec.status))unlockPersonalContact(rec);
   if(!DANGEROUS_HEROINE_NAMES.includes(rec.name)){rec.obsession=0;rec.obsessionGrowth=0;}
   if(CHAR_TRAITS)CHAR_TRAITS.ensure(rec);
   rec.lastDay = S.day;
