@@ -24,7 +24,7 @@
     예린: [
       { title:'지워지지 않은 생활표', desc:'예린은 중학교 때 함께 쓰던 생활표를 아직 보관하고 있습니다. 지금의 출퇴근과 수면 시간까지 빈칸에 채워 넣었습니다.', speaker:'예전엔 네가 늦으면 내가 먼저 알았잖아. 지금도 그래도 되는지, 이번에는 물어볼게.', choices:[
         C('remember','추억 옆에 지금의 일정을 함께 적는다','과거를 공유하되 현재의 선택권을 지킨다',9,11,-5,'good','좋아. 예전 표는 참고만 하고, 지금 일정은 네가 정해.',{},'present'),
-        C('rewind','예린이 예전처럼 하루를 관리하게 둔다','편안함과 함께 회귀 압력이 커진다',12,4,11,'neutral','그럼 늦잠도 끼니도 내가 먼저 챙길게. 옛날처럼.',{},'rewind'),
+        C('rewind','예린이 예전처럼 하루를 관리하게 둔다','편안함과 함께 예전 생활 규칙이 돌아온다',12,4,11,'neutral','그럼 늦잠도 끼니도 내가 먼저 챙길게. 옛날처럼.',{},'rewind'),
         C('erase','표를 당장 버리라고 한다','경계는 세우지만 함께한 시간을 부정한다',-10,-9,3,'bad','종이는 버릴 수 있어. 네가 언제 도망치는지는 안 잊어.',{},'sever')
       ]},
       { title:'가족보다 먼저 아는 사람', desc:'가족 모임 날짜를 주인공보다 예린이 먼저 알고 있습니다. 부모님은 여전히 예린을 집안 사정을 가장 잘 아는 친구로 여깁니다.', speaker:'네가 성공하고 바뀌어도 가족한테는 여전히 그 애야. 그 틈까지 내가 맡아도 돼?', choices:[
@@ -149,7 +149,7 @@
   const EVENTS = {
     reunion: {
       icon:'🏫', title:'졸업하지 못한 다섯 · 복구된 단체방',
-      scene:'./assets/life-origin-school.png',
+      scene:'./assets/pixel-event-childhood-reunion-v1.png',
       desc:'소꿉친구가 폐쇄됐던 학창 시절 단체방을 복구했습니다. 예린은 시간표, 보라는 건강 기록, 서연은 사진, 나영은 자주 숨던 장소, 미래는 삭제된 대화까지 들고 나타납니다.',
       speakers:[
         ['예린','시간은 내가 맞췄어. 다들 네가 언제 비는지 알고 있더라.'],
@@ -159,14 +159,14 @@
         ['미래','방 복구 완료. 나간 기록은 있어도 졸업 기록은 없음.']
       ],
       choices:[
-        {id:'present',text:'어른이 된 서로를 처음부터 다시 소개한다',preview:'다섯을 친구로 등록 · 신뢰 상승 · 회귀 압력 감소',trust:12,pressure:-8,affection:8,trait:'present'},
-        {id:'rewind',text:'그때처럼 다섯에게 내 생활을 맡긴다',preview:'다섯을 친구로 등록 · 호감 상승 · 회귀 압력 급상승',trust:3,pressure:18,affection:13,trait:'rewind'},
-        {id:'sever',text:'단체방을 음소거하고 옛 동창으로만 남는다',preview:'지인 상태 유지 · 회귀 압력 감소 · 세트 루트 중단',trust:-8,pressure:-12,affection:-7,trait:'sever'}
+        {id:'present',text:'어른이 된 서로를 처음부터 다시 소개한다',preview:'다섯을 친구로 등록 · 서로의 현재를 다시 알아감',trust:12,pressure:-8,affection:8,trait:'present'},
+        {id:'rewind',text:'그때처럼 다섯에게 내 생활을 맡긴다',preview:'다섯을 친구로 등록 · 예전 생활 규칙이 돌아옴',trust:3,pressure:18,affection:13,trait:'rewind'},
+        {id:'sever',text:'단체방을 음소거하고 옛 동창으로만 남는다',preview:'지인 상태 유지 · 단체 연락을 끊고 세트 루트를 중단',trust:-8,pressure:-12,affection:-7,trait:'sever'}
       ]
     },
     pact: {
       icon:'🧷', title:'졸업하지 못한 다섯 · 원본 소유권',
-      scene:'./assets/life-network.png',
+      scene:'./assets/pixel-event-childhood-pact-v1.png',
       desc:'다섯은 주인공의 현재 연애와 성공을 두고 서로를 견제합니다. 누구도 자신이 위험하다고 생각하지 않습니다. 새로 만난 사람보다 오래 알았다는 사실을 권리처럼 꺼냅니다.',
       speakers:[
         ['예린','보라는 약부터 먹이고, 나영은 끌고 가잖아. 일정 묻는 내가 제일 정상이지.'],
@@ -176,14 +176,14 @@
         ['나영','말 많다. 적어도 난 숨어서 기록 안 해. 직접 잡아오지.']
       ],
       choices:[
-        {id:'present',text:'과거를 증거가 아니라 서로를 이해하는 단서로만 쓰게 한다',preview:'오래된 약속 루트 강화 · 신뢰 상승',trust:16,pressure:-10,affection:9,trait:'present'},
-        {id:'rewind',text:'다섯이 가진 기록을 합쳐 내 일상을 관리하게 한다',preview:'끝나지 않은 졸업식 루트 강화 · 회귀 압력 급상승',trust:5,pressure:24,affection:14,trait:'rewind'},
+        {id:'present',text:'과거를 증거가 아니라 서로를 이해하는 단서로만 쓰게 한다',preview:'오래된 약속 루트 강화 · 현재의 경계를 지킴',trust:16,pressure:-10,affection:9,trait:'present'},
+        {id:'rewind',text:'다섯이 가진 기록을 합쳐 내 일상을 관리하게 한다',preview:'끝나지 않은 졸업식 루트 강화 · 다섯의 간섭이 촘촘해짐',trust:5,pressure:24,affection:14,trait:'rewind'},
         {id:'sever',text:'각자가 가진 기록을 전부 돌려달라고 한다',preview:'관계가 크게 멀어지고 세트 루트가 종료될 수 있음',trust:-14,pressure:-15,affection:-12,trait:'sever'}
       ]
     },
     graduation: {
       icon:'🎓', title:'졸업하지 못한 다섯 · 끝나지 않은 졸업식',
-      scene:'./assets/life-relationship-conflict.png',
+      scene:'./assets/pixel-event-childhood-graduation-v1.png',
       desc:'폐교를 앞둔 강당에 여섯 개 의자가 놓였습니다. 다섯은 주인공이 누구와 만나든 자신들이 먼저였다고 말합니다. 이번 선택은 추억을 관계로 바꿀지, 현재를 과거에 넘길지 결정합니다.',
       speakers:[
         ['서연','우리 중 누구 하나만 고르면 나머지 넷이 모를 거라고 생각해?'],

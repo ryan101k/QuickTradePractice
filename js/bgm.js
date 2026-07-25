@@ -1451,11 +1451,13 @@
   if (root.document && typeof root.document.addEventListener === 'function') {
     const recover = () => {
       if (!enabled || !wanted || root.document.visibilityState === 'hidden') return;
-      recoverPlayback();
+      // 모바일의 첫 탭에서 오디오 그래프 복구가 click 생성을 가로막지 않도록
+      // 현재 입력 처리가 끝난 뒤 재생을 살린다.
+      root.setTimeout(() => recoverPlayback(), 0);
     };
     root.document.addEventListener('visibilitychange', recover);
-    root.document.addEventListener('pointerdown', recover);
-    root.document.addEventListener('touchend', recover);
+    if (root.PointerEvent) root.document.addEventListener('pointerdown', recover, { passive:true });
+    else root.document.addEventListener('touchend', recover, { passive:true });
     root.document.addEventListener('keydown', recover);
     root.addEventListener('pageshow', recover);
   }
