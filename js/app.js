@@ -1768,7 +1768,9 @@ function settleMonth() {
     : null;
   if (attack) {
     registerFactionAttack(attack.attacker);
+    L._attackedRecently=3;
     const seraScout=metRecord(L,'윤세라');
+    if(seraScout)queueYujinInvestigation(L.seraHousing,attack.attacker);
     if(seraScout&&L.seraIntelHelper&&!attack.caught&&!attack.blocked&&(seraScout.obsession||0)<90&&Math.random()<.28){
       attack.caught=true;attack.blocked=true;attack.loss=0;
       attack.message+=` 윤세라가 예전에 빼낸 송금책의 동선을 알아보고 피해를 막았습니다.`;
@@ -2482,6 +2484,7 @@ function importantEventPriority(event) {
   if(event.factionStory==='first_attack'||event.factionStory==='legal_result')return 100;
   if(event.factionVictory||event.captivity||event.type==='ending')return 95;
   if(event.type==='debt'||event.type==='incident'||event.dangerousHeroineEvent)return 85;
+  if(event.yujinInvestigation)return 80;
   if(event.childhoodCircleEvent||event.dangerousTrioStart||event.freedomTrioStart||event.freedomGuildEvent)return 75;
   if(event.crossEventId||event.story||event.bondEncounter)return 55;
   if(event.businessRomanceEvent)return 45;
@@ -2491,6 +2494,7 @@ function importantEventPriority(event) {
 }
 function importantEventKey(event) {
   if(event.factionStory)return`faction:${event.factionStory}`;
+  if(event.yujinInvestigation)return'yujin:first-investigation';
   if(event.monthlyMessage)return`message:${event.targetType}:${event.targetId!=null?event.targetId:event.personName||''}`;
   if(event.businessEvent)return`business:${event.businessId}:${event.eventId}`;
   if(event.story)return`story:${event.personName}`;
@@ -2581,6 +2585,7 @@ function showNextImportantEvent(resumeCurrent = false) {
   if (event.freedomTrioChapter) { showFreedomTrioStory(); return; }
   if (event.freedomTrioAftermath) { showFreedomTrioAftermath(); return; }
   if (event.freedomPersonalEvent) { showFreedomPersonalEvent(event.eventId); return; }
+  if (event.yujinInvestigation) { showYujinInvestigation(false); return; }
   if (event.factionStory) { showFactionMentorPhoneStory(event.factionStory); return; }
   if (event.factionVictory) { showFactionVictoryEnding(); return; }
   if (event.businessEvent) { showBusinessReport(event); return; }
@@ -3221,7 +3226,11 @@ function applyEventEffects(eff) {
       changes.push('🏠 <b>윤세라와 한집에서 살기 시작함</b>');
     }else{
       L.seraCohabitingSince=null;
+      if(eff.seraHousing==='reject'&&L.seraRescueOrigin)L.seraRescueOrigin.ready=false;
       changes.push('🚪 <b>윤세라에게 따로 지낼 곳을 마련해 줌</b>');
+    }
+    if(queueYujinInvestigation(eff.seraHousing,L.seraRescueOrigin&&L.seraRescueOrigin.attacker)){
+      changes.push('👮‍♀️ <b>피해 자금 수사를 맡은 경찰의 방문 조사 예정</b>');
     }
   }
   if (eff.familyOrigin && !L.familyPlan) {
@@ -3863,10 +3872,79 @@ function rememberPerson(c, status) {
   return rec;
 }
 
+function queueYujinInvestigation(housing,attacker){
+  const L=S.life;if(!L||metRecord(L,'강유진')||L.yujinInvestigationSeen||L.yujinInvestigation&&L.yujinInvestigation.ready)return false;
+  L.yujinInvestigation={
+    ready:true,
+    housing:housing||L.seraHousing||'reject',
+    attacker:attacker||L.seraRescueOrigin&&L.seraRescueOrigin.attacker||RIVALS.ensureFaction(L).firstAttacker||'경쟁 세력',
+    queuedDay:S.day,
+  };
+  queueImportantEvent({yujinInvestigation:true,type:'court',scene:'./assets/event-yujin-rain-rescue.png'});
+  return true;
+}
+
+function showYujinInvestigation(manual){
+  const L=S.life,host=$('life-event'),c=D.SPECIAL_CHARACTERS&&D.SPECIAL_CHARACTERS.yujin;
+  if(!host||!c)return;
+  const sera=metRecord(L,'윤세라'),housing=L.seraHousing||L.yujinInvestigation&&L.yujinInvestigation.housing||'reject';
+  const cohabit=!!(sera&&housing==='cohabit'),separate=!!(sera&&housing==='separate');
+  const seraPartner=!!(sera&&RELATIONSHIPS.isPartner(L,'윤세라'));
+  S._yujinInvestigation={manual:!!manual,c,sera,housing};
+  const scene=cohabit
+    ?`<div class="investigation-door-cast"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="강유진"><div><strong>강유진 · 담당 수사관</strong><br><span class="muted">차명계좌·정산금 유용 사건</span></div></div><div class="date-profile"><img class="char-thumb" src="${characterPortrait(sera)}" alt="윤세라"><div><strong>윤세라 · 현재 동거인</strong><br><span class="muted">피해자이자 내부 송금 기록 제보자</span></div></div></div><div class="story-dialogue"><b>강유진</b> “윤세라 씨 주소를 확인하러 왔는데, 왜 당신 집이 나옵니까?”</div><div class="story-dialogue"><b>윤세라</b> “갈 곳이 없어서 같이 사는 건데요. 경찰한테 허락도 받아야 해요?”</div><div class="story-dialogue"><b>강유진</b> “허락 문제가 아닙니다. 두 분은 동거인입니까? 아니면… 애인입니까?”</div>`
+    :separate
+      ?`<div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="강유진"><div><strong>강유진 · 담당 수사관</strong><br><span class="muted">차명계좌·정산금 유용 사건</span></div></div><div class="story-dialogue"><b>강유진</b> “윤세라 씨가 임시 숙소의 비상 연락처로 당신 번호를 적었습니다. 같이 살지는 않는다면서, 무슨 관계입니까?”</div>`
+      :`<div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="강유진"><div><strong>강유진 · 담당 수사관</strong><br><span class="muted">실종 피해자·차명계좌 확인</span></div></div><div class="story-dialogue"><b>강유진</b> “폐작업실에서 윤세라 씨를 마지막으로 본 사람이 당신입니다. 지원 연락처만 두고 왔다고 했죠. 그 뒤로 연락은 없었습니까?”</div>`;
+  const choices=cohabit
+    ?`<button class="event-opt" data-yujin-first="plain"><b>“지금은 동거인입니다. 갈 곳이 없어서 데려왔어요.”</b><span>관계를 부풀리지 않고 사실과 사건 기록을 넘깁니다.</span></button><button class="event-opt" data-yujin-first="protect"><b>“친구고, 제가 책임지고 보호하고 있습니다.”</b><span>세라를 다시 조사 대상처럼 다루지 말라고 선을 긋습니다.</span></button><button class="event-opt" data-yujin-first="challenge"><b>“${seraPartner?'애인 맞습니다.':'애인이라면'} 수사가 달라집니까?”</b><span>유진이 굳이 관계를 확인한 이유를 되묻습니다.</span></button>`
+    :`<button class="event-opt" data-yujin-first="plain"><b>알고 있는 송금 기록과 마지막 행적을 전부 말한다</b><span>피해자이자 참고인으로 정식 조사에 협조합니다.</span></button><button class="event-opt" data-yujin-first="protect"><b>세라가 다시 이용당하지 않게 먼저 보호해 달라고 한다</b><span>수사보다 피해자 안전을 우선해 달라고 요구합니다.</span></button><button class="event-opt" data-yujin-first="challenge"><b>내가 왜 의심받는지부터 설명하라고 한다</b><span>담당 수사관의 의도와 확보한 증거를 확인합니다.</span></button>`;
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window yujin-investigation-window"><div class="title-bar event-bar"><div class="title-bar-text">👮‍♀️ 경쟁 세력 피해 수사 · 주거지 확인</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-yujin-rain-rescue.png" alt="사건 수사를 위해 찾아온 강유진"><div class="event-title">${cohabit?'현관문은 세라가 먼저 열었습니다.':'담당 수사관이 당신을 참고인으로 찾았습니다.'}</div><div class="event-desc">${L.yujinInvestigation&&L.yujinInvestigation.attacker||'경쟁 세력'}의 차명계좌를 조사하던 강유진이 정산금 피해자 명단과 당신의 거래 기록이 겹친 것을 발견했습니다. 신고하러 찾아간 만남이 아니라, 수사가 먼저 집 앞까지 온 순간입니다.</div>${scene}<div class="event-options">${choices}</div><div id="yujin-investigation-outcome" class="event-outcome"></div></div></div>`;
+  host.querySelectorAll('[data-yujin-first]').forEach(button=>button.addEventListener('click',()=>resolveYujinInvestigation(button.dataset.yujinFirst)));
+}
+
+function resolveYujinInvestigation(choice){
+  const pending=S._yujinInvestigation,host=$('life-event'),L=S.life;if(!pending||!host)return;
+  const rec=rememberPerson(pending.c,'acquaintance'),sera=pending.sera,cohabit=!!(sera&&pending.housing==='cohabit');
+  const effects={
+    plain:{affection:4,trust:7,danger:-2,line:'기록은 확인했습니다. 당분간은 업무용 번호로만 연락하죠. 다음 조사 때는 경찰서 밖에서 이야기할 수도 있고요.'},
+    protect:{affection:6,trust:5,danger:2,line:'본인도 피해자인데 다른 사람부터 지키겠다는 겁니까? 그런 사람일수록 어느 순간 혼자 무너집니다. 다음 연락은 꼭 받으세요.'},
+    challenge:{affection:7,trust:3,danger:4,line:'수사는 달라지지 않습니다. 다만 누가 누구를 보호하는지는 알아야 하니까요. 지금 대답하기 싫으면 다음 조사에서 다시 묻겠습니다.'},
+  };
+  const effect=effects[choice]||effects.plain;
+  rec.affection=clamp(Math.max(rec.affection||0,effect.affection),0,100);
+  rec.trust=clamp(Math.max(rec.trust||0,effect.trust),0,100);
+  rec.dangerLevel=clamp((rec.dangerLevel||0)+effect.danger,0,100);
+  rec.officialContact=true;rec.investigationRole='담당 수사관';rec.specialFollowupInterest='open';
+  rec.lastSpecialFollowupDay=S.day;rec.yujinFirstAnswer=choice;rec.yujinCaseOrigin='rival-funds';
+  addBondInteraction(rec,'official-investigation');
+  if(cohabit){
+    L.dangerousBadFriendsEncounters=(L.dangerousBadFriendsEncounters||0)+1;
+    rec.dangerousBadFriendsSeed=true;sera.dangerousBadFriendsSeed=true;
+    if(choice==='protect'){sera.affection=clamp((sera.affection||0)+3,0,100);sera.obsession=clamp((sera.obsession||0)+3,0,100);}
+    else if(choice==='challenge'){sera.affection=clamp((sera.affection||0)+5,0,100);sera.obsession=clamp((sera.obsession||0)+5,0,100);}
+    else sera.trust=clamp((sera.trust||0)+2,0,100);
+  }
+  L.yujinInvestigationSeen=true;
+  if(L.yujinInvestigation)L.yujinInvestigation.ready=false;
+  addNews(`👮‍♀️ 강유진이 경쟁 세력 피해 사건의 담당 수사관으로 나타났습니다${cohabit?' · 윤세라 동거 확인':''}`,'neutral');
+  const seraReply=cohabit?`<div class="story-dialogue"><b>윤세라</b> “경찰님, 다음에는 영장 없으면 남의 애인 여부부터 묻지 마세요.”</div><div class="story-dialogue"><b>강유진</b> “세라 씨도 다음에는 남의 말을 대신 정하지 말고요. 그리고 아직 애인이라고 답한 적 없습니다.”</div>`:'';
+  const options=host.querySelector('.event-options');if(options)options.innerHTML='';
+  $('yujin-investigation-outcome').innerHTML=`<div class="story-dialogue"><b>강유진</b> “${effect.line}”</div>${seraReply}<div class="oc-changes">강유진 · 공식 사건 연락만 가능 · 호감 ${effect.affection} · 신뢰 ${effect.trust}<br>개인 연락처는 후속 수사와 사적인 대화를 거쳐야 열립니다.</div><button id="yujin-investigation-confirm" class="session-btn opening">업무용 명함을 받아 둔다</button>`;
+  $('yujin-investigation-confirm').addEventListener('click',()=>{
+    host.style.display='none';host.innerHTML='';S._yujinInvestigation=null;
+    renderLifePanel();autoSave();
+    if(pending.manual)afterLifeAction('인맥');else showNextImportantEvent();
+  });
+  autoSave();
+}
+
 function meetSpecialPerson(id) {
   const c = D.SPECIAL_CHARACTERS && D.SPECIAL_CHARACTERS[id];
   if (!c) return;
   const known=metRecord(S.life,c.name);
+  if(id==='yujin'&&!known){showYujinInvestigation(true);return;}
   if(known&&!hasPersonalContact(known)){
     showSpecialFollowupMeet(id,c,known);
     return;
@@ -3914,10 +3992,10 @@ function showSpecialFollowupMeet(id,c,rec){
   let intro='',interruption='';
   if(id==='yujin'){
     intro=count===1
-      ? '유진은 경찰서 정문이 아니라 길 건너 조용한 카페를 골랐습니다. 업무용 명함 뒤에 적힌 시간을 정확히 지킨 당신을 보고도 한동안 개인 번호를 꺼내지 않습니다.'
-      : '유진은 지난번에 끝내지 못한 이야기를 먼저 꺼냅니다. 사건이 없어도 다시 만난 건 이번이 처음입니다. 보호할 이유가 없어도 곁에 있을 수 있는지를 서로 확인하는 자리입니다.';
+      ? '유진은 추가 진술을 받겠다며 경찰서 정문이 아니라 사건 현장 맞은편의 조용한 카페를 골랐습니다. 서류에는 차명계좌와 윤세라의 거처가 적혀 있지만, 질문은 당신이 공격 뒤에도 혼자 버티고 있는지에 더 오래 머뭅니다.'
+      : '수사에 필요한 진술은 이미 끝났습니다. 그런데도 유진은 업무용 명함 뒤에 다음 시간을 적어 왔습니다. 사건이 없어도 다시 만날 수 있는지, 보호할 이유가 없어도 곁에 있고 싶은지를 처음으로 구분하려 합니다.';
     interruption=seraAtHome
-      ? '<div class="hub-note bad-friends-note"><b>세라와 동거 중</b><br>집에 돌아오자 세라가 약속 장소와 귀가 시간을 정확히 읊습니다. 유진이 “남의 동선을 그만 훔쳐보라”고 하자 세라는 “제복 입고 안전 확인이라고 부르면 스토킹이 아닌가 봐요?”라고 받아칩니다. 유진은 부정하면서도 다음 약속 시간을 세라에게도 남깁니다.</div>'
+      ? '<div class="hub-note bad-friends-note"><b>세라와 동거 중</b><br>카페 밖에는 세라가 먼저 와 있었습니다. 유진이 “참고인 조사를 따라오는 동거인은 처음 보네요”라고 하자 세라는 “애인인지 두 번이나 물어보는 담당 경찰도 처음 봤어요”라고 받아칩니다. 유진은 사적인 질문이 아니었다고 부정하면서도 귀가할 때까지 두 사람을 따라옵니다.</div>'
       : '';
   }else{
     intro=count===1
@@ -3930,7 +4008,7 @@ function showSpecialFollowupMeet(id,c,rec){
   const name=id==='yujin'?'강유진':'한채린';
   const progress=contactReadiness(rec);
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${c.emoji} ${name} · ${count}번째 후속 약속</div><div class="title-bar-controls"><button aria-label="Close" id="special-followup-close"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="${name}"><div><strong>${name} · 아직 개인 연락처 없음</strong><br><span class="muted">${progress.missing.join(' · ')||'조금 더 솔직한 대화가 필요합니다'}</span></div></div><div class="event-desc">${intro}</div>${interruption}<div class="event-options"><button class="event-opt" data-special-followup="open">업무가 아닌 다음 약속을 먼저 제안한다</button><button class="event-opt" data-special-followup="practical">${id==='yujin'?'서로의 비상연락망을 정리한다':'서로 이용할 수 있는 정보부터 교환한다'}</button><button class="event-opt" data-special-followup="formal">서두르지 않고 오늘의 대화만 마친다</button><button class="event-opt" id="special-followup-cancel">다음으로 미룬다</button></div></div></div>`;
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${c.emoji} ${name} · ${count}번째 후속 약속</div><div class="title-bar-controls"><button aria-label="Close" id="special-followup-close"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="${name}"><div><strong>${name} · ${id==='yujin'?'업무용 연락만 가능':'아직 개인 연락처 없음'}</strong><br><span class="muted">${progress.missing.join(' · ')||'조금 더 솔직한 대화가 필요합니다'}</span></div></div><div class="event-desc">${intro}</div>${interruption}<div class="event-options"><button class="event-opt" data-special-followup="open">${id==='yujin'?'조사가 끝난 뒤에도 다시 만나자고 한다':'업무가 아닌 다음 약속을 먼저 제안한다'}</button><button class="event-opt" data-special-followup="practical">${id==='yujin'?'공식 신고와 개인 비상연락의 선을 함께 정한다':'서로 이용할 수 있는 정보부터 교환한다'}</button><button class="event-opt" data-special-followup="formal">${id==='yujin'?'오늘은 사건 이야기만 하고 돌아간다':'서두르지 않고 오늘의 대화만 마친다'}</button><button class="event-opt" id="special-followup-cancel">다음으로 미룬다</button></div></div></div>`;
   host.querySelectorAll('[data-special-followup]').forEach(b=>b.addEventListener('click',()=>resolveSpecialFollowupMeet(b.dataset.specialFollowup)));
   [$('special-followup-close'),$('special-followup-cancel')].forEach(b=>{if(b)b.addEventListener('click',closeSpecialFollowupMeet);});
 }
@@ -3955,6 +4033,7 @@ function resolveSpecialFollowupMeet(kind){
   let result='';
   if(ready.ready){
     unlockPersonalContact(rec);
+    if(id==='yujin'){rec.officialContact=false;rec.personalContactReason='후속 수사 뒤 사적인 번호 교환';}
     result=id==='yujin'
       ? '유진이 업무용 명함을 거두고 개인 번호를 직접 찍어줍니다. “사건이 없어도 연락해요. 대신 답이 늦다고 순찰차부터 보내지는 않을게요.”'
       : '채린이 비서의 번호가 적힌 카드를 치우고 자기 휴대폰을 내밉니다. “회사 거치지 말고 직접 연락해요. 어디까지나 당신이 그럴 만한 사람인지 더 보려는 거예요.”';
@@ -7351,8 +7430,8 @@ function lifeHubHTML() {
   const yujinRecord=specialRecord('police'),chaerinRecord=specialRecord('heiress');
   const sctx = specialRouteContext(L);
   const specialMeetBtns = [
-    (!specialMet('police') && (justice.case || L.criminalRecord > 0 || sctx.attacked)) ? '<button class="life-btn" data-act="meet-special" data-special="yujin">👮‍♀️ 경찰서에서 상담한다 <small>공격·사건·전과가 만든 인연</small></button>' :
-      canSpecialFollowup(yujinRecord)?`<button class="life-btn hot" data-act="meet-special" data-special="yujin">👮‍♀️ 강유진과 후속 약속을 잡는다 <small>${(yujinRecord.specialFollowupCount||0)+1}번째 대화 · 업무 밖에서 이어진 약속</small></button>`:'',
+    (!specialMet('police') && (L.yujinInvestigation&&L.yujinInvestigation.ready||justice.case || L.criminalRecord > 0 || sctx.attacked)) ? '<button class="life-btn hot" data-act="meet-special" data-special="yujin">👮‍♀️ 강유진의 방문 조사에 응한다 <small>경쟁 세력 피해 자금·윤세라 거처 확인</small></button>' :
+      canSpecialFollowup(yujinRecord)?`<button class="life-btn hot" data-act="meet-special" data-special="yujin">👮‍♀️ 강유진의 후속 수사에 응한다 <small>${(yujinRecord.specialFollowupCount||0)+1}번째 대화 · 공식 연락에서 개인 연락으로</small></button>`:'',
     (!specialMet('heiress') && sctx.factionLevel >= 2 && sctx.factionMembers >= 3) ? '<button class="life-btn" data-act="meet-special" data-special="chaerin">🥂 한채린의 비공개 회동 제안을 받는다 <small>세력 2단계 · 조직원 3명 이상</small></button>' :
       canSpecialFollowup(chaerinRecord)?`<button class="life-btn hot" data-act="meet-special" data-special="chaerin">🥂 한채린과 후속 회동을 잡는다 <small>${(chaerinRecord.specialFollowupCount||0)+1}번째 대화 · 조건이 아닌 사람을 확인하는 자리</small></button>`:''
   ].join('');
@@ -7556,6 +7635,7 @@ function maybeRivalRaid() {
   f.lastAttacker = attacker.name;
   registerFactionAttack(attacker);
   L._attackedRecently = 3;   // 최근 피습 → 경찰(강유진) 조우 조건
+  if(metRecord(L,'윤세라'))queueYujinInvestigation(L.seraHousing,attacker);
   let blocked = false, mitigated = 0;
   const def = Math.min(0.9, (f.defense || 0) + (f.tempDefense || 0)); f.tempDefense = 0;
   if (f.level && Math.random() < def) { blocked = true; loss = 0; }
