@@ -140,6 +140,7 @@ for (const file of [
   assert.doesNotMatch(appSource,/친구가 알려준 초보 투자지원 프로그램의 담당자입니다/,'첫 만남 장면에 개발자 시점의 나래 관계 설명을 노출하면 안 된다');
   assert.doesNotMatch(appSource,/(?:choice|c)\.preview/,'서사 선택지 아래에 결과 미리보기를 다시 렌더링하면 안 된다');
   assert.doesNotMatch(appSource,/고백 조건:|전용 위험 트리거가 작동|세트 루트가 종료|공동생활 해피엔딩입니다|힐링 공동생활 해피엔딩입니다/,'관계 장면에서 공략 조건이나 결과 해설을 직접 노출하면 안 된다');
+  assert.doesNotMatch(appSource,/상담을 더 받으면 .*열립니다|다음 외출부터 정식 데이트|헤어진 뒤에도 .*재회를 시도/,'행동 결과나 다음 진행 방법을 설명하는 문구를 다시 노출하면 안 된다');
   const lifeEventSource=fs.readFileSync(path.join(root,'js/events_life.js'),'utf8');
   const businessRomanceSource=fs.readFileSync(path.join(root,'js/business_romance.js'),'utf8');
   assert.doesNotMatch(lifeEventSource,/훗날 .*루트가 열|공동생활 루트가 닫|위험한 3인조 역시 이번 인생/,'인생 사건 결과가 이후 관계 공략법을 설명하면 안 된다');
