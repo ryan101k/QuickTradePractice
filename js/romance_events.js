@@ -30,7 +30,11 @@ function dateLine(person,tier,approach,nameArg,opts){
   const personality=(typeof person==='object'&&person&&person.personality)||person;
   const key=tier==='성공'?'good':tier==='보통'?'mid':'bad';
   let line;
-  if(cv){
+  const childhood=root.QT_CHILDHOOD_CIRCLE&&typeof person==='object'&&person&&person.childhoodFriend
+    ?root.QT_CHILDHOOD_CIRCLE.line(person,o.first?'first':key==='good'?'warm':key==='bad'?'boundary':'brief'):'';
+  if(childhood){
+    line=`“${childhood}”`;
+  }else if(cv){
     // 첫 만남이면 인사부터, 사이가 깊고 잘 풀렸으면 속 얘기가 나온다
     if(o.first&&cv.first&&tier!=='실패') line=cv.first;
     else if(tier==='성공'&&(o.affection||0)>=60&&cv.deep&&Math.random()<0.6) line=pick(cv.deep);
@@ -50,6 +54,9 @@ const GENERIC_MOMENTS={
 };
 /* 상황별 한 줄 — 고백 / 이별 / 근황. 이름 전용 대사 → 없으면 기본 대사로 떨어진다 */
 function momentLine(person,kind){
+  const childhood=root.QT_CHILDHOOD_CIRCLE&&typeof person==='object'&&person&&person.childhoodFriend
+    ?root.QT_CHILDHOOD_CIRCLE.line(person,kind==='news'?'incoming':kind==='parting'?'boundary':'warm'):'';
+  if(childhood)return childhood;
   const cv=voiceOf(person);
   if(cv&&cv[kind]){const v=cv[kind];return Array.isArray(v)?pick(v):v;}
   const g=GENERIC_MOMENTS[kind];

@@ -172,7 +172,7 @@ app.js
 - 직업과 성장: `job`, `career`, 적성·자격증 관련 하위 상태
 - 감정과 건강: `happy`, `charm`, `health`, `stress`, `fitness`, `conditions`
 - 관계: `relationship`, `partner`, `relationshipGroup`, `lovers`, `polycule`, `met`
-- 캐릭터 세트: `dangerousTrio`, `freedomTrio`
+- 캐릭터 세트: `dangerousTrio`, `freedomTrio`, `childhoodCircle`
 - 연락: `chats`
 - 생활 경제: `properties`, `passiveAssets`, `loans`, `housing`, `finance`, `business`
 - 가족과 계승: `children`, `familyPlan`, `parentAge`, `parentHealth`, `familyBond`, `generation`
@@ -574,6 +574,7 @@ QT_BGM.clearCharacterVoice();
 | 둘 이상의 인물 사건 | `character_cross_events.js` |
 | 위험한 3인 세트 | `dangerous_trio.js` |
 | 자유로운 3인 세트 | `freedom_trio.js` |
+| 소꿉친구 5인 세트·전용 개인 스토리 | `childhood_circle.js` |
 | 초상화 | `assets/characters/` |
 | 이벤트 컷신 | `assets/event-*.png` 등 |
 
@@ -598,7 +599,7 @@ QT_BGM.clearCharacterVoice();
 | 혜진 | 연구원 | 냉정함 | 독립 | 검증된 신뢰 | `event-hyejin-blackout.png` |
 | 소희 | 음악가 | 자유형 | 의존 | 자유의 여백 | `event-sohee-backstage.png` |
 | 아린 | 편집자 | 집순이 | 독립 | 마음의 원고 | `event-arin-first-snow.png` |
-| 나영 | 트레이너 | 야망형 | 지원 | 승부욕 | `event-nayoung-wrist.png` |
+| 나영 | 트레이너 | 야망형 | 지원 | 승부욕·도주 차단 | `event-nayoung-wrist-v2.png` |
 | 미래 | 게임 기획자 | 절약형 | 지원 | 취향 싱크 | `event-mirae-launch.png` |
 
 개별 수치의 변화는 `character_traits.js`의 `actions`가 기준이다. 예를 들어 서연은 취미, 예린은 가족·경력, 소희와 미래는 취미 행동에 크게 반응한다. 수치의 단계 문구와 월간 변화는 `QT_CHARACTER_TRAITS`를 통해 계산한다.
@@ -729,6 +730,24 @@ QT_BGM.clearCharacterVoice();
 네 장은 공항 귀가, 열애설이 난 일요일 장보기, 세 도시에서 온 귀가 문자, 아무 역할도 하지 않는 공동생활로 이어진다. 좋은 결말은 `화려한 날 뒤의 불 켜진 집` 또는 `네 사람의 작은 저녁`, 통제 선택이 누적된 나쁜 결말은 `불이 꺼진 현관`이다.
 
 좋은 결말 뒤 `recovery()`는 매달 행복 증가, 스트레스 감소, 안식감에 따른 건강 회복과 소액 생활수입 30만 원을 반환한다. 후일담도 공동 콘텐츠나 세계 순회가 아니라 일정 없는 일요일, 늦은 귀가, 동네 축제처럼 소박한 생활을 중심으로 한다. 조건의 최종 판정은 `QT_FREEDOM_TRIO.eligibility()`다.
+
+### 소꿉친구 5인 세트 — 졸업하지 못한 다섯
+
+구성원: **예린 + 보라 + 서연 + 나영 + 미래**
+
+파일: `childhood_circle.js`
+
+학창생활에서 다섯 중 한 명이 시작 친구가 되면 활성화된다. 같은 인물을 성인이 된 뒤 처음 만난 경우에는 기존 개인 스토리와 `character_voices.js` 대사를 사용하고, 소꿉친구 기록에는 인물별 전용 3장 스토리와 `childhood_circle.js` 대사를 사용한다.
+
+세트의 위험은 감금이 아니라 **회귀 압력**이다. 다섯은 각자 생활표, 건강 기록, 사진, 이동선, 디지털 백업을 가지고 “지금보다 원래의 너를 더 잘 안다”고 주장한다. 단체 사건은 시작 친구 호감 32 → 다섯 전원 친구 → 전원 호감 48·신뢰 35 순서로 자연 발생하며, 외부 연인이 있으면 최종 졸업식은 보류한다.
+
+- `오래된 약속`: 다섯 전원과 합의형 관계. 과거는 현재를 이해하는 단서다.
+- `끝나지 않은 졸업식`: 다섯 전원과 위험 관계. 과거 기록이 현재의 선택을 교정한다.
+- `닫힌 졸업앨범`: 옛 동창으로 돌아가 세트 루트를 끝낸다.
+
+위험 결말 뒤 다른 연애·가벼운 관계를 만들면 다섯이 기록을 대조해 회귀 압력과 스트레스를 올리고 연락한다. 정상 결말에서는 회귀 압력이 매달 낮아지고 신뢰가 오른다.
+
+나영은 이 세트 개편과 함께 금발 운동부 주장 디자인으로 통일한다. 기본 초상은 `assets/characters/nayoung-v2-portrait.png`, 개인 사건은 `assets/event-nayoung-wrist-v2.png`다.
 
 ## 12. 이미지 자산 규칙
 

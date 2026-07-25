@@ -74,6 +74,8 @@ for (const file of [
   'js/core/time.js',
   'js/core/campaign.js',
   'js/relationship_group.js',
+  'js/childhood_circle.js',
+  'js/character_stories.js',
   'js/family.js',
   'js/health.js',
   'js/business.js',
@@ -88,6 +90,26 @@ for (const file of [
   'js/rivals.js',
 ]) {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename:file });
+}
+
+{
+  const circle=context.QT_CHILDHOOD_CIRCLE;
+  assert.deepEqual(Array.from(circle.MEMBERS),['예린','보라','서연','나영','미래'],'소꿉친구 세트는 다섯 명으로 고정돼야 한다');
+  const anchor={name:'나영',status:'friend',affection:35,trust:40};
+  const life={met:[anchor]};
+  circle.register(life,anchor,'athletics');
+  assert.equal(anchor.childhoodFriend,true);
+  assert.equal(circle.storyFor(anchor).length,3,'소꿉친구는 성인 초면과 다른 전용 3장 이야기를 가져야 한다');
+  assert.equal(context.QT_CHARACTER_STORIES.get(anchor).variant,'childhood');
+  assert.equal(context.QT_CHARACTER_STORIES.get({name:'나영'}).variant,'adult','같은 인물의 성인 초면 이야기는 별도 변형을 유지해야 한다');
+  assert.match(circle.line(anchor,'first'),/도망|잡았/,'나영의 소꿉친구 첫 대사는 추적자 개성을 보여야 한다');
+  const reunion=circle.event('reunion');
+  circle.resolve(life,'reunion',reunion.choices[1]);
+  assert.equal(life.childhoodCircle.stage,'reunited');
+  assert.ok(life.childhoodCircle.pressure>0,'과거로 돌아가는 선택은 회귀 압력을 올려야 한다');
+  const graduation=circle.event('graduation');
+  circle.resolve(life,'graduation',graduation.choices[1]);
+  assert.equal(life.childhoodCircle.route,'never_graduate','위험 선택은 끝나지 않은 졸업식 결말로 이어져야 한다');
 }
 
 {

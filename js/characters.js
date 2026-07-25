@@ -36,7 +36,7 @@ const CHARACTERS = [
   { name:'혜진', gender:'f', emoji:'👩‍🔬', job:'연구원', income:12000000, personality:'cold', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.38, portrait:'hyejin-portrait.png' },
   { name:'소희', gender:'f', emoji:'🎻', job:'연주자', income:8500000, personality:'free', moneyStyle:'dependent', datingMoneyRate:-.05, marriedShareRate:.20, portrait:'sohee-portrait.png' },
   { name:'아린', gender:'f', emoji:'📚', job:'편집자', income:9000000, personality:'homebody', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.35, portrait:'arin-portrait.png' },
-  { name:'나영', gender:'f', emoji:'🏋️‍♀️', job:'트레이너', income:10000000, personality:'ambitious', moneyStyle:'support', datingMoneyRate:.03, marriedShareRate:.36, portrait:'nayoung-portrait.png' },
+  { name:'나영', gender:'f', emoji:'🏋️‍♀️', job:'트레이너', income:10000000, personality:'ambitious', moneyStyle:'support', datingMoneyRate:.03, marriedShareRate:.36, portrait:'nayoung-v2-portrait.png' },
   { name:'미래', gender:'f', emoji:'🎮', job:'게임 기획자', income:11000000, personality:'frugal', moneyStyle:'support', datingMoneyRate:.03, marriedShareRate:.37, portrait:'mirae-portrait.png' },
 ];
 
