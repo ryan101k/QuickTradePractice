@@ -38,7 +38,7 @@ const PROFILES={
     role:'재무·계약 총괄',emoji:'📑',gender:'f',age:33,job:'서린파트너스 계약 총괄',rivalFirm:'서린파트너스',
     personality:'cold',moneyStyle:'independent',portrait:'business-corporate-reveal.png',scene:'./assets/event-business-corporate-night.png',maskedScene:'./assets/event-business-corporate-masked.png',
     style:'감정보다 계약의 빈칸을 먼저 읽는 냉정한 협상가',
-    revealLine:'업무 연락처 외에 개인 번호를 공유할 조건은 충족됐습니다. 오해는 금물이에요. 신뢰의 범위를 한 단계 넓힌 겁니다.',
+    revealLine:'업무 연락은 여기까지예요. 다음부터는 이 번호로 직접 연락하세요. 오해는 금물이고요.',
     temptation:'연인에게 보고할 의무가 없는 계약도 있습니다. 서명은 둘만 있는 곳에서 받죠.',
     boundary:'충동보다 손실을 먼저 계산하는군요. 좋아요. 신뢰할 수 있는 대표라는 뜻이니까.',
     trap:'blackmail',blackmailRate:.16,blackmailMin:10000000,blackmailMax:70000000,
@@ -626,7 +626,7 @@ function resolve(life,payload,choiceId,capital){
       state.managementRisk=clamp(state.managementRisk+18,0,100);
       return{ok:true,done:true,businessSuitor:true,revealed:true,staffId:p.id,currentPartner:payload.currentPartner,
         character:asCharacter(p.id),affection:36,trust:Math.max(18,s.trust),title:'대표실 밖의 경쟁 후보',
-        text:`${p.name}은 기존 연인과 헤어지라고 요구하지 않았습니다. 대신 플레이어의 여성편력을 이미 안다며 자기 이름도 경쟁 명단에 올렸습니다. 아직 연인은 아니지만, 네 사람 전원 하렘 루트에서 사용할 공개 후보가 됐습니다.`,tone:'neutral',
+        text:`${p.name}은 기존 연인과 헤어지라고 요구하지 않았습니다. 대신 당신의 여성편력을 이미 안다며 숨길 생각은 하지 말라고 못 박았습니다. “다른 세 사람한테도 제가 직접 말할게요.”`,tone:'neutral',
         meta:`경영 위험 ${Math.round(state.managementRisk)}/100 · 기존 관계 유지`};
     }
   }

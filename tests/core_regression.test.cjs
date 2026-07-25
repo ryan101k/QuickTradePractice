@@ -137,6 +137,13 @@ for (const file of [
   assert.match(appSource,/while\(event&&!routeEventAllowed\(event\)\)event=queue\.shift\(\)/,'조건이 사라진 그룹 사건은 중요 사건 큐에서 건너뛰어야 한다');
   assert.doesNotMatch(appSource,/data-act="character-story"/,'행동창에 개인 스토리 직접 실행 버튼을 다시 만들면 안 된다');
   assert.doesNotMatch(appSource,/장 진행 가능/,'개인 스토리는 진행 버튼 대신 다음 중요 사건 대기로 안내해야 한다');
+  assert.doesNotMatch(appSource,/친구가 알려준 초보 투자지원 프로그램의 담당자입니다/,'첫 만남 장면에 개발자 시점의 나래 관계 설명을 노출하면 안 된다');
+  assert.doesNotMatch(appSource,/(?:choice|c)\.preview/,'서사 선택지 아래에 결과 미리보기를 다시 렌더링하면 안 된다');
+  assert.doesNotMatch(appSource,/고백 조건:|전용 위험 트리거가 작동|세트 루트가 종료|공동생활 해피엔딩입니다|힐링 공동생활 해피엔딩입니다/,'관계 장면에서 공략 조건이나 결과 해설을 직접 노출하면 안 된다');
+  const lifeEventSource=fs.readFileSync(path.join(root,'js/events_life.js'),'utf8');
+  const businessRomanceSource=fs.readFileSync(path.join(root,'js/business_romance.js'),'utf8');
+  assert.doesNotMatch(lifeEventSource,/훗날 .*루트가 열|공동생활 루트가 닫|위험한 3인조 역시 이번 인생/,'인생 사건 결과가 이후 관계 공략법을 설명하면 안 된다');
+  assert.doesNotMatch(businessRomanceSource,/하렘 루트에서 사용할/,'사업 인연의 반응이 시스템상 편입 방법을 설명하면 안 된다');
 }
 
 {
