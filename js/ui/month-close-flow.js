@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
 
-  const VERSION = 3;
+  const VERSION = 4;
 
   function makeStep(name, props) {
     return { type: 'view', name, props: props || {} };
@@ -21,6 +21,7 @@
       careerChanges: [],
       forcedEvents: [],
       terminal: null,
+      lifeActionConfirmed: false,
     }, context || {});
 
     const steps = [makeStep('month-close-summary', { report: ctx.report })];
@@ -44,11 +45,11 @@
 
   function normalize(raw) {
     if (!raw || typeof raw !== 'object' || raw.active === false) return null;
-    const sourceVersion = Number(raw.version) || 1;
     const ctx = Object.assign({}, raw);
     ctx.active = true;
     ctx.completedSteps = Array.isArray(ctx.completedSteps) ? ctx.completedSteps : [];
     ctx.steps = Array.isArray(ctx.steps) && ctx.steps.length ? ctx.steps : build(ctx).steps;
+    ctx.lifeActionConfirmed = ctx.lifeActionConfirmed === true;
     // v1 저장본에는 인생 행동 단계가 없거나, 업데이트 도중 해당 단계가
     // 빠진 채 저장된 경우가 있다. 현재 보고 있던 단계는 유지하면서
     // 주요 사건 직전에 행동 선택을 복원한다.
@@ -62,16 +63,14 @@
       ctx.steps.splice(target, 0, makeStep('life-action'));
       if (ctx.currentIndex >= target) ctx.currentIndex = target;
     }
-    // v2에서는 life-action View가 등록되지 않은 환경에서 해당 단계를
-    // 완료로 잘못 기록하고 주요 사건으로 건너뛰었다. 진행 중인 월말
-    // 저장본은 행동 단계로 한 번 되돌려 실제 선택 기회를 보장한다.
-    if (sourceVersion < VERSION) {
-      const lifeIndex = ctx.steps.findIndex(step => step && step.name === 'life-action');
-      const currentName = ctx.steps[ctx.currentIndex] && ctx.steps[ctx.currentIndex].name;
-      if (lifeIndex >= 0 && ctx.currentIndex >= lifeIndex && currentName !== 'life-action') {
-        ctx.currentIndex = lifeIndex;
-        ctx.completedSteps = ctx.completedSteps.filter(name => name !== 'life-action');
-      }
+    // 과거 저장본은 새 버전 번호로 저장됐어도 life-action View가 누락된
+    // 시점에 사건 단계까지 진행됐을 수 있다. 실제 행동 완료 확인값이
+    // 없으면 버전과 관계없이 행동 단계로 되돌린다.
+    const lifeIndex = ctx.steps.findIndex(step => step && step.name === 'life-action');
+    const currentName = ctx.steps[ctx.currentIndex] && ctx.steps[ctx.currentIndex].name;
+    if (!ctx.lifeActionConfirmed && lifeIndex >= 0 && ctx.currentIndex >= lifeIndex && currentName !== 'life-action') {
+      ctx.currentIndex = lifeIndex;
+      ctx.completedSteps = ctx.completedSteps.filter(name => name !== 'life-action');
     }
     ctx.version = VERSION;
     ctx.currentIndex = Math.max(0, Math.min(

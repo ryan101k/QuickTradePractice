@@ -391,6 +391,10 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /class="life-action-money"/, '장 마감 행동 화면에서 보유 현금이 항상 보여야 한다');
   assert.match(lifeActionViewSource, /class="life-action-wallet"/, '행동 화면의 현금 표시줄은 스크롤 본문 밖에 고정돼야 한다');
   assert.match(lifeActionViewSource, /api\.wallet\(\)/, '행동 화면은 최신 현금과 총재산 표시를 렌더링해야 한다');
+  assert.doesNotMatch(lifeActionViewSource, /포기하고 주요 사건/, '남은 월 행동을 건너뛰는 버튼이 다시 생기면 안 된다');
+  assert.match(lifeActionViewSource, /remaining>0\?'disabled'/, '행동 4회를 채우기 전에는 사건 단계 진행 버튼이 비활성화돼야 한다');
+  assert.match(appSource, /restoreRequiredLifeActionStep/, '사건 단계로 잘못 넘어간 저장은 행동 단계로 복구해야 한다');
+  assert.match(appSource, /function lifeHubHTML\(\)[\s\S]{0,420}const career=CAREER\.ensure\(L\)/, '행동 허브는 경력 관리창을 그리기 전에 career 상태를 선언해야 한다');
   assert.match(appSource, /class="asset-portfolio-strip"/, '부동산·자동수입·사업체는 공통 자산 요약을 제공해야 한다');
   assert.match(appSource, /data-life-panel="assets"/, '분산된 자산 메뉴는 하나의 별도 자산·사업 관리 창으로 통합돼야 한다');
   assert.doesNotMatch(appSource, /<summary>🏪 사업체·직원/, '사업체 메뉴가 자산 운영 밖에 중복되면 안 된다');
@@ -539,6 +543,21 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   const restored = flow.normalize(JSON.parse(JSON.stringify(busy)));
   assert.equal(restored.active, true);
   assert.equal(restored.steps.length, 8);
+
+  const skipped = flow.build({
+    report:{}, lifeChanges:[], relationshipChanges:[], familyChanges:[], careerChanges:[],
+  });
+  skipped.currentIndex=2;
+  skipped.completedSteps=['month-close-summary','life-action'];
+  skipped.version=4;
+  const repaired=flow.normalize(JSON.parse(JSON.stringify(skipped)));
+  assert.equal(flow.current(repaired).name,'life-action','버전이 최신이어도 완료 확인 없는 사건 단계 저장은 행동 선택으로 돌아와야 한다');
+  assert.equal(repaired.lifeActionConfirmed,false);
+  assert.equal(repaired.completedSteps.includes('life-action'),false);
+
+  skipped.lifeActionConfirmed=true;
+  const confirmed=flow.normalize(JSON.parse(JSON.stringify(skipped)));
+  assert.equal(flow.current(confirmed).name,'important-events','행동 완료를 명시적으로 확인한 저장만 사건 단계에 머물러야 한다');
 }
 
 {
