@@ -183,6 +183,28 @@ for (const file of [
 }
 
 {
+  const stories=context.QT_CHARACTER_STORIES;
+  for(const name of ['강유진','한채린']){
+    const story=stories.get(name);
+    assert.equal(story.chapters.length,8,`${name} 개인 스토리는 윤세라와 같은 8장 분량이어야 한다`);
+    assert.ok(story.chapters.every(chapter=>Number.isFinite(chapter.min)&&chapter.scene),`${name}의 모든 장에는 조건과 컷신 자리가 있어야 한다`);
+  }
+  const finish=(name,routeChoice)=>{
+    const rec={name,status:'friend',affection:100,trust:100,dangerLevel:0};
+    for(let chapter=0;chapter<8;chapter++){
+      const choice=chapter<3?'support':routeChoice;
+      const result=context.QT_CHARACTER_STORIES.apply(rec,choice);
+      assert.ok(result,`${name} ${chapter+1}장이 진행돼야 한다`);
+    }
+    return rec;
+  };
+  assert.equal(finish('강유진','depend').yujinEndingRoute,'dangerous_dependence','강유진의 의존 선택은 위험한 보호 엔딩으로 이어져야 한다');
+  assert.equal(finish('강유진','boundary').yujinEndingRoute,'equal','강유진과 경계를 지키면 대등한 순애 엔딩이어야 한다');
+  assert.equal(finish('한채린','command').chaerinEndingRoute,'private_submission','한채린의 사적 명령 선택은 왕관을 내려놓는 엔딩으로 이어져야 한다');
+  assert.equal(finish('한채린','equal').chaerinEndingRoute,'equal','한채린과 같은 자리를 고르면 대등한 순애 엔딩이어야 한다');
+}
+
+{
   const trio=context.QT_DANGEROUS_TRIO;
   const endings={강유진:'dangerous_dependence',한채린:'private_submission',윤세라:'anchored'};
   const life={
@@ -766,6 +788,11 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.doesNotMatch(socialNetworkSource, /예린이네하고 다시 연락/, '아버지가 차단한 전 연인과 다시 연락하라고 말하면 안 된다');
   assert.match(lifeEventsSource, /새 연락처는 생기지 않았지만/, '일반 외출 사건이 자동으로 히로인 연락처를 만들면 안 된다');
   assert.match(appSource, /r\.name==='윤세라'\?\.72:earlyContact\?\.10:\.16/, '위험 히로인 중 윤세라만 초반 고빈도 연락 예외여야 한다');
+  assert.match(appSource,/function showSpecialFollowupMeet\(id,c,rec\)/,'강유진·한채린은 첫 조우 뒤 별도의 후속 만남을 가져야 한다');
+  assert.match(appSource,/canSpecialFollowup\(yujinRecord\)/,'강유진은 첫 사건 조건이 사라져도 후속 약속이 다시 떠야 한다');
+  assert.match(appSource,/canSpecialFollowup\(chaerinRecord\)/,'한채린은 최초 세력 조건과 무관하게 후속 회동이 다시 떠야 한다');
+  assert.match(appSource,/S\.life\.seraHousing==='cohabit'/,'윤세라 동거 중 후속 만남에는 위험 3인조 악우 변형이 있어야 한다');
+  assert.match(appSource,/dangerousBadFriendsEncounters/,'동거 중 강유진·한채린 후속 만남은 악우 관계 기록을 쌓아야 한다');
   assert.doesNotMatch(appSource, /첫인사를 나누고 연락처를 저장했습니다/, '첫 조우가 자동 연락처 저장으로 처리되면 안 된다');
   assert.doesNotMatch(appSource, /data-ameet="casual"/, '활동 중 첫 만남에서 곧바로 가벼운 관계를 제안하면 안 된다');
   assert.match(appSource, /room\.lastIncomingDay=S\.day/, '상대가 실제로 먼저 연락한 날짜를 기록해야 한다');
