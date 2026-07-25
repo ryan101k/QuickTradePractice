@@ -258,9 +258,28 @@ for (const file of [
   ]};
   const temptation=romance.monthly(life,{day:1,businessState:businesses,partnerNames:['박지수'],met:life.met});
   assert.equal(temptation.kind,'temptation','네 명 중 한 명과 사귀면 나머지 책임자가 빼앗으려는 사건을 만들어야 한다');
-  const takeover=romance.resolve(life,temptation,'meet',20000000);
-  assert.equal(takeover.rivalTakeover,true);
-  assert.equal(takeover.badEnding,undefined,'4인 내부 쟁탈은 일반 불륜 배드엔딩으로 처리하면 안 된다');
+  const suitor=romance.resolve(life,temptation,'meet',20000000);
+  assert.equal(suitor.businessSuitor,true,'유혹 수락은 기존 연인을 내보내지 않고 사업 하렘 후보를 등록해야 한다');
+  assert.equal(suitor.rivalTakeover,undefined,'사업 담당자가 기존 연인의 자리를 강제로 빼앗으면 안 된다');
+  assert.equal(romance.canRomance(life,'한이슬'),true,'경쟁 후보가 된 담당자는 기존 연인이 있어도 연애 진행이 가능해야 한다');
+  Object.assign(state.staff.corporate,{introduced:true,hired:true,bond:35,temptationSeen:false});
+  const pureLife={met:[{name:'나래',status:'partner'}]},pureState=romance.ensure(pureLife);
+  Object.assign(pureState.staff.corporate,{introduced:true,hired:true,bond:35});
+  const pureBusiness={owned:[{id:'advisory',typeId:'advisory',managerId:'corporate',specialManagerId:'corporate',months:6,lastNet:1000000,reputation:70,morale:70}]};
+  const loyalty=romance.monthly(pureLife,{day:1,businessState:pureBusiness,partnerNames:['나래'],met:pureLife.met});
+  assert.equal(loyalty.pureTest,true,'연인이 한 명인 순애 상태의 유혹은 대표 검증 테스트여야 한다');
+  const loyaltyResult=romance.resolve(pureLife,loyalty,'boundary',20000000);
+  assert.equal(loyaltyResult.loyaltyTest,true);
+  assert.equal(pureState.staff.corporate.supportOnly,true,'테스트를 거절하면 얼굴을 가린 조력자로 남아야 한다');
+  state.staff.corporate.romanticRival=true;state.staff.medical.romanticRival=true;state.managementRisk=50;
+  const failing={owned:[
+    {id:'advisory',typeId:'advisory',managerId:'corporate',specialManagerId:'corporate',months:8,lastNet:-1000000,reputation:25,morale:28},
+    {id:'care',typeId:'care',managerId:'medical',specialManagerId:'medical',months:8,lastNet:-2000000,reputation:24,morale:25},
+  ]};
+  const collapse=romance.monthly(life,{day:3,businessState:failing,partnerNames:['박지수'],met:life.met});
+  assert.equal(collapse.kind,'management-collapse','사적 경쟁 중 사업을 방치하면 경영 실패 분기가 열려야 한다');
+  const badManagement=romance.resolve(life,collapse,'romance_first',20000000);
+  assert.equal(badManagement.managementBadEnding,true,'사업 4인조의 배드엔딩은 불륜 폭로가 아니라 사업관리 실패여야 한다');
 }
 
 {
