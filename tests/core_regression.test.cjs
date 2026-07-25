@@ -628,6 +628,9 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /formerClubEx:true/, '옛 동아리 여성 다섯은 과거 연인 기록으로 시작해야 한다');
   assert.match(appSource, /former\.status='ex'/, '옛 동아리 여성 다섯은 현재 친구가 아니라 전 연인 상태여야 한다');
   assert.match(appSource, /function showOriginFriendReferral/, '직업 결정 뒤 고정 친구의 투자지원센터 소개 장면이 있어야 한다');
+  const referralSource=appSource.slice(appSource.indexOf('function showOriginFriendReferral'),appSource.indexOf('// 이직 합격 확률'));
+  assert.doesNotMatch(referralSource,/윤세라/,'시작 친구는 아직 만나지 않은 윤세라를 알고 있으면 안 된다');
+  assert.match(referralSource,/옛날 동아리 일/,'시작 친구의 경고는 함께 겪어 알고 있는 학창 시절 사건까지만 언급해야 한다');
   assert.match(appSource, /freeRecruit:true/, '남성 시작 친구는 무료 조력자 영입 권한을 가져야 한다');
   assert.match(appSource, /data-act="origin-ally"/, '무료 조력자는 사업체나 세력 합류 UI를 제공해야 한다');
   assert.match(appSource, /data-life-panel="investment"/, '나래는 별도의 투자 컨설팅 창을 가져야 한다');
