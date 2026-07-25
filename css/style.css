@@ -104,8 +104,8 @@ body {
 .chat-readonly-note { margin-top:7px; padding:7px 8px; border:1px solid #9aa5b6; background:#eef2f7; color:#4b5563; font-size:11.5px; line-height:1.45; }
 .message-incoming { margin:9px 0; padding:12px 13px; border:2px inset #fff; background:#e9f1ff; font-size:14px; line-height:1.6; }
 .message-popup-avatar { display:flex; align-items:center; justify-content:center; width:72px; height:72px; border:2px ridge #fff; background:#e6eaf1; font-size:40px; flex:0 0 auto; }
-.phone-notification-stage { position:fixed; inset:0; z-index:1200; display:grid; place-items:center; padding:16px; background:rgba(5,10,22,.72); backdrop-filter:blur(7px); }
-.phone-shell { position:relative; overflow:hidden; width:min(390px,100%); height:min(760px,calc(100dvh - 24px)); border:8px solid #17191f; border-radius:34px; color:#fff; background:linear-gradient(150deg,#17335e 0%,#805986 48%,#dc8a75 100%); box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 0 0 1px #555; }
+.phone-notification-stage { position:fixed; inset:0; z-index:1200; display:grid; justify-items:center; align-items:start; box-sizing:border-box; padding:max(10px,env(safe-area-inset-top)) 16px max(10px,env(safe-area-inset-bottom)); background:rgba(5,10,22,.72); backdrop-filter:blur(7px); }
+.phone-shell { position:relative; overflow:hidden; width:min(390px,100%); height:min(720px,calc(100dvh - max(20px,env(safe-area-inset-top)) - max(20px,env(safe-area-inset-bottom)))); border:8px solid #17191f; border-radius:34px; color:#fff; background:linear-gradient(150deg,#17335e 0%,#805986 48%,#dc8a75 100%); box-shadow:0 24px 70px rgba(0,0,0,.55),inset 0 0 0 1px #555; }
 .phone-shell::before { content:""; position:absolute; z-index:5; top:7px; left:50%; width:94px; height:22px; transform:translateX(-50%); border-radius:15px; background:#111; }
 .phone-status { display:flex; justify-content:space-between; padding:12px 19px; font-size:10px; text-shadow:0 1px 2px #000; }
 .phone-lock-time { display:flex; flex-direction:column; align-items:center; margin:54px 0 30px; text-shadow:0 2px 6px rgba(0,0,0,.45); }

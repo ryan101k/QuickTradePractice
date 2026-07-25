@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
 
-  const VERSION = 1;
+  const VERSION = 2;
 
   function makeStep(name, props) {
     return { type: 'view', name, props: props || {} };
@@ -45,10 +45,23 @@
   function normalize(raw) {
     if (!raw || typeof raw !== 'object' || raw.active === false) return null;
     const ctx = Object.assign({}, raw);
-    ctx.version = VERSION;
     ctx.active = true;
     ctx.completedSteps = Array.isArray(ctx.completedSteps) ? ctx.completedSteps : [];
     ctx.steps = Array.isArray(ctx.steps) && ctx.steps.length ? ctx.steps : build(ctx).steps;
+    // v1 저장본에는 인생 행동 단계가 없거나, 업데이트 도중 해당 단계가
+    // 빠진 채 저장된 경우가 있다. 현재 보고 있던 단계는 유지하면서
+    // 주요 사건 직전에 행동 선택을 복원한다.
+    if (!ctx.steps.some(step => step && step.name === 'life-action')) {
+      const insertAt = ctx.steps.findIndex(step => step && (
+        step.name === 'important-events' ||
+        step.name === 'terminal' ||
+        step.name === 'return-market'
+      ));
+      const target = insertAt >= 0 ? insertAt : ctx.steps.length;
+      ctx.steps.splice(target, 0, makeStep('life-action'));
+      if (ctx.currentIndex >= target) ctx.currentIndex = target;
+    }
+    ctx.version = VERSION;
     ctx.currentIndex = Math.max(0, Math.min(
       Number.isFinite(ctx.currentIndex) ? Math.floor(ctx.currentIndex) : 0,
       Math.max(0, ctx.steps.length - 1)

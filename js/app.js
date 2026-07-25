@@ -6089,12 +6089,12 @@ function lifeHubHTML() {
     <div class="life-hub">
       <div class="hub-title">🎬 ${weekLabel} <span class="muted">주요 행동 ${actionUsed}/${LIFE_ACTIONS_PER_MONTH} · 남은 자유시간 ${actionLeft}회</span></div>
       <div class="life-time-progress" aria-label="이번 달 자유시간 사용 현황">${Array.from({length:LIFE_ACTIONS_PER_MONTH},(_,i)=>`<span class="${i<actionUsed?'used':i===actionUsed?'available current':'available'}">${i<actionUsed?'✓':i+1+'주차'}</span>`).join('')}</div>
+      <div class="hub-quick">${quickBtns}</div>
+      ${workspaceLaunchers}
       <div class="hub-note">외출·취미·휴식·경력·인맥·사업·가족·라이벌 중 서로 다른 행동을 최대 4회 선택하세요. 자기계발은 취미에 통합되어 직무 능력도 함께 오릅니다. 활동 중에도 취향이 맞는 사람을 우연히 만날 수 있고, 외출 장소와 현재 조건에 따라 만나는 인물과 특별 장면이 달라집니다.</div>
       ${storyProgressHTML(L)}
       ${assetPortfolioStrip}
       <div class="month-action-status">${['데이트','취미','휴식','경력','인맥','사업','가족','라이벌'].map(g=>`<span class="${monthActionUsed(g)?'done':''}">${monthActionUsed(g)?'✓':'○'} ${g}</span>`).join('')}</div>
-      <div class="hub-quick">${quickBtns}</div>
-      ${workspaceLaunchers}
       ${lifeWorkspaces}
     </div>`;
 }
