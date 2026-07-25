@@ -1997,9 +1997,9 @@ function showOriginFriendReferral(){
     ['플레이어','네가 이런 부탁을 다 할 리가 없는데.'],
     [contact.name,'당연하지. 거기 담당자가 엄청 예쁘다더라. 번호 좀 받아 와.'],
     ['플레이어','그런데 왜 네가 직접 안 가고 나를 보내냐?'],
-    [contact.name,'너 예린이 패거리랑 또 뭐 있냐? 걔들 눈에 띄면 난 진짜 죽어.'],
-    ['플레이어','걔들은 그냥… 같은 동아리였던 친구들이라니까.'],
-    [contact.name,'다섯 명 전부랑 헤어지고도 그 말을 하냐? 너 진짜 언젠가 칼 맞는다. 에휴. 일단 주소 보냈어.'],
+    [contact.name,'너 예린이 패거리랑 또 엮인 거 아니지? 걔들 눈에 띄면 내 번호까지 복제할 것 같아.'],
+    ['플레이어','걔들은 그냥… 옛날 동아리 사람들이야. 이미 도망쳐 나왔고.'],
+    [contact.name,'면접·약·사진·출구·계좌를 나눠 맡았던 사람들이 그냥 친구냐? 윤세라가 선녀로 보일 판이다. 에휴. 일단 주소 보냈어.'],
   ];
   S._originReferralIndex=0;
   const render=()=>{
@@ -3858,14 +3858,14 @@ function removeChildhoodCircleFromGame(){
 }
 function childhoodCircleNarrative(state){
   if(!state)return{title:'오래된 인연',detail:'다섯의 관계가 아직 모습을 드러내지 않았습니다.',tone:''};
-  if(state.route==='never_graduate')return{title:'끝나지 않은 졸업식',detail:'다섯 전 연인이 서로를 견제하면서도 주인공을 다시는 도망치지 못하게 붙잡고 있습니다.',tone:'down'};
-  if(state.route==='old_promise')return{title:'다시 쓴 결별',detail:'조작 사건의 진실을 확인하고, 과거 연애의 순서가 현재의 권리가 아니라고 합의했습니다.',tone:'up'};
-  if(state.route==='cut_past')return{title:'폐쇄된 동아리방',detail:'다섯 번의 연애와 조작 사건을 과거로 남기고 각자의 현재로 돌아갔습니다.',tone:'muted'};
-  if((state.pressure||0)>=75)return{title:'다섯 번째 재결합 요구',detail:'다섯은 서로가 더 정상적인 전 연인이라고 주장하며 주인공의 현재 관계를 압박합니다.',tone:'down'};
-  if((state.pressure||0)>=45)return{title:'다시 시작된 연애 경쟁',detail:'복구된 기록과 서로 다른 이별 기억이 현재의 연락과 외출에 끼어들고 있습니다.',tone:''};
-  if(state.stage==='pact')return{title:'다섯 개의 알리바이',detail:'조작 사건의 진실과 각자에게 했던 이별 말을 함께 확인해야 합니다.',tone:''};
-  if(state.stage==='reunited')return{title:'전 연인 단체방',detail:'다섯은 친구로 다시 시작했지만 누구도 과거 연애를 없던 일로 여기지 않습니다.',tone:'up'};
-  return{title:'폐쇄됐던 동아리',detail:'생활경제연구회와 다섯 번의 이별은 아직 과거 기록으로만 남아 있습니다.',tone:''};
+  if(state.route==='never_graduate')return{title:'끝나지 않은 졸업식',detail:'다섯은 잘못까지 사랑이었다고 덮고 보호 계획을 다시 가동했습니다. 이제 윤세라의 집착조차 단순하고 솔직해 보입니다.',tone:'down'};
+  if(state.route==='old_promise')return{title:'처음이 아닌 첫날',detail:'다섯이 각자의 잘못을 인정하고 관리자 권한을 돌려준 뒤, 과거가 아닌 오늘의 동의로 여섯의 관계를 시작했습니다.',tone:'up'};
+  if(state.route==='cut_past')return{title:'닫힌 졸업앨범',detail:'주인공은 사과를 받아도 관계를 돌려줄 의무는 없다고 선언하고 마침내 졸업했습니다.',tone:'muted'};
+  if((state.pressure||0)>=75)return{title:'보호 계획 재가동',detail:'일정·약·평판·동선·계정이 다시 맞물립니다. 한 사람의 집착보다 훨씬 조용하게 일상이 잠기고 있습니다.',tone:'down'};
+  if((state.pressure||0)>=45)return{title:'다섯 명의 작은 간섭',detail:'각자는 작은 도움이라고 부르지만, 다섯 역할이 합쳐지면 주인공의 선택지가 하나씩 사라집니다.',tone:''};
+  if(state.stage==='pact')return{title:'보호 계획서',detail:'외부 세력이 계정을 악용했어도 통제 체계를 만든 책임은 다섯에게 있습니다. 이제 각자가 자기 몫을 인정해야 합니다.',tone:''};
+  if(state.stage==='reunited')return{title:'실패한 첫 하렘 단체방',detail:'모두 알고 시작했던 관계입니다. 문제는 사랑의 수가 아니라, 다섯이 주인공의 끝내겠다는 말을 지웠다는 데 있습니다.',tone:'up'};
+  return{title:'폐쇄됐던 생활경제연구회',detail:'합의로 시작해 공동 통제로 끝난 여섯의 첫 연애가 아직 복구되지 않은 기록으로 남아 있습니다.',tone:''};
 }
 function showChildhoodCircleEvent(eventId){
   const view=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.event(eventId),host=$('life-event');
@@ -3922,7 +3922,7 @@ function resolveChildhoodCircleEvent(choiceId){
     removeChildhoodCircleFromGame();
     const out=$('childhood-circle-outcome'),options=out&&out.parentElement.querySelector('.event-options');if(options)options.innerHTML='';
     out.innerHTML='<div class="story-ending"><b>🚪 단체방을 나갔습니다.</b><br>다섯 사람의 연락처, 만남 후보, 개인 사건과 세트 사건이 이번 인생에서 모두 사라집니다. 과거를 다시 부르는 우연도 발생하지 않습니다.</div><button id="childhood-circle-confirm" class="session-btn opening">이 인생에서는 다시 만나지 않는다</button>';
-    addNews('🚪 닫힌 단체방 · 다섯 전 연인과 완전히 단절했습니다','neutral');
+    addNews('🚪 닫힌 단체방 · 실패한 첫 하렘의 다섯과 완전히 단절했습니다','neutral');
     $('childhood-circle-confirm').addEventListener('click',()=>{const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}S._childhoodCircleEvent=null;renderLifePanel();autoSave();showNextImportantEvent();});
     renderLifePanel();autoSave();return;
   }
@@ -3946,7 +3946,7 @@ function resolveChildhoodCircleEvent(choiceId){
     ?state.route==='never_graduate'
       ?'<div class="story-ending down"><b>🎓 끝나지 않은 졸업식</b><br>다섯은 전원 연인이 되었습니다. 외출과 연락은 늘 오래된 기억의 검증을 거치며, 새로 생긴 모습은 다섯이 기억하는 “원래 당신” 쪽으로 되돌려집니다.</div>'
       :state.route==='old_promise'
-        ?'<div class="story-ending"><b>🧷 오래된 약속</b><br>다섯은 전원 연인이 되었지만 오래 알았다는 사실을 허락으로 착각하지 않기로 했습니다. 추억은 현재를 이해하는 단서로만 남습니다.</div>'
+        ?'<div class="story-ending"><b>🧷 처음이 아닌 첫날</b><br>다섯은 각자의 잘못을 인정하고 관리자 권한을 돌려준 뒤, 오늘의 동의로 전원 연인이 되었습니다.</div>'
         :'<div class="story-ending"><b>📕 닫힌 졸업앨범</b><br>주인공은 과거의 소유권을 거절했습니다. 다섯은 옛 동창으로 남고 세트 루트가 종료됩니다.</div>'
     :'';
   const reaction=choice.id==='present'?'다섯은 불만스러운 눈으로 서로를 보다가, 이번만큼은 현재의 대답을 먼저 듣기로 했습니다.'
@@ -7008,7 +7008,7 @@ function lifeHubHTML() {
     : freedomBond&&freedomBond.active
       ? `<span class="up">🏠 작은 집의 연인 · 채원·유나·소희 전원 연인 · 힐링 공동생활 중 · 회복한 스트레스 ${Math.round(freedomBond.totalStressRecovered||0)} · 누적 생활수입 ${won(freedomBond.totalIncome||0)}</span>`
     : childhoodBond&&childhoodBond.active
-      ? `<span class="${childhoodBond.route==='never_graduate'?'down':'up'}">🎓 ${childhoodBond.route==='never_graduate'?'끝나지 않은 졸업식 · 다섯이 일상을 공유하며 옛 규칙을 되살리는 중':'오래된 약속 · 다섯이 현재의 경계를 지키는 중'} · 예린·보라·서연·나영·미래 전원 연인</span>`
+      ? `<span class="${childhoodBond.route==='never_graduate'?'down':'up'}">🎓 ${childhoodBond.route==='never_graduate'?'끝나지 않은 졸업식 · 보호 계획이 다시 일상을 잠그는 중':'처음이 아닌 첫날 · 다섯이 책임을 인정하고 현재의 경계를 지키는 중'} · 예린·보라·서연·나영·미래 전원 연인</span>`
     : relationshipMembers.length===1&&!poly.active
       ? `<button class="life-btn" data-act="polycule">🌈 일반 다자연애 제안</button>`
       : poly.active?`<span class="up">🌈 합의형 관계 진행 중 · 추가 구성원 ${poly.members.length}명 · 신뢰 ${poly.trust}</span>`:'';
