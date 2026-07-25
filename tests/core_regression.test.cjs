@@ -10,6 +10,18 @@ context.window = context;
 vm.createContext(context);
 
 {
+  const marketContext={console};
+  marketContext.window=marketContext;
+  vm.createContext(marketContext);
+  vm.runInContext(fs.readFileSync(path.join(root,'js/events_market.js'),'utf8'),marketContext,{filename:'js/events_market.js'});
+  const balance=marketContext.QT_MARKET_BALANCE;
+  assert.equal(balance.shapeRate(.0004),.0012,'+0.04% 양봉은 최소 +0.12%로 체감돼야 한다');
+  assert.ok(balance.shapeRate(.01)>Math.abs(balance.shapeRate(-.01))*3,'같은 원시 폭이면 상승이 하락보다 훨씬 커야 한다');
+  const limits=balance.limits({tickLimit:.02,sessionLimit:.10});
+  assert.ok(limits.tickUp>limits.tickDown&&limits.sessionUp>limits.sessionDown,'상승 가격제한폭은 하락 제한폭보다 넓어야 한다');
+}
+
+{
   const bgmDocumentListeners = {};
   const bgmWindowListeners = {};
   let mobileAudio;
@@ -170,29 +182,27 @@ for (const file of [
 {
   const romance=context.QT_BUSINESS_ROMANCE;
   const life={met:romance.IDS.map(id=>({
-    name:romance.profile(id).name,status:'friend',affection:60,trust:40,
+    name:romance.profile(id).name,status:'friend',affection:80,trust:60,
   }))};
   const state=romance.ensure(life);
-  romance.IDS.forEach(id=>{state.staff[id].revealed=true;state.staff[id].storyChapter=2;});
-  const businesses={owned:romance.IDS.map(id=>({
-    id:`biz-${id}`,typeId:romance.profile(id).businessId,managerId:id,months:8,level:3,
+  romance.IDS.forEach(id=>{state.staff[id].revealed=true;state.staff[id].storyChapter=3;});
+  const businesses={owned:context.QT_BUSINESS.TYPES.slice(0,8).map(type=>({
+    id:type.id,typeId:type.id,managerId:type.managerId,months:8,level:3,
     lastNet:1500000,totalProfit:30000000,reputation:75,
   }))};
-  let chapter=romance.monthly(life,{day:1,totalNet:6000000,businessState:businesses,hasPartner:false,met:life.met});
-  assert.equal(chapter.chapterId,'boardroom_pact');
-  romance.resolve(life,chapter,'equal_board',100000000);
-  chapter=romance.monthly(life,{day:2,totalNet:6000000,businessState:businesses,hasPartner:false,met:life.met});
-  assert.equal(chapter.chapterId,'hostile_takeover');
-  romance.resolve(life,chapter,'protect_all',100000000);
-  chapter=romance.monthly(life,{day:3,totalNet:6000000,businessState:businesses,hasPartner:false,met:life.met});
-  assert.equal(chapter.chapterId,'after_hours_rules');
-  romance.resolve(life,chapter,'clear_rules',100000000);
+  const expectedChapters=['boardroom_pact','hostile_takeover','after_hours_rules','branch_tour','shared_payday'];
+  const choices=['equal_board','protect_all','clear_rules','delegate_board','people_dividend'];
+  expectedChapters.forEach((chapterId,index)=>{
+    const chapter=romance.monthly(life,{day:index+1,totalNet:12000000,businessState:businesses,hasPartner:false,met:life.met});
+    assert.equal(chapter.chapterId,chapterId);
+    romance.resolve(life,chapter,choices[index],200000000);
+  });
   const progress=romance.progressSummary(life);
-  assert.equal(progress.chapter,3);
+  assert.equal(progress.chapter,5);
   assert.equal(progress.synergy>=65&&progress.governance>=58&&progress.boundary>=55,true,'이사회 엔딩은 세 가지 공동 지표를 실제로 쌓아야 한다');
-  const ending=romance.monthly(life,{day:4,totalNet:6000000,businessState:businesses,hasPartner:false,met:life.met,partnerNames:[]});
+  const ending=romance.monthly(life,{day:6,totalNet:12000000,businessState:businesses,hasPartner:false,met:life.met,partnerNames:[]});
   assert.equal(ending.kind,'quartet-ending','개인·공동 이야기를 마친 뒤 4인 세트 엔딩이 자연 발생해야 한다');
-  for(const file of ['event-business-quartet-boardroom.png','event-business-quartet-crisis.png','event-business-quartet-afterhours.png']){
+  for(const file of ['event-business-quartet-boardroom.png','event-business-quartet-crisis.png','event-business-quartet-afterhours.png','event-business-quartet-branch-tour-pixel-v1.png','event-business-quartet-payday-pixel-v1.png']){
     assert.equal(fs.existsSync(path.join(root,'assets',file)),true,`${file} 공동 컷씬이 실제로 존재해야 한다`);
   }
 }
@@ -268,6 +278,10 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   const business = context.QT_BUSINESS;
   const legacyState = business.ensure(life);
   assert.deepEqual(Array.from(legacyState.owned), [], '사업 데이터가 없는 구버전 세이브도 빈 장부로 복원해야 한다');
+  assert.equal(business.TYPES.length,12,'담당자별 세 업종씩 총 12개 사업을 운영할 수 있어야 한다');
+  for(const managerId of Object.keys(business.STAFF)){
+    assert.equal(business.TYPES.filter(type=>type.managerId===managerId).length,3,`${managerId} 담당자는 세 업종을 관리해야 한다`);
+  }
 
   const opened = business.start(life, 'commerce', 3);
   assert.equal(opened.ok, true);
@@ -301,6 +315,13 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.equal(hired.ok, true, '사업체는 이력서 선택 뒤 직원을 추가 채용할 수 있어야 한다');
   assert.equal(business.owned(life, 'commerce').employees, staffBefore + 1);
   assert.equal(business.owned(life, 'commerce').hiredStaff.includes('commerce-junior'), true);
+  const growth=business.setStrategy(life,'commerce','growth');
+  assert.equal(growth.ok,true);
+  assert.equal(business.owned(life,'commerce').strategy,'growth','사업별 운영 방침은 저장 상태에 남아야 한다');
+  const growthPlan=business.projected(business.owned(life,'commerce'),'boom');
+  business.setStrategy(life,'commerce','balanced');
+  const balancedPlan=business.projected(business.owned(life,'commerce'),'boom');
+  assert.ok(growthPlan.sales>balancedPlan.sales&&growthPlan.cost>balancedPlan.cost,'성장 집중은 매출과 비용을 함께 늘려야 한다');
 }
 
 {
