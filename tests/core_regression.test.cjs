@@ -15,12 +15,14 @@ vm.createContext(context);
   vm.createContext(marketContext);
   vm.runInContext(fs.readFileSync(path.join(root,'js/events_market.js'),'utf8'),marketContext,{filename:'js/events_market.js'});
   const balance=marketContext.QT_MARKET_BALANCE;
-  assert.equal(balance.shapeRate(.0004),.0025,'+0.04% 양봉은 최소 +0.25%로 체감돼야 한다');
-  assert.ok(balance.shapeRate(.01)>Math.abs(balance.shapeRate(-.01))*4,'같은 원시 폭이면 상승이 하락보다 훨씬 커야 한다');
+  assert.equal(balance.shapeRate(.0004),.006,'작은 양봉도 최소 +0.6%로 체감돼야 한다');
+  assert.ok(balance.shapeRate(.01)>Math.abs(balance.shapeRate(-.01))*3,'같은 원시 폭이면 상승이 하락보다 크게 보여야 한다');
   assert.ok(balance.positionBias({qty:10},{sigma:.004},.5)>0,'플레이어가 매수한 종목에는 우호 수급이 붙어야 한다');
   assert.ok(balance.positionBias({qty:-10},{sigma:.004},.5)<0,'공매도 포지션의 우호 수급 방향은 반대여야 한다');
   const limits=balance.limits({tickLimit:.02,sessionLimit:.10});
   assert.ok(limits.tickUp>limits.tickDown&&limits.sessionUp>limits.sessionDown,'상승 가격제한폭은 하락 제한폭보다 넓어야 한다');
+  assert.equal(limits.sessionDown,.10,'개별 종목의 월 하락 하한은 -10% 서킷이어야 한다');
+  assert.ok(Math.abs(limits.sessionUp-.30)<1e-9,'상승 여력은 같은 기본 한도의 3배까지 열려야 한다');
 }
 
 {
@@ -93,6 +95,8 @@ for (const file of [
   'js/character_stories.js',
   'js/family.js',
   'js/health.js',
+  'js/chat_lines.js',
+  'js/social_network.js',
   'js/business.js',
   'js/business_romance.js',
   'js/freedom_trio.js',
@@ -105,6 +109,16 @@ for (const file of [
   'js/rivals.js',
 ]) {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename:file });
+}
+
+{
+  const mealOptions=context.QT_CHAT.replyOptions({name:'테스트'},'밥은 챙겨 먹었어?');
+  assert.match(mealOptions.find(option=>option.id==='warm').text,/먹|식사/,'식사 안부에는 식사에 맞는 답을 해야 한다');
+  const inviteOptions=context.QT_CHAT.replyOptions({name:'테스트'},'이번 주에 커피 마시러 갈래?');
+  assert.match(inviteOptions.find(option=>option.id==='warm').text,/시간|보자/,'만남 제안에는 약속에 맞는 답을 해야 한다');
+  const parent={role:'mother'};
+  const parentOptions=context.QT_SOCIAL.contactReplyOptions(parent,'집에 올 때 필요한 거 있으면 말해.');
+  assert.match(parentOptions.find(option=>option.id==='meet').text,/집|밥/,'가족의 귀가 연락에는 방문 약속으로 답해야 한다');
 }
 
 {
@@ -776,6 +790,10 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   ]) assert.equal(fs.existsSync(path.join(root,'assets',file)),true,`${file} 도트 컷신이 누락되면 안 된다`);
   assert.match(context.QT_CHILDHOOD_CIRCLE.event('reunion').scene,/pixel-event-childhood-reunion-v1/);
   assert.match(context.QT_CHILDHOOD_CIRCLE.event('graduation').scene,/pixel-event-childhood-graduation-v1/);
+  assert.match(appSource,/MARKET_CIRCUIT:\s*-0\.10/,'시장 급락 보호선은 -10%여야 한다');
+  assert.match(appSource,/downsideCircuitDay === S\.day/,'개별 종목 -10% 서킷은 남은 장을 정지해야 한다');
+  assert.match(appSource,/importantEventPriority\(event\)/,'월말 주요 사건은 중요도 순서로 정렬돼야 한다');
+  assert.match(appSource,/prepareLifeEventOverlay\(true\)/,'휴대폰 알림은 전용 최상위 레이어로 열려야 한다');
 }
 
 console.log('core regression tests: ok');

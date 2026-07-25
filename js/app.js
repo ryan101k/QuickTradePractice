@@ -88,7 +88,7 @@ const CFG = {
   SHORT_MAINT_MARGIN: 0.30, // 숏 유지증거금율
   BREAKING_MIN: 0.07,       // 실제 반영 충격이 이 이상이면 긴급속보 대상
   NEWS_MIN: 0.025,          // 실제 반영 충격이 이 이상이면 뉴스·기업 리포트에 기록
-  MARKET_CIRCUIT: -0.08,    // 시장 평균이 시초가 대비 -8%면 서킷브레이커
+  MARKET_CIRCUIT: -0.10,    // 시장 평균이 시초가 대비 -10%면 서킷브레이커
   CIRCUIT_TICKS: 2,         // 서킷브레이커 정지 틱
   BREAKING_MS: 11000,       // 긴급속보 자동 닫힘(ms)
   BREAKING_INSESSION_PROB: 0.03, // 장중 속보 등장 확률(아주 가끔). 나머지 뉴스는 마감 리포트에서 몰아 봄
@@ -98,9 +98,9 @@ const CFG = {
 
 const CAP_META = {
   // sigma는 '틱당', sessionLimit은 한 달(20틱) 전체 한도다.
-  large: { label: '대형', sigma: 0.0022, issueMul: 0.16, tickLimit: 0.018, sessionLimit: 0.08, issueChance: 0.05, badge: '🏛️' },
-  mid:   { label: '중형', sigma: 0.0038, issueMul: 0.27, tickLimit: 0.032, sessionLimit: 0.13, issueChance: 0.08, badge: '🏢' },
-  small: { label: '소형', sigma: 0.0065, issueMul: 0.42, tickLimit: 0.055, sessionLimit: 0.20, issueChance: 0.12, badge: '🎲' },
+  large: { label: '대형', sigma: 0.0060, issueMul: 0.16, tickLimit: 0.018, sessionLimit: 0.08, issueChance: 0.05, badge: '🏛️' },
+  mid:   { label: '중형', sigma: 0.0100, issueMul: 0.27, tickLimit: 0.032, sessionLimit: 0.13, issueChance: 0.08, badge: '🏢' },
+  small: { label: '소형', sigma: 0.0160, issueMul: 0.42, tickLimit: 0.055, sessionLimit: 0.20, issueChance: 0.12, badge: '🎲' },
   etf:   { label: 'ETF',  sigma: 0.010, issueMul: 0.0, badge: '📊' },
   macro: { label: '경제자산', sigma: 0.008, issueMul: 0.0, badge: '🌐' },
 };
@@ -258,7 +258,7 @@ function buildStocks() {
   const normal = D.COMPANY_MASTER.map(m => ({
     ...m,
     history: [{ o: m.price, h: m.price, l: m.price, c: m.price }],
-    trend: rand(-0.0008, 0.0008), // 완만한 개별 추세(월간 누적)
+    trend: rand(-0.0025, 0.0025), // 체감 가능한 개별 추세(월간 누적)
     pendingIssue: null,
     issueCooldown: Math.floor(rand(1, 5)),
     sessionOpen: m.price,
@@ -312,7 +312,7 @@ function boundedStockChange(stock, rawRate, meta) {
   const rate = projected / prev - 1;
   return {
     rate,
-    vi: Math.abs(rawRate) > meta.tickLimit + 0.00001,
+    vi: rawRate > limits.tickUp + 0.00001 || rawRate < -limits.tickDown - 0.00001,
     limitHit: projected <= low + 1 || projected >= high - 1,
   };
 }
@@ -389,6 +389,14 @@ function tick() {
     if (!stock.listed || stock.type === 'etf' || stock.type === 'macro') return;   // 지수·경제자산은 아래에서 별도 처리
     const meta = CAP_META[stock.cap];
 
+    // 개별 종목은 월 시초가 대비 -10%에 닿으면 남은 장 동안 거래를 정지한다.
+    // 손실 하한은 명확히 막되, 상승은 종목 크기에 맞춰 더 크게 열어 둔다.
+    if (stock.downsideCircuitDay === S.day) {
+      pushCandle(stock, 0);
+      idxCount++;
+      return;
+    }
+
     if ((stock.viTicks || 0) > 0) {
       stock.viTicks--;
       pushCandle(stock, 0);
@@ -457,9 +465,19 @@ function tick() {
     }
 
     // 5) 추세는 서서히 평균회귀 + 가끔 방향 전환
-    stock.trend = clamp(stock.trend * 0.985 + rand(-0.00018, 0.00018), -0.0015, 0.0015);
+    stock.trend = clamp(stock.trend * 0.97 + rand(-0.00065, 0.00065), -0.0045, 0.0045);
 
     pushCandle(stock, changeRate);
+    const currentPrice=stock.history[stock.history.length-1].c;
+    const sessionReturn=currentPrice/(stock.sessionOpen||currentPrice)-1;
+    if(sessionReturn<=-0.0995&&stock.downsideCircuitDay!==S.day){
+      stock.downsideCircuitDay=S.day;
+      logCompanyNews(stock.name,'종목 서킷브레이커 발동 · 월 시초가 대비 -10% · 이번 달 남은 거래 정지',-0.10);
+      if((S.viNewsCount||0)<3){
+        S.viNewsCount=(S.viNewsCount||0)+1;
+        addNews(`⛔ ${stock.name} -10% 종목 서킷브레이커 · 이번 달 거래 정지`,'bad');
+      }
+    }
     stock.volume = Math.floor(stock.volume * rand(0.6, 1.5));
     idxSum += changeRate; idxCount++;
 
@@ -1378,7 +1396,7 @@ function renderCurrentMonthCloseStep() {
     overview:() => {
       const L = S.life, job = jobOf();
       const condition=L.health<35?'치료 필요':L.stress>=70?'과로 위험':L.health>=70&&L.stress<45?'좋음':'보통';
-      return `<span>행동 <b>${lifeActionRemaining()}/${LIFE_ACTIONS_PER_MONTH}</b></span><span>${job.emoji} ${job.name}</span><span>컨디션 <b>${condition}</b></span>`;
+      return `<span>남은 행동 <b>${lifeActionRemaining()}/${LIFE_ACTIONS_PER_MONTH}</b></span><span>${job.emoji} ${job.name}</span><span>컨디션 <b>${condition}</b></span>`;
     },
     nextMonthLabel:() => dateInfo(S.day + 1).label,
   });
@@ -1558,7 +1576,7 @@ function settleMonth() {
   (L.passiveAssets || []).forEach(owned => {
     const asset = D.PASSIVE_ASSETS.find(x => x.id === owned.id); if (!asset) return;
     let base = asset.monthlyIncome;
-    if (asset.id === 'deposit') base = Math.round(asset.price * Math.max(.018, ECONOMY.ensure(S.economy).baseRate / 100) / 12);
+    if (asset.id === 'deposit') base = Math.max(asset.monthlyIncome,Math.round(asset.price * Math.max(.018, ECONOMY.ensure(S.economy).baseRate / 100) / 12 * 2));
     const gross = Math.max(0, Math.round(base * (1 + rand(-(asset.variance || 0), asset.variance || 0))));
     b.passive += Math.max(0, gross - (asset.maintenance || 0));
   });
@@ -2369,12 +2387,49 @@ const LIFE_SCENE_IMAGES = {
   health: './assets/pixel-event-health-incident-v1.png',
 };
 function lifeSceneImage(key) { return LIFE_SCENE_IMAGES[key] || LIFE_SCENE_IMAGES.life; }
+function importantEventPriority(event) {
+  if(event.factionStory==='first_attack'||event.factionStory==='legal_result')return 100;
+  if(event.factionVictory||event.captivity||event.type==='ending')return 95;
+  if(event.type==='debt'||event.type==='incident'||event.dangerousHeroineEvent)return 85;
+  if(event.childhoodCircleEvent||event.dangerousTrioStart||event.freedomTrioStart)return 75;
+  if(event.crossEventId||event.story||event.bondEncounter)return 55;
+  if(event.businessRomanceEvent)return 45;
+  if(event.businessEvent)return 40;
+  if(event.monthlyMessage)return 20;
+  return 50;
+}
+function importantEventKey(event) {
+  if(event.factionStory)return`faction:${event.factionStory}`;
+  if(event.monthlyMessage)return`message:${event.targetType}:${event.targetId||event.personName||''}:${event.text||''}`;
+  if(event.businessEvent)return`business:${event.businessId}:${event.eventId}`;
+  if(event.story)return`story:${event.personName}`;
+  return'';
+}
 function queueImportantEvent(event) {
   S._importantEvents = S._importantEvents || [];
-  if (S._importantEvents.length < 10) S._importantEvents.push(event);
+  const key=importantEventKey(event);
+  if(key&&S._importantEvents.some(item=>importantEventKey(item)===key))return;
+  event._priority=importantEventPriority(event);
+  const insertAt=S._importantEvents.findIndex(item=>(item._priority||importantEventPriority(item))<event._priority);
+  if(insertAt<0)S._importantEvents.push(event);else S._importantEvents.splice(insertAt,0,event);
+  if(S._importantEvents.length>12)S._importantEvents.length=12;
+}
+function closeLifeWorkspaceLayers() {
+  document.body.querySelectorAll(':scope > .life-workspace-layer').forEach(layer=>{
+    layer.hidden=true;
+    layer.querySelectorAll('[data-life-panel]').forEach(panel=>panel.hidden=true);
+  });
+}
+function prepareLifeEventOverlay(phoneMode) {
+  closeLifeWorkspaceLayers();
+  const dateHost=$('date-host');
+  if(dateHost&&dateHost.style.display==='block'){dateHost.style.display='none';dateHost.innerHTML='';}
+  const host=$('life-event');
+  if(host)host.className=phoneMode?'event-host phone-event-host':'event-host';
 }
 
 function showNextImportantEvent(resumeCurrent = false) {
+  prepareLifeEventOverlay(false);
   const queue = S._importantEvents || [];
   const ctx = S._monthCloseEventPhase && S.monthCloseContext && S.monthCloseContext.active
     ? S.monthCloseContext : null;
@@ -2417,7 +2472,7 @@ function showNextImportantEvent(resumeCurrent = false) {
   if (event.factionVictory) { showFactionVictoryEnding(); return; }
   if (event.businessEvent) { showBusinessReport(event); return; }
   if (event.businessRomanceEvent) { showBusinessRomanceEvent(event); return; }
-  if (event.monthlyMessage) { showMonthlyMessagePopup(event); return; }
+  if (event.monthlyMessage) { prepareLifeEventOverlay(true); showMonthlyMessagePopup(event); return; }
   if (event.bondEncounter) { showBondEncounter(event); return; }
   if (event.dangerousHeroineEvent) { showDangerousHeroineEvent(event.dangerousHeroineEvent); return; }
   if (event.crossEventId) { showCrossCharacterEvent(event.crossEventId); return; }
@@ -2625,19 +2680,25 @@ function showMonthlyMessagePopup(event){
   const role=isContact?SOCIAL.role(target):null;
   const title=isContact?`${role.icon} ${target.name}`:`${target.emoji||'💬'} ${target.name}`;
   const avatar=isContact?`<span class="message-popup-avatar">${role.icon}</span>`:`<img class="char-portrait" src="${characterPortrait(target)}" alt="${target.name}">`;
-  const choices=isContact
-   ? [['warm','❤️ 다정하게 안부를 답한다'],['advice','🗣️ 고민을 솔직하게 말한다'],['meet','🍚 다음 달에 만나자고 한다'],['brief','💬 짧게 답장한다']]
-   : [['warm','❤️ 다정하게 답한다'],['brief','💬 짧게 안부만 답한다'],['boundary','🧱 연락의 선을 분명히 한다'],['ignore','🔕 읽고 답하지 않는다']];
-  S._monthlyMessage={event,target,isContact};
+  const choices=isContact&&SOCIAL.contactReplyOptions
+    ? SOCIAL.contactReplyOptions(target,event.text)
+    : !isContact&&window.QT_CHAT&&QT_CHAT.replyOptions
+      ? QT_CHAT.replyOptions(target,event.text)
+      : isContact
+        ? [{id:'warm',text:'다정하게 안부를 답한다'},{id:'advice',text:'고민을 솔직하게 말한다'},{id:'meet',text:'다음 달에 만나자고 한다'},{id:'brief',text:'짧게 답장한다'}]
+        : [{id:'warm',text:'다정하게 답한다'},{id:'brief',text:'짧게 안부만 답한다'},{id:'boundary',text:'연락의 선을 분명히 한다'},{id:'ignore',text:'읽고 답하지 않는다'}];
+  S._monthlyMessage={event,target,isContact,choices};
   host.style.display='block';
   const now=dateInfo(S.day);
-  host.innerHTML=`<div class="phone-notification-stage"><div class="phone-shell"><div class="phone-status"><span>${now.month}월 장 마감</span><span>●●● 100%</span></div><div class="phone-lock-time"><b>${String(now.month).padStart(2,'0')}:00</b><small>${now.year}년 ${now.month}월 · 월말 알림</small></div><button class="phone-notification-card" id="monthly-message-open"><span class="phone-app-icon">💬</span><span><small>QuickTalk · 지금</small><b>${title}</b><em>${event.text}</em></span><i>›</i></button><div class="phone-chat-screen" hidden><header>${avatar}<span><b>${title}</b><small>${isContact?(target.relationLabel||role.name):relationTag(L,target.name)}</small></span></header><div class="phone-chat-log"><div class="phone-date-chip">${now.year}년 ${now.month}월 · 장 마감 후</div><div class="phone-bubble incoming">${event.text}</div><div class="phone-typing"><i></i><i></i><i></i></div><div class="phone-reply-label">어떻게 답할까요?</div><div class="phone-reply-options">${choices.map(([id,text])=>`<button data-monthly-reply="${id}">${text}</button>`).join('')}</div><div class="event-outcome" id="message-event-outcome"></div></div></div></div></div>`;
+  host.innerHTML=`<div class="phone-notification-stage"><div class="phone-shell"><div class="phone-status"><span>${now.month}월 장 마감</span><span>●●● 100%</span></div><div class="phone-lock-time"><b>${String(now.month).padStart(2,'0')}:00</b><small>${now.year}년 ${now.month}월 · 월말 알림</small></div><button class="phone-notification-card" id="monthly-message-open"><span class="phone-app-icon">💬</span><span><small>QuickTalk · 지금</small><b>${title}</b><em>${event.text}</em></span><i>›</i></button><div class="phone-chat-screen" hidden><header>${avatar}<span><b>${title}</b><small>${isContact?(target.relationLabel||role.name):relationTag(L,target.name)}</small></span></header><div class="phone-chat-log"><div class="phone-date-chip">${now.year}년 ${now.month}월 · 장 마감 후</div><div class="phone-bubble incoming">${event.text}</div><div class="phone-typing"><i></i><i></i><i></i></div><div class="phone-reply-label">이 메시지에 어떻게 답할까요?</div><div class="phone-reply-options">${choices.map(choice=>`<button data-monthly-reply="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="message-event-outcome"></div></div></div></div></div>`;
   $('monthly-message-open').addEventListener('click',()=>{const screen=host.querySelector('.phone-chat-screen');screen.hidden=false;requestAnimationFrame(()=>screen.classList.add('open'));});
   host.querySelectorAll('[data-monthly-reply]').forEach(button=>button.addEventListener('click',()=>resolveMonthlyMessage(button.dataset.monthlyReply)));
 }
 function resolveMonthlyMessage(kind){
   const pending=S._monthlyMessage,host=$('life-event');if(!pending||!host)return;
-  const result=pending.isContact?replyToContact(pending.target,kind,{popup:true}):replyToPerson(pending.target,kind,{popup:true});
+  const choice=(pending.choices||[]).find(item=>item.id===kind);
+  const replyOptions={popup:true,incoming:pending.event.text,text:choice&&choice.text};
+  const result=pending.isContact?replyToContact(pending.target,kind,replyOptions):replyToPerson(pending.target,kind,replyOptions);
   if(!result||!result.ok)return;
   const options=host.querySelector('.phone-reply-options');if(options)options.innerHTML='';
   const room=personChat(S.life,pending.target.name);room.unread=0;
@@ -3098,11 +3159,11 @@ function showHomeLifeModal(){
 
 function incomeWorkOptions(){
   const job=jobOf(),career=CAREER.ensure(S.life),repeat=monthActionCount('수입');
-  const fatigue=Math.max(.55,1-repeat*.15);
+  const fatigue=Math.max(.65,1-repeat*.12);
   const regularMonthly=job.variable?(job.variable[0]+job.variable[1])/2:(job.salary||0);
-  const overtimeBase=clamp(Math.round(Math.max(450000,regularMonthly*.28)),450000,2200000);
-  const gigBase=clamp(Math.round(350000+(career.skill||0)*12000+(S.life.charm||0)*2500),350000,1500000);
-  const dayBase=650000;
+  const overtimeBase=clamp(Math.round(Math.max(700000,regularMonthly*.42)),700000,3500000);
+  const gigBase=clamp(Math.round(550000+(career.skill||0)*20000+(S.life.charm||0)*4000),550000,2500000);
+  const dayBase=1000000;
   const scaled=value=>Math.max(100000,Math.round(value*fatigue/10000)*10000);
   return [
     {id:'overtime',icon:job.id==='none'?'🏪':'🧰',name:job.id==='none'?'주말 매장 대타':'본업 추가 근무',pay:scaled(overtimeBase),stress:8,happy:-3,
@@ -3118,7 +3179,7 @@ function showIncomeWorkModal(){
   const host=$('life-event');if(!host)return;
   const options=incomeWorkOptions(),repeat=monthActionCount('수입');
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window income-work-window"><div class="title-bar event-bar"><div class="title-bar-text">💵 이번 주 돈 벌기</div><div class="title-bar-controls"><button aria-label="Close" id="income-work-x"></button></div></div><div class="window-body"><div class="home-life-summary"><b>현재 현금 ${won(S.capital)}원</b><small>이번 달 수입 행동 ${repeat}회 · ${repeat?`반복 피로로 이번 보수 ${Math.round(Math.max(.55,1-repeat*.15)*100)}%`:'첫 수입 행동은 보수 100%'}</small></div><div class="event-desc">자유시간 1회를 사용해 즉시 현금을 받습니다. 초반 자금이 부족할 때 투자금이나 생활비를 직접 마련할 수 있습니다.</div><div class="event-options">${options.map(option=>`<button class="event-opt" data-income-work="${option.id}"><b>${option.icon} ${option.name} · +${won(option.pay)}원</b><span>${option.desc}</span><small>스트레스 +${option.stress}${option.skill?' · 직무 능력 +1':''}</small></button>`).join('')}<button class="event-opt" id="income-work-close">이번 주는 다른 일을 한다</button></div></div></div>`;
+  host.innerHTML=`<div class="window event-window income-work-window"><div class="title-bar event-bar"><div class="title-bar-text">💵 이번 주 돈 벌기</div><div class="title-bar-controls"><button aria-label="Close" id="income-work-x"></button></div></div><div class="window-body"><div class="home-life-summary"><b>현재 현금 ${won(S.capital)}원</b><small>이번 달 수입 행동 ${repeat}회 · ${repeat?`반복 피로로 이번 보수 ${Math.round(Math.max(.65,1-repeat*.12)*100)}%`:'첫 수입 행동은 보수 100%'}</small></div><div class="event-desc">자유시간 1회를 사용해 즉시 현금을 받습니다. 초반 자금이 부족할 때 투자금이나 생활비를 직접 마련할 수 있습니다.</div><div class="event-options">${options.map(option=>`<button class="event-opt" data-income-work="${option.id}"><b>${option.icon} ${option.name} · +${won(option.pay)}원</b><span>${option.desc}</span><small>스트레스 +${option.stress}${option.skill?' · 직무 능력 +1':''}</small></button>`).join('')}<button class="event-opt" id="income-work-close">이번 주는 다른 일을 한다</button></div></div></div>`;
   const close=()=>{host.style.display='none';host.innerHTML='';};
   host.querySelectorAll('[data-income-work]').forEach(button=>button.addEventListener('click',()=>resolveIncomeWork(button.dataset.incomeWork)));
   $('income-work-x').addEventListener('click',close);$('income-work-close').addEventListener('click',close);
@@ -4353,7 +4414,7 @@ function replyToContact(c,kind,options){
   const L=S.life,room=personChat(L,c.name);options=options||{};
   if(room.lastReplyDay===S.day){if(!options.popup)flashToast('📱 이번 달에는 이미 답장했습니다','neutral');return{ok:false};}
   room.lastReplyDay=S.day;
-  const text=SOCIAL.contactAnswer(c,kind);pushPersonMessage(L,c,text,true);
+  const text=options.text||SOCIAL.contactAnswer(c,kind,options.incoming);pushPersonMessage(L,c,text,true);
   const gain=kind==='meet'?6:kind==='advice'?4:kind==='warm'?3:1;c.trust=clamp((c.trust||0)+gain,0,100);
   if(kind==='meet'&&Math.random()<.35)c.favor=clamp((c.favor||0)+1,0,5);
   if(['mother','father','guardian'].includes(c.role)&&['warm','meet'].includes(kind))L.familyBond=clamp((L.familyBond||0)+2,0,100);
@@ -4370,7 +4431,7 @@ function replyToPerson(r,kind,options){
   const L=S.life,room=personChat(L,r.name);options=options||{};
   if(room.lastReplyDay===S.day){if(!options.popup)flashToast('📱 이번 달에는 이미 답장했습니다','neutral');return{ok:false};}
   room.lastReplyDay=S.day;
-  const text=(window.QT_CHAT&&QT_CHAT.playerReply(kind))||
+  const text=options.text||(window.QT_CHAT&&QT_CHAT.playerReply(kind,options.incoming,r))||
     {warm:'오늘 정신이 없었어. 그래도 네 연락 보니까 좋다.',brief:'응, 확인했어. 나중에 연락할게.',boundary:'연락이 늦을 수 있어. 재촉하거나 위치를 확인하는 건 하지 말아줘.',ignore:'(읽음)'}[kind];
   pushPersonMessage(L,r,text,true);r.idleMonths=0;
   if(kind==='warm'){r.affection=Math.min(100,(r.affection||0)+3);r.trust=Math.min(100,(r.trust||0)+2);if(r.name==='윤세라')r.obsession=Math.min(100,(r.obsession||0)+3);}
@@ -6356,9 +6417,15 @@ function lifeHubHTML() {
     ?`<div class="faction-status">🏆 <b>메인 목표 · 경쟁 세력 전부 파산</b><br>파산·해산 <b class="${campaignProgress.complete?'up':''}">${campaignProgress.defeated}/${campaignProgress.total}곳</b> · 남은 세력 ${campaignProgress.remaining}곳 · 현재 순자산 랭킹 ${playerRank}위${campaignProgress.complete?'<br><b class="up">✓ 세력전 메인 엔딩 달성</b>':`<br>${attackStatus.unlocked?'👁️ 경쟁 세력이 당신을 위험한 상대로 인식했습니다.':`🔒 공격 보호 기간 · ${attackStatus.reason}`}`}</div>`
     :'';
   const campaignLocked=['locked','attacked','legal_wait'].includes(faction.storyStage);
+  const queuedFactionStory=(S._importantEvents||[]).find(event=>event.factionStory);
+  const factionCampaignNote=faction.storyStage==='attacked'
+    ?`📨 첫 공격 대응 사건이 주요 사건 <b>1순위</b>로 대기 중입니다.${queuedFactionStory?'':' 장 마감 사건 단계에서 바로 이어집니다.'}`
+    :faction.storyStage==='legal_wait'
+      ?`⚖️ 나래가 신고 결과를 기다리는 중입니다. ${faction.legalResultQueued||queuedFactionStory?'<b>장태식 연락 사건이 1순위로 대기 중</b>':'다음 달 장 마감에 장태식의 연락이 먼저 도착합니다.'}`
+      :'🔒 경쟁 세력의 첫 직접 공격을 받으면 나래·장태식 사건을 거쳐 세력을 만들 수 있습니다.';
   const factionStatus=`<div class="faction-status">🛡️ <b>${faction.name}</b> · 단계 ${faction.level}/5 · 구성원 ${faction.members.length}/${faction.capacity}명 · 방어 ${Math.round(faction.defense*100)}% · 정보 ${Math.round((faction.intel||0)*100)}% · 역공 ${faction.wins}승<br>${FACTION_CAMPAIGN?FACTION_CAMPAIGN.stageText(L):''}${faction.level?`<br>월 예상: 거점·사업 <b class="up">+${won(faction.projectedGross||0)}</b> · 운영비 <b class="down">-${won(faction.projectedUpkeep||0)}</b> · 순익 <b class="${(faction.projectedNet||0)>=0?'up':'down'}">${(faction.projectedNet||0)>=0?'+':''}${won(faction.projectedNet||0)}</b>`:''}${faction.assets&&faction.assets.length?`<br>거점: ${faction.assets.map(a=>a.icon+a.name).join(' · ')}`:''}${faction.lastAttacker?`<br>최근 공격자: ${faction.lastAttacker}`:''}${lastTrade}</div>`;
   const factionControls=campaignLocked
-    ?'<div class="hub-note">🔒 처음부터 조직을 만들 수 없습니다. 라이벌의 첫 직접 공격을 받은 뒤 나래와 장태식의 사건을 진행하세요.</div>'
+    ?`<div class="hub-note">${factionCampaignNote}</div>`
     :faction.storyStage==='forming'&&!faction.level
       ?'<button class="life-btn hot" data-act="faction" data-faction="build">🏗️ 창립 거점 마련 <small>스토리 지원 적용 · 세력 정식 출범</small></button>'
       :`<button class="life-btn" data-act="faction" data-faction="build">🏗️ ${faction.level?'세력 강화·정원 확장':'내 세력 만들기'}</button><button class="life-btn" data-act="faction-recruit" ${faction.level&&faction.members.length<faction.capacity?'':'disabled'}>👥 인원 모집 <small>${faction.members.length}/${faction.capacity}명 · 일반 인력/특별 아군</small></button><button class="life-btn hot" data-act="faction" data-faction="revenge" ${faction.level&&faction.members.length?'':'disabled'}>🔥 선택한 라이벌 압박 <small>현금·사업가치·신용을 낮추고 반응을 끌어냅니다</small></button><button class="life-btn" data-act="faction" data-faction="negotiate" ${faction.level?'':'disabled'}>🤝 휴전 협상 수락 <small>도착한 휴전금을 받는 대신 상대가 3개월 재정비</small></button><button class="life-btn hot" data-act="faction" data-faction="bankrupt" ${faction.level>=2&&faction.members.filter(m=>(m.injuredMonths||0)<=0).length>=2?'':'disabled'}>🏦 최종 파산 압박 <small>세력 2단계·활동 인원 2명·상대 약화 필요</small></button>${fundBox}`;
@@ -6450,6 +6517,12 @@ function wireLifeHub(host) {
     const act = b.dataset.act;
     const monthlyGroup=monthlyGroupForAction(act);
     if(monthlyGroup&&lifeActionExhausted()){flashToast(`📅 이번 달 자유시간 ${LIFE_ACTIONS_PER_MONTH}회를 모두 사용했습니다`,'neutral');return;}
+    // 큰 관리 창 안에서 새 모달을 열면 관리 창의 높은 z-index에 가려진다.
+    // 별도 팝업으로 이어지는 행동은 먼저 관리 창을 닫아 한 화면에 한 레이어만 남긴다.
+    if(new Set([
+      'home-life','income-work','origin-ally','meet-special','person-request','character-story',
+      'business-hire','faction-recruit','date','marry','polycule','changejob','rival','faction'
+    ]).has(act))closeWorkspace();
     if (act === 'home-life') showHomeLifeModal();
     else if (act === 'income-work') showIncomeWorkModal();
     else if (act === 'investment-consult') doNaraeConsulting();

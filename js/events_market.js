@@ -211,9 +211,9 @@ const EVENTS_NONE = [
  * 사건·경기·수급의 방향은 그대로 보존하며 극단값은 app.js의 가격제한폭이 막는다. */
 (function exposeMarketBalance(root) {
   'use strict';
-  const UP_MULTIPLIER = 2.35;
-  const DOWN_MULTIPLIER = 0.48;
-  const MIN_VISIBLE_UP = 0.0025; // +0.25%: 작은 양봉도 게임에서 확실히 보이게 한다
+  const UP_MULTIPLIER = 3.2;
+  const DOWN_MULTIPLIER = 1.05;
+  const MIN_VISIBLE_UP = 0.006; // +0.6%: 작은 양봉도 게임에서 확실히 보이게 한다
   function shapeRate(rawRate) {
     const rate = Number(rawRate) || 0;
     if (rate > 0) return Math.max(MIN_VISIBLE_UP, rate * UP_MULTIPLIER);
@@ -232,10 +232,10 @@ const EVENTS_NONE = [
     const tick = Math.max(0, Number(meta && meta.tickLimit) || 0);
     const session = Math.max(0, Number(meta && meta.sessionLimit) || 0);
     return {
-      tickUp: tick * 1.50,
-      tickDown: tick * 0.50,
-      sessionUp: session * 1.50,
-      sessionDown: session * 0.50,
+      tickUp: tick * 2.20,
+      tickDown: Math.min(0.08, tick * 1.30),
+      sessionUp: session * 3,
+      sessionDown: 0.10,
     };
   }
   root.QT_MARKET_BALANCE = {

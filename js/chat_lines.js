@@ -268,7 +268,61 @@
     ],
     ignore: ['(읽음)'],
   };
-  function playerReply(kind) { return pick(PLAYER_REPLY[kind] || PLAYER_REPLY.brief); }
+  function messageIntent(text) {
+    const line=String(text||'');
+    if(/밥|식사|끼니|먹었|먹어|반찬|아침|저녁/.test(line))return'food';
+    if(/만날|만나|보자|갈래|놀러|시간.{0,5}(돼|되|괜찮)|학교 앞|집에 올|술 한잔|차를 마시/.test(line))return'invite';
+    if(/어디|동선|귀가|위치|무사|사라지|확인만/.test(line))return'whereabouts';
+    if(/공고|프로젝트|계약|투자|시장|수익|손실|대출|신용|행정|업계|실적|소문|시안|자료/.test(line))return'work';
+    if(/힘들|무리|몸|건강|잘 지내|별일|괜찮|걱정/.test(line))return'wellbeing';
+    if(/보고 싶|생각나|연락|답장|목소리|오래 보지/.test(line))return'affection';
+    return'general';
+  }
+  const CONTEXT_REPLY={
+    food:{
+      warm:'응, 오늘은 제대로 챙겨 먹었어. 너도 식사 거르지 마.',
+      brief:'응, 먹었어. 걱정하지 마.',
+      boundary:'끼니는 내가 챙길게. 답이 늦어도 너무 걱정하진 말아줘.',
+    },
+    invite:{
+      warm:'좋아. 이번 달 안에 시간 맞춰서 꼭 보자.',
+      brief:'좋아. 일정 확인하고 다시 말할게.',
+      boundary:'만나는 건 좋아. 다만 갑자기 정하기보다 서로 일정을 먼저 확인하자.',
+    },
+    whereabouts:{
+      warm:'무사히 들어왔어. 걱정해줘서 고마워.',
+      brief:'응, 잘 도착했어.',
+      boundary:'무사히 들어왔어. 다만 동선이나 위치를 매번 확인받고 싶지는 않아.',
+    },
+    work:{
+      warm:'알려줘서 고마워. 지금 확인해 보고 궁금한 건 다시 물어볼게.',
+      brief:'자료 확인했어. 정리되면 답할게.',
+      boundary:'도움은 고마워. 결정과 확인은 내가 필요할 때 먼저 부탁할게.',
+    },
+    wellbeing:{
+      warm:'조금 바빴지만 괜찮아. 이렇게 물어봐줘서 마음이 놓이네.',
+      brief:'응, 별일 없어. 잘 지내고 있어.',
+      boundary:'걱정해주는 건 고마워. 답이 늦을 때도 내 시간을 조금 믿어줘.',
+    },
+    affection:{
+      warm:'나도 네 생각하고 있었어. 먼저 연락해줘서 반갑다.',
+      brief:'연락 봤어. 조금 있다가 제대로 이야기하자.',
+      boundary:'연락은 반가워. 다만 답장 속도로 마음을 확인하려 하진 않았으면 해.',
+    },
+  };
+  function playerReply(kind,incomingText) {
+    const intent=messageIntent(incomingText),set=CONTEXT_REPLY[intent];
+    if(set&&set[kind])return set[kind];
+    return pick(PLAYER_REPLY[kind] || PLAYER_REPLY.brief);
+  }
+  function replyOptions(person,incomingText) {
+    return [
+      {id:'warm',text:playerReply('warm',incomingText,person)},
+      {id:'brief',text:playerReply('brief',incomingText,person)},
+      {id:'boundary',text:playerReply('boundary',incomingText,person)},
+      {id:'ignore',text:'(읽고 답하지 않는다)'},
+    ];
+  }
 
   /* --------------------------------------------------- 답장에 대한 상대의 반응 */
   const ANSWER = {
@@ -313,5 +367,5 @@
     return pick(set._default);
   }
 
-  root.QT_CHAT = { incoming, playerReply, partnerAnswer, tierFromTag, TIER, PERSONALITY, OBSESSION, SPECIAL, INVESTING };
+  root.QT_CHAT = { incoming, playerReply, replyOptions, messageIntent, partnerAnswer, tierFromTag, TIER, PERSONALITY, OBSESSION, SPECIAL, INVESTING };
 })(window);

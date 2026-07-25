@@ -718,7 +718,7 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
 /* 직업 선택 / 이직 모달 */
 .life-modal-host {
   position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  z-index: 10000; width: min(560px, 94vw); animation: breaking-in .3s ease;
+  z-index: 10025; width: min(560px, 94vw); animation: breaking-in .3s ease;
 }
 .life-window { box-shadow: 6px 6px 0 rgba(0,0,0,.5); }
 .life-bar { background: linear-gradient(90deg, #7a1fd6, #d61f7a) !important; }
@@ -881,8 +881,13 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
 /* 선택지 이벤트 모달 */
 .event-host {
   position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  z-index: 10001; width: min(500px, 94vw); animation: breaking-in .3s ease;
+  z-index: 10030; width: min(500px, 94vw); animation: breaking-in .3s ease;
 }
+.phone-event-host {
+  position:fixed; inset:0; top:0; left:0; z-index:10050;
+  width:100vw; height:100dvh; transform:none; animation:none;
+}
+.phone-event-host .phone-notification-stage { z-index:1; }
 .event-window { box-shadow: 6px 6px 0 rgba(0,0,0,.5); }
 .event-bar { background: linear-gradient(90deg, #b8860b, #d61f1f) !important; animation: breaking-flash 1.2s steps(2) infinite; }
 .event-window .window-body { background: #fffdf5; padding: 12px; max-height: 82vh; overflow-y: auto; }
@@ -1038,6 +1043,10 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
     display: flex; align-items: flex-end;
     /* 데스크톱용 breaking-in 은 translate(-50%) 라 모바일 전체화면 시트에서 화면을 밀어낸다 */
     animation: sheet-in .25s ease;
+  }
+  .phone-event-host {
+    display:block; width:100vw; height:100dvh;
+    align-items:initial; animation:none;
   }
   .close-window, .event-window, .life-window {
     width: 100%; max-height: 100dvh; height: 100dvh;
