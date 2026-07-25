@@ -198,6 +198,24 @@
         {id:'past',text:'예전에도 다 아는 사이였다며 분위기에 몸을 맡긴다',preview:'과거 관계 재현 · 집착과 회귀 압력 급증',trust:-5,pressure:28,affection:18,trait:'rewind'}
       ]
     },
+    sera_collision: {
+      icon:'🖤', title:'한 번씩 헤어진 다섯 · 주워 온 사람의 열쇠',
+      scene:'./assets/event-sera-doorstep.png',
+      desc:'윤세라가 주인공의 집 열쇠를 꺼내자 다섯은 놀라지 않았습니다. 예린은 열쇠 복사 날짜를, 보라는 세라가 머문 밤의 약 봉투를, 서연은 현관 사진을, 나영은 귀가 동선을, 미래는 도어록 기록을 이미 맞춰 본 뒤였습니다. 세라 한 사람의 집착보다 무서운 것은 다섯이 질투하는 순간 아무 말 없이 하나의 기록망이 된다는 사실입니다.',
+      speakers:[
+        ['윤세라','주워 왔다고 했죠? 버려진 사람을 데려왔으면 끝까지 책임지는 게 맞잖아요.'],
+        ['예린','열쇠 받은 지 19일. 그런데 네 짐은 사흘째부터 늘었더라.'],
+        ['보라','세라 씨가 챙긴 약은 틀렸어. 얘는 그 성분 먹으면 밤에 못 자.'],
+        ['서연','현관 사진은 예쁘게 나왔네. 네가 없을 때 찍었다는 것만 빼면.'],
+        ['나영','스토커 한 명 막는 건 쉬워. 문제는 얘가 우리보다 먼저 집에 있었다는 거야.'],
+        ['미래','도어록 로그 공유 완료. 윤세라 계정은 손님이 아니라 경쟁 사용자로 분류.']
+      ],
+      choices:[
+        {id:'separate',text:'세라의 열쇠와 다섯의 기록을 모두 회수한다',preview:'모두에게 같은 경계 적용 · 현재 신뢰 상승',trust:16,pressure:-12,affection:4,trait:'present'},
+        {id:'key',text:'세라의 열쇠는 두고 다섯에게도 하나씩 준다',preview:'질투를 달래는 대신 여섯 명의 출입망 완성',trust:6,pressure:24,affection:15,trait:'rewind'},
+        {id:'sera',text:'세라는 내가 데려온 사람이니 간섭하지 말라고 한다',preview:'윤세라를 감싸고 소꿉친구들의 질투 폭발',trust:-14,pressure:18,affection:-6,trait:'sever'}
+      ]
+    },
     graduation: {
       icon:'🎓', title:'한 번씩 헤어진 다섯 · 다시 열린 졸업식',
       scene:'./assets/pixel-event-childhood-graduation-v1.png',
@@ -255,7 +273,12 @@
     if (!state.seen.reunion && (anchor.affection || 0) >= 32) event = 'reunion';
     else if (!state.seen.pact && state.seen.reunion && activeCount(life) >= 5) event = 'pact';
     else if (!state.seen.motel_boundary && state.seen.pact && activeCount(life) >= 5) event = 'motel_boundary';
+    else if (!state.seen.sera_collision && state.seen.motel_boundary && (function(){
+      const sera=met(life,'윤세라');
+      return !!sera&&!['ex','deceased'].includes(sera.status);
+    })()) event = 'sera_collision';
     else if (!state.seen.graduation && state.seen.motel_boundary
+      && (!(function(){const sera=met(life,'윤세라');return !!sera&&!['ex','deceased'].includes(sera.status);} )() || state.seen.sera_collision)
       && !(life.met || []).some(person => !MEMBERS.includes(person.name) && ['partner','lover','polycule'].includes(person.status))
       && MEMBERS.every(name => {
       const person=met(life,name);

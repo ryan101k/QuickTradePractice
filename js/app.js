@@ -1745,6 +1745,11 @@ function settleMonth() {
     : null;
   if (attack) {
     registerFactionAttack(attack.attacker);
+    const seraScout=metRecord(L,'윤세라');
+    if(seraScout&&L.seraIntelHelper&&!attack.caught&&!attack.blocked&&(seraScout.obsession||0)<90&&Math.random()<.28){
+      attack.caught=true;attack.blocked=true;attack.loss=0;
+      attack.message+=` 윤세라가 예전에 빼낸 송금책의 동선을 알아보고 피해를 막았습니다.`;
+    }
     if (!attack.caught && attack.loss > 0) {
       const cashLoss = Math.min(Math.max(0, S.capital), attack.loss);
       S.capital -= cashLoss;
@@ -1752,6 +1757,9 @@ function settleMonth() {
       L.happy = clamp(L.happy - 5, 0, 100);
     }
     const defended=attack.caught||attack.blocked;
+    if(!metRecord(L,'윤세라')&&!defended){
+      L.seraRescueOrigin={ready:true,attacker:attack.attacker,loss:attack.loss||0,day:S.day};
+    }
     rivalNews.push(`⚔️ [나 대상] ${attack.message}`);
     addNews(`⚔️ ${attack.message}`, defended ? 'good' : 'bad');
     flashToast(`⚔️ ${attack.message}`, defended ? 'good' : 'bad');
@@ -2980,9 +2988,9 @@ function maybeLifeEvent() {
     if (childEvent) { showLifeEvent(childEvent); return true; }
   }
   const eventPartner=pick(RELATIONSHIPS.consensualMembers(L));
-  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,stress:L.stress||0,charm:L.charm,affection:L.affection||0,pers:eventPartner&&eventPartner.personality,partnerJob:eventPartner&&eventPartner.job,partnerName:eventPartner&&eventPartner.name,partnerNames:RELATIONSHIPS.names(L),hasLovers:!!(L.lovers&&L.lovers.length),familyPlan:!!L.familyPlan,morality:L.morality==null?60:L.morality,guilt:L.guilt||0,makjang:!!L.makjang,hasShark:(L.loans||[]).some(x=>x.illegal),naraeKnown:!!L.tutorialMet,seraKnown:!!metRecord(L,'윤세라'),day:S.day,lastBurnoutEventDay:L.lastBurnoutEventDay };
+  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,stress:L.stress||0,charm:L.charm,affection:L.affection||0,pers:eventPartner&&eventPartner.personality,partnerJob:eventPartner&&eventPartner.job,partnerName:eventPartner&&eventPartner.name,partnerNames:RELATIONSHIPS.names(L),hasLovers:!!(L.lovers&&L.lovers.length),familyPlan:!!L.familyPlan,morality:L.morality==null?60:L.morality,guilt:L.guilt||0,makjang:!!L.makjang,hasShark:(L.loans||[]).some(x=>x.illegal),naraeKnown:!!L.tutorialMet,seraKnown:!!metRecord(L,'윤세라'),seraRescueReady:!!(L.seraRescueOrigin&&L.seraRescueOrigin.ready),day:S.day,lastBurnoutEventDay:L.lastBurnoutEventDay };
   const seraIntro = (D.LIFE_EVENTS || []).find(e => e.id === 'life_rainy_canvas');
-  if (!ctx.seraKnown && seraIntro && Math.random() < 0.32) {
+  if (!ctx.seraKnown && seraIntro && (!seraIntro.cond||seraIntro.cond(ctx)) && Math.random() < 0.32) {
     showLifeEvent(seraIntro);
     return true;
   }
@@ -3057,9 +3065,12 @@ function applyEventEffects(eff) {
     rec.affection = Math.max(rec.affection || 0, 22);
     rec.trust = Math.max(rec.trust || 0, 12);
     rec.obsession = Math.max(rec.obsession || 0, 55);
-    pushPersonMessage(L, rec, '아까 정말 고마웠어요. 잘 들어갔죠? 답장 늦어도 괜찮아요. 기다리는 건 잘하니까.', false);
-    changes.push('🖤 <b>윤세라와 친구가 되고 연락처가 생김</b>');
-    addNews('☔ 빗속에서 윤세라를 도운 뒤 연락을 이어가게 됐습니다', 'good');
+    rec.pickedUpAfterRuin=true;
+    L.seraIntelHelper=true;
+    if(L.seraRescueOrigin)L.seraRescueOrigin.ready=false;
+    pushPersonMessage(L, rec, '데려와 줘서 고마워요. 그 세력 사람들, 돈을 옮길 때 같은 길을 써요. 다음에는 내가 먼저 알려줄게요.', false);
+    changes.push('🖤 <b>윤세라를 거두고 연락처·세력 정보 조력을 얻음</b>');
+    addNews('🖤 경쟁 세력에게 모든 것을 잃은 윤세라를 데려왔습니다', 'good');
   }
   if (eff.familyOrigin && !L.familyPlan) {
     const members=RELATIONSHIPS.consensualMembers(L),other=eff.familyOrigin==='affair'&&L.lovers&&L.lovers.length?L.lovers[0].name:(members[0]&&members[0].name);
@@ -4229,7 +4240,11 @@ function monthlyFactionMemberMessages(L){
   const partners=RELATIONSHIPS.names(L);
   const loan=(L.loan||0)+(S.loan||0);
   let message;
-  if(women.length>=5)message=`형님, 여사친이 ${women.length}명이나 되는데 일정표는 제가 봐도 위험합니다. 칼보다 단체 채팅방이 먼저 터지겠어요.`;
+  const sera=metRecord(L,'윤세라'),circle=L.childhoodCircleBond&&L.childhoodCircleBond.active;
+  if(circle&&sera&&['friend','casual','partner','lover','polycule'].includes(sera.status))message='목숨이 여러 개입니까? 집에는 스토커가 열쇠를 들고 있고, 소꿉친구 다섯은 출입 기록을 맞춰 보고 있습니다. 신고해야죠. 아니, 경찰도 같이 저러네. 이 나라는 망했습니다.';
+  else if(circle)message='형님, 차라리 조직 생활할 때가 더 좋았습니다. 적은 밖에 있고 보고서라도 남기죠. 저 다섯 분은 형님 과거와 현재를 동시에 포위하고 있습니다.';
+  else if(sera&&sera.yandere)message='세력 보고보다 먼저 묻겠습니다. 왜 윤세라 씨가 사무실 예비 열쇠를 갖고 있습니까? 정보원과 스토커는 종이 한 장 차이입니다.';
+  else if(women.length>=5)message=`형님, 여사친이 ${women.length}명이나 되는데 일정표는 제가 봐도 위험합니다. 칼보다 단체 채팅방이 먼저 터지겠어요.`;
   else if(partners.length>=2)message=`형님 연애 사정은 안 묻겠습니다. 다만 ${partners.join(', ')} 쪽 일정과 작전 일정이 겹치면 저도 미리 알아야 합니다.`;
   else if(loan>=20000000)message=`빚이 ${won(loan)}원입니다. 체면보다 현금흐름부터 지키죠. 이번 달엔 공격보다 방어가 먼저입니다.`;
   else if((L.stress||0)>=75)message='형님, 요즘 답장이 짧고 판단도 급합니다. 오늘 작전은 제가 볼 테니 한 번 쉬십시오.';
@@ -4245,7 +4260,8 @@ function monthlyChildhoodCircleBond(L){
   const people=CHILDHOOD_CIRCLE.MEMBERS.map(name=>metRecord(L,name)).filter(Boolean);
   if(bond.route==='never_graduate'){
     const outsider=ensureMet(L).find(person=>!CHILDHOOD_CIRCLE.MEMBERS.includes(person.name)&&['partner','lover','polycule','casual'].includes(person.status));
-    const pressureGain=outsider?10:2;
+    const seraOutsider=outsider&&outsider.name==='윤세라';
+    const pressureGain=outsider?(seraOutsider?16:12):3;
     state.pressure=clamp(state.pressure+pressureGain,0,100);
     bond.pressure=state.pressure;
     L.stress=clamp((L.stress||0)+(outsider?6:2),0,100);
@@ -4253,8 +4269,9 @@ function monthlyChildhoodCircleBond(L){
     if(outsider){
       const watcher=pick(people);
       const line=CHILDHOOD_CIRCLE.line(watcher,'boundary')||'새로 만난 사람이 네 과거까지 아는 건 아니잖아.';
-      pushPersonMessage(L,watcher,`${outsider.name}보다 우리가 먼저였다는 말은 안 할게. 대신 이것만 기억해. ${line}`,false);
-      addNews(`🎓 ${outsider.name}와(과)의 새 관계를 눈치챈 옛 동아리 전 연인 다섯이 서로의 기록을 맞춰 보기 시작했습니다`,'bad');
+      const prefix=seraOutsider?'주워 온 애한테 집 열쇠까지 줬더라. 걔가 네 위치를 찾는 동안 우리는 걔가 언제부터 따라왔는지 전부 맞춰 봤어.':'우리가 먼저였다는 말은 안 할게. 대신 이것만 기억해.';
+      pushPersonMessage(L,watcher,`${prefix} ${line}`,false);
+      addNews(`🎓 ${outsider.name}와(과)의 새 관계를 눈치챈 옛 동아리 전 연인 다섯이 연락·출입·결제 기록을 하나로 합쳤습니다`,'bad');
     }else if(Math.random()<.55){
       const watcher=pick(people),line=CHILDHOOD_CIRCLE.line(watcher,'incoming');
       if(line){pushPersonMessage(L,watcher,line,false);addNews(`📱 ${watcher.name}: ${line}`,'neutral');}
@@ -4364,7 +4381,7 @@ function signatureEvent(result){const rec=result.rec,s=result.spec,copy=SIGNATUR
 function updateCharacterSignatureSystems(L){
   if(!CHAR_TRAITS)return;const results=CHAR_TRAITS.monthly(L,signatureContext(L));results.forEach(x=>{if(x.changed)signatureEvent(x);});
   ensureMet(L).forEach(r=>{const s=CHAR_TRAITS.system(r.name),st=CHAR_TRAITS.ensure(r);if(!s||!st)return;const stage=CHAR_TRAITS.stageOf(s,st.value);if(stage<3)return;
-    if(r.name==='강유진'){r.menhera=true;r.affection=clamp((r.affection||0)+3,0,100);L.legalShield=Math.min(5,(L.legalShield||0)+1);L.stress=clamp((L.stress||0)+3,0,100);}
+    if(r.name==='강유진'){r.menhera=true;r.affection=clamp((r.affection||0)+3,0,100);L.legalShield=Math.min(5,(L.legalShield||0)+1);L.stress=clamp((L.stress||0)+1,0,100);r.protectionEnjoyed=true;}
     else if(r.name==='하은'||r.name==='수아'){r.affection=Math.max(0,(r.affection||0)-3);}
     else if(r.name==='유나'){SOCIAL.ensure(L).reputation-=2;}
     else if(r.name==='한채린'){S.capital+=500000;L.charm=Math.max(0,(L.charm||0)-1);}
@@ -6585,12 +6602,14 @@ function maybeSeraIntrusion(context){
   const places={데이트:'다른 사람을 만나기로 한 장소 맞은편에서',취미:'취미 모임 출입구에서',휴식:'집으로 돌아오는 골목에서',경력:'직장 건물 로비에서',인맥:'약속 장소의 바로 옆 테이블에서',가족:'가족과 함께 있던 장소 근처에서',라이벌:'세력 사무실 앞에서'};
   const place=places[context]||((L.conditions||[]).length?'병원 접수대 건너편에서':'밖에서 돌아오는 길에');
   L.stress=clamp((L.stress||0)+6,0,100);host.style.display='block';
-  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🖤 어디를 가도 윤세라</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-sera-doorstep.png" alt="윤세라가 기다리는 장면"><div class="event-title down">“진짜 우연이에요. 그렇게 믿어주면 안 돼요?”</div><div class="event-desc">${place} 세라가 이미 기다리고 있었습니다. 일정과 목적지를 말한 적은 없습니다.</div><div class="important-event-detail">집착 ${Math.round(r.obsession||0)}/100 · 스트레스 +6</div><div class="event-options"><button class="event-opt" data-sera-response="placate">오늘만 함께 간다</button><button class="event-opt" data-sera-response="boundary">따라오지 말라고 분명히 경고한다</button><button class="event-opt" data-sera-response="report">증거를 남기고 신고·도움을 요청한다</button></div></div></div>`;
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🖤 어디를 가도 윤세라</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-sera-doorstep.png" alt="윤세라가 기다리는 장면"><div class="event-title down">“진짜 우연이에요. 그렇게 믿어주면 안 돼요?”</div><div class="event-desc">${place} 세라가 이미 기다리고 있었습니다. 일정과 목적지를 말한 적은 없습니다.</div><div class="important-event-detail">집착 ${Math.round(r.obsession||0)}/100 · 스트레스 +6</div><div class="event-options"><button class="event-opt" data-sera-response="key">열쇠 이미 줬는데 돈 아깝게 왜 밖에서 기다려?</button><button class="event-opt" data-sera-response="reverse">나도 네가 어디 있는지 궁금했어</button><button class="event-opt" data-sera-response="placate">오늘만 함께 간다</button><button class="event-opt" data-sera-response="boundary">따라오지 말라고 분명히 경고한다</button><button class="event-opt" data-sera-response="report">증거를 남기고 신고·도움을 요청한다</button></div></div></div>`;
   host.querySelectorAll('[data-sera-response]').forEach(b=>b.addEventListener('click',()=>resolveSeraIntrusion(r,b.dataset.seraResponse)));playSound('crash');
 }
 function resolveSeraIntrusion(r,choice){
   const L=S.life;
-  if(choice==='placate'){r.affection=clamp((r.affection||0)+4,0,100);r.obsession=clamp((r.obsession||0)+7,0,100);pushPersonMessage(L,r,'역시 결국 나랑 같이 있어주는구나.',false);}
+  if(choice==='key'){r.affection=clamp((r.affection||0)+7,0,100);r.obsession=clamp((r.obsession||0)+3,0,100);r.hasHomeKey=true;L.stress=clamp((L.stress||0)-5,0,100);pushPersonMessage(L,r,'그러네. 내가 들어가서 기다리면 되는 거였어요. 열쇠, 절대 잃어버리지 않을게요.',false);}
+  else if(choice==='reverse'){r.affection=clamp((r.affection||0)+9,0,100);r.obsession=clamp((r.obsession||0)+5,0,100);r.mutualObsession=(r.mutualObsession||0)+1;L.stress=clamp((L.stress||0)-6,0,100);pushPersonMessage(L,r,'그 말 다시 해줘요. 나만 찾고 있었던 게 아니라고.',false);}
+  else if(choice==='placate'){r.affection=clamp((r.affection||0)+4,0,100);r.obsession=clamp((r.obsession||0)+7,0,100);pushPersonMessage(L,r,'역시 결국 나랑 같이 있어주는구나.',false);}
   else if(choice==='boundary'){r.affection=Math.max(0,(r.affection||0)-7);r.obsession=clamp((r.obsession||0)+(Math.random()<.45?4:-6),0,100);pushPersonMessage(L,r,'그 선은 누가 정한 건데요?',false);}
   else{const hasProtection=!!((D.SPECIAL_CHARACTERS.yujin&&metRecord(L,'강유진'))||SOCIAL.ensure(L).contacts.some(c=>SOCIAL.role(c).id==='official'));r.obsession=Math.max(0,(r.obsession||0)-(hasProtection?24:12));r.affection=Math.max(0,(r.affection||0)-18);r.reported=true;if(r.obsession<65)r.yandere=false;pushPersonMessage(L,r,hasProtection?'경찰까지 부를 줄은 몰랐네. 그래도 끝난 건 아니에요.':'신고했다고 내가 모를 줄 알았어요?',false);}
   closeLifeEvent();renderLifePanel();autoSave();
