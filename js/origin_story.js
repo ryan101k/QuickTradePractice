@@ -58,6 +58,7 @@
       charm:6,reputation:7,skill:3,aptitude:{social:15,diligence:8},
       jobs:['civil','teacher','police','flightattendant','office'],
       friends:['김지민','박서진','윤하린'],friendTag:'학생회 친구',
+      childhood:{heroine:'예린',ally:'민준'},
     },
     {
       id:'study',icon:'📚',name:'도서관과 독서실에서 살았다',
@@ -66,6 +67,7 @@
       charm:1,reputation:3,skill:9,aptitude:{analysis:16,diligence:12},
       jobs:['pharmacist','researcher','nurse','civil','dev'],
       friends:['이수현','정민서','최예원'],friendTag:'공부 친구',
+      childhood:{heroine:'보라',ally:'도윤'},
     },
     {
       id:'arts',icon:'🎨',name:'예술동아리에 모든 걸 쏟았다',
@@ -74,6 +76,7 @@
       charm:10,reputation:2,skill:5,aptitude:{creative:18,social:6},
       jobs:['designer','chef','webtoon','dev'],
       friends:['한소라','임유림','오세린'],friendTag:'동아리 친구',
+      childhood:{heroine:'서연',ally:'시우'},
     },
     {
       id:'sports',icon:'🏃',name:'운동부에서 끝까지 버텼다',
@@ -82,6 +85,7 @@
       charm:7,reputation:4,skill:4,fitness:12,aptitude:{stamina:18,daring:10},
       jobs:['trainer','police','flightattendant','nurse'],
       friends:['강민지','문태호','조나현'],friendTag:'운동부 친구',
+      childhood:{heroine:'나영',ally:'건우'},
     },
     {
       id:'computer_finance',icon:'💻',name:'컴퓨터·투자동아리를 만들었다',
@@ -90,6 +94,7 @@
       charm:3,reputation:1,skill:8,aptitude:{analysis:14,creative:12,daring:5},
       jobs:['dev','trader','designer','office','sales'],
       friends:['배준호','신미래','서정우'],friendTag:'동아리 창립 친구',
+      childhood:{heroine:'미래',ally:'시우'},
     },
   ];
 
