@@ -3,6 +3,11 @@
 'use strict';
 
 const NAMES=['채원','유나','소희'];
+const GUILD_MEMBERS=[
+  {name:'채원',nickname:'막차요정',avatar:'🪽',line:'막판이라고 무리하지 마요. 내일 다시 하면 되잖아요.'},
+  {name:'유나',nickname:'무보정',avatar:'📷',line:'사진 인증은 금지. 여기서는 편한 목소리가 먼저예요.'},
+  {name:'소희',nickname:'쉼표',avatar:'🎵',line:'한 판 쉬어 가요. 다시 접속하는 파티가 더 좋아요.'},
+];
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 const finite=(value,fallback=0)=>Number.isFinite(Number(value))?Number(value):fallback;
 const rec=(life,name)=>(life.met||[]).find(person=>person.name===name);
@@ -177,10 +182,24 @@ const AFTERMATH=[
     ],
   },
 ];
+AFTERMATH.push({
+  id:'open_table',title:'공동생활 4개월 · 싸우러 온 사람에게 내온 국',icon:'🍲',scene:'./assets/event-freedom-trio-home.png',
+  desc:'주인공의 다른 인연들이 따지러 집까지 찾아왔습니다. 세 사람은 문을 막거나 목소리를 높이지 않았습니다. 채원은 외투를 받아 걸고, 유나는 수건을 내오고, 소희는 식탁에 국을 한 그릇 더 놓았습니다.',
+  speakers:[
+    {name:'채원',line:'할 말 많으면 앉아서 해요. 서서 싸우면 다리만 아파요.'},
+    {name:'유나',line:'누가 더 사랑받는지 정하러 왔으면 밥부터 먹어요. 배고플 때 내린 결론은 대개 별로니까.'},
+    {name:'소희',line:'우리는 누구를 몰아낼 생각 없어요. 대신 이 집에서 사람을 겁주게 두지도 않을 거예요.'},
+  ],
+  choices:[
+    {id:'meal',text:'찾아온 사람들까지 식탁에 앉혀 끝까지 듣는다',result:'견제는 결투가 되지 못했습니다. 세 사람은 누구 편도 빼앗지 않고 공격적인 말 속의 두려움만 골라 돌려주었습니다.',harmony:12,rest:9,happy:7,stress:-9},
+    {id:'tea',text:'세 사람에게 대화를 맡기고 따뜻한 차를 더 끓인다',result:'채원의 현실감, 유나의 여유, 소희의 침묵 사이에서 날카로운 말들이 차츰 힘을 잃었습니다.',harmony:10,rest:11,happy:6,stress:-10},
+    {id:'rank',text:'그래도 누가 가장 정상인지 정해 달라고 한다',result:'세 사람은 동시에 웃었습니다. “그 질문을 하는 사람부터 쉬어야겠네요.” 유일한 판정은 주인공의 강제 취침이었습니다.',harmony:5,rest:8,happy:4,stress:-7},
+  ],
+});
 
 function ensure(life){
   if(!life.freedomTrio||typeof life.freedomTrio!=='object'){
-    life.freedomTrio={active:false,queued:false,encountered:false,stage:0,harmony:50,rest:45,axes:{freedom:0,career:0,control:0},history:[],personal:{},ending:null,aftermathIndex:0};
+    life.freedomTrio={active:false,queued:false,encountered:false,stage:0,harmony:50,rest:45,axes:{freedom:0,career:0,control:0},history:[],personal:{},ending:null,aftermathIndex:0,gameSessions:0,guildStage:0,guildWarmth:0};
   }
   const state=life.freedomTrio;
   if(!state.axes)state.axes={freedom:0,career:0,control:0};
@@ -190,7 +209,45 @@ function ensure(life){
   state.rest=clamp(finite(state.rest,45),0,100);
   state.stage=clamp(Math.floor(finite(state.stage,0)),0,CHAPTERS.length);
   state.aftermathIndex=Math.max(0,Math.floor(finite(state.aftermathIndex,0)));
+  state.gameSessions=Math.max(0,Math.floor(finite(state.gameSessions,0)));
+  state.guildStage=clamp(Math.floor(finite(state.guildStage,0)),0,3);
+  state.guildWarmth=clamp(finite(state.guildWarmth,0),0,100);
   return state;
+}
+const GUILD_EVENTS=[
+  {id:'first_party',title:'새벽 파티 · 닉네임 세 개',scene:'./assets/pixel-event-family-life-v1.png',
+    desc:'집에서 게임을 반복하던 밤, 늘 같은 시간에 접속하는 세 사람이 파티에 들어왔습니다. 얼굴도 직업도 말하지 않고 도트 아바타와 닉네임만 보입니다.',
+    choices:[
+      {id:'pace',text:'승리보다 모두 살아서 끝나는 진행을 택한다',warmth:12,result:'막차요정은 무리한 전투를 끊고, 무보정은 실패 장면을 웃음거리로 만들고, 쉼표는 회복 아이템을 나눴습니다.'},
+      {id:'flirt',text:'목소리가 좋다며 개인 연락처부터 묻는다',warmth:-8,result:'세 사람의 목소리가 동시에 차가워졌습니다. “게임 친구를 만나자마자 그렇게 보는 사람이면 다음 파티는 어렵겠네요.”'},
+    ]},
+  {id:'quiet_guild',title:'정기 파티 · 아무것도 증명하지 않는 길드',scene:'./assets/pixel-event-family-life-v1.png',
+    desc:'네 사람은 주말마다 같은 파티를 꾸렸습니다. 현실의 직업과 재산을 묻지 않고, 늦으면 기다리고 지치면 접속을 끄는 것이 유일한 규칙입니다.',
+    choices:[
+      {id:'soup',text:'아픈 파티원에게 게임 대신 죽 배달 쿠폰을 보낸다',warmth:16,result:'다음 접속 날 세 사람 모두 같은 값싼 이모티콘으로 고맙다고 답했습니다.'},
+      {id:'brag',text:'현실에서 성공한 사람임을 은근히 과시한다',warmth:-7,result:'무보정이 짧게 말했습니다. “여기서는 장비 말고 사람 자랑도 금지예요.”'},
+    ]},
+  {id:'offline_table',title:'첫 오프라인 모임 · 화려한 사람들의 소박한 식탁',scene:'./assets/event-freedom-trio-home.png',
+    desc:'여섯 번째 게임 밤 뒤 잡은 모임 장소는 유명 식당이 아니라 작은 집이었습니다. 문을 열자 승무원 채원, 모델 유나, 연주자 소희가 편한 옷차림으로 냄비와 접시를 들고 있습니다.',
+    choices:[
+      {id:'names',text:'직업 이야기는 미뤄 두고 닉네임으로 저녁을 먹는다',warmth:20,reveal:true,result:'누구도 비행·촬영·공연 성과를 말하지 않았습니다. 설거지가 끝난 뒤에야 세 사람은 본명과 개인 연락처를 알려 주었습니다.'},
+      {id:'date',text:'셋 중 누구와 먼저 데이트할 수 있는지 묻는다',warmth:-12,result:'채원이 현관을 열고 유나가 웃음을 거두고 소희가 컵을 내려놓았습니다. “우리가 초대한 건 파티원이지, 고르라고 선 사람은 아니에요.”'},
+    ]},
+];
+function playGuild(life){
+  const state=ensure(life),needs=[2,4,6],index=state.guildStage;
+  state.gameSessions++;
+  return index<GUILD_EVENTS.length&&state.gameSessions>=needs[index]?GUILD_EVENTS[index].id:null;
+}
+function guildEvent(id){return GUILD_EVENTS.find(event=>event.id===id)||null;}
+function resolveGuild(life,id,choiceId){
+  const state=ensure(life),event=guildEvent(id),choice=event&&event.choices.find(item=>item.id===choiceId);
+  if(!event||!choice)return null;
+  state.guildWarmth=clamp(state.guildWarmth+(choice.warmth||0),0,100);
+  if(choice.warmth>=0)state.guildStage=Math.max(state.guildStage,GUILD_EVENTS.indexOf(event)+1);
+  else state.gameSessions=Math.max(0,state.gameSessions-1);
+  state.history.push({type:'guild',id,choice:choice.id});
+  return{event,choice,state,reveal:!!choice.reveal};
 }
 function nextPersonalEvent(life){
   const state=ensure(life);
@@ -309,7 +366,7 @@ function recovery(life){
 function compatibleCandidate(name){return NAMES.includes(name);}
 
 root.QT_FREEDOM_TRIO={
-  NAMES,PERSONAL_EVENTS,CHAPTERS,AFTERMATH,ensure,nextPersonalEvent,queuePersonal,personalEvent,
+  NAMES,GUILD_MEMBERS,GUILD_EVENTS,PERSONAL_EVENTS,CHAPTERS,AFTERMATH,ensure,playGuild,guildEvent,resolveGuild,nextPersonalEvent,queuePersonal,personalEvent,
   applyPersonal,progress,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,recovery,compatibleCandidate,
 };
 })(window);

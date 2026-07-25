@@ -252,6 +252,19 @@ for (const file of [
 
 {
   const freedom=context.QT_FREEDOM_TRIO;
+  const guildLife={};
+  assert.equal(freedom.playGuild(guildLife),null);
+  const firstGuild=freedom.playGuild(guildLife);
+  assert.equal(firstGuild,'first_party','집에서 게임을 두 번 하면 닉네임 길드 첫 사건이 열려야 한다');
+  assert.equal(freedom.resolveGuild(guildLife,firstGuild,'pace').state.guildStage,1);
+  freedom.playGuild(guildLife);
+  assert.equal(freedom.playGuild(guildLife),'quiet_guild');
+  freedom.resolveGuild(guildLife,'quiet_guild','soup');
+  freedom.playGuild(guildLife);
+  assert.equal(freedom.playGuild(guildLife),'offline_table');
+  assert.equal(freedom.resolveGuild(guildLife,'offline_table','names').reveal,true);
+  assert.deepEqual(Array.from(freedom.GUILD_MEMBERS.map(member=>member.nickname)),['막차요정','무보정','쉼표']);
+  assert.equal(freedom.AFTERMATH.some(event=>event.id==='open_table'),true,'자유인 3인조는 다른 그룹을 식탁에서 중재하는 후일담이 있어야 한다');
   const life={
     met:freedom.NAMES.map(name=>({name,status:'friend',affection:70,trust:45})),
     partner:{name:'채원'},
@@ -911,6 +924,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.equal(seraCollision.choices.find(choice=>choice.id==='key').trait,'rewind');
   assert.match(context.QT_CHILDHOOD_CIRCLE.event('graduation').scene,/pixel-event-childhood-graduation-v1/);
   assert.match(appSource,/freedomCasualRefused=true/,'자유인 트리오는 가벼운 만남을 거절해야 한다');
+  assert.match(appSource,/FREEDOM_TRIO\.playGuild\(S\.life\)/,'집에서 게임 행동이 자유인 길드 조우를 진행해야 한다');
   assert.match(appSource,/registerFactionMotive\(\s*'childhood_circle'/,'소꿉친구 조사 사건은 세력전 동기를 만들어야 한다');
   assert.match(appSource,/registerFactionMotive\(\s*'freedom_trio'/,'자유인 트리오의 스캔들은 세력전 동기를 만들어야 한다');
   assert.match(appSource,/개인적인 전쟁/,'세력 창에서 개인적인 공격 동기를 보여줘야 한다');
