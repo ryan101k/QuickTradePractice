@@ -907,6 +907,7 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
 .story-continuity { margin: 6px 0 10px; padding: 7px 9px; background: #edf3ff; border-left: 4px solid #4768b2; font-size: 12px; line-height: 1.5; }
 .story-dialogue { margin: 7px 0 10px; padding: 8px 10px; background: #fff; border: 1px solid #d4b7c7; font-size: 13px; line-height: 1.55; }
 .story-ending { margin-top: 8px; padding: 8px 10px; background: #fff3c9; border: 2px solid #c99f29; line-height: 1.5; }
+.story-ending .relationship-scene { max-height:260px; object-fit:contain; background:#171a28; }
 .story-progress-list { margin: 7px 0; display: grid; gap: 5px; }
 .story-progress-card { display: grid; grid-template-columns: minmax(72px, auto) 1fr; gap: 5px 9px; padding: 7px 8px; background: #f8f3ff; border: 1px solid #b9a7d3; font-size: 11.5px; }
 .story-progress-card strong { align-self: center; }
@@ -1196,9 +1197,10 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
   object-position: center;
   border: 2px inset #fff;
   background: #171a28;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 .life-scene-banner { max-height: 230px; margin: 0 0 10px; }
+.life-scene-banner[src$="event-sera-8.png"] { object-position:center 26%; }
 .hub-scene-banner { max-height: 155px; margin: 6px 0 8px; }
 .important-event-detail {
   margin: 8px 0;

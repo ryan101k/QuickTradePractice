@@ -17,7 +17,7 @@ const ARCS={
  '미래':['출시 전 크런치','기획 탈취','엔딩 크레딧','게임과 인생에서 누구의 선택을 존중할지 결정한다.'],
  '나래':['수강생의 손실','교육 원칙의 위기','나란히 보는 차트','가르치는 사람과 연인의 경계를 새롭게 합의한다.'],
  '강유진':['보호라는 감시','내부 비리 제보','반납한 위치추적기','지키고 싶은 마음이 통제가 되지 않도록 선을 배운다.'],
- '윤세라':['새벽의 부재중 전화','잠긴 작업실','열어둔 문','버림받을 공포를 사랑으로 포장하지 않는 결말을 찾는다.'],
+ '윤세라':['열두 번의 부재중 전화','어깨 하나만큼의 거리','두 개의 열쇠','서로의 폐허를 알아본 두 사람이 열린 문으로 구원받을지, 같은 문을 안에서 잠글지 선택한다.'],
  '한채린':['낮춰진 의자','후계 경쟁','계약서 없는 관계','복종을 애정으로 여기던 상속녀가 대등함 또는 완전한 지배를 선택한다.'],
 };
 /* 남성 인물의 사건 개요. 연애 개인 스토리에서는 제외하고
@@ -86,30 +86,45 @@ const SPECIAL={
   ]}
  ],
  '윤세라':[
-  {desc:'새벽에 부재중 전화가 열두 통 쌓였습니다. 세라는 별일 아니었다고 말하지만, 답이 없던 두 시간 동안 버려졌다고 확신했다고 털어놓습니다.',speaker:'전화 한 번이면 괜찮아졌을 텐데. 내가 그 한 번도 받을 가치가 없나 싶었어요.',choices:[
-   C('support','급할 때 연락할 사람과 기다릴 시간을 함께 정한다','불안을 받아주되 무한 연락은 허용하지 않는다',10,9,-8,'good','기다리는 시간에 끝이 있다는 것만 알아도 견딜 수 있을 것 같아요.',{}),
-   C('lead','앞으로 연락 횟수를 내가 정하고 어기면 차단한다','명확하지만 처벌 중심의 규칙이 된다',-3,-6,5,'neutral','버리지 않겠다는 약속보다 차단 이야기가 먼저 나오네요.',{}),
-   C('avoid','피곤했다며 휴대폰을 뒤집어 놓는다','대화를 피한 만큼 세라의 해석이 커진다',-8,-8,12,'bad','역시 말해도 소용없었네. 다음에는 직접 확인하면 되겠죠.',{})
+  {title:'열두 번의 부재중 전화',min:18,scene:'event-sera-2.png',desc:'새벽 식탁에 식어버린 커피가 두 잔 놓였습니다. 세라는 답이 없던 두 시간 동안 전화를 열두 번 걸고도 직접 찾아오지 않은 자신을 “많이 참았다”고 말합니다. 화를 낼 줄 알았던 당신도 그 시간 내내 현관 밖으로 나가지 못했다는 사실은 아직 모릅니다.',speaker:'전화 한 번이면 괜찮아졌을 텐데. 내가 그 한 번도 받을 가치가 없나 싶었어요.',choices:[
+   C('anchor','나도 밖이 무서워 휴대폰을 보지 못했다고 먼저 털어놓는다','한 사람만 구하는 대신 두 사람의 불안을 같은 테이블에 올린다',10,11,-8,'good','나만 기다린 게 아니었네요… 그럼 다음에는 서로 한 번씩만 먼저 말해요.',{},'anchor'),
+   C('fuse','열두 통이면 부족하다며 다음에는 직접 문을 열고 들어오라고 한다','세라의 집착에 플레이어의 집착으로 답한다',12,3,11,'neutral','제가 혼날 차례였는데… 왜 당신이 더 무서운 말을 해요? 그런데 싫지는 않아요.',{},'fuse'),
+   C('sever','피곤했다며 휴대폰을 뒤집고 설명을 끝낸다','대화를 피한 만큼 세라가 혼자 결말을 만든다',-8,-9,14,'bad','역시 말해도 소용없었네. 다음에는 답을 기다리지 않을게요.',{},'sever')
   ]},
-  {desc:'세라의 작업실 문이 안에서 잠겼고, 당신 물건과 일정표가 벽 한쪽을 채우고 있습니다. 세라는 이것이 관계를 지키기 위한 기록이라고 말합니다.',speaker:'없어질까 봐 남겨둔 것뿐이에요. 기억만 믿었다가 또 혼자 남으면 어떡해요?',choices:[
-   C('support','문을 열고 상담과 생활 지원을 함께 찾는다','관계를 유지하되 위험 행동에는 외부 도움을 연결한다',7,12,-15,'good','나를 버리려고 문을 여는 게 아니라는 걸… 믿어볼게요.',{cash:-700000}),
-   C('lead','일정표를 압수하고 내가 매일 상태를 검사한다','감시는 줄지 않고 주체만 바뀐다',0,-7,8,'neutral','당신이 확인해준다면 좋아요. 매일, 빠짐없이 해줄 거죠?',{}),
-   C('avoid','무서워서 아무 말 없이 작업실을 떠난다','즉시 거리를 두지만 세라의 공포가 집착으로 굳어진다',-14,-11,18,'bad','또 문이 닫혔네요. 이번엔 내가 밖에 있을 차례인가 봐.',{})
+  {title:'비 오던 날의 파산 통지',min:32,scene:'event-sera-lip-confession.png',desc:'세라는 아래입술을 깨문 채 계약서가 휴지조각이 된 날을 처음부터 이야기합니다. 정산금을 빼돌린 세력, 전화를 받지 않은 사람들, 비를 피해 앉은 골목. 당신도 첫 공격으로 돈과 일상을 잃고 방 안에 틀어박혔던 시간을 꺼내 놓습니다.',speaker:'돈을 잃은 게 제일 무서웠던 건 아니에요. 내가 없어져도 아무도 확인하지 않을 것 같았어요. 당신은… 왜 나를 찾으러 왔어요?',choices:[
+   C('anchor','나도 같은 세력에게 무너졌고 혼자 살아남기 싫었다고 답한다','구해준 사람과 구해진 사람의 자리를 서로 바꿔 앉는다',12,14,-10,'good','그럼 빚진 건 없네요. 그날은… 서로를 주운 거니까.',{morality:3},'anchor'),
+   C('fuse','널 버린 사람들을 전부 기억해뒀다고 조용히 말한다','상처를 함께 복수할 공동 명분으로 바꾼다',13,5,13,'neutral','그 이름들, 나도 다 적어뒀어요. 이제 우리 둘이 같은 쪽이네요.',{morality:-2},'fuse'),
+   C('sever','과거보다 세력이 가진 정보가 필요해서 데려왔다고 말한다','세라를 다시 쓸모로 평가받는 자리에 세운다',-12,-14,16,'bad','그럼 쓸모가 끝나는 날도 정해져 있겠네요. 그날이 오기 전에 제가 정할게요.',{},'sever')
   ]},
-  {desc:'세라가 잠금장치를 떼어낸 작업실에서 마지막 답을 기다립니다. 사랑을 붙잡는 방식과 상대를 가두는 방식이 다르다는 걸 받아들일 수 있을지 결정되는 순간입니다.',speaker:'문은 열어뒀어요. 당신이 나가도 쫓지 않는 게 사랑이라면… 돌아오는 것도 당신 선택이겠죠?',choices:[
-   C('support','서로 나갈 자유가 있는 관계를 다시 시작한다','경계와 치료 약속을 지키는 조건으로 함께한다',14,15,-18,'good','오늘은 문이 아니라 약속을 믿어볼게요.',{morality:3}),
-   C('lead','열쇠를 내가 관리하면 괜찮다고 말한다','불안과 통제가 공존하는 의존 관계를 택한다',3,-8,16,'neutral','그 열쇠, 절대 다른 사람에게 주면 안 돼요. 이제 정말 우리 둘뿐이에요.',{}),
-   C('avoid','다시는 돌아오지 않겠다고 선언한다','관계를 끝내지만 세라가 결말을 받아들이는 데 시간이 필요하다',-20,-15,8,'bad','알겠어요. 이번에는 따라가지 않을게요. 오늘은.',{})
-  ]}
-  ,{title:'세 개의 빈 의자',desc:'세라의 작업실에는 당신 앞의 빈 의자가 세 개 놓여 있습니다. 세라는 혼자 감시하면 자신이 나쁜 사람이 되지만, 당신을 절대 놓치지 않을 다른 사람들이 함께라면 그것을 “보호”라고 부를 수 있지 않겠느냐고 묻습니다.',speaker:'나 혼자라서 무서운 거면… 나처럼 당신을 놓치기 싫은 사람이 더 있으면 괜찮아지는 거 아닌가요?',choices:[
+  {title:'잠긴 작업실',min:46,scene:'event-sera-three-chairs.png',desc:'세라의 작업실 문이 안에서 잠겼고, 당신 물건과 일정표가 벽 한쪽을 채우고 있습니다. 세라는 이것이 관계를 지키기 위한 기록이라고 말하지만, 손에는 문을 잠근 체인이 들려 있습니다.',speaker:'없어질까 봐 남겨둔 것뿐이에요. 기억만 믿었다가 또 혼자 남으면 어떡해요?',choices:[
+   C('anchor','문을 함께 열고 상담과 생활 지원을 찾는다','세라를 버리지 않으면서 위험 행동에는 외부 도움을 연결한다',8,14,-15,'good','나를 버리려고 문을 여는 게 아니라는 걸… 믿어볼게요.',{cash:-700000},'anchor'),
+   C('fuse','벽의 빈칸에 내 일정과 세라의 일정표를 나란히 붙인다','감시당하는 대신 서로를 같은 방식으로 감시한다',10,4,14,'neutral','제 것까지 알고 싶다고요? 그럼 어느 쪽도 먼저 사라질 수 없겠네요.',{},'fuse'),
+   C('sever','무서워서 아무 말 없이 작업실을 떠난다','즉시 거리를 두지만 세라의 공포가 집착으로 굳어진다',-14,-12,19,'bad','또 문이 닫혔네요. 이번엔 내가 밖에 있을 차례인가 봐.',{},'sever')
+  ]},
+  {title:'어깨 하나만큼의 거리',min:58,scene:'event-sera-shoulder-confession.png',desc:'비가 그치지 않는 새벽, 세라는 처음으로 휴대폰을 내려놓고 당신 어깨에 머리를 기댑니다. 정상적으로 살라는 말만 들었던 과거와, 사람들에게 둘러싸여도 결국 모두 놓친 당신의 과거가 한 문장씩 오갑니다.',speaker:'당신 옆에서는 괜찮은 척하지 않아도 돼서 무서워요. 이대로 기대면… 나중에 혼자 앉는 법을 잊을 것 같아서.',choices:[
+   C('anchor','혼자 설 수 있어도 돌아와 기대는 사이가 되자고 한다','의존을 숨기지 않되 서로의 출구는 남긴다',14,16,-13,'good','돌아올 곳이 있으면 나가는 것도 조금은 덜 무서울 것 같아요.',{},'anchor'),
+   C('fuse','바깥이 우리를 망쳤으니 둘만 남아도 된다고 속삭인다','세라의 폐쇄 욕구를 플레이어도 함께 선택한다',16,8,17,'bad','그 말, 취소하면 안 돼요. 이번에는 제가 아니라 당신이 먼저 말했으니까.',{},'fuse'),
+   C('sever','기대는 순간 사랑으로 착각하지 말라고 밀어낸다','오해는 막지만 고백까지 한꺼번에 거절한다',-15,-15,15,'bad','알아요. 기대도 되는 어깨라고 착각한 건 저니까.',{},'sever')
+  ]},
+  {title:'잠들지 않은 같은 밤',min:70,scene:'event-sera-bed.png',desc:'한집에 머문 밤, 세라는 눈을 감지 못한 채 당신이 잠들기를 기다립니다. 예전에는 상대가 잠든 뒤 휴대폰과 열쇠를 확인했지만, 오늘은 먼저 그 충동을 말합니다.',speaker:'잠들면 또 혼자 확인하고 싶어질 것 같아요. 숨기면 평범해 보일 수 있는데… 이번에는 말하고 싶었어요.',choices:[
+   C('anchor','휴대폰은 각자 두고 불안하면 깨워 말하자고 정한다','숨은 감시 대신 불편한 대화를 선택한다',13,16,-14,'good','깨워도 화내지 않는다고 했죠? 그 약속부터 믿고 자볼게요.',{},'anchor'),
+   C('fuse','내 휴대폰을 건네고 세라의 휴대폰도 받아 든다','서로의 비밀을 없애 안심을 만든다',15,6,16,'neutral','비밀번호도 같게 해요. 당신이 보면 나도 보고, 내가 보면 당신도 보게.',{},'fuse'),
+   C('sever','세라가 잠든 뒤 말없이 집을 나간다','당장의 충돌을 피하는 대신 가장 오래된 공포를 재현한다',-18,-18,22,'bad','아침에 빈자리부터 봤어요. 이제는 잠들지 않으면 되겠네요.',{},'sever')
+  ]},
+  {title:'빌려 입은 생활',min:78,scene:'event-sera-5.png',desc:'아침에 세라가 당신의 검은 후드티를 입고 나옵니다. 냉장고에는 두 사람 몫의 장보기 목록이 붙었고, 현관에는 신발 두 켤레가 섞여 있습니다. 세라는 옷보다 “우리 생활처럼 보이는 흔적”을 빌리고 싶었다고 고백합니다.',speaker:'돌려달라고 하면 돌려줄게요. 옷도, 열쇠도… 여기서 살고 싶다는 마음까지도요. 아마 마지막 건 잘 안 되겠지만.',choices:[
+   C('anchor','빌릴 때 묻고 돌아올 때 알려주는 생활 규칙을 함께 적는다','소유가 아닌 반복 가능한 공동생활을 만든다',13,15,-10,'good','규칙이 내보내기 위한 게 아니라 같이 살기 위한 거라면 좋아요.',{},'anchor'),
+   C('fuse','내 옷만 입으라며 나도 세라 물건만 쓰겠다고 한다','서로의 흔적만 남기는 폐쇄적인 생활을 고른다',15,7,15,'neutral','그럼 누가 봐도 섞여 보이겠네요. 어디까지가 당신이고 나인지 모르게.',{},'fuse'),
+   C('sever','내 물건과 흔적을 전부 분리해 오늘 안에 치우라고 한다','경계를 세우지만 동거 자체를 처벌처럼 끝낸다',-14,-14,14,'bad','네. 보이는 건 다 치울게요. 안 보이는 데 남아 있으면 되니까.',{},'sever')
+  ]},
+  {title:'세 개의 빈 의자',min:86,scene:'event-sera-three-chairs.png',desc:'세라의 작업실에는 당신 앞의 빈 의자가 세 개 놓여 있습니다. 세라는 혼자 감시하면 자신이 나쁜 사람이 되지만, 당신을 절대 놓치지 않을 다른 사람들이 함께라면 그것을 “보호”라고 부를 수 있지 않겠느냐고 묻습니다.',speaker:'나 혼자라서 무서운 거면… 나처럼 당신을 놓치기 싫은 사람이 더 있으면 괜찮아지는 거 아닌가요?',choices:[
    C('anchor','세 사람이 아니라 상담자와 친구를 연락망에 넣자고 한다','불안을 여러 안전한 관계에 분산한다',9,14,-9,'good','싫지만… 당신이 돌아오는 데 도움이 된다면 이름을 적을게요.',{},'anchor'),
    C('fuse','유진과 채린도 당신을 놓치지 못한다고 알려준다','위험한 세 사람의 결핍을 하나의 망으로 묶는다',13,5,12,'neutral','그 둘도 같은 눈을 한다는 거 알아요. 마음에는 안 들지만, 잃어버리지는 않겠네요.',{},'fuse'),
    C('sever','의자와 기록을 전부 버리라고 명령한다','표면은 치우지만 버림받을 공포를 다시 자극한다',-10,-12,14,'bad','알겠어요. 보이는 건 다 버릴게요. 안 보이는 데 기억하면 되니까.',{},'sever')
   ]}
-  ,{title:'돌아오는 시간',desc:'세라는 잠금장치 대신 귀가 시간표와 비상 연락 카드를 내놓습니다. 문은 열려 있지만, 당신이 돌아올 이유를 약속으로 만들지 다른 사람들의 감시로 만들지 결정해야 합니다.',speaker:'몇 시에 돌아오는지만 말해줘요. 늦으면 누구부터 찾아가야 하는지도. 그러면 문은 안 잠글게요.',choices:[
-   C('anchor','늦을 때 한 번 연락하고 기다릴 한계를 정한다','예측 가능한 약속으로 불안을 다룬다',14,16,-12,'good','시간이 지나도 끝이 있다는 걸 알면… 기다릴 수 있어요.',{},'anchor'),
-   C('fuse','세 사람에게 집·휴대전화·동선을 모두 공유한다','문 대신 사람으로 이루어진 감옥을 선택한다',16,7,18,'bad','이제 내가 잠들어도 다른 누군가가 보고 있겠네요. 완벽해요.',{},'fuse'),
-   C('sever','어디에도 돌아오겠다고 약속하지 않는다','관계를 끊고 외부 보호를 요청한다',-18,-15,-5,'neutral','당신이 약속하지 않으면, 나는 확인하고 싶어져요. 그래도 오늘은 참아볼게요.',{},'sever')
+  ,{title:'두 개의 열쇠',min:92,scene:'event-sera-mutual-captivity.png',desc:'동이 틀 무렵 세라가 두 개의 열쇠를 손바닥에 올립니다. 하나는 밖으로 나가는 열쇠고, 하나는 돌아오는 열쇠입니다. 어느 쪽도 세라 혼자 정하지 않겠다고 말한 순간, 선택은 오히려 당신에게 넘어옵니다.',speaker:'문을 열어둘까요, 같이 잠글까요? 이번에는 제가 가두는 척하면서 당신 뜻을 숨기게 하지 말아요. 당신이 진짜 원하는 걸 말해줘요.',choices:[
+   C('anchor','각자 열쇠를 갖고 반드시 돌아온다는 약속만 나눈다','열린 문을 선택하면서도 서로의 귀환을 믿는다',16,18,-16,'good','나가도 된다는 말보다 돌아온다는 말이 더 좋아요. 그럼 문은 열어둘게요.',{},'anchor'),
+   C('fuse','두 열쇠를 안쪽에 내려놓고 함께 잠금장치를 돌린다','누가 누구를 가뒀는지 구분할 수 없는 둘만의 세계를 택한다',18,10,20,'bad','이번에는 제가 먼저 잠근 게 아니에요. 그러니까… 우리 둘 다 피해자인 척하지 말아요.',{},'fuse'),
+   C('sever','열쇠를 모두 두고 다시는 돌아오지 않겠다고 한다','관계와 집착을 한꺼번에 끊고 외부 보호를 요청한다',-20,-18,-8,'neutral','알겠어요. 이번에는 따라가지 않을게요. 대신 정말 끝인지 오래 확인하게 될 거예요.',{},'sever')
   ]}
  ],
  '한채린':[
@@ -181,7 +196,7 @@ function get(personOrName){
  const titles=a.slice(0,3),chapterCount=authored?authored.length:3;
  return{name,theme:a[3],chapters:Array.from({length:chapterCount},(_,i)=>{
   const scene=authored&&authored[i],title=(scene&&scene.title)||titles[i]||`${i+1}장`;
-  return{index:i,title,min:MIN[i]||Math.min(96,68+(i-2)*10),
+   return{index:i,title,min:scene&&scene.min!=null?scene.min:(MIN[i]||Math.min(96,68+(i-2)*10)),scene:scene&&scene.scene,
    desc:scene&&scene.desc||[`‘${title}’에서 ${name}이(가) 남들에게 감춰온 사정을 처음 이야기합니다. ${a[3]} 아직은 해결보다 당신의 반응이 더 중요한 순간입니다.`,`‘${title}’가 현실의 문제로 번졌습니다. 첫 장에서 보여준 태도를 ${name}도 기억하고 있습니다. ${a[3]} 이번 선택은 말이 아니라 행동으로 남습니다.`,`‘${title}’ 앞에서 두 사람은 더는 결정을 미룰 수 없습니다. 지난 선택들이 만든 신뢰와 거리 위에서 ${a[3]} 어떤 관계로 남을지 정해야 합니다.`][i],
    speaker:scene&&scene.speaker||['이 얘기를 누구에게 해야 할지 오래 망설였어요. 당신이라면 끝까지 들어줄 것 같았어요.','전에 했던 말, 아직 기억해요? 이번에는 말로만 끝나지 않을 것 같아요.','좋은 말 말고 솔직한 답을 듣고 싶어요. 우리는 앞으로 어떤 사이예요?'][i],
    choices:scene&&scene.choices||baseChoices(i)};
@@ -209,8 +224,10 @@ function endingFor(name,state){
   return{route:'equal',title:'한채린 · 값을 매기지 않은 자리',text:'복종도 소유도 아닌 대등한 자리를 만들었습니다. 채린은 여전히 시험하지만, 당신의 대답을 돈으로 사지는 않습니다.'};
  }
  if(name==='윤세라'){
-  if((traits.fuse||0)>=2)return{route:'shared_cage',title:'윤세라 · 문이 필요 없는 방',text:'열쇠보다 확실한 습관과 사람들로 서로를 묶었습니다. 문은 열려 있지만 세라는 당신이 떠날 가능성 자체를 생활에서 지워버렸습니다.'};
-  if((traits.anchor||0)>=2)return{route:'anchored',title:'윤세라 · 돌아올 시간을 아는 사람',text:'세라는 불안을 숨기지 않고 기다릴 시간을 말하는 법을 배웠습니다. 위험은 사라지지 않았지만 약속을 확인하는 방식은 달라졌습니다.'};
+  if((traits.fuse||0)>=5)return{route:'mutual_captivity',title:'윤세라 · 서로 잠근 문',text:'세라가 당신을 가둔 것도, 당신이 세라를 붙든 것도 아닙니다. 두 사람은 바깥이 두려워 서로의 열쇠를 안쪽에 내려놓았습니다. 구원과 감금이 같은 모양이 된 다크 엔딩입니다.'};
+  if((traits.anchor||0)>=5)return{route:'mutual_salvation',title:'윤세라 · 문을 열어두는 사람',text:'세라는 당신이 돌아올 시간을 믿는 법을 배웠고, 당신은 세라가 기다리는 집을 핑계 삼아 다시 바깥으로 나가는 법을 배웠습니다. 어느 한쪽만 구한 사람이 없는 상호구원 순애입니다.'};
+  if((traits.fuse||0)>=3)return{route:'shared_cage',title:'윤세라 · 문이 필요 없는 방',text:'열쇠보다 확실한 습관과 사람들로 서로를 묶었습니다. 문은 열려 있지만 세라는 당신이 떠날 가능성 자체를 생활에서 지워버렸습니다.'};
+  if((traits.anchor||0)>=3)return{route:'anchored',title:'윤세라 · 돌아올 시간을 아는 사람',text:'세라는 불안을 숨기지 않고 기다릴 시간을 말하는 법을 배웠습니다. 위험은 사라지지 않았지만 약속을 확인하는 방식은 달라졌습니다.'};
   return{route:'distance',title:'윤세라 · 열어둔 문 너머',text:'당신은 세라를 혼자 구원할 수 없음을 인정했습니다. 세라는 따라가지 않겠다는 약속을 하루씩 지키기 시작합니다.'};
  }
  const count={support:0,lead:0,avoid:0};state.history.forEach(h=>{if(count[h.choice]!=null)count[h.choice]++;});
@@ -218,6 +235,6 @@ function endingFor(name,state){
  if(count.lead>=2)return{route:'control',title:`${withJosa(name,'과','와')} 기울어진 관계`,text:'위기마다 한 사람이 결정을 독점했습니다. 관계는 이어지지만 애정과 통제의 경계가 오래 흔들립니다.'};
  return{route:'distance',title:`${withJosa(name,'과','와')} 남은 거리`,text:'중요한 순간마다 거리를 두었습니다. 서로를 미워하지는 않지만, 깊어질 수 있었던 관계는 조심스러운 기억으로 남습니다.'};
 }
-function apply(rec,choiceId){const s=get(rec),state=ensure(rec),ch=s&&s.chapters[state.chapter];if(!ch)return null;const c=ch.choices.find(x=>x.id===choiceId);if(!c)return null;rec.affection=Math.max(0,Math.min(100,(rec.affection||0)+c.affection));rec.trust=Math.max(0,Math.min(100,(rec.trust||0)+c.trust));if(rec.name==='윤세라')rec.obsession=Math.max(0,Math.min(100,(rec.obsession||0)+c.obsession));else if(['강유진','한채린'].includes(rec.name))rec.dangerLevel=Math.max(0,Math.min(100,(rec.dangerLevel||0)+c.obsession));else{rec.obsession=0;rec.obsessionGrowth=0;}if(c.trait)state.traits[c.trait]=(state.traits[c.trait]||0)+1;state.history.push({chapter:state.chapter,title:ch.title,choice:choiceId,trait:c.trait||null});state.chapter++;state.completed=state.chapter>=s.chapters.length;if(state.completed)state.ending=endingFor(rec.name,state);return{story:s,chapter:ch,choice:c,completed:state.completed,ending:state.ending||null};}
+function apply(rec,choiceId){const s=get(rec),state=ensure(rec),ch=s&&s.chapters[state.chapter];if(!ch)return null;const c=ch.choices.find(x=>x.id===choiceId);if(!c)return null;rec.affection=Math.max(0,Math.min(100,(rec.affection||0)+c.affection));rec.trust=Math.max(0,Math.min(100,(rec.trust||0)+c.trust));if(rec.name==='윤세라'){rec.obsession=Math.max(0,Math.min(100,(rec.obsession||0)+c.obsession));if(c.trait==='anchor')rec.mutualSalvation=(rec.mutualSalvation||0)+1;if(c.trait==='fuse')rec.mutualObsession=(rec.mutualObsession||0)+1;if(c.trait==='sever')rec.seraRupture=(rec.seraRupture||0)+1;}else if(['강유진','한채린'].includes(rec.name))rec.dangerLevel=Math.max(0,Math.min(100,(rec.dangerLevel||0)+c.obsession));else{rec.obsession=0;rec.obsessionGrowth=0;}if(c.trait)state.traits[c.trait]=(state.traits[c.trait]||0)+1;state.history.push({chapter:state.chapter,title:ch.title,choice:choiceId,trait:c.trait||null});state.chapter++;state.completed=state.chapter>=s.chapters.length;if(state.completed){state.ending=endingFor(rec.name,state);if(rec.name==='윤세라'){rec.seraEndingRoute=state.ending.route;if(state.ending.route==='mutual_captivity'){rec.mutualCaptivityReady=true;rec.hasHomeKey=true;}}}return{story:s,chapter:ch,choice:c,completed:state.completed,ending:state.ending||null};}
 root.QT_CHARACTER_STORIES={ARCS,WORLD_ARCS,SPECIAL,get,ensure,next,context,apply};
 })(window);

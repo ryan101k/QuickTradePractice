@@ -253,6 +253,15 @@ for (const file of [
   assert.equal(circle.storyFor(anchor).length,3,'소꿉친구는 성인 초면과 다른 전용 3장 이야기를 가져야 한다');
   assert.equal(context.QT_CHARACTER_STORIES.get(anchor).variant,'childhood');
   assert.equal(context.QT_CHARACTER_STORIES.get({name:'나영'}).variant,'adult','같은 인물의 성인 초면 이야기는 별도 변형을 유지해야 한다');
+  const stories=context.QT_CHARACTER_STORIES;
+  const salvationSera={name:'윤세라',status:'partner',affection:100,trust:60,obsession:55};
+  assert.equal(stories.get(salvationSera).chapters.length,8,'윤세라 개인 루트는 다른 인물 분량의 기준이 되는 8장이어야 한다');
+  while(stories.next(salvationSera))stories.apply(salvationSera,'anchor');
+  assert.equal(salvationSera.story.ending.route,'mutual_salvation','열린 문을 반복해 고르면 윤세라 상호구원 순애가 완성돼야 한다');
+  const mutualSera={name:'윤세라',status:'partner',affection:100,trust:60,obsession:20};
+  while(stories.next(mutualSera))stories.apply(mutualSera,'fuse');
+  assert.equal(mutualSera.story.ending.route,'mutual_captivity','서로의 폐쇄를 반복해 고르면 상호감금 결말이 준비돼야 한다');
+  assert.ok(mutualSera.mutualObsession>=5&&mutualSera.mutualCaptivityReady,'상호감금은 플레이어의 역집착 누적과 열쇠 상태를 남겨야 한다');
   assert.match(circle.line(anchor,'first'),/도망|출구/,'나영의 소꿉친구 첫 대사는 자신이 출구를 막은 책임을 인정해야 한다');
   const reunion=circle.event('reunion');
   assert.match(reunion.desc,/서로 알고 동의|보호 계획/,'재회 사건은 실패한 첫 하렘과 다섯의 책임을 명시해야 한다');
@@ -1109,6 +1118,14 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/L\.seraIntelHelper=true/,'구조된 윤세라는 세력 정보 조력자가 되어야 한다');
   assert.match(appSource,/L\.seraHousing=eff\.seraHousing/,'윤세라 구조 선택은 동거 여부를 저장해야 한다');
   assert.match(appSource,/showCaptivityEnding\(sera,'club'\)/,'윤세라 3인 공동생활 중 클럽은 기억상실 감금엔딩이어야 한다');
+  assert.match(appSource,/sera_reverse_outing:\{[\s\S]*event-sera-8\.png/,'sera-8은 외출 중 역집착에 윤세라가 당황하는 사건으로 사용해야 한다');
+  assert.match(appSource,/이 정도면 너무 풀어준 거 아니야\? 아까 세 번이나 날 놓쳤잖아/,'sera-8 사건에는 플레이어가 집착 수위를 되묻는 전용 선택지가 있어야 한다');
+  assert.match(appSource,/function seraCaptivityVariant\(L,r,origin\)/,'윤세라 감금 결말은 일방·상호·공개기록·이탈 상처를 구분해야 한다');
+  assert.match(appSource,/const mutualInProgress=storyState&&!storyState\.completed/,'상호감금 서사를 진행 중일 때 일방 감금이 먼저 터져 루트를 막으면 안 된다');
+  assert.match(appSource,/mutual_salvation[\s\S]*event-sera-story\.png/,'상호구원 완결에는 윤세라 서사 몽타주 컷을 사용해야 한다');
+  for(const file of ['event-sera-lip-confession.png','event-sera-shoulder-confession.png','event-sera-mutual-captivity.png','event-sera-8.png']){
+    assert.ok(fs.existsSync(path.join(root,'assets',file)),`${file} 윤세라 사건 컷신이 있어야 한다`);
+  }
   assert.match(appSource,/function advancedRelationshipGroup\(\)/,'진전된 다른 그룹은 소꿉친구 재발 배드엔딩에 개입해야 한다');
   assert.match(appSource,/data-sera-response="reverse"/,'윤세라에게 역으로 집착하는 대응이 있어야 한다');
   assert.match(appSource,/차라리 조직 생활할 때가 더 좋았습니다/,'첫 부하는 위험 관계 사이의 정상인 반응을 해야 한다');
