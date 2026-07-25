@@ -87,6 +87,7 @@ vm.createContext(context);
 }
 
 for (const file of [
+  'js/characters.js',
   'js/core/trading.js',
   'js/core/time.js',
   'js/core/campaign.js',
@@ -151,45 +152,41 @@ for (const file of [
 
 {
   const life={};
-  const state=context.QT_BUSINESS_ROMANCE.ensure(life);
+  const romance=context.QT_BUSINESS_ROMANCE,state=romance.ensure(life);
   assert.equal(context.QT_BUSINESS_ROMANCE.identity(life,'office').displayName,'박 매니저','공개 전에는 실명 대신 직함을 보여야 한다');
-  const businesses={owned:context.QT_BUSINESS_ROMANCE.IDS.map((id,index)=>({
-    id:`biz-${id}`,typeId:context.QT_BUSINESS_ROMANCE.profile(id).businessId,managerId:id,
-    months:6,level:2,lastNet:1000000,totalProfit:10000000,reputation:70,
-  }))};
-  context.QT_BUSINESS_ROMANCE.IDS.forEach(id=>{state.staff[id].bond=30;});
-  assert.equal(context.QT_BUSINESS_ROMANCE.monthly(life,{day:1,totalNet:4000000,businessState:businesses,hasPartner:false,met:[]}),null);
-  assert.equal(context.QT_BUSINESS_ROMANCE.monthly(life,{day:2,totalNet:4000000,businessState:businesses,hasPartner:false,met:[]}),null);
-  const reveal=context.QT_BUSINESS_ROMANCE.monthly(life,{day:3,totalNet:4000000,businessState:businesses,hasPartner:false,met:[]});
-  assert.equal(reveal.kind,'reveal','네 사업을 연속 흑자 운영하면 얼굴 공개 이벤트가 자연 발생해야 한다');
-  const revealed=context.QT_BUSINESS_ROMANCE.resolve(life,reveal,'meet',100000000);
+  romance.introduce(life,'office');
+  assert.equal(romance.identity(life,'office').displayName,'박지수','사교 모임에서 소개받으면 실명과 업계 소속을 알아야 한다');
+  assert.equal(romance.recruit(life,'office','commerce').ok,true);
+  state.staff.office.bond=30;
+  const businesses={owned:[{id:'commerce',typeId:'commerce',managerId:'office',specialManagerId:'office',months:6,level:2,lastNet:1000000,totalProfit:10000000,reputation:70}]};
+  assert.equal(romance.monthly(life,{day:1,businessState:businesses,partnerNames:[],met:[]}),null);
+  assert.equal(romance.monthly(life,{day:2,businessState:businesses,partnerNames:[],met:[]}),null);
+  const reveal=romance.monthly(life,{day:3,businessState:businesses,partnerNames:[],met:[]});
+  assert.equal(reveal.kind,'reveal','전속 책임자와 3개월 흑자를 내면 개인 연락망 이벤트가 자연 발생해야 한다');
+  const revealed=romance.resolve(life,reveal,'meet',100000000);
   assert.equal(revealed.revealed,true);
-  assert.equal(context.QT_BUSINESS_ROMANCE.identity(life,reveal.staffId).displayName,revealed.character.name,'공개 뒤에는 실명과 데이트 캐릭터 정보가 열려야 한다');
+  assert.match(revealed.text,/연애 가능성이 열립니다/,'연락처 교환 직후 바로 연애하지 않고 개인 이야기를 요구해야 한다');
 }
 
 {
-  const life={businessRomance:null};
-  const businesses={owned:[{
-    id:'commerce',typeId:'commerce',managerId:'office',months:2,level:1,
-    lastNet:1200000,totalProfit:2400000,reputation:55,
-  }]};
-  const temptation=context.QT_BUSINESS_ROMANCE.monthly(life,{day:2,totalNet:1200000,businessState:businesses,hasPartner:true,met:[]});
-  assert.equal(temptation.kind,'temptation','연인이 있을 때 익명 담당자의 유혹 연락이 와야 한다');
-  const bad=context.QT_BUSINESS_ROMANCE.resolve(life,temptation,'meet',20000000);
-  assert.equal(bad.badEnding,true,'선을 넘으면 확정 불륜 함정이어야 한다');
-  assert.equal(bad.breakupAll||bad.blackmail,true,'함정은 관계 파탄 또는 금전 협박으로 확정되어야 한다');
+  const socialLife={};
+  assert.equal(context.QT_SOCIAL.attendIndustry(socialLife,'lounge').ok,false,'사교 실적 없이 상위 모임에 바로 갈 수 없어야 한다');
+  context.QT_SOCIAL.attendIndustry(socialLife,'open',()=>0);
+  const lounge=context.QT_SOCIAL.attendIndustry(socialLife,'lounge',()=>0);
+  assert.equal(lounge.introduced,'office','등급을 올린 업계 모임은 특별 책임자를 소개해야 한다');
+  assert.equal(context.QT_SOCIAL.ensure(socialLife).industry.standing,3);
 }
 
 {
   const romance=context.QT_BUSINESS_ROMANCE;
-  const life={met:[{name:'박지수',status:'friend',affection:30,trust:15}]};
+  const life={met:[{name:'박지수',status:'friend',affection:45,trust:25}]};
   const state=romance.ensure(life);
-  state.staff.office.revealed=true;
+  Object.assign(state.staff.office,{introduced:true,hired:true,revealed:true,bond:35});
   const businesses={owned:[{
-    id:'commerce',typeId:'commerce',managerId:'office',months:5,level:2,
+    id:'commerce',typeId:'commerce',managerId:'office',specialManagerId:'office',months:5,level:2,
     lastNet:1000000,totalProfit:10000000,reputation:70,
   }]};
-  const personal=romance.monthly(life,{day:1,totalNet:1000000,businessState:businesses,hasPartner:false,met:life.met});
+  const personal=romance.monthly(life,{day:1,businessState:businesses,partnerNames:[],met:life.met});
   assert.equal(personal.kind,'personal-story','얼굴 공개 뒤 호감·신뢰 조건을 채우면 개인 업무 이야기가 자연 발생해야 한다');
   const result=romance.resolve(life,personal,'share',10000000);
   assert.equal(result.personalStory,true);
@@ -205,30 +202,23 @@ for (const file of [
 
 {
   const romance=context.QT_BUSINESS_ROMANCE;
-  const life={met:romance.IDS.map(id=>({
-    name:romance.profile(id).name,status:'friend',affection:80,trust:60,
-  }))};
+  const life={met:romance.IDS.map(id=>({name:romance.profile(id).name,status:'friend',affection:80,trust:60}))};
   const state=romance.ensure(life);
-  romance.IDS.forEach(id=>{state.staff[id].revealed=true;state.staff[id].storyChapter=3;});
-  const businesses={owned:context.QT_BUSINESS.TYPES.slice(0,8).map(type=>({
-    id:type.id,typeId:type.id,managerId:type.managerId,months:8,level:3,
-    lastNet:1500000,totalProfit:30000000,reputation:75,
-  }))};
-  const expectedChapters=['boardroom_pact','hostile_takeover','after_hours_rules','branch_tour','shared_payday'];
-  const choices=['equal_board','protect_all','clear_rules','delegate_board','people_dividend'];
-  expectedChapters.forEach((chapterId,index)=>{
-    const chapter=romance.monthly(life,{day:index+1,totalNet:12000000,businessState:businesses,hasPartner:false,met:life.met});
-    assert.equal(chapter.chapterId,chapterId);
-    romance.resolve(life,chapter,choices[index],200000000);
-  });
-  const progress=romance.progressSummary(life);
-  assert.equal(progress.chapter,5);
-  assert.equal(progress.synergy>=65&&progress.governance>=58&&progress.boundary>=55,true,'이사회 엔딩은 세 가지 공동 지표를 실제로 쌓아야 한다');
-  const ending=romance.monthly(life,{day:6,totalNet:12000000,businessState:businesses,hasPartner:false,met:life.met,partnerNames:[]});
-  assert.equal(ending.kind,'quartet-ending','개인·공동 이야기를 마친 뒤 4인 세트 엔딩이 자연 발생해야 한다');
-  for(const file of ['event-business-quartet-boardroom.png','event-business-quartet-crisis.png','event-business-quartet-afterhours.png','event-business-quartet-branch-tour-pixel-v1.png','event-business-quartet-payday-pixel-v1.png']){
-    assert.equal(fs.existsSync(path.join(root,'assets',file)),true,`${file} 공동 컷씬이 실제로 존재해야 한다`);
-  }
+  romance.IDS.forEach(id=>Object.assign(state.staff[id],{introduced:true,hired:true,revealed:true,storyChapter:3,bond:50}));
+  assert.equal(romance.canRomance(life,'박지수'),true,'사업 4인 밖의 연인이 없으면 네 명 중 누구와도 연애할 수 있어야 한다');
+  life.met.push({name:'나래',status:'partner'});
+  assert.equal(romance.canRomance(life,'박지수'),false,'사업 4인 밖의 연인이 있으면 이 경쟁 연애 루트가 잠겨야 한다');
+  life.met.pop();life.met.find(person=>person.name==='박지수').status='partner';
+  state.staff.creative.temptationSeen=false;
+  const businesses={owned:[
+    {id:'commerce',typeId:'commerce',managerId:'office',specialManagerId:'office',months:8,lastNet:1000000},
+    {id:'studio',typeId:'studio',managerId:'creative',specialManagerId:'creative',months:8,lastNet:1000000},
+  ]};
+  const temptation=romance.monthly(life,{day:1,businessState:businesses,partnerNames:['박지수'],met:life.met});
+  assert.equal(temptation.kind,'temptation','네 명 중 한 명과 사귀면 나머지 책임자가 빼앗으려는 사건을 만들어야 한다');
+  const takeover=romance.resolve(life,temptation,'meet',20000000);
+  assert.equal(takeover.rivalTakeover,true);
+  assert.equal(takeover.badEnding,undefined,'4인 내부 쟁탈은 일반 불륜 배드엔딩으로 처리하면 안 된다');
 }
 
 {
@@ -255,6 +245,28 @@ for (const file of [
   for(const event of Object.values(freedom.PERSONAL_EVENTS)){
     assert.equal(fs.existsSync(path.join(root,event.scene.replace('./',''))),true,`${event.scene} 개인 컷씬이 실제로 존재해야 한다`);
   }
+}
+
+{
+  const retired=['하은','수아','다은','혜진','아린'];
+  assert.equal(retired.some(name=>context.QT_CHARACTER_ROSTER.CHARACTERS.some(person=>person.name===name)),false,'미구현 세트 인물은 연애 조우 풀에서 빠져야 한다');
+  assert.equal(context.QT_CHARACTER_ROSTER.SPECIAL_CHARACTERS.narae.name,'나래','나래는 독립 히로인으로 유지해야 한다');
+  retired.forEach(name=>{
+    const npc=context.QT_CHARACTER_ROSTER.WORLD_FACTION_NPCS.find(person=>person.name===name);
+    assert.equal(!!npc&&npc.recruitable,true,`${name} 초상화와 인물은 세력 네임드 직원으로 재사용해야 한다`);
+    assert.equal(context.QT_CHARACTER_STORIES.get(name),null,`${name}의 연애 개인 사건은 비활성화돼야 한다`);
+  });
+}
+
+{
+  const life={};
+  const started=context.QT_BUSINESS.start(life,'commerce',1);
+  const ref=started.business;
+  context.QT_BUSINESS.expansionCost(life,'commerce');
+  const expanded=context.QT_BUSINESS.expand(life,'commerce');
+  assert.equal(expanded.ok,true);
+  assert.equal(context.QT_BUSINESS.owned(life,'commerce').level,2,'사업 확장은 다시 읽은 뒤에도 2단계로 저장돼야 한다');
+  assert.equal(ref,context.QT_BUSINESS.owned(life,'commerce'),'사업 상태 정규화가 화면의 객체 참조를 갈아끼우면 안 된다');
 }
 
 assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이탈 자동 일시정지 연결 API를 제공해야 한다');
@@ -303,23 +315,23 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   const legacyState = business.ensure(life);
   assert.deepEqual(Array.from(legacyState.owned), [], '사업 데이터가 없는 구버전 세이브도 빈 장부로 복원해야 한다');
   assert.equal(business.TYPES.length,12,'담당자별 세 업종씩 총 12개 사업을 운영할 수 있어야 한다');
-  for(const managerId of Object.keys(business.STAFF)){
+  for(const managerId of Object.keys(business.STAFF).filter(id=>id!=='internal')){
     assert.equal(business.TYPES.filter(type=>type.managerId===managerId).length,3,`${managerId} 담당자는 세 업종을 관리해야 한다`);
   }
 
   const opened = business.start(life, 'commerce', 3);
   assert.equal(opened.ok, true);
-  assert.equal(opened.manager.name, '박지수');
-  assert.equal(opened.manager.portrait, 'mob-office-neutral.png');
+  assert.equal(opened.manager.name, '내부 운영팀','사업 설립만으로 특별 책임자가 자동 배치되면 안 된다');
+  assert.equal(opened.business.specialManagerId,null);
   assert.equal(business.start(life, 'commerce', 3).ok, false, '같은 사업체를 중복 설립하면 안 된다');
 
   const month = business.monthly(life, { phaseId:'boom', day:3, random:()=>0 });
   assert.equal(month.reports.length, 1);
-  assert.equal(month.reports[0].manager, '박지수');
+  assert.equal(month.reports[0].manager, '내부 운영팀');
   assert.equal(Number.isFinite(month.net), true);
   assert.equal(month.event.businessEvent, true);
   const view = business.eventView(life, month.event);
-  assert.equal(view.portrait, './assets/characters/mob-office-sad.png');
+  assert.equal(view.portrait, './assets/characters/mob-faction-intel.png');
   const beforeReputation = view.item.reputation;
   const decision = business.resolveEvent(life, month.event, 'absorb');
   assert.equal(decision.ok, true);
@@ -350,10 +362,15 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   const balancedPlan=business.projected(business.owned(life,'commerce'),'boom');
   assert.ok(growthPlan.sales>balancedPlan.sales&&growthPlan.cost>balancedPlan.cost,'성장 집중은 매출과 비용을 함께 늘려야 한다');
   const levelBefore=business.owned(life,'commerce').level,netBeforeExpand=balancedPlan.net;
+  const heldReference=business.owned(life,'commerce');
+  business.expansionCost(life,'commerce');
   const expanded=business.expand(life,'commerce');
   assert.equal(expanded.ok,true);
+  assert.equal(expanded.business,heldReference,'사업 상태 정규화가 화면이 들고 있는 사업체 객체를 갈아끼우면 안 된다');
   assert.equal(business.owned(life,'commerce').level,levelBefore+1,'확장 비용을 내면 사업 단계가 실제 저장 상태에서 올라야 한다');
   assert.ok(business.projected(business.owned(life,'commerce'),'boom').net>netBeforeExpand,'사업 확장은 다음 달 예상 순익도 높여야 한다');
+  assert.equal(business.assignSpecialManager(life,'commerce','office').ok,true,'소개·계약이 끝난 특별 책임자는 업종에 별도 배치할 수 있어야 한다');
+  assert.equal(business.owned(life,'commerce').specialManagerId,'office');
   const applicantIds=['unit-junior','unit-field','unit-lead','mystery-office','mystery-creative','mystery-corporate','mystery-medical'];
   for(const type of business.TYPES){
     const staffedLife={};business.start(staffedLife,type.id,1);

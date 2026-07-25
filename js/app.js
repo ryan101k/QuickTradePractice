@@ -2528,14 +2528,14 @@ function showBusinessReport(event){
   const item=view.item,manager=view.manager,type=view.type,issue=view.event;
   const managerIdentity=BUSINESS_ROMANCE?BUSINESS_ROMANCE.identity(S.life,manager.id):null;
   const managerName=managerIdentity?managerIdentity.displayName:manager.name;
-  const managerPortrait=managerIdentity&&managerIdentity.revealed?managerIdentity.portrait:view.portrait;
-  const managerScene=managerIdentity?(managerIdentity.revealed?managerIdentity.scene:managerIdentity.maskedScene):'';
+  const managerPortrait=managerIdentity&&managerIdentity.introduced?managerIdentity.portrait:view.portrait;
+  const managerScene=managerIdentity&&managerIdentity.introduced?managerIdentity.scene:'';
   host.style.display='block';
   host.innerHTML=`<div class="window event-window business-report-window">
     <div class="title-bar event-bar"><div class="title-bar-text">${type.icon} 사업체 긴급 보고 · 선택 필요</div></div>
     <div class="window-body">
       ${managerScene?`<img class="business-reveal-scene" src="${managerScene}" alt="${managerName} 사업 보고 장면">`:''}
-      <div class="date-profile"><img class="char-portrait" id="business-manager-portrait" src="${managerPortrait}" alt="${managerName}"><div><strong>${managerName} · ${manager.role}</strong><br><span class="muted">${type.name} 담당 · 규모 ${item.level}단계 · 평판 ${Math.round(item.reputation)} · 직원 사기 ${Math.round(item.morale)}${managerIdentity&&!managerIdentity.revealed?' · 신원 비공개':''}</span></div></div>
+      <div class="date-profile"><img class="char-portrait" id="business-manager-portrait" src="${managerPortrait}" alt="${managerName}"><div><strong>${managerName} · ${manager.role}</strong><br><span class="muted">${type.name} 담당 · 규모 ${item.level}단계 · 평판 ${Math.round(item.reputation)} · 직원 사기 ${Math.round(item.morale)}${managerIdentity&&!managerIdentity.revealed?' · 개인 연락망 잠김':''}</span></div></div>
       <div class="event-title">${issue.title}</div>
       <div class="story-dialogue"><b>${managerName}</b> “${issue.line}”</div>
       <div class="event-desc">${issue.desc}</div>
@@ -2558,7 +2558,7 @@ function resolveBusinessReport(choiceId){
   if(BUSINESS_ROMANCE)BUSINESS_ROMANCE.applyDecision(S.life,result.manager.id,(view.event.choices.find(item=>item.id===choiceId)||{}).effects);
   const managerIdentity=BUSINESS_ROMANCE?BUSINESS_ROMANCE.identity(S.life,result.manager.id):null;
   const managerName=managerIdentity?managerIdentity.displayName:result.manager.name;
-  const portrait=$('business-manager-portrait');if(portrait)portrait.src=managerIdentity&&managerIdentity.revealed?managerIdentity.portrait:result.portrait;
+  const portrait=$('business-manager-portrait');if(portrait)portrait.src=managerIdentity&&managerIdentity.introduced?managerIdentity.portrait:result.portrait;
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
   const cashText=result.cash?` · 현금 ${result.cash>0?'+':'-'}${won(Math.abs(result.cash))}`:'';
   $('business-report-outcome').innerHTML=`<div class="story-dialogue"><b>${managerName}</b> “${result.outcome}”</div><div class="oc-changes">${result.detail}${cashText}${managerIdentity?` · 숨은 신뢰 ${managerIdentity.bond}/100`:''}</div><button id="business-report-confirm" class="session-btn opening">보고 확인 · 다음 사건 보기</button>`;
@@ -2636,6 +2636,24 @@ function resolveBusinessRomanceEvent(choiceId){
     rec.trust=clamp((rec.trust||0)+(result.trust||0),0,100);
     pushPersonMessage(S.life,rec,`${result.text} 다음에는 업무 보고가 아니라, 제 얘기도 들으러 와요.`,false);
     LEGACY.push(S.life,dateInfo(S.day).age,profile.emoji,`${profile.name} · ${result.title}`,'love');
+  }
+  if(result.rivalRefused){
+    const group=RELATIONSHIPS.ensure(S.life).relationshipGroup;
+    group.stability=clamp(group.stability+6,0,100);
+    group.tension=clamp(group.tension+4,0,100);
+    const rival=BUSINESS_ROMANCE.profile(result.staffId);
+    LEGACY.push(S.life,dateInfo(S.day).age,'🧱',`${rival.name}의 유혹을 거절 · ${result.currentPartner}과의 관계 유지`,'love');
+  }
+  if(result.rivalTakeover&&result.character){
+    const oldName=result.currentPartner;
+    if(oldName&&RELATIONSHIPS.isPartner(S.life,oldName))RELATIONSHIPS.removeMember(S.life,oldName,'ex');
+    const oldRec=oldName&&metRecord(S.life,oldName);if(oldRec){oldRec.status='ex';oldRec.businessRivalGrudge=(oldRec.businessRivalGrudge||0)+20;}
+    const rec=metRecord(S.life,result.character.name)||rememberPerson(result.character,'friend');
+    rec.status='partner';rec.affection=Math.max(rec.affection||0,68);rec.trust=Math.max(rec.trust||0,30);
+    RELATIONSHIPS.startRelationship(S.life,rec,S.day);
+    const group=RELATIONSHIPS.ensure(S.life).relationshipGroup;
+    group.stability=48;group.tension=35;
+    LEGACY.push(S.life,dateInfo(S.day).age,'⚔️',`${result.character.name}, ${oldName||'기존 연인'}에게서 연인의 자리를 빼앗음`,'love');
   }
   if(result.groupStory){
     BUSINESS_ROMANCE.IDS.forEach(id=>{
@@ -3313,6 +3331,31 @@ function meetContact() {
   const c=SOCIAL.meet(S.life);if(!c){flashToast('현재 만날 수 있는 주요 인맥을 모두 알게 됐습니다','neutral');return;}
   S.capital-=cost;const r=SOCIAL.role(c);addNews(`${r.icon} ${r.name} ${c.name}과(와) 알게 됐습니다`,'good');flashToast(`${r.icon} 새 인맥: ${c.name}`,'good');afterLifeAction('인맥');
 }
+function showIndustryGatherings(){
+  const host=$('life-event');if(!host||!SOCIAL)return;
+  const social=SOCIAL.ensure(S.life),introduced=BUSINESS_ROMANCE?BUSINESS_ROMANCE.ensure(S.life).staff:{};
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">🥂 사교 모임 · 업계 소개</div><div class="title-bar-controls"><button aria-label="Close" id="industry-gathering-x"></button></div></div><div class="window-body"><div class="event-desc">공개 모임에서 사교 실적과 평판을 쌓으면 상위 초청장이 열립니다. 특별 인물은 사업체에 자동 배치되지 않으며, 소개 뒤 자산·사업 관리실에서 한 명과 전속 계약할 수 있습니다.</div><div class="date-glance"><span>사회 평판 ${Math.round(social.reputation)}</span><span>사교 실적 ${social.industry.standing}</span><span>소개 ${Object.values(introduced).filter(item=>item.introduced).length}/4명</span></div><div class="resume-grid">${SOCIAL.INDUSTRY_GATHERINGS.map(g=>{const status=SOCIAL.gatheringStatus(S.life,g.id),remaining=g.candidates.filter(id=>!introduced[id]||!introduced[id].introduced),hints=remaining.map(id=>{const p=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.profile(id);return p?`${p.rivalFirm} ${p.role}`:'업계 인물';}).join(' · ');return`<button class="resume-card" data-industry-gathering="${g.id}" ${status.available&&S.capital>=g.cost?'':'disabled'}><span>${g.icon}</span><b>${g.name} · ${g.tier}등급</b><small>${g.desc}</small><em>${hints?`소개 가능: ${hints}`:'새 특별 소개 없음 · 사교 실적과 평판 상승'}</em><strong>${won(g.cost)}${!status.available?` · ${status.reason}`:S.capital<g.cost?' · 현금 부족':''}</strong></button>`;}).join('')}</div><button id="industry-gathering-close" class="session-btn">이번 달은 참가하지 않는다</button></div></div>`;
+  const close=()=>{host.style.display='none';host.innerHTML='';};
+  host.querySelectorAll('[data-industry-gathering]').forEach(button=>button.addEventListener('click',()=>attendIndustryGathering(button.dataset.industryGathering)));
+  $('industry-gathering-x').addEventListener('click',close);$('industry-gathering-close').addEventListener('click',close);
+}
+function attendIndustryGathering(id){
+  const gathering=SOCIAL.INDUSTRY_GATHERINGS.find(item=>item.id===id);if(!gathering)return;
+  if(S.capital<gathering.cost){flashToast(`💸 참가비 ${won(gathering.cost)}원이 필요합니다`,'bad');return;}
+  const result=SOCIAL.attendIndustry(S.life,id);
+  if(!result.ok){flashToast(result.message,'neutral');return;}
+  S.capital-=gathering.cost;
+  let message=`${gathering.icon} ${gathering.name} 참가 · 사교 실적 ${result.standing}`;
+  if(result.introduced&&BUSINESS_ROMANCE){
+    const person=BUSINESS_ROMANCE.introduce(S.life,result.introduced);
+    message=`${person.emoji} ${person.name} 소개 · ${person.rivalFirm} ${person.role}`;
+    addNews(`${message} · 자산·사업 관리실에서 특별 책임자 계약 가능`,'good');
+  }else addNews(message,'good');
+  flashToast(result.introduced?`새 업계 인물을 소개받았습니다: ${BUSINESS_ROMANCE.profile(result.introduced).name}`:message,'good');
+  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
+  afterLifeAction('인맥');
+}
 const CONTACT_LINES={
   mentor:['"조급해하지 말아요. 커리어는 길게 봐야 해요.","기회는 또 옵니다."','"요즘 어때요? 힘든 건 언제든 얘기해요."'],
   banker:['"신용은 결국 평판이에요. 꾸준함이 최고죠."','"금리 흐름은 제가 챙겨서 알려드릴게요."'],
@@ -3396,6 +3439,7 @@ function emojiAvatar(c) {
 /* 구버전 세이브 보정 — 초상화 성별을 맞추며 바뀐 이름을 따라가고, 로스터의 성별·초상화를 다시 붙인다 */
 function migrateLifePeople(L) {
   const renames = D.CHARACTER_NAME_MIGRATIONS || {};
+  const retiredHeroines=new Set(['하은','수아','다은','혜진','아린']);
   const fix = p => {
     if (!p || typeof p !== 'object') return p;
     if (renames[p.name]) { p.name = renames[p.name]; delete p.portrait; }
@@ -3414,11 +3458,16 @@ function migrateLifePeople(L) {
     return p;
   };
   if (!Array.isArray(L.met)) L.met = [];
-  if(L.relationshipGroup&&Array.isArray(L.relationshipGroup.members))L.relationshipGroup.members.forEach(member=>{if(member&&renames[member.name])member.name=renames[member.name];});
+  if(L.relationshipGroup&&Array.isArray(L.relationshipGroup.members)){
+    L.relationshipGroup.members.forEach(member=>{if(member&&renames[member.name])member.name=renames[member.name];});
+    L.relationshipGroup.members=L.relationshipGroup.members.filter(member=>!retiredHeroines.has(typeof member==='string'?member:member&&member.name));
+  }
   if(L.relationshipGroup&&renames[L.relationshipGroup.spouseName])L.relationshipGroup.spouseName=renames[L.relationshipGroup.spouseName];
+  if(L.relationshipGroup&&retiredHeroines.has(L.relationshipGroup.spouseName))L.relationshipGroup.spouseName=null;
   fix(L.partner);
-  L.lovers = (L.lovers || []).map(fix).filter(x => !L.partner || x.name !== L.partner.name);
-  L.met = L.met.map(fix);
+  if(L.partner&&retiredHeroines.has(L.partner.name)){L.partner=null;L.relationship='single';}
+  L.lovers = (L.lovers || []).map(fix).filter(x => !retiredHeroines.has(x.name)&&(!L.partner || x.name !== L.partner.name));
+  L.met = L.met.map(fix).filter(person=>!retiredHeroines.has(person.name));
   L.met.forEach(m=>{if(['강유진','한채린'].includes(m.name)){m.obsession=0;m.obsessionGrowth=0;}});
   (L.memories || []).forEach(m => { if (m && renames[m.name]) m.name = renames[m.name]; });
   // 명부가 없던 세이브 — 지금 만나고 있는 사람들부터 채워 넣는다
@@ -4921,7 +4970,10 @@ function showDateModal(c, route) {
   const known = !route && !withPartner;
   const rec = metRecord(L, c.name);
   const established=rec&&['casual','lover','polycule','ex'].includes(rec.status);
-  S._dateMode=withPartner||established?'date':!rec?'encounter':courtshipReadiness(rec).ready?'date':'outing';
+  const businessRivalLocked=c.special==='business'&&!withPartner&&(
+    !BUSINESS_ROMANCE||!BUSINESS_ROMANCE.canRomance(L,c.name)||RELATIONSHIPS.names(L).length>0
+  );
+  S._dateMode=withPartner?'date':!rec?'encounter':(established||courtshipReadiness(rec).ready)&&!businessRivalLocked?'date':'outing';
   const modeLabel=S._dateMode==='encounter'?'첫 조우':S._dateMode==='outing'?'친분 외출':'데이트';
   const prof = ROMANCE.profileOf(c);   // 말투·사연 (인물 전용 목소리가 있을 때만)
   const gLabel = (D.GENDER_LABEL || {})[c.gender] || '';
@@ -4940,7 +4992,7 @@ function showDateModal(c, route) {
     ? `<span>${stageBadge(rec.affection)}</span><span>호감 ${Math.round(rec.affection||0)}</span><span>신뢰 ${Math.round(rec.trust||0)}</span>`
     : '<span>오늘 처음 만남</span>';
   const detail=rec
-    ? `${relationTag(L,c.name)} · 교류 ${rec.interactions||0}회 · ${hasPersonalContact(rec)?courtshipProgress(rec):contactProgress(rec)}`
+    ? `${relationTag(L,c.name)} · 교류 ${rec.interactions||0}회 · ${businessRivalLocked?'사업 4인 외부 연인이 없어야 하며 개인 업무 이야기 3장을 마쳐야 정식 연애 가능':hasPersonalContact(rec)?courtshipProgress(rec):contactProgress(rec)}`
     : '첫 조우에서는 얼굴만 익힙니다. 다른 달에 다시 만나 신뢰를 쌓아야 연락처를 교환할 수 있습니다.';
   host.style.display = 'block';
   host.innerHTML =
@@ -5714,12 +5766,7 @@ function businessApplicants(item){
     {id:`${item.id}-field`,icon:'🧰',name:'현장 경력자',career:`${type.name} 유사업종 4년`,hint:'즉시 전력, 안정적인 실무',min:35},
     {id:`${item.id}-lead`,icon:'📊',name:'팀장급 지원자',career:'팀 운영 7년 · 위기 대응 경험',hint:'높은 평판의 사업체에만 지원',min:65},
   ];
-  const mystery=Object.values(BUSINESS.STAFF).map((staff,index)=>({
-    id:`mystery-${staff.id}`,icon:'❔',name:'신원 비공개 지원자',career:`${staff.role} 경력 · 일부 이력 비공개`,
-    hint:['계약서의 빈틈을 지나치게 빨리 찾는다','면접 전에 매장의 동선을 모두 외웠다','포트폴리오의 색감이 묘하게 익숙하다','안전 기준만큼은 타협하지 않는다'][index],
-    min:48+index*7,mystery:true,
-  }));
-  return generic.concat(mystery).filter(candidate=>score>=candidate.min&&!item.hiredStaff.includes(candidate.id));
+  return generic.filter(candidate=>score>=candidate.min&&!item.hiredStaff.includes(candidate.id));
 }
 
 function recruitBusinessStaff(id){
@@ -5750,6 +5797,34 @@ function finishBusinessRecruit(candidateId){
   addNews(`👥 ${result.type.name} ${label} 채용 · 현재 ${result.business.employees}/${BUSINESS.staffCapacity(result.business)}명`,'good');
   flashToast(`👥 ${label} 채용 완료`,'good');
   const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}S._businessRecruit=null;
+  afterLifeAction('사업');
+}
+
+function showSpecialManagerRecruit(id){
+  if(!BUSINESS||!BUSINESS_ROMANCE)return;
+  const item=BUSINESS.owned(S.life,id),host=$('life-event');if(!item||!host)return;
+  const state=BUSINESS_ROMANCE.ensure(S.life),type=BUSINESS.typeOf(item.typeId);
+  const candidates=BUSINESS_ROMANCE.IDS.filter(staffId=>{
+    const staff=state.staff[staffId];
+    return staff.introduced&&!staff.hired&&BUSINESS.compatibleManager(item,staffId);
+  });
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">🤝 ${type.name} · 특별 책임자 계약</div><div class="title-bar-controls"><button aria-label="Close" id="special-manager-x"></button></div></div><div class="window-body"><div class="event-desc">특별 책임자는 공개 채용 지원자가 아닙니다. 사교 모임에서 정식 소개를 받은 경쟁자를 업종별로 영입합니다. 네 명은 모두 고용할 수 있지만 서로를 업계와 연애 양쪽의 경쟁자로 봅니다.</div>${candidates.length?`<div class="resume-grid">${candidates.map(staffId=>{const p=BUSINESS_ROMANCE.profile(staffId);return`<button class="resume-card" data-special-manager="${staffId}"><img class="char-portrait" src="./assets/characters/${p.portrait}" alt="${p.name}"><b>${p.name}</b><small>${p.rivalFirm} · ${p.role}</small><em>“${p.style}”</em><strong>전속 계약금 ${won(2500000)}</strong></button>`;}).join('')}</div>`:`<div class="asset-empty">이 업종에 맞는 새 소개 인물이 없습니다. 가족·인맥의 사교 모임 등급을 올려 먼저 소개받으세요.</div>`}<button id="special-manager-close" class="session-btn">닫기</button></div></div>`;
+  const close=()=>{host.style.display='none';host.innerHTML='';};
+  host.querySelectorAll('[data-special-manager]').forEach(button=>button.addEventListener('click',()=>finishSpecialManagerRecruit(id,button.dataset.specialManager)));
+  $('special-manager-x').addEventListener('click',close);$('special-manager-close').addEventListener('click',close);
+}
+
+function finishSpecialManagerRecruit(businessId,staffId){
+  const fee=2500000;if(S.capital<fee){flashToast(`💸 전속 계약금 ${won(fee)}원이 필요합니다`,'bad');return;}
+  const route=BUSINESS_ROMANCE.recruit(S.life,staffId,businessId);
+  if(!route.ok){flashToast(route.message,'neutral');return;}
+  const assigned=BUSINESS.assignSpecialManager(S.life,businessId,staffId);
+  if(!assigned.ok){flashToast(assigned.message,'bad');return;}
+  S.capital-=fee;
+  addNews(`🤝 ${route.profile.name}, ${assigned.type.name} 특별 책임자 전속 계약 · 다른 특별 책임자와 업계 경쟁 시작`,'good');
+  flashToast(`${route.profile.name}을 특별 책임자로 영입했습니다`,'good');
+  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
   afterLifeAction('사업');
 }
 
@@ -6484,10 +6559,10 @@ function lifeHubHTML() {
     return `<button class="life-btn asset-action" data-act="passive-buy" data-id="${a.id}">${a.emoji} ${a.name} 매입 <small>${won(a.price)} · 월 순수입 ${won(net)} · ${a.desc}</small></button>${count?`<button class="life-btn hot asset-action" data-act="passive-sell" data-id="${a.id}">${a.emoji} ${a.name} 1개 매각 <small>${count}개 보유 · ${won(Math.round(a.price*a.resaleRate))} 회수</small></button>`:''}`;
   }).join('');
   const businessBox=BUSINESS?BUSINESS.TYPES.map(type=>{
-    const item=BUSINESS.owned(L,type.id),manager=BUSINESS.staffOf(type.managerId);
+    const item=BUSINESS.owned(L,type.id),manager=BUSINESS.staffOf(item?item.managerId:'internal');
     const identity=BUSINESS_ROMANCE?BUSINESS_ROMANCE.identity(L,manager.id):null;
     const managerName=identity?identity.displayName:manager.name;
-    const managerPortrait=identity&&identity.revealed?identity.portrait:null;
+    const managerPortrait=identity&&identity.introduced?identity.portrait:null;
     if(item){
       const plan=BUSINESS.projected(item,S.economy.id),expandCost=BUSINESS.expansionCost(L,item.id),resale=BUSINESS.resaleValue(L,item.id);
       const capacity=BUSINESS.staffCapacity(item),hireCost=BUSINESS.hireCost(item);
@@ -6496,9 +6571,9 @@ function lifeHubHTML() {
       const expandedPreview=BUSINESS.projected({...item,level:Math.min(5,item.level+1),morale:Math.min(100,item.morale+4),momentum:Math.min(.5,item.momentum+.08)},S.economy.id);
       const strategy=BUSINESS.strategyOf(item.strategy);
       const strategyButtons=Object.values(BUSINESS.STRATEGIES).map(option=>`<button class="${option.id===strategy.id?'active':''}" data-act="business-strategy" data-business="${item.id}" data-strategy="${option.id}" title="${option.desc}">${option.icon} ${option.name}</button>`).join('');
-      return`<article class="asset-business-card"><div class="faction-member business-staff"><img src="${managerPortrait||BUSINESS.portraitPath(manager.id,item.lastNet<0?'sad':item.lastNet>1000000?'happy':'neutral')}" alt="${managerName}"><span><b>${type.icon} ${type.name} · ${item.level}단계</b><small>${managerName} · ${manager.role}${identity&&!identity.revealed?' · 신원 비공개':''}<br>직원 ${item.employees}/${capacity}명 · 직원 매출 기여 +${Math.round(staffEffect.salesBonus*100)}% · 월 인건비 ${won(staffEffect.wages)}<br>사기 ${Math.round(item.morale)} · 평판 ${Math.round(item.reputation)}<br>지난달 매출 ${won(item.lastSales)} · 비용 ${won(item.lastCost)} · <b class="${item.lastNet>=0?'up':'down'}">순익 ${item.lastNet>=0?'+':''}${won(item.lastNet)}</b><br>다음 달 기준 예상 ${plan.net>=0?'+':''}${won(plan.net)} · ${strategy.icon} ${strategy.name}</small></span></div><div class="business-strategy-row" aria-label="${type.name} 운영 방침">${strategyButtons}</div><div class="asset-card-actions"><button class="life-btn" data-act="business-hire" data-business="${item.id}" ${item.employees>=capacity?'disabled':''}>👥 직원 모집 <small>${item.employees>=capacity?'현재 정원 완료':`채용·교육 ${won(hireCost)} · 최소 예상 순익 +${won(Math.max(0,hirePreview.net-plan.net))}`}</small></button><button class="life-btn" data-act="business-expand" data-business="${item.id}" ${item.level>=5?'disabled':''}>🏗️ 확장 <small>${item.level>=5?'최대 규모':`${won(expandCost)} · ${item.level+1}단계 · 예상 순익 ${expandedPreview.net>=0?'+':''}${won(expandedPreview.net)}`}</small></button><button class="life-btn hot" data-act="business-close" data-business="${item.id}">🚪 운영 종료 <small>${won(resale)} 회수</small></button></div></article>`;
+      return`<article class="asset-business-card"><div class="faction-member business-staff"><img src="${managerPortrait||BUSINESS.portraitPath(manager.id,item.lastNet<0?'sad':item.lastNet>1000000?'happy':'neutral')}" alt="${managerName}"><span><b>${type.icon} ${type.name} · ${item.level}단계</b><small>${managerName} · ${manager.role}${identity?' · 전속 특별 책임자':' · 일반 운영'}<br>직원 ${item.employees}/${capacity}명 · 직원 매출 기여 +${Math.round(staffEffect.salesBonus*100)}% · 월 인건비 ${won(staffEffect.wages)}<br>사기 ${Math.round(item.morale)} · 평판 ${Math.round(item.reputation)}<br>지난달 매출 ${won(item.lastSales)} · 비용 ${won(item.lastCost)} · <b class="${item.lastNet>=0?'up':'down'}">순익 ${item.lastNet>=0?'+':''}${won(item.lastNet)}</b><br>다음 달 기준 예상 ${plan.net>=0?'+':''}${won(plan.net)} · ${strategy.icon} ${strategy.name}</small></span></div><div class="business-strategy-row" aria-label="${type.name} 운영 방침">${strategyButtons}</div><div class="asset-card-actions"><button class="life-btn" data-act="business-manager" data-business="${item.id}" ${item.specialManagerId?'disabled':''}>🤝 특별 책임자 <small>${item.specialManagerId?`${managerName} 전속 계약 중`:'사교 모임 소개 인물 중 한 명을 선택'}</small></button><button class="life-btn" data-act="business-hire" data-business="${item.id}" ${item.employees>=capacity?'disabled':''}>👥 일반 직원 모집 <small>${item.employees>=capacity?'현재 정원 완료':`채용·교육 ${won(hireCost)} · 최소 예상 순익 +${won(Math.max(0,hirePreview.net-plan.net))}`}</small></button><button class="life-btn" data-act="business-expand" data-business="${item.id}" ${item.level>=5?'disabled':''}>🏗️ 확장 <small>${item.level>=5?'최대 규모':`${won(expandCost)} · ${item.level+1}단계 · 예상 순익 ${expandedPreview.net>=0?'+':''}${won(expandedPreview.net)}`}</small></button><button class="life-btn hot" data-act="business-close" data-business="${item.id}">🚪 운영 종료 <small>${won(resale)} 회수</small></button></div></article>`;
     }
-    return`<article class="asset-business-card unopened"><div class="faction-member business-staff"><img src="${managerPortrait||BUSINESS.portraitPath(manager.id,'neutral')}" alt="${managerName}"><span><b>${manager.emoji} ${managerName} · ${manager.role}</b><small>${manager.intro}${identity&&!identity.revealed?' 실명과 얼굴은 장기 신뢰 전까지 공개하지 않습니다.':''}<br>${type.icon} ${type.name} · 월 기준 예상 ${won(type.baseSales-type.fixedCost)} · ${type.desc}</small></span></div><div class="asset-card-actions"><button class="life-btn asset-action" data-act="business-start" data-business="${type.id}">${type.icon} 사업 설립 <small>${won(type.cost)} · ${managerName} 담당</small></button></div></article>`;
+    return`<article class="asset-business-card unopened"><div class="faction-member business-staff"><img src="${BUSINESS.portraitPath('internal','neutral')}" alt="내부 운영팀"><span><b>🧑‍💼 사업 설립 준비</b><small>설립 직후에는 일반 운영팀이 맡습니다. 특별 책임자는 사교 모임에서 소개받고 별도로 전속 계약합니다.<br>${type.icon} ${type.name} · 월 기준 예상 ${won(type.baseSales-type.fixedCost)} · ${type.desc}</small></span></div><div class="asset-card-actions"><button class="life-btn asset-action" data-act="business-start" data-business="${type.id}">${type.icon} 사업 설립 <small>${won(type.cost)} · 내부 운영팀 배치</small></button></div></article>`;
   }).join(''):'';
   const propertyValue=L.properties.reduce((sum,item)=>sum+(item.value||0),0);
   const propertyIncome=L.properties.reduce((sum,item)=>sum+(item.rent||0),0);
@@ -6624,7 +6699,7 @@ function lifeHubHTML() {
   </div>`;
   const lifeWorkspaces=`<div class="life-workspace-layer" hidden>
     <section class="life-workspace-window" data-life-panel="wellbeing" hidden><header><div><span>🌿</span><b>생활·건강</b><small>밖에서 하는 취미, 건강관리, 관계 약속</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('health')}" alt="생활과 건강 관리"><div class="workspace-content"><div class="hub-note">게임과 자기계발은 집 화면에 있습니다. 이곳의 취미는 실제로 밖에 나가는 일정이며 장소에 어울리는 인물을 만날 수 있습니다.</div><div class="workspace-card-grid">${hobbyBtns}<button class="life-btn" data-act="checkup">🏥 건강검진 <small>500,000</small></button><button class="life-btn" data-act="treat" ${treatment?'':'disabled'}>💊 ${treatment?`${treatment.name} 치료 · ${won(treatment.cost)}`:'현재 필요한 치료 없음'}</button>${relBtns}</div></div></section>
-    <section class="life-workspace-window" data-life-panel="social" hidden><header><div><span>👨‍👩‍👧</span><b>가족·인맥</b><small>가까운 사람과 보내는 시간</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('network')}" alt="가족과 인맥 모임"><div class="workspace-content"><div class="workspace-card-grid">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👵 부모님 돌봄 <small>1,500,000</small></button><button class="life-btn" data-act="contact-meet">🍽️ 업계 모임</button>${specialMeetBtns}${personalBtns}${contactBtns}</div></div></section>
+    <section class="life-workspace-window" data-life-panel="social" hidden><header><div><span>👨‍👩‍👧</span><b>가족·인맥</b><small>가까운 사람과 보내는 시간</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('network')}" alt="가족과 인맥 모임"><div class="workspace-content"><div class="workspace-card-grid">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👵 부모님 돌봄 <small>1,500,000</small></button><button class="life-btn" data-act="contact-meet">🍽️ 일반 업계 모임 <small>주요 인맥 연락처 만들기</small></button><button class="life-btn hot" data-act="industry-gathering">🥂 사교 모임 등급 <small>실적·평판을 쌓아 특별 책임자 소개받기</small></button>${specialMeetBtns}${personalBtns}${contactBtns}</div></div></section>
     <section class="life-workspace-window" data-life-panel="power" hidden><header><div><span>⚔️</span><b>세력·라이벌·법정</b><small>${justice.case?'진행 중인 사건 있음':'조직 운영과 경쟁 대응'}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${justice.case?lifeSceneImage('court'):lifeSceneImage('faction')}" alt="${justice.case?'법정 심리':'세력 작전실'}"><div class="workspace-content">${factionBox}<div class="route-sep">경쟁 세력 선택</div>${rivalSelect}<div class="workspace-card-grid">${rivalBtns}${courtBtns}</div></div></section>
     <section class="life-workspace-window" data-life-panel="investment" hidden><header><div><span>📘</span><b>나래의 투자 컨설팅</b><small>연애가 아니라 시장 분석을 배우는 정기 상담</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="./assets/life-guide.png" alt="나래의 투자 컨설팅"><div class="workspace-content"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래 · 투자교육 매니저</strong><br><span class="muted">“정답을 찍어드리진 않아요. 대신 무엇을 먼저 봐야 하는지는 알려드릴게요.”</span></div></div><div class="home-life-summary"><b>투자 감각 · ${mentor.skill>=70?'통찰':mentor.skill>=45?'분석':mentor.skill>=20?'기초':'입문'}</b><small>상담 ${mentor.sessions}회 · 해금 ${mentor.unlocks.length?mentor.unlocks.join(' · '):'아직 없음'}</small></div>${investmentInsightHTML()}<div class="workspace-card-grid"><button class="life-btn" data-act="investment-consult">📚 월간 컨설팅 받기 <small>500,000 · 시장 읽기 능력 성장 · 이번 달 경력 행동 사용</small></button></div></div></section>
     <section class="life-workspace-window" data-life-panel="career" hidden><header><div><span>📈</span><b>경력 관리</b><small>${jobOf().name} · 능력 ${Math.round(career.skill||0)}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('career')}" alt="경력 관리 장면"><div class="workspace-content"><div class="hub-note">직장은 이직으로 바꾸고, 자격증은 지원 가능한 직업과 직무 능력을 넓힙니다.</div><div class="workspace-card-grid"><button class="life-btn" data-act="changejob">💼 이직 알아보기</button>${certBtns}</div></div></section>
@@ -6680,7 +6755,7 @@ function wireLifeHub(host) {
     // 별도 팝업으로 이어지는 행동은 먼저 관리 창을 닫아 한 화면에 한 레이어만 남긴다.
     if(new Set([
       'home-life','income-work','origin-ally','meet-special','person-request','character-story',
-      'business-start','business-hire','business-expand','business-close','business-strategy',
+      'business-start','business-hire','business-manager','business-expand','business-close','business-strategy','industry-gathering',
       'faction-recruit','date','marry','polycule','changejob','rival','faction'
     ]).has(act))closeWorkspace();
     if (act === 'home-life') showHomeLifeModal();
@@ -6692,6 +6767,7 @@ function wireLifeHub(host) {
     else if (act === 'passive-sell') sellPassiveAsset(b.dataset.id);
     else if (act === 'business-start') startBusiness(b.dataset.business);
     else if (act === 'business-hire') recruitBusinessStaff(b.dataset.business);
+    else if (act === 'business-manager') showSpecialManagerRecruit(b.dataset.business);
     else if (act === 'business-expand') expandBusiness(b.dataset.business);
     else if (act === 'business-close') closeBusinessOperation(b.dataset.business);
     else if (act === 'business-strategy') changeBusinessStrategy(b.dataset.business,b.dataset.strategy);
@@ -6711,6 +6787,7 @@ function wireLifeHub(host) {
     else if (act === 'insurance-cancel') cancelInsurance(b.dataset.policy);
     else if (act === 'pension') setPensionRate(+b.dataset.rate);
     else if (act === 'contact-meet') meetContact();
+    else if (act === 'industry-gathering') showIndustryGatherings();
     else if (act === 'contact-nurture') nurtureContact(b.dataset.contact);
     else if (act === 'contact-ask') askContact(b.dataset.contact);
     else if (act === 'origin-ally') showOriginAllyPlacement(b.dataset.contact);
