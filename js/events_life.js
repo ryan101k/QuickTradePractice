@@ -18,9 +18,9 @@ const LIFE_EVENTS = [
     desc: '당신을 공격한 세력이 신인 작가들의 정산금까지 빼돌렸다는 제보를 따라가자, 텅 빈 작업실에 윤세라가 혼자 남아 있습니다. 전 재산과 계약을 잃고 자포자기한 세라는 마지막 그림 상자 위에 앉아 “이제 어디로 가야 하죠?”라고 묻습니다.',
     cond: c => !c.seraKnown && c.seraRescueReady,
     options: [
-      { text: '상자와 세라를 집으로 데려와 함께 산다', effects: { cash:-120000, happy:5, morality:5, meetSera:true, seraHousing:'cohabit' }, outcome: '세라는 차에 탄 뒤에도 목적지를 말하지 않았습니다. 당신이 “갈 데 없으면 일단 와”라고 하자 처음으로 휴대전화를 켰습니다. 이 선택부터 세라는 동거인이 되며, 훗날 강유진·한채린과의 결핍 공생 루트가 열릴 수 있습니다.' },
-      { text: '임시 숙소를 잡아준 뒤 집에서는 내보낸다', effects: { cash:-50000, happy:3, morality:3, meetSera:true, seraHousing:'separate' }, outcome: '세라는 열쇠 대신 당신 번호만 저장했습니다. 정보 조력자로는 남지만 함께 살지는 않습니다. 이 인생에서는 강유진·한채린·윤세라 3인 공동생활 루트가 닫힙니다.' },
-      { text: '경찰과 피해자 지원 연락처만 남기고 완전히 떠난다', effects: { happy:-2, seraHousing:'reject' }, outcome: '세라는 종이를 받아 들었지만 전화하지 않았습니다. 다음에 찾아왔을 때 작업실은 비어 있었습니다. 위험한 3인조 역시 이번 인생에서는 성립하지 않습니다.' },
+      { text: '상자와 세라를 집으로 데려와 함께 산다', effects: { cash:-120000, happy:5, morality:5, meetSera:true, seraHousing:'cohabit' }, outcome: '세라는 차에 탄 뒤에도 목적지를 말하지 않았습니다. 당신이 “갈 데 없으면 일단 와”라고 하자 처음으로 휴대전화를 켰습니다. 그날 밤 현관에는 낯선 신발과 작은 상자가 나란히 놓였습니다.' },
+      { text: '임시 숙소를 잡아준 뒤 집에서는 내보낸다', effects: { cash:-50000, happy:3, morality:3, meetSera:true, seraHousing:'separate' }, outcome: '세라는 열쇠 대신 당신 번호만 저장했습니다. 짐을 내려놓은 뒤 한참 문 앞에 서 있었지만, 결국 혼자 방으로 들어갔습니다.' },
+      { text: '경찰과 피해자 지원 연락처만 남기고 완전히 떠난다', effects: { happy:-2, seraHousing:'reject' }, outcome: '세라는 종이를 받아 들었지만 전화하지 않았습니다. 다음에 찾아왔을 때 작업실은 비어 있었고, 남겨 둔 상자도 함께 사라졌습니다.' },
     ],
   },
   /* ---------------- 직업(job) ---------------- */

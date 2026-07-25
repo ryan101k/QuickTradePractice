@@ -167,7 +167,7 @@ function apply(life,choiceId){
 function monthly(life){
  const state=ensure(life);if(!state.active)return null;
  state.stability=clamp(state.stability+((state.axes.balance||0)>=(state.axes.fracture||0)?2:-4),0,100);
- return state.stability<=15?'세 사람의 신경전이 위험 단계입니다. 전용 이야기를 진행해 균형을 정해야 합니다.':null;
+ return state.stability<=15?'세 사람의 신경전이 위험합니다. 누구도 먼저 물러설 생각이 없어 보입니다.':null;
 }
 function nextAftermath(life){
  const state=ensure(life);if(!state.ending)return null;
