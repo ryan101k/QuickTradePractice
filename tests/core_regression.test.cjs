@@ -133,6 +133,8 @@ for (const file of [
   }
   const appSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
   assert.match(appSource,/while\(event&&!routeEventAllowed\(event\)\)event=queue\.shift\(\)/,'조건이 사라진 그룹 사건은 중요 사건 큐에서 건너뛰어야 한다');
+  assert.doesNotMatch(appSource,/data-act="character-story"/,'행동창에 개인 스토리 직접 실행 버튼을 다시 만들면 안 된다');
+  assert.doesNotMatch(appSource,/장 진행 가능/,'개인 스토리는 진행 버튼 대신 다음 중요 사건 대기로 안내해야 한다');
 }
 
 {

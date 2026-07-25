@@ -5320,7 +5320,7 @@ function resolveDate(i) {
   }
 
   let extra = stageNote;
-  const readyStory=STORIES.next(rec);if(readyStory)extra+=`<br>📖 <b class="up">${c.name} 개인 스토리 「${readyStory.title}」가 열렸습니다. 장 마감의 가족·인맥 메뉴에서 진행할 수 있어요.</b>`;
+  const readyStory=STORIES.next(rec);if(readyStory)extra+=`<br>📖 <b class="up">${c.name} 개인 스토리 「${readyStory.title}」 조건을 충족했습니다. 다음 장 마감의 중요 사건으로 자연스럽게 이어집니다.</b>`;
   const perC = D.PERSONALITIES[c.personality] || {};
   if(dateMode!=='date'){
     const readiness=courtshipReadiness(rec);
@@ -6764,7 +6764,7 @@ const MONTHLY_ACTION_GROUPS = {
   date:'데이트', hobby:'취미', rest:'휴식', decompress:'휴식',
   'income-work':'수입',
   cert:'경력', changejob:'경력', 'investment-consult':'경력',
-  'contact-meet':'인맥', 'contact-nurture':'인맥', 'contact-ask':'인맥', 'meet-special':'인맥', 'person-request':'인맥', 'character-story':'인맥',
+  'contact-meet':'인맥', 'contact-nurture':'인맥', 'contact-ask':'인맥', 'meet-special':'인맥', 'person-request':'인맥',
   'business-start':'사업', 'business-hire':'사업', 'business-expand':'사업', 'business-close':'사업', 'business-strategy':'사업',
   rival:'라이벌', faction:'라이벌', 'faction-recruit':'라이벌', polycule:'데이트', marry:'가족', 'child-bond':'가족', 'child-edu':'가족', 'parent-care':'가족', 'family-plan':'가족'
 };
@@ -6950,7 +6950,7 @@ function storyProgressHTML(L) {
     const story=STORIES.get(r),state=STORIES.ensure(r),next=STORIES.next(r);
     const title=state.completed?(state.ending&&state.ending.title||'완결'):story.chapters[state.chapter].title;
     const bars=story.chapters.map((_,i)=>`<i class="${i<state.chapter?'done':i===state.chapter&&next?'ready':''}"></i>`).join('');
-    return `<div class="story-progress-card"><strong>${r.emoji||'📖'} ${r.name}</strong><div><div class="story-track" aria-label="${r.name} 개인 스토리 ${state.chapter}/3">${bars}</div><small>${state.completed?`완결 · ${title}`:next?`${state.chapter+1}장 진행 가능 · ${title}`:`${state.chapter+1}장 ${title} · 호감 ${story.chapters[state.chapter].min} 필요`}</small></div></div>`;
+    return `<div class="story-progress-card"><strong>${r.emoji||'📖'} ${r.name}</strong><div><div class="story-track" aria-label="${r.name} 개인 스토리 ${state.chapter}/3">${bars}</div><small>${state.completed?`완결 · ${title}`:next?`${state.chapter+1}장 조건 충족 · 다음 중요 사건 대기`:`${state.chapter+1}장 ${title} · 호감 ${story.chapters[state.chapter].min} 필요`}</small></div></div>`;
   });
   const circle=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.ensure(L);
   const circleMood=childhoodCircleNarrative(circle);
@@ -7105,7 +7105,7 @@ function lifeHubHTML() {
     (!specialMet('police') && (justice.case || L.criminalRecord > 0 || sctx.attacked)) ? '<button class="life-btn" data-act="meet-special" data-special="yujin">👮‍♀️ 경찰서에서 상담한다 <small>공격·사건·전과가 만든 인연</small></button>' : '',
     (!specialMet('heiress') && sctx.factionLevel >= 2 && sctx.factionMembers >= 3) ? '<button class="life-btn" data-act="meet-special" data-special="chaerin">🥂 한채린의 비공개 회동 제안을 받는다 <small>세력 2단계 · 조직원 3명 이상</small></button>' : ''
   ].join('');
-  const personalBtns = ensureMet(L).filter(m=>['friend','casual','partner','polycule','lover'].includes(m.status)).map(m=>{const st=STORIES.get(m),next=st&&STORIES.next(m),state=st&&STORIES.ensure(m),sig=CHAR_TRAITS&&CHAR_TRAITS.label(m);return`<button class="life-btn" data-act="person-request" data-person="${m.name}">🙏 ${m.name}에게 부탁하기 <small>${relationTag(L,m.name)} · 호감 ${Math.round(m.affection||0)}${m.childhoodFriend?' · 소꿉친구':''}${sig?` · ${sig}`:''}</small></button>${st?`<button class="life-btn ${next?'hot':''}" data-act="character-story" data-person="${m.name}">📖 ${m.name} ${m.childhoodFriend?'소꿉친구':'개인'} 스토리 <small>${state.completed?'완결':next?`${state.chapter+1}장 진행 가능`:`${state.chapter+1}장 · 호감 ${st.chapters[state.chapter].min} 필요`}</small></button>`:''}`;}).join('');
+  const personalBtns = ensureMet(L).filter(m=>['friend','casual','partner','polycule','lover'].includes(m.status)).map(m=>{const sig=CHAR_TRAITS&&CHAR_TRAITS.label(m);return`<button class="life-btn" data-act="person-request" data-person="${m.name}">🙏 ${m.name}에게 부탁하기 <small>${relationTag(L,m.name)} · 호감 ${Math.round(m.affection||0)}${m.childhoodFriend?' · 소꿉친구':''}${sig?` · ${sig}`:''}</small></button>`;}).join('');
   const courtBtns=justice.case?`<div class="court-status">⚖️ <b>${justice.case.crime}</b> · <b class="down">${justice.case.phase}</b> 단계 · ${justice.case.months}개월 남음<br><span class="muted">${justice.case.phase==='수사'?'변호사를 미리 선임하면 유리합니다':justice.case.phase==='기소'?'변호사 등급이 불기소 확률에 영향':'⚠️ 재판 전략 3가지 중 하나를 꼭 선택하세요'}</span></div><button class="life-btn" data-act="lawyer" data-tier="public">국선변호인</button><button class="life-btn" data-act="lawyer" data-tier="standard">전문 변호사 <small>5,000,000</small></button><button class="life-btn" data-act="lawyer" data-tier="elite">대형 로펌 <small>20,000,000</small></button>${justice.case.phase==='재판'?'<button class="life-btn" data-act="court" data-strategy="plea">혐의 인정·선처</button><button class="life-btn" data-act="court" data-strategy="contest">무죄 다툼</button><button class="life-btn" data-act="court" data-strategy="cooperate">수사 협조</button>':''}`:'<span class="muted">진행 중인 사건 없음</span>';
   const treatment=HEALTH.treatmentOffer(L);
   const actionUsed = lifeActionCount();
@@ -7179,7 +7179,7 @@ function wireLifeHub(host) {
     // 큰 관리 창 안에서 새 모달을 열면 관리 창의 높은 z-index에 가려진다.
     // 별도 팝업으로 이어지는 행동은 먼저 관리 창을 닫아 한 화면에 한 레이어만 남긴다.
     if(new Set([
-      'home-life','income-work','origin-ally','meet-special','person-request','character-story',
+      'home-life','income-work','origin-ally','meet-special','person-request',
       'business-start','business-hire','business-manager','business-expand','business-close','business-strategy','industry-gathering',
       'faction-recruit','date','marry','polycule','changejob','rival','faction'
     ]).has(act))closeWorkspace();
@@ -7218,7 +7218,6 @@ function wireLifeHub(host) {
     else if (act === 'origin-ally') showOriginAllyPlacement(b.dataset.contact);
     else if (act === 'meet-special') meetSpecialPerson(b.dataset.special);
     else if (act === 'person-request') showPersonRequest(b.dataset.person);
-    else if (act === 'character-story') showCharacterStory(b.dataset.person);
     else if (act === 'lawyer') hireCourtLawyer(b.dataset.tier);
     else if (act === 'court') chooseCourtStrategy(b.dataset.strategy);
     else if (act === 'rival') doRivalAction(b.dataset.rivalAction, +($('rival-target') ? $('rival-target').value : 0));
