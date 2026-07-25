@@ -2833,6 +2833,18 @@ function retryBusinessManagementEnding(){
   showBusinessRomanceEvent(event);renderCapital();renderLifePanel();autoSave();
 }
 
+function openMonthlyMessageScreen(host){
+  if(!host)return false;
+  const screen=host.querySelector('.phone-chat-screen');
+  const opener=host.querySelector('#monthly-message-open');
+  if(!screen)return false;
+  screen.hidden=false;
+  screen.classList.add('open');
+  if(opener)opener.setAttribute('aria-expanded','true');
+  const log=screen.querySelector('.phone-chat-log');
+  if(log)log.scrollTop=0;
+  return true;
+}
 function showMonthlyMessagePopup(event){
   const host=$('life-event');if(!host)return;
   const L=S.life,isContact=event.targetType==='contact',isRival=event.targetType==='rival';
@@ -2859,9 +2871,13 @@ function showMonthlyMessagePopup(event){
   S._monthlyMessage={event,target,isContact,isRival,choices};
   host.style.display='block';
   const now=dateInfo(S.day);
-  host.innerHTML=`<div class="phone-notification-stage"><div class="phone-shell"><div class="phone-status"><span>${now.month}월 장 마감</span><span>●●● 100%</span></div><div class="phone-lock-time"><b>${String(now.month).padStart(2,'0')}:00</b><small>${now.year}년 ${now.month}월 · 월말 알림</small></div><button class="phone-notification-card" id="monthly-message-open"><span class="phone-app-icon">${isRival?'📊':'💬'}</span><span><small>${isRival?'Market Wire':'QuickTalk'} · 지금</small><b>${title}</b><em>${event.text}</em></span><i>›</i></button><div class="phone-chat-screen" hidden><header>${avatar}<span><b>${title}</b><small>${isRival?`${target.faction} · 시장 경쟁자`:isContact?(target.relationLabel||role.name):relationTag(L,target.name)}</small></span></header><div class="phone-chat-log"><div class="phone-date-chip">${now.year}년 ${now.month}월 · 장 마감 후</div><div class="phone-bubble incoming">${event.text}</div><div class="phone-typing"><i></i><i></i><i></i></div><div class="phone-reply-label">${isRival?'시장과 작전에 관한 답장을 고르세요.':'이 메시지에 어떻게 답할까요?'}</div><div class="phone-reply-options">${choices.map(choice=>`<button data-monthly-reply="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="message-event-outcome"></div></div></div></div></div>`;
-  $('monthly-message-open').addEventListener('click',()=>{const screen=host.querySelector('.phone-chat-screen');screen.hidden=false;requestAnimationFrame(()=>screen.classList.add('open'));});
-  host.querySelectorAll('[data-monthly-reply]').forEach(button=>button.addEventListener('click',()=>resolveMonthlyMessage(button.dataset.monthlyReply)));
+  host.innerHTML=`<div class="phone-notification-stage"><div class="phone-shell"><div class="phone-status"><span>${now.month}월 장 마감</span><span>●●● 100%</span></div><div class="phone-lock-time"><b>${String(now.month).padStart(2,'0')}:00</b><small>${now.year}년 ${now.month}월 · 월말 알림</small></div><button type="button" class="phone-notification-card" id="monthly-message-open" aria-controls="monthly-message-screen" aria-expanded="false"><span class="phone-app-icon">${isRival?'📊':'💬'}</span><span><small>${isRival?'Market Wire':'QuickTalk'} · 지금</small><b>${title}</b><em>${event.text}</em></span><i>›</i></button><div class="phone-chat-screen" id="monthly-message-screen" hidden><header>${avatar}<span><b>${title}</b><small>${isRival?`${target.faction} · 시장 경쟁자`:isContact?(target.relationLabel||role.name):relationTag(L,target.name)}</small></span></header><div class="phone-chat-log"><div class="phone-date-chip">${now.year}년 ${now.month}월 · 장 마감 후</div><div class="phone-bubble incoming">${event.text}</div><div class="phone-typing"><i></i><i></i><i></i></div><div class="phone-reply-label">${isRival?'시장과 작전에 관한 답장을 고르세요.':'이 메시지에 어떻게 답할까요?'}</div><div class="phone-reply-options">${choices.map(choice=>`<button type="button" data-monthly-reply="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="message-event-outcome"></div></div></div></div></div>`;
+  host.onclick=click=>{
+    const opener=click.target.closest('#monthly-message-open');
+    if(opener&&host.contains(opener)){openMonthlyMessageScreen(host);return;}
+    const reply=click.target.closest('[data-monthly-reply]');
+    if(reply&&host.contains(reply))resolveMonthlyMessage(reply.dataset.monthlyReply);
+  };
 }
 function resolveMonthlyMessage(kind){
   const pending=S._monthlyMessage,host=$('life-event');if(!pending||!host)return;
@@ -4878,18 +4894,31 @@ function renderChatPanel(){
   const blockedRows=blockedPeople.map(r=>`<button class="chat-contact blocked-chat-contact" disabled><img src="${characterPortrait(r,'sad')}" alt="${r.name}"><span><b>${r.name}</b> · 전 연인<br><span class="chat-preview">내가 차단한 연락처 · 메시지 수신 안 함</span></span><span class="blocked-contact-mark">🚫</span></button>`).join('');
   const rivalRows=rivals.map(({bot,index})=>{const room=personChat(L,bot.name),last=room.messages[room.messages.length-1],avatar=bot.portrait?`<img src="./assets/characters/${bot.portrait}" alt="${bot.leader}">`:`<span class="contact-avatar">📈</span>`;return`<button class="chat-contact rival-chat-contact" data-chat-rival="${index}">${avatar}<span><b>${bot.name}</b> · ${bot.bankrupt?'파산·해산':bot.faction}<br><span class="chat-preview">${last?last.text:'아직 직접 연락은 없습니다.'}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;}).join('');
   host.innerHTML=`<div class="chat-list"><div class="hub-note">시장 경쟁자·가족·학창 친구·업계 인맥·연애 상대의 연락이 한곳에 저장됩니다. 경쟁자는 실제 종목과 세력 상황을 두고 연락합니다.</div>${rivalRows?`<div class="chat-group-title">📈 경쟁자·시장</div>${rivalRows}`:''}${contactRows?`<div class="chat-group-title">🏠 가족·친구·인맥</div>${contactRows}`:''}${romanceRows?`<div class="chat-group-title">💕 친구·연애 관계</div>${romanceRows}`:''}${blockedRows?`<div class="chat-group-title blocked-group-title">🚫 내가 차단한 연락처</div>${blockedRows}`:''}${!rivalRows&&!contactRows&&!romanceRows&&!blockedRows?'<span class="muted">아직 저장된 연락처가 없습니다.</span>':''}</div>`;
-  host.querySelectorAll('[data-chat-rival]').forEach(b=>b.addEventListener('click',()=>{S._chatPerson=null;S._chatContact=null;S._chatRival=Number(b.dataset.chatRival);renderChatPanel();autoSave();}));
-  host.querySelectorAll('[data-chat-contact]').forEach(b=>b.addEventListener('click',()=>{S._chatPerson=null;S._chatRival=null;S._chatContact=b.dataset.chatContact;renderChatPanel();autoSave();}));
-  host.querySelectorAll('[data-chat-person]').forEach(b=>b.addEventListener('click',()=>{S._chatContact=null;S._chatRival=null;S._chatPerson=b.dataset.chatPerson;renderChatPanel();autoSave();
-    // 방을 열면 상대의 최근 메시지를 그 인물 목소리로 읽어준다(사람이 부르듯)
-    const rr=metRecord(L,b.dataset.chatPerson),rm=rr&&personChat(L,rr.name);
-    const last=rm&&[...rm.messages].reverse().find(m=>!m.mine);
-    if(last)speakPerson(rr,last.text);
-  }));
+  host.onclick=click=>{
+    const rival=click.target.closest('[data-chat-rival]');
+    if(rival&&host.contains(rival)){
+      S._chatPerson=null;S._chatContact=null;S._chatRival=Number(rival.dataset.chatRival);
+      renderChatPanel();autoSave();return;
+    }
+    const contact=click.target.closest('[data-chat-contact]');
+    if(contact&&host.contains(contact)){
+      S._chatPerson=null;S._chatRival=null;S._chatContact=contact.dataset.chatContact;
+      renderChatPanel();autoSave();return;
+    }
+    const person=click.target.closest('[data-chat-person]');
+    if(person&&host.contains(person)){
+      S._chatContact=null;S._chatRival=null;S._chatPerson=person.dataset.chatPerson;
+      renderChatPanel();autoSave();
+      // 방을 열면 상대의 최근 메시지를 그 인물 목소리로 읽어준다(사람이 부르듯)
+      const rr=metRecord(L,person.dataset.chatPerson),rm=rr&&personChat(L,rr.name);
+      const last=rm&&[...rm.messages].reverse().find(m=>!m.mine);
+      if(last)speakPerson(rr,last.text);
+    }
+  };
 }
 function replyToRival(bot,kind,message,options){
   const L=S.life,room=personChat(L,bot.name);options=options||{};
-  if(room.lastReplyDay===S.day){if(!options.popup)flashToast('📱 이번 달에는 이미 답장했습니다','neutral');return{ok:false};}
+  if(room.lastReplyDay===S.day&&!options.popup){flashToast('📱 이번 달에는 이미 답장했습니다','neutral');return{ok:false};}
   room.lastReplyDay=S.day;
   const text=options.text||'수급과 장부를 다시 확인해보겠습니다.';
   pushPersonMessage(L,bot,text,true);
@@ -4908,7 +4937,7 @@ function replyToRival(bot,kind,message,options){
 }
 function replyToContact(c,kind,options){
   const L=S.life,room=personChat(L,c.name);options=options||{};
-  if(room.lastReplyDay===S.day){if(!options.popup)flashToast('📱 이번 달에는 이미 답장했습니다','neutral');return{ok:false};}
+  if(room.lastReplyDay===S.day&&!options.popup){flashToast('📱 이번 달에는 이미 답장했습니다','neutral');return{ok:false};}
   room.lastReplyDay=S.day;
   const text=options.text||SOCIAL.contactAnswer(c,kind,options.incoming);pushPersonMessage(L,c,text,true);
   const gain=kind==='meet'?6:kind==='advice'?4:kind==='warm'?3:1;c.trust=clamp((c.trust||0)+gain,0,100);
@@ -4925,7 +4954,7 @@ function replyToContact(c,kind,options){
 }
 function replyToPerson(r,kind,options){
   const L=S.life,room=personChat(L,r.name);options=options||{};
-  if(room.lastReplyDay===S.day){if(!options.popup)flashToast('📱 이번 달에는 이미 답장했습니다','neutral');return{ok:false};}
+  if(room.lastReplyDay===S.day&&!options.popup){flashToast('📱 이번 달에는 이미 답장했습니다','neutral');return{ok:false};}
   room.lastReplyDay=S.day;
   const text=options.text||(window.QT_CHAT&&QT_CHAT.playerReply(kind,options.incoming,r))||
     {warm:'오늘 정신이 없었어. 그래도 네 연락 보니까 좋다.',brief:'응, 확인했어. 나중에 연락할게.',boundary:'연락이 늦을 수 있어. 재촉하거나 위치를 확인하는 건 하지 말아줘.',ignore:'(읽음)'}[kind];

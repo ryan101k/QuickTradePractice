@@ -771,6 +771,23 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /room\.lastIncomingDay=S\.day/, '상대가 실제로 먼저 연락한 날짜를 기록해야 한다');
   assert.match(appSource, /answeredDay>=unansweredDay/, '답장한 연락은 방치로 판정하면 안 된다');
   assert.match(appSource, /if \(m\.idleMonths < 2\) return;/, '실제 수신 연락을 두 달 이상 방치한 경우에만 관계 감소가 시작돼야 한다');
+  assert.match(appSource, /function openMonthlyMessageScreen\(host\)/, '월말 연락 알림은 복원·재렌더 뒤에도 열 수 있는 공통 진입 함수를 써야 한다');
+  assert.match(appSource, /host\.onclick=click=>\{[\s\S]*closest\('#monthly-message-open'\)/, '월말 연락 알림은 화면 교체에 끊기지 않는 위임 클릭을 사용해야 한다');
+  assert.match(appSource, /closest\('\[data-chat-person\]'\)/, '연락처 행의 초상화나 메시지 미리보기를 눌러도 대화방으로 들어가야 한다');
+  assert.equal((appSource.match(/room\.lastReplyDay===S\.day&&!options\.popup/g)||[]).length,3,'같은 달에 여러 연락이 와도 각 월말 팝업에는 답할 수 있어야 한다');
+  const monthlyOpenSource=appSource.match(/function openMonthlyMessageScreen\(host\)\{[\s\S]*?\n\}/);
+  assert.ok(monthlyOpenSource,'월말 연락 열기 함수를 테스트할 수 있어야 한다');
+  const monthlyOpenContext={};
+  vm.createContext(monthlyOpenContext);
+  vm.runInContext(`${monthlyOpenSource[0]}\nthis.openMonthlyMessageScreen=openMonthlyMessageScreen;`,monthlyOpenContext);
+  const openedClasses=new Set();
+  const screen={hidden:true,classList:{add:value=>openedClasses.add(value)},querySelector:()=>({scrollTop:999})};
+  const opener={setAttribute:(name,value)=>{opener[name]=value;}};
+  const host={querySelector:selector=>selector==='.phone-chat-screen'?screen:selector==='#monthly-message-open'?opener:null};
+  assert.equal(monthlyOpenContext.openMonthlyMessageScreen(host),true,'알림 카드를 누르면 대화 화면을 열어야 한다');
+  assert.equal(screen.hidden,false,'휴대폰 대화 화면의 hidden 속성을 해제해야 한다');
+  assert.equal(openedClasses.has('open'),true,'모바일에서도 프레임 대기 없이 대화 화면을 즉시 표시해야 한다');
+  assert.equal(opener['aria-expanded'],'true','알림 카드의 펼침 상태를 접근성 속성에도 반영해야 한다');
 }
 
 {
