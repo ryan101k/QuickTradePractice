@@ -77,8 +77,8 @@
     broker:{icon:'🕶️',name:'브로커'}, media:{icon:'📹',name:'언론'}, leader:{icon:'🏢',name:'세력 수장'}
   };
   const MOB_RECRUITS=[
-    {id:'mob-field',name:'현장 인력 모집',role:'field',portrait:'mob-faction-field.png',cost:1200000,upkeep:150000,loyalty:55,stats:{defense:.075,intel:.01,income:350000},names:['김성호','박기철','오민석','이현준','정우람'],desc:'거점 경비와 현장 대응을 맡으며 경호·회수 업무로 수입을 만든다.'},
-    {id:'mob-intel',name:'정보 인력 모집',role:'intel',portrait:'mob-faction-intel.png',cost:1500000,upkeep:180000,loyalty:50,stats:{defense:.015,intel:.085,income:450000},names:['강도현','문재호','배준영','윤정민','최인호'],desc:'시세·언론·경쟁 세력을 추적하며 조사 의뢰와 정보 거래 수입을 만든다.'},
+    {id:'mob-field',name:'현장 인력 모집',role:'field',portrait:'mob-faction-field.png',cost:1200000,upkeep:150000,loyalty:55,stats:{defense:.075,intel:.01,income:650000},names:['김성호','박기철','오민석','이현준','정우람'],desc:'거점 경비와 현장 대응을 맡으며 경호·회수 업무로 수입을 만든다.'},
+    {id:'mob-intel',name:'정보 인력 모집',role:'intel',portrait:'mob-faction-intel.png',cost:1500000,upkeep:180000,loyalty:50,stats:{defense:.015,intel:.085,income:750000},names:['강도현','문재호','배준영','윤정민','최인호'],desc:'시세·언론·경쟁 세력을 추적하며 조사 의뢰와 정보 거래 수입을 만든다.'},
   ];
   const rand=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)];
   function createBots(){return PERSONAS.map((p,i)=>{
@@ -215,7 +215,7 @@
     f.intel=Math.min(.72,(f.level||0)*.035+totals.intel+operationIntel+(f.level?pathIntel:0));
     f.legal=totals.legal+(f.path==='legal'&&f.level?18:0);f.medical=totals.medical;f.monthlyIncome=totals.income;
     f.operationBoost=operationBoost;
-    f.baseIncome=(f.level||0)*250000+(f.assets||[]).length*100000;
+    f.baseIncome=(f.level||0)*500000+(f.assets||[]).length*250000;
     f.projectedGross=Math.round((f.baseIncome+totals.income*(1+(f.level||0)*.08))*(1+operationBoost)*pathIncome);
     f.projectedUpkeep=(f.members||[]).reduce((sum,m)=>sum+(m.upkeep||0),0);
     f.projectedNet=f.projectedGross-f.projectedUpkeep;

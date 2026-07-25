@@ -277,25 +277,25 @@ const HOBBIES = [
 
 // 부동산: 매입가(price)만큼 현금 지불, 매달 월세(rent) 수입, 매달 조금씩 시세 상승
 const PROPERTIES = [
-  { id: 'oneroom',  emoji: '🏠', name: '원룸',       price: 50000000,   rent: 400000 },
-  { id: 'parking',  emoji: '🅿️', name: '소형 주차장', price: 90000000, rent: 650000 },
-  { id: 'officetel',emoji: '🏨', name: '오피스텔',   price: 150000000,  rent: 900000 },
-  { id: 'warehouse',emoji: '📦', name: '도심 창고', price: 220000000, rent: 1350000 },
-  { id: 'apart',    emoji: '🏬', name: '아파트',     price: 300000000,  rent: 1500000 },
-  { id: 'clinic',   emoji: '🏥', name: '병원 상가', price: 420000000, rent: 2600000 },
-  { id: 'store',    emoji: '🏪', name: '상가',       price: 500000000,  rent: 3000000 },
-  { id: 'hotel',    emoji: '🏨', name: '소형 호텔', price: 900000000, rent: 6200000 },
-  { id: 'factory',  emoji: '🏭', name: '산업단지 공장', price: 1300000000, rent: 8500000 },
-  { id: 'building', emoji: '🏢', name: '꼬마빌딩',   price: 2000000000, rent: 12000000 },
+  { id: 'oneroom',  emoji: '🏠', name: '원룸',       price: 50000000,   rent: 700000 },
+  { id: 'parking',  emoji: '🅿️', name: '소형 주차장', price: 90000000, rent: 1200000 },
+  { id: 'officetel',emoji: '🏨', name: '오피스텔',   price: 150000000,  rent: 1800000 },
+  { id: 'warehouse',emoji: '📦', name: '도심 창고', price: 220000000, rent: 2800000 },
+  { id: 'apart',    emoji: '🏬', name: '아파트',     price: 300000000,  rent: 3200000 },
+  { id: 'clinic',   emoji: '🏥', name: '병원 상가', price: 420000000, rent: 5200000 },
+  { id: 'store',    emoji: '🏪', name: '상가',       price: 500000000,  rent: 6500000 },
+  { id: 'hotel',    emoji: '🏨', name: '소형 호텔', price: 900000000, rent: 13000000 },
+  { id: 'factory',  emoji: '🏭', name: '산업단지 공장', price: 1300000000, rent: 18000000 },
+  { id: 'building', emoji: '🏢', name: '꼬마빌딩',   price: 2000000000, rent: 28000000 },
 ];
 
 // 주식과 별개로 매달 현금흐름을 만드는 자산. 수익률이 높을수록 변동·유지비 위험도 크다.
 const PASSIVE_ASSETS = [
-  { id:'deposit', emoji:'🏦', name:'정기예금', price:10000000, monthlyIncome:28000, variance:0, maintenance:0, resaleRate:1, desc:'원금 보전형 · 기준금리에 따라 이자 변동' },
-  { id:'bond', emoji:'📜', name:'우량 회사채 묶음', price:30000000, monthlyIncome:105000, variance:.12, maintenance:0, resaleRate:.97, desc:'안정적인 이자 · 경기 침체 때 소폭 감액 가능' },
-  { id:'vending', emoji:'🥤', name:'무인 자판기 운영권', price:25000000, monthlyIncome:310000, variance:.35, maintenance:70000, resaleRate:.72, desc:'매출 변동 큼 · 매달 관리비 발생' },
-  { id:'solar', emoji:'☀️', name:'소형 태양광 지분', price:70000000, monthlyIncome:620000, variance:.18, maintenance:80000, resaleRate:.82, desc:'발전 수익 · 날씨와 정비 상태 영향' },
-  { id:'royalty', emoji:'🎼', name:'콘텐츠 저작권 지분', price:150000000, monthlyIncome:1500000, variance:.55, maintenance:50000, resaleRate:.65, desc:'흥행하면 크지만 수입 편차와 원금 손실 위험' },
+  { id:'deposit', emoji:'🏦', name:'정기예금', price:10000000, monthlyIncome:70000, variance:0, maintenance:0, resaleRate:1, desc:'원금 보전형 · 기준금리에 따라 이자 변동' },
+  { id:'bond', emoji:'📜', name:'우량 회사채 묶음', price:30000000, monthlyIncome:240000, variance:.12, maintenance:0, resaleRate:.97, desc:'안정적인 이자 · 경기 침체 때 소폭 감액 가능' },
+  { id:'vending', emoji:'🥤', name:'무인 자판기 운영권', price:25000000, monthlyIncome:650000, variance:.35, maintenance:80000, resaleRate:.72, desc:'매출 변동 큼 · 매달 관리비 발생' },
+  { id:'solar', emoji:'☀️', name:'소형 태양광 지분', price:70000000, monthlyIncome:1400000, variance:.18, maintenance:100000, resaleRate:.82, desc:'발전 수익 · 날씨와 정비 상태 영향' },
+  { id:'royalty', emoji:'🎼', name:'콘텐츠 저작권 지분', price:150000000, monthlyIncome:3500000, variance:.55, maintenance:100000, resaleRate:.65, desc:'흥행하면 크지만 수입 편차와 원금 손실 위험' },
 ];
 
 // 생활공간에 표시되는 과시·취향 자산. 월 유지비 없이 돈을 번 결과를 눈에 남긴다.

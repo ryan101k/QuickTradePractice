@@ -35,11 +35,18 @@ const CONTACT_LINES={
  lawyer:['계약서에 서명하기 전에는 짧게라도 보여 주세요. 나중보다 지금이 싸요.'],
 };
 function contactLine(c){return pick(CONTACT_LINES[c.role]||['오랜만이에요. 별일 없이 지내고 있죠?']);}
-function contactAnswer(c,kind){const family=['mother','father','guardian'].includes(c.role);const lines={
+function contactIntent(text){const line=String(text||'');if(/밥|끼니|먹|반찬/.test(line))return'food';if(/얼굴|보자|갈래|만나|집에 올|분식집/.test(line))return'meet';if(/공고|프로젝트|계약|투자|대출|신용|행정|업계|소문/.test(line))return'work';if(/힘들|무리|몸|잘 지내|별일|괜찮/.test(line))return'wellbeing';return'general';}
+function contactAnswer(c,kind,incomingText){const family=['mother','father','guardian'].includes(c.role),intent=contactIntent(incomingText);const contextual={
+ food:{warm:family?'응, 오늘은 제대로 챙겨 먹었어. 걱정해줘서 고마워.':'네, 식사는 챙겼어요. 먼저 물어봐 주셔서 고마워요.',brief:'응, 밥은 먹었어.',advice:'요즘 끼니가 자꾸 불규칙해져. 생활 리듬 잡는 방법을 같이 생각해줄래?',meet:family?'이번 달에 집에 가서 같이 밥 먹자.':'이번 달에 식사하면서 이야기 나눠요.'},
+ meet:{warm:family?'좋아. 이번 달에는 꼭 시간 내서 얼굴 보러 갈게.':'좋아요. 이번에는 말로만 하지 말고 날짜를 잡아요.',brief:'좋아. 일정 보고 다시 말할게.',advice:'만나면 요즘 고민하던 일도 같이 이야기하고 싶어.',meet:family?'이번 달에 집에 갈게. 같이 밥 먹자.':'이번 달에 직접 만나요. 가능한 날을 알려주세요.'},
+ work:{warm:'정보 고마워. 지금 확인해 보고 궁금한 건 다시 물어볼게.',brief:'확인했어. 정리되면 다시 연락할게.',advice:'이 내용에서 내가 특히 조심해야 할 부분이 뭔지 알려줄래?',meet:'자료를 같이 보면서 이야기하고 싶어. 이번 달에 만날 수 있을까?'},
+ wellbeing:{warm:family?'조금 바빴지만 괜찮아. 이렇게 물어봐줘서 마음이 놓여.':'잘 지내고 있어요. 챙겨 물어봐 주셔서 고마워요.',brief:'응, 별일 없어. 잘 지내.',advice:'요즘 조금 버거운 일이 있어. 잠깐 이야기 들어줄래?',meet:family?'이번 달에는 얼굴 보러 갈게. 직접 보면 안심될 거야.':'이번 달에 만나서 천천히 이야기해요.'},
+ };if(contextual[intent]&&contextual[intent][kind])return contextual[intent][kind];const lines={
  warm:family?['응, 잘 지내고 있어. 이번 달엔 꼭 얼굴 보러 갈게.','먼저 연락해줘서 고마워. 나도 많이 생각했어.']:c.role==='schoolfriend'?['그러게, 우리 진짜 오래됐다. 이번엔 꼭 보자.','네 연락 보니까 학창시절 생각난다. 잘 지냈어?']:['연락 고마워요. 조만간 직접 만나서 이야기해요.'],
  brief:family?['응, 별일 없어. 끝나고 다시 연락할게.']:['확인했어. 조금 있다가 다시 연락할게.'],
  advice:family?['요즘 일이 좀 버거워. 잠깐 이야기 들어줄래?']:c.role==='schoolfriend'?['네가 보기엔 내가 지금 하는 일, 계속해도 될 것 같아?']:['지금 고민이 하나 있는데 조언을 구해도 될까요?'],
  meet:family?['이번 달에는 시간 내서 집에 갈게. 같이 밥 먹자.']:c.role==='schoolfriend'?['우리 학교 앞에서 한번 보자. 내가 밥 살게.']:['이번 달에 시간 괜찮으면 직접 뵙고 싶어요.'],
 };return pick(lines[kind]||lines.brief);}
-root.QT_SOCIAL={ROLES,ensure,addContact,meet,role,nurture,ask,monthly,legalShield,contactLine,contactAnswer};
+function contactReplyOptions(c,incomingText){return['warm','advice','meet','brief'].map(id=>({id,text:contactAnswer(c,id,incomingText)}));}
+root.QT_SOCIAL={ROLES,ensure,addContact,meet,role,nurture,ask,monthly,legalShield,contactLine,contactAnswer,contactReplyOptions};
 })(window);
