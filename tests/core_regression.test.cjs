@@ -890,7 +890,14 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
     'pixel-event-childhood-graduation-v1.png','characters/yerin-childhood-pixel-v1.png',
   ]) assert.equal(fs.existsSync(path.join(root,'assets',file)),true,`${file} 도트 컷신이 누락되면 안 된다`);
   assert.match(context.QT_CHILDHOOD_CIRCLE.event('reunion').scene,/pixel-event-childhood-reunion-v1/);
+  const motelBoundary=context.QT_CHILDHOOD_CIRCLE.event('motel_boundary');
+  assert.equal(motelBoundary.choices.find(choice=>choice.id==='stop').rivalMotive,true);
+  assert.equal(motelBoundary.choices.find(choice=>choice.id==='past').trait,'rewind');
   assert.match(context.QT_CHILDHOOD_CIRCLE.event('graduation').scene,/pixel-event-childhood-graduation-v1/);
+  assert.match(appSource,/freedomCasualRefused=true/,'자유인 트리오는 가벼운 만남을 거절해야 한다');
+  assert.match(appSource,/registerFactionMotive\(\s*'childhood_circle'/,'소꿉친구 조사 사건은 세력전 동기를 만들어야 한다');
+  assert.match(appSource,/registerFactionMotive\(\s*'freedom_trio'/,'자유인 트리오의 스캔들은 세력전 동기를 만들어야 한다');
+  assert.match(appSource,/개인적인 전쟁/,'세력 창에서 개인적인 공격 동기를 보여줘야 한다');
   assert.match(appSource,/MARKET_CIRCUIT:\s*-0\.10/,'시장 급락 보호선은 -10%여야 한다');
   assert.match(appSource,/downsideCircuitDay === S\.day/,'개별 종목 -10% 서킷은 남은 장을 정지해야 한다');
   assert.match(appSource,/importantEventPriority\(event\)/,'월말 주요 사건은 중요도 순서로 정렬돼야 한다');

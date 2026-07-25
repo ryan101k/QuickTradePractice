@@ -181,6 +181,23 @@
         {id:'sever',text:'각자가 가진 기록을 전부 돌려달라고 한다',preview:'관계가 크게 멀어지고 세트 루트가 종료될 수 있음',trust:-14,pressure:-15,affection:-12,trait:'sever'}
       ]
     },
+    motel_boundary: {
+      icon:'🏨', title:'한 번씩 헤어진 다섯 · 방 하나와 여섯 개의 침묵',
+      scene:'./assets/pixel-event-childhood-pact-v1.png',
+      desc:'조작 사건의 원본 로그를 찾으러 지방 서버 보관소까지 내려온 여섯 사람은 막차를 놓쳤습니다. 남은 방은 하나뿐입니다. 다섯 사람은 이미 학창 시절 서로의 집, 술버릇, 이별 뒤의 추한 모습까지 전부 본 사이라 모텔에 들어가는 것 자체를 대수롭지 않게 여깁니다. 문제는 예전처럼 분위기에 떠밀려 관계까지 되돌릴 것인지입니다.',
+      speakers:[
+        ['예린','방 하나 잡자. 새삼스럽게 굴 사이도 아니잖아. 대신 오늘은 조사하러 온 거야.'],
+        ['보라','우리끼리 모텔 갔다고 놀랄 사람도 없어. 다음 날 후회할 일만 안 만들면 돼.'],
+        ['서연','사진도 기억도 이미 충분히 엉망이야. 오늘 장면까지 과거처럼 만들지는 말자.'],
+        ['나영','도망갈 생각이면 지금 말해. 방에 들어간 다음 애매하게 구는 게 더 싫어.'],
+        ['미래','로그 복호화 예상 여섯 시간. 침대 사용 권한은 추첨. 연애 권한은 잠금 상태.']
+      ],
+      choices:[
+        {id:'stop',text:'방은 잡되 “오늘은 아무 일도 없다”고 먼저 선을 긋는다',preview:'주인공이 과거의 반복을 거부 · 신뢰와 현재의 경계 강화',trust:20,pressure:-18,affection:8,trait:'present',rivalMotive:true},
+        {id:'lobby',text:'다섯 사람을 방에 들여보내고 자신은 로비에서 밤을 샌다',preview:'행동으로 경계를 증명 · 호감보다 신뢰를 선택',trust:16,pressure:-12,affection:3,trait:'present',rivalMotive:true},
+        {id:'past',text:'예전에도 다 아는 사이였다며 분위기에 몸을 맡긴다',preview:'과거 관계 재현 · 집착과 회귀 압력 급증',trust:-5,pressure:28,affection:18,trait:'rewind'}
+      ]
+    },
     graduation: {
       icon:'🎓', title:'한 번씩 헤어진 다섯 · 다시 열린 졸업식',
       scene:'./assets/pixel-event-childhood-graduation-v1.png',
@@ -237,7 +254,8 @@
     let event = null;
     if (!state.seen.reunion && (anchor.affection || 0) >= 32) event = 'reunion';
     else if (!state.seen.pact && state.seen.reunion && activeCount(life) >= 5) event = 'pact';
-    else if (!state.seen.graduation && state.seen.pact
+    else if (!state.seen.motel_boundary && state.seen.pact && activeCount(life) >= 5) event = 'motel_boundary';
+    else if (!state.seen.graduation && state.seen.motel_boundary
       && !(life.met || []).some(person => !MEMBERS.includes(person.name) && ['partner','lover','polycule'].includes(person.status))
       && MEMBERS.every(name => {
       const person=met(life,name);
@@ -259,6 +277,7 @@
       state.stage = choice.id === 'sever' ? 'fractured' : 'pact';
       if (choice.id === 'sever') state.route = 'cut_past';
     }
+    if (id === 'motel_boundary') state.stage = choice.id === 'past' ? 'relapse' : 'boundary';
     if (id === 'graduation') {
       state.route = choice.route || (state.pressure >= 60 ? 'never_graduate' : 'old_promise');
       state.stage = 'complete';
