@@ -226,7 +226,7 @@ function newLife() {
     memories: [],
     crossEvents: { seen:{}, cooldown:0, history:[] },
     seraLoop: null,
-    monthActions: {},         // 월별 1회 제한 행동 { "day:action": true }
+    monthActions: {},         // 월별 행동 횟수 { "day:action": count } (구버전 true는 1회로 읽음)
   };
 }
 
@@ -381,6 +381,10 @@ function tick() {
 
   // (A) 일반 종목 갱신 + 시장 지수(평균 등락률) 집계
   let idxSum = 0, idxCount = 0;
+  const playerPositionGross=Object.entries(S.owned||{}).reduce((sum,[name,pos])=>{
+    const held=S.stocks.find(item=>item.name===name);
+    return sum+(held&&pos&&pos.qty?Math.abs(pos.qty)*priceOf(name):0);
+  },0);
   S.stocks.forEach(stock => {
     if (!stock.listed || stock.type === 'etf' || stock.type === 'macro') return;   // 지수·경제자산은 아래에서 별도 처리
     const meta = CAP_META[stock.cap];
@@ -423,7 +427,12 @@ function tick() {
     const noise = (Math.random() + Math.random() - 1) * meta.sigma * stock.vol;
     const economyTrend = ECONOMY.stockImpact(S.economy, stock.sector) * 2.4 / CFG.TICKS_PER_DAY;
     const factionFlow = (stock.factionFlowTicks || 0) > 0 ? (stock.factionFlowRate || 0) : 0;
-    const rawRateBase = stock.trend + noise + issueImpact + marketImpact + economyTrend + factionFlow;
+    const playerPosition=S.owned&&S.owned[stock.name];
+    const positionValue=playerPosition&&playerPosition.qty?Math.abs(playerPosition.qty)*priceOf(stock.name):0;
+    const holdingBias=MARKET_BALANCE&&MARKET_BALANCE.positionBias
+      ? MARKET_BALANCE.positionBias(playerPosition,meta,playerPositionGross?positionValue/playerPositionGross:0)
+      : 0;
+    const rawRateBase = stock.trend + noise + issueImpact + marketImpact + economyTrend + factionFlow + holdingBias;
     const rawRate = MARKET_BALANCE ? MARKET_BALANCE.shapeRate(rawRateBase) : rawRateBase;
     const bounded = boundedStockChange(stock, rawRate, meta);
     const changeRate = bounded.rate;
@@ -3085,6 +3094,47 @@ function showHomeLifeModal(){
   host.querySelectorAll('[data-luxury-buy]').forEach(button=>button.addEventListener('click',()=>buyLuxuryGood(button.dataset.luxuryBuy)));
   const close=()=>{host.style.display='none';host.innerHTML='';};
   $('home-life-x').addEventListener('click',close);$('home-life-close').addEventListener('click',()=>{close();doDate();});
+}
+
+function incomeWorkOptions(){
+  const job=jobOf(),career=CAREER.ensure(S.life),repeat=monthActionCount('수입');
+  const fatigue=Math.max(.55,1-repeat*.15);
+  const regularMonthly=job.variable?(job.variable[0]+job.variable[1])/2:(job.salary||0);
+  const overtimeBase=clamp(Math.round(Math.max(450000,regularMonthly*.28)),450000,2200000);
+  const gigBase=clamp(Math.round(350000+(career.skill||0)*12000+(S.life.charm||0)*2500),350000,1500000);
+  const dayBase=650000;
+  const scaled=value=>Math.max(100000,Math.round(value*fatigue/10000)*10000);
+  return [
+    {id:'overtime',icon:job.id==='none'?'🏪':'🧰',name:job.id==='none'?'주말 매장 대타':'본업 추가 근무',pay:scaled(overtimeBase),stress:8,happy:-3,
+      desc:job.id==='none'?'급하게 빈 근무표를 메워 확실한 일당을 받습니다.':`${job.name} 경력을 살려 추가 근무나 단기 프로젝트를 맡습니다.`},
+    {id:'gig',icon:'💻',name:'온라인 단기 의뢰',pay:scaled(gigBase),stress:5,happy:-1,skill:1,
+      desc:'현재 직무 능력과 매력을 활용해 번역·문서·디자인·상담 같은 짧은 의뢰를 처리합니다.'},
+    {id:'daywork',icon:'📦',name:'하루 일당 업무',pay:scaled(dayBase),stress:10,happy:-2,
+      desc:'행사 설치, 창고 정리, 배달 보조처럼 조건 없이 바로 시작할 수 있는 일을 합니다.'},
+  ];
+}
+
+function showIncomeWorkModal(){
+  const host=$('life-event');if(!host)return;
+  const options=incomeWorkOptions(),repeat=monthActionCount('수입');
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window income-work-window"><div class="title-bar event-bar"><div class="title-bar-text">💵 이번 주 돈 벌기</div><div class="title-bar-controls"><button aria-label="Close" id="income-work-x"></button></div></div><div class="window-body"><div class="home-life-summary"><b>현재 현금 ${won(S.capital)}원</b><small>이번 달 수입 행동 ${repeat}회 · ${repeat?`반복 피로로 이번 보수 ${Math.round(Math.max(.55,1-repeat*.15)*100)}%`:'첫 수입 행동은 보수 100%'}</small></div><div class="event-desc">자유시간 1회를 사용해 즉시 현금을 받습니다. 초반 자금이 부족할 때 투자금이나 생활비를 직접 마련할 수 있습니다.</div><div class="event-options">${options.map(option=>`<button class="event-opt" data-income-work="${option.id}"><b>${option.icon} ${option.name} · +${won(option.pay)}원</b><span>${option.desc}</span><small>스트레스 +${option.stress}${option.skill?' · 직무 능력 +1':''}</small></button>`).join('')}<button class="event-opt" id="income-work-close">이번 주는 다른 일을 한다</button></div></div></div>`;
+  const close=()=>{host.style.display='none';host.innerHTML='';};
+  host.querySelectorAll('[data-income-work]').forEach(button=>button.addEventListener('click',()=>resolveIncomeWork(button.dataset.incomeWork)));
+  $('income-work-x').addEventListener('click',close);$('income-work-close').addEventListener('click',close);
+}
+
+function resolveIncomeWork(id){
+  if(lifeActionExhausted()){flashToast(`📅 이번 달 자유시간 ${LIFE_ACTIONS_PER_MONTH}회를 모두 사용했습니다`,'neutral');return;}
+  const option=incomeWorkOptions().find(item=>item.id===id);if(!option)return;
+  S.capital+=option.pay;
+  S.life.stress=clamp((S.life.stress||0)+option.stress,0,100);
+  S.life.happy=clamp((S.life.happy||0)+(option.happy||0),0,100);
+  if(option.skill){const career=CAREER.ensure(S.life);career.skill=clamp((career.skill||0)+option.skill,0,100);}
+  addNews(`${option.icon} ${option.name} 완료 · 현금 +${won(option.pay)}원 · 스트레스 +${option.stress}`,'good');
+  flashToast(`${option.icon} +${won(option.pay)}원 · 바로 입금됐습니다`,'good');
+  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
+  afterLifeAction('수입');
 }
 
 function buyLuxuryGood(id){
@@ -5983,6 +6033,7 @@ function resolveFactionTradeCall(choice) {
 
 const MONTHLY_ACTION_GROUPS = {
   date:'데이트', hobby:'취미', rest:'휴식',
+  'income-work':'수입',
   cert:'경력', changejob:'경력', 'investment-consult':'경력',
   'contact-meet':'인맥', 'contact-nurture':'인맥', 'contact-ask':'인맥', 'meet-special':'인맥', 'person-request':'인맥', 'character-story':'인맥',
   'business-start':'사업', 'business-hire':'사업', 'business-expand':'사업', 'business-close':'사업', 'business-strategy':'사업',
@@ -5992,18 +6043,27 @@ const LIFE_ACTIONS_PER_MONTH = 4;
 function monthActionKey(group) { return `${S.day}:${group}`; }
 function monthActionUsed(group) {
   S.life.monthActions = S.life.monthActions || {};
-  return !!S.life.monthActions[monthActionKey(group)];
+  return monthActionCount(group) > 0;
+}
+function monthActionCount(group,day=S.day) {
+  if(!S.life)return 0;
+  S.life.monthActions = S.life.monthActions || {};
+  const value=S.life.monthActions[`${day}:${group}`];
+  return value === true ? 1 : Math.max(0,Number(value)||0);
 }
 function markMonthAction(group) {
   if (!group) return;
   S.life.monthActions = S.life.monthActions || {};
-  S.life.monthActions[monthActionKey(group)] = true;
+  S.life.monthActions[monthActionKey(group)] = monthActionCount(group) + 1;
 }
 function lifeActionCount(day=S.day) {
   if (!S.life) return 0;
   S.life.monthActions = S.life.monthActions || {};
   const prefix = `${day}:`;
-  return Object.keys(S.life.monthActions).filter(key => key.startsWith(prefix) && S.life.monthActions[key]).length;
+  return Object.keys(S.life.monthActions).filter(key => key.startsWith(prefix)).reduce((sum,key)=>{
+    const value=S.life.monthActions[key];
+    return sum+(value===true?1:Math.max(0,Number(value)||0));
+  },0);
 }
 function lifeActionRemaining() { return Math.max(0, LIFE_ACTIONS_PER_MONTH - lifeActionCount()); }
 function lifeActionExhausted() { return lifeActionRemaining() <= 0; }
@@ -6309,7 +6369,7 @@ function lifeHubHTML() {
   const actionLeft = lifeActionRemaining();
   const mentor=investmentMentorState(L);
   const weekLabel = actionLeft > 0 ? `${actionUsed + 1}주차 일정 선택` : '이번 달 일정 완료';
-  const quickBtns=`<button class="life-btn daily-choice home" data-act="home-life">🏠 집에서 보내기 <small>휴식·게임·공부·생활공간 꾸미기</small></button><button class="life-btn daily-choice outing" data-act="date">🌆 목적을 정해 외출하기 <small>장소·취미·약속을 먼저 선택</small></button>`;
+  const quickBtns=`<button class="life-btn daily-choice home" data-act="home-life">🏠 집에서 보내기 <small>휴식·게임·공부·생활공간 꾸미기</small></button><button class="life-btn daily-choice outing" data-act="date">🌆 목적을 정해 외출하기 <small>장소·취미·약속을 먼저 선택</small></button><button class="life-btn daily-choice earning" data-act="income-work">💵 이번 주 돈 벌기 <small>추가 근무·단기 의뢰·일당 업무</small></button>`;
   const workspaceLaunchers=`<div class="life-workspace-launchers">
     <button data-life-window="wellbeing"><span>🌿</span><b>생활·건강</b><small>외부 취미·검진·관계 약속</small></button>
     <button data-life-window="social"><span>👨‍👩‍👧</span><b>가족·인맥</b><small>가족·친구·개인 이야기</small></button>
@@ -6334,10 +6394,10 @@ function lifeHubHTML() {
       <div class="life-time-progress" aria-label="이번 달 자유시간 사용 현황">${Array.from({length:LIFE_ACTIONS_PER_MONTH},(_,i)=>`<span class="${i<actionUsed?'used':i===actionUsed?'available current':'available'}">${i<actionUsed?'✓':i+1+'주차'}</span>`).join('')}</div>
       <div class="hub-quick">${quickBtns}</div>
       ${workspaceLaunchers}
-      <div class="hub-note">외출·취미·휴식·경력·인맥·사업·가족·라이벌 중 서로 다른 행동을 최대 4회 선택하세요. 자기계발은 취미에 통합되어 직무 능력도 함께 오릅니다. 활동 중에도 취향이 맞는 사람을 우연히 만날 수 있고, 외출 장소와 현재 조건에 따라 만나는 인물과 특별 장면이 달라집니다.</div>
+      <div class="hub-note">한 달에 자유시간 4회를 사용하며 같은 행동도 다시 선택할 수 있습니다. 돈이 부족하면 추가 근무·단기 의뢰·일당 업무로 현금을 먼저 만들 수 있고, 같은 수입 행동을 반복하면 피로 때문에 보수가 조금씩 줄어듭니다.</div>
       ${storyProgressHTML(L)}
       ${assetPortfolioStrip}
-      <div class="month-action-status">${['데이트','취미','휴식','경력','인맥','사업','가족','라이벌'].map(g=>`<span class="${monthActionUsed(g)?'done':''}">${monthActionUsed(g)?'✓':'○'} ${g}</span>`).join('')}</div>
+      <div class="month-action-status">${['데이트','취미','휴식','수입','경력','인맥','사업','가족','라이벌'].map(g=>{const count=monthActionCount(g);return`<span class="${count?'done':''}">${count?`×${count}`:'○'} ${g}</span>`;}).join('')}</div>
       ${lifeWorkspaces}
     </div>`;
 }
@@ -6364,17 +6424,17 @@ function wireLifeHub(host) {
   }));
   host.querySelectorAll('.life-btn').forEach(b => {
     const group=monthlyGroupForAction(b.dataset.act);
-    if(group&&(monthActionUsed(group)||lifeActionExhausted())){
-      b.disabled=true;b.classList.add('month-used');b.title=monthActionUsed(group)?`이번 달 ${group} 행동은 이미 사용했습니다`:'이번 달 자유시간을 모두 사용했습니다';
-      const small=b.querySelector('small');if(small)small.textContent=monthActionUsed(group)?`이번 달 ${group} 완료`:'자유시간 모두 사용';
+    if(group&&lifeActionExhausted()){
+      b.disabled=true;b.classList.add('month-used');b.title='이번 달 자유시간을 모두 사용했습니다';
+      const small=b.querySelector('small');if(small)small.textContent='자유시간 모두 사용';
     }
   });
   host.querySelectorAll('.life-btn').forEach(b => b.addEventListener('click', () => {
     const act = b.dataset.act;
     const monthlyGroup=monthlyGroupForAction(act);
-    if(monthlyGroup&&monthActionUsed(monthlyGroup)){flashToast(`📅 이번 달 ${monthlyGroup} 행동은 이미 했습니다`,'neutral');return;}
     if(monthlyGroup&&lifeActionExhausted()){flashToast(`📅 이번 달 자유시간 ${LIFE_ACTIONS_PER_MONTH}회를 모두 사용했습니다`,'neutral');return;}
     if (act === 'home-life') showHomeLifeModal();
+    else if (act === 'income-work') showIncomeWorkModal();
     else if (act === 'investment-consult') doNaraeConsulting();
     else if (act === 'hobby') doHobby(b.dataset.id);
     else if (act === 'prop') buyProperty(b.dataset.id);

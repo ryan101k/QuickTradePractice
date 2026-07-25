@@ -15,8 +15,10 @@ vm.createContext(context);
   vm.createContext(marketContext);
   vm.runInContext(fs.readFileSync(path.join(root,'js/events_market.js'),'utf8'),marketContext,{filename:'js/events_market.js'});
   const balance=marketContext.QT_MARKET_BALANCE;
-  assert.equal(balance.shapeRate(.0004),.0012,'+0.04% 양봉은 최소 +0.12%로 체감돼야 한다');
-  assert.ok(balance.shapeRate(.01)>Math.abs(balance.shapeRate(-.01))*3,'같은 원시 폭이면 상승이 하락보다 훨씬 커야 한다');
+  assert.equal(balance.shapeRate(.0004),.0025,'+0.04% 양봉은 최소 +0.25%로 체감돼야 한다');
+  assert.ok(balance.shapeRate(.01)>Math.abs(balance.shapeRate(-.01))*4,'같은 원시 폭이면 상승이 하락보다 훨씬 커야 한다');
+  assert.ok(balance.positionBias({qty:10},{sigma:.004},.5)>0,'플레이어가 매수한 종목에는 우호 수급이 붙어야 한다');
+  assert.ok(balance.positionBias({qty:-10},{sigma:.004},.5)<0,'공매도 포지션의 우호 수급 방향은 반대여야 한다');
   const limits=balance.limits({tickLimit:.02,sessionLimit:.10});
   assert.ok(limits.tickUp>limits.tickDown&&limits.sessionUp>limits.sessionDown,'상승 가격제한폭은 하락 제한폭보다 넓어야 한다');
 }
@@ -407,6 +409,11 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   const appSource = fs.readFileSync(path.join(root, 'js/app.js'), 'utf8');
   const lifeActionViewSource = fs.readFileSync(path.join(root, 'js/ui/views/life-action-view.js'), 'utf8');
   assert.match(appSource, /const LIFE_ACTIONS_PER_MONTH = 4;/, '월 행동력은 4회여야 한다');
+  assert.match(appSource, /monthActionCount\(group\) \+ 1/, '같은 행동군을 다시 선택하면 횟수가 누적돼야 한다');
+  assert.doesNotMatch(appSource, /monthActionUsed\(group\)\|\|lifeActionExhausted\(\)/, '이미 한 행동군이라는 이유로 버튼을 막으면 안 된다');
+  assert.match(appSource, /data-act="income-work"/, '행동 허브에는 즉시 현금을 버는 선택지가 있어야 한다');
+  assert.match(appSource, /function resolveIncomeWork[\s\S]{0,420}S\.capital\+=option\.pay/, '수입 행동은 자유시간을 현금으로 바꿔야 한다');
+  assert.match(appSource, /positionBias\(playerPosition,meta/, '플레이어가 보유한 종목의 우호 수급을 실제 틱에 반영해야 한다');
   assert.doesNotMatch(appSource, /data-act="career-train"/, '중복된 직무교육 버튼은 제거돼야 한다');
   assert.match(appSource, /id === 'study'[\s\S]{0,160}CAREER\.train/, '자기계발이 직무 능력 성장을 대신해야 한다');
   assert.match(appSource, /allowShort:true,shortSellingPower:power/, '세력 자동 공매도는 실제 공매도 체결 경로를 사용해야 한다');
