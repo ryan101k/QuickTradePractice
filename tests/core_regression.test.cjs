@@ -88,6 +88,7 @@ vm.createContext(context);
 
 for (const file of [
   'js/characters.js',
+  'js/origin_story.js',
   'js/core/trading.js',
   'js/core/time.js',
   'js/core/campaign.js',
@@ -133,10 +134,14 @@ for (const file of [
 {
   const circle=context.QT_CHILDHOOD_CIRCLE;
   assert.deepEqual(Array.from(circle.MEMBERS),['예린','보라','서연','나영','미래'],'소꿉친구 세트는 다섯 명으로 고정돼야 한다');
+  assert.deepEqual(Array.from(context.QT_ORIGIN.PAST_CLUB.members),Array.from(circle.MEMBERS),'옛 동아리 전 연인 명단은 관계 세트와 일치해야 한다');
+  assert.ok(context.QT_ORIGIN.SCHOOL_LIVES.every(school=>school.childhood.ally&&school.guideLine),'모든 학창 생활에는 고정 남자 친구와 투자 소개 대사가 있어야 한다');
   const anchor={name:'나영',status:'friend',affection:35,trust:40};
   const life={met:[anchor]};
   circle.register(life,anchor,'athletics');
   assert.equal(anchor.childhoodFriend,true);
+  assert.equal(anchor.formerClubEx,true);
+  assert.equal(life.childhoodCircle.pastIncident,'mock_investment_account');
   assert.equal(circle.storyFor(anchor).length,3,'소꿉친구는 성인 초면과 다른 전용 3장 이야기를 가져야 한다');
   assert.equal(context.QT_CHARACTER_STORIES.get(anchor).variant,'childhood');
   assert.equal(context.QT_CHARACTER_STORIES.get({name:'나영'}).variant,'adult','같은 인물의 성인 초면 이야기는 별도 변형을 유지해야 한다');
@@ -514,7 +519,9 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.doesNotMatch(appSource, /maybeActivityEncounter\('rest'\)/, '집에서 쉬는 동안 무작위 연애 조우가 발생하면 안 된다');
   assert.match(appSource, /class="pixel-home/, '현재 집과 사치품은 생활공간 장면으로 시각화돼야 한다');
   assert.match(appSource, /class="route-card place-card"/, '새 인물은 프로필보다 외출 장소를 먼저 선택해야 한다');
-  assert.match(appSource, /childhoodFriend=true/, '여성 시작 친구는 소꿉친구 히로인 상태로 시작해야 한다');
+  assert.match(appSource, /formerClubEx:true/, '옛 동아리 여성 다섯은 과거 연인 기록으로 시작해야 한다');
+  assert.match(appSource, /former\.status='ex'/, '옛 동아리 여성 다섯은 현재 친구가 아니라 전 연인 상태여야 한다');
+  assert.match(appSource, /function showOriginFriendReferral/, '직업 결정 뒤 고정 친구의 투자지원센터 소개 장면이 있어야 한다');
   assert.match(appSource, /freeRecruit:true/, '남성 시작 친구는 무료 조력자 영입 권한을 가져야 한다');
   assert.match(appSource, /data-act="origin-ally"/, '무료 조력자는 사업체나 세력 합류 UI를 제공해야 한다');
   assert.match(appSource, /data-life-panel="investment"/, '나래는 별도의 투자 컨설팅 창을 가져야 한다');
