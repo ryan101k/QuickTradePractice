@@ -1,7 +1,8 @@
-/* QuickTrade Life — 옛 동아리 전 연인 5인조 ‘한 번씩 헤어진 다섯’
- * 생활경제연구회에서 주인공과 각자 다른 시기에 사귀었고, 졸업 직전
- * 모의투자 계정 조작 사건으로 다섯 관계와 동아리가 한꺼번에 끝났다.
- * 다시 만난 뒤에는 “누가 진짜 배신했는가”와 과거 연애의 우선권이 위험도 역할을 한다.
+/* QuickTrade Life — 소꿉친구 5인조 ‘실패한 첫 하렘’
+ * 생활경제연구회 여섯 명은 서로 알고 동의한 채 연애했지만, 다섯은 각자 자신이
+ * 마지막에 선택될 사람이라 믿었다. 졸업 직전 ‘보호 계획’이라는 이름으로
+ * 일정·약·평판·동선·계정을 나눠 통제했고, 주인공은 모든 것을 잃고 도망쳤다.
+ * 현재 루트의 질문은 용서가 아니라 다섯이 자기 잘못을 인정하고 선택권을 돌려주는가다.
  */
 (function (root) {
   'use strict';
@@ -9,11 +10,11 @@
   const MEMBERS = ['예린', '보라', '서연', '나영', '미래'];
   const ACTIVE = new Set(['friend', 'casual', 'partner', 'lover', 'polycule']);
   const META = {
-    예린: { role:'초대 회장·첫 연인', icon:'🗓️', danger:'동아리 규칙과 첫 연인이라는 순서를 근거로 다른 네 사람보다 우선권을 주장한다.' },
-    보라: { role:'회계·두 번째 연인', icon:'💊', danger:'조작 사건 당시 장부와 주인공의 생활 기록을 함께 쥐고 있다.' },
-    서연: { role:'홍보·세 번째 연인', icon:'📷', danger:'다섯 번의 연애가 겹쳐 보이는 사진을 작품과 증거 사이에 남겨 두었다.' },
-    나영: { role:'대외협력·네 번째 연인', icon:'🏃‍♀️', danger:'사건 직후 도망친 주인공을 잡지 못한 일을 아직 패배로 여긴다.' },
-    미래: { role:'전산·마지막 연인', icon:'💾', danger:'삭제된 대회 로그와 단체방 원본을 혼자 복구할 수 있다.' },
+    예린: { role:'회장·생활 통제', icon:'🗓️', danger:'주인공의 동의 없이 면접과 가족 약속을 취소하고 대신 답장했다.' },
+    보라: { role:'회계·신체 통제', icon:'💊', danger:'돌봄을 명분으로 식사·수면·약을 관리해 떠날 힘까지 빼앗았다.' },
+    서연: { role:'홍보·평판 통제', icon:'📷', danger:'사진을 잘라 붙이고 공개해 주인공이 자발적으로 남은 것처럼 여론을 만들었다.' },
+    나영: { role:'대외협력·동선 통제', icon:'🏃‍♀️', danger:'출구를 막고 기차표와 가방을 빼앗아 졸업식까지 붙들었다.' },
+    미래: { role:'전산·연락 통제', icon:'💾', danger:'휴대전화와 계정을 복제해 연락과 투자 주문을 다섯이 함께 관리하게 했다.' },
   };
   const C = (id, text, preview, affection, trust, pressure, tone, reaction, effects, trait) => ({
     id, text, preview, affection, trust, obsession:pressure, pressure, tone, reaction,
@@ -108,37 +109,71 @@
     ]
   };
 
+  const STORY_RETCON = {
+    예린:[
+      ['취소된 면접의 생활표','예린은 졸업 전날 주인공의 외부 인턴 면접을 취소하고 생활표에 ‘동아리 잔류’라고 적었습니다. 모두를 위한 일정 조정이었다는 말은, 정작 당사자에게 한 번도 묻지 않았다는 사실 앞에서 무너집니다.','네가 떠나면 여섯이 끝날까 봐 무서웠어. 그래서 네 대답을 듣기 전에 없애 버렸어.'],
+      ['가족에게 보낸 대리 답장','가족은 주인공이 스스로 진로를 포기한 줄 알았습니다. 예린이 주인공의 휴대전화로 괜찮다는 답장을 보냈고, 나머지 넷은 그것을 알고도 침묵했습니다.','널 지키려 했다는 말로 네 가족까지 속였어. 이번엔 변명하지 않을게.'],
+      ['허락받는 달력','예린이 빈 공동 달력을 내밉니다. 일정 공유와 일정 소유는 다르다는 것을 인정하고, 관리자 권한을 주인공에게 돌려줄 차례입니다.','네 시간을 잘 아는 게 네 시간을 가질 권리는 아니었어. 이제 네가 초대할 때만 들어갈게.']
+    ],
+    보라:[
+      ['잠들게 한 감기약','보라는 주인공이 야간 버스를 타지 못하도록 졸음을 유발하는 감기약을 건넸습니다. 위험하지 않은 양이었다는 해명은, 목적을 숨겼다는 잘못을 지우지 못합니다.','아프지 않게 하려던 게 아니야. 그날만 못 떠나게 하려던 거였어. 내가 잘못했어.'],
+      ['보호자 서명의 주인','동아리 장부 뒤에서 주인공 대신 작성된 진료·결석 서류가 발견됩니다. 보라는 가장 잘 돌보는 사람이 대신 정해도 된다고 믿었습니다.','네 상태를 안다는 이유로 네 서명까지 내 것으로 만들었어. 돌봄이 아니라 통제였어.'],
+      ['돌봄이 아니었던 것','보라는 약 봉투와 생활 기록 원본을 돌려줍니다. 다시 곁에 설 수 있다면 치료자가 아니라, 거절을 들을 줄 아는 친구로 남겠다고 합니다.','이번에는 네가 싫다고 하면 멈출게. 쓰러질 것 같아도 먼저 묻고 기다릴게.']
+    ],
+    서연:[
+      ['잘라 붙인 단체사진','서연은 다섯의 불안을 잠재우려고 서로 다른 날의 사진을 한 장처럼 편집했습니다. 그 사진은 주인공이 모든 계획에 동의했다는 거짓 증거가 됐습니다.','예쁘게 만들면 진실도 따라올 줄 알았어. 결국 네 표정부터 잘라 냈더라.'],
+      ['전시된 알리바이','서연이 공개한 졸업 전시는 주인공을 행복한 중심 인물로 보이게 했습니다. 학교와 가족은 그 이미지 때문에 구조 요청을 장난으로 여겼습니다.','사람들이 내 사진을 믿게 만든 건 나야. 네가 아니라고 말할 자리까지 내가 없앴어.'],
+      ['원본을 돌려주는 날','서연은 보정하지 않은 사진과 원본 파일을 내밉니다. 무엇을 남기고 지울지는 찍은 사람이 아니라 찍힌 사람이 정해야 한다고 인정합니다.','이번 전시는 네가 고르는 것만 걸게. 아무것도 고르지 않아도 그게 네 대답이야.']
+    ],
+    나영:[
+      ['찢어진 기차표','졸업식 날 나영은 주인공의 가방을 빼앗고 기차표를 찢었습니다. 붙잡으면 대화할 수 있을 거라 믿었지만, 그 순간 주인공에게 남은 선택은 도망뿐이었습니다.','그때 널 잡은 게 아니라 출구를 막았어. 내가 졌다는 말로 네 공포를 경기처럼 만들었고.'],
+      ['출구 앞의 주장 완장','나영은 다섯이 대화할 시간을 번다며 동아리방과 강당의 문을 지켰습니다. 다른 넷은 그 물리적인 벽 뒤에서 보호 계획을 완성했습니다.','다들 작은 부탁 하나씩이라고 했어. 합치면 감금이 된다는 걸 나만 몰랐다고는 안 할게.'],
+      ['잡지 않는 계주','나영은 결승선에서 기다리되 더는 뒤쫓지 않겠다고 합니다. 돌아오는 선택까지 빼앗는 보호는 사랑이 아니라는 것을 이제야 배웠습니다.','이번엔 뛰어가도 안 잡아. 돌아오면 네가 고른 속도로 같이 걷자.']
+    ],
+    미래:[
+      ['복제된 휴대전화','미래는 분실 대비라는 명목으로 주인공의 휴대전화와 메신저를 복제했습니다. 다섯은 떠나겠다는 연락을 먼저 읽고 지웠고, 답장까지 역할별로 나눴습니다.','백업이라고 부르면 침입이 아닌 줄 알았어. 네 침묵까지 우리가 만들어 놓고 널 탓했어.'],
+      ['다섯 개의 관리자 권한','모의투자 계정에는 다섯 개의 관리자 권한이 남아 있습니다. 각자는 주문 하나만 고쳤지만, 합쳐진 거래는 손실과 조작 의혹을 만들었고 외부 세력이 그 틈을 이용했습니다.','외부 세력이 마지막 주문을 넣었어도 문을 만든 건 우리야. 범인을 밖에서만 찾을 수는 없어.'],
+      ['복구하지 않을 세이브','미래가 단체방·계정·위치 기록의 최고 관리자 권한을 주인공에게 넘깁니다. 가장 완벽한 복구는 과거 상태로 되돌리는 것이 아닐 수 있습니다.','복구 버튼은 안 누를게. 이번 버전은 네가 허락한 데이터만 남기는 걸로 시작하자.']
+    ]
+  };
+  Object.entries(STORY_RETCON).forEach(([name,chapters])=>chapters.forEach((copy,index)=>{
+    if(!STORIES[name]||!STORIES[name][index]) return;
+    STORIES[name][index].title=copy[0];
+    STORIES[name][index].desc=copy[1];
+    STORIES[name][index].speaker=copy[2];
+  }));
+
   const LINES = {
     예린: {
-      first:['친구라고 정리하기엔 우리 한 학기나 사귀었잖아. 이번에는 모르는 척 안 할 거지?'],
+      first:['우리 여섯이 연애였다는 건 다 알고 있었어. 네 면접을 취소한 것까지 합의였다고 우기진 않을게.'],
       incoming:['오늘도 아침 거른 거 아니지? 네 시간표상 지금 답장할 수 있어.','부모님께 연락 왔어. 이번에는 네가 먼저 설명할래, 내가 할까?'],
       warm:['오래 안다고 지금의 너까지 안다고 착각하지 않을게. 오늘 일부터 들려줘.'],
       brief:['응, 네가 늦게 답하는 시간까지 기억해. 급한 건 아니야.'],
       boundary:['알겠어. 예전 규칙을 지금 허락으로 착각하지 않을게.']
     },
     보라: {
-      first:['헤어진 뒤에도 네 약은 내가 챙겼어. 그게 미련인지 습관인지 이번에는 확인할래.'],
+      first:['돌본다는 핑계로 네가 떠날 힘까지 빼앗았어. 사과부터 하고 다시 물어볼게.'],
       incoming:['식사는 했어? 사진 보내라는 말은 안 할게. 네 입으로 대답해.','그때 알레르기 아직 있어? 약부터 보내기 전에 물어보는 거야.'],
       warm:['네가 괜찮다고 말하면 일단 믿을게. 대신 정말 힘들면 나부터 불러.'],
       brief:['확인했어. 물 마시고 자. 잔소리는 여기까지.'],
       boundary:['걱정과 결정은 다르지. 네 몸의 결정은 네가 해.']
     },
     서연: {
-      first:['우리 헤어질 때 찢은 사진, 사실 원본은 남아 있어. 네가 먼저 변명할래, 내가 먼저 보여줄까?'],
+      first:['네가 자발적으로 남은 것처럼 만든 사진 원본이 있어. 변명 말고 내가 먼저 보여줄게.'],
       incoming:['옛날 사진 정리하다가 네가 찢어달라던 걸 찾았어. 이번엔 먼저 물어볼게.','오늘 네 얼굴이 궁금해. 사진 말고 만나서 보고 싶다는 뜻이야.'],
       warm:['예전의 너도 좋아했지만, 지금의 널 새로 알아가는 쪽이 더 설레.'],
       brief:['응. 말 길어지기 전에 오늘 표정만 기억해둘게.'],
       boundary:['사진을 가진 것과 네 모습을 정할 권리는 다른 거 알아.']
     },
     나영: {
-      first:['다섯 명한테 차례로 헤어지자고 하고 졸업식에서 도망쳤지. 이번에는 결승선까지 세워 둘 거야.'],
+      first:['졸업식에서 네가 도망친 게 아니라 우리가 도망치게 만든 거야. 이번에는 출구부터 열어 둘게.'],
       incoming:['끝나고 운동장 한 바퀴. 안 나오면 네가 숨던 벤치부터 간다.','오늘 연락 짧네. 괜찮으면 괜찮다고, 아니면 위치만 보내.'],
       warm:['이번엔 네가 달리는 방향을 내가 정하진 않을게. 옆에서 뛸 수는 있지?'],
       brief:['오케이. 살아 있는 거 확인. 나머지는 만나서.'],
       boundary:['알았어. 찾으러 가기 전에 부를 때까지 기다릴게.']
     },
     미래: {
-      first:['대회 계정 로그 복구했어.. 우리 다섯이 헤어진 날, 네가 몰랐던 접속 기록도 같이.'],
+      first:['대회 계정 로그 복구했어. 외부 세력보다 먼저 네 권한을 나눠 가진 다섯 명 기록도 같이.'],
       incoming:['옛날 채팅방 백업 찾음. 열람 권한은 네 승인 대기 중.','오늘 상태 로그가 평소랑 달라. 간섭 말고 안부만 묻는 중.'],
       warm:['구버전도 좋아하지만 지금 네 업데이트 로그 읽는 게 더 재밌어.'],
       brief:['확인. 로그만 남기고 종료할게.'],
@@ -235,15 +270,85 @@
     }
   };
 
+  Object.assign(EVENTS.reunion,{
+    title:'실패한 첫 하렘 · 복구된 동아리방',
+    desc:'폐쇄됐던 생활경제연구회 단체방이 복구됐습니다. 여섯은 서로 알고 동의한 채 연애했지만, 다섯은 각자 자신이 마지막에 선택될 사람이라 믿었습니다. 주인공이 관계를 숨기거나 순서를 속인 적은 없습니다. 끝을 만든 것은 졸업 직전 다섯이 함께 실행한 ‘보호 계획’이었습니다.',
+    speakers:[
+      ['예린','우린 전부 알고 시작했어. 네가 속인 게 아니라, 끝내겠다는 네 말을 우리가 합의에서 빼 버렸지.'],
+      ['보라','한 사람씩 한 건 사소하다고 생각했어. 약, 일정, 사진, 출구, 계정이 합쳐지기 전까진.'],
+      ['서연','네가 행복해 보이는 사진만 남겨서 아무도 구조 요청을 믿지 않게 만든 건 나야.'],
+      ['나영','졸업식에서 넌 도망친 게 맞아. 하지만 도망쳐야 했던 이유는 우리였어.'],
+      ['미래','보호 계획 원본 복구 완료. 피해자 권한은 네 것, 관리자 권한은 우리 다섯 것이었음.']
+    ],
+    choices:[
+      {id:'present',text:'내 사과보다 다섯이 한 일을 먼저 전부 말하게 한다',preview:'책임 인정 시작 · 현재의 신뢰를 다시 쌓음',trust:14,pressure:-10,affection:7,trait:'present'},
+      {id:'rewind',text:'그래도 가장 행복했던 때는 여섯이 함께였다고 한다',preview:'잘못을 덮고 익숙한 공동 연애로 회귀',trust:2,pressure:20,affection:14,trait:'rewind'},
+      {id:'sever',text:'사과를 듣지 않고 단체방을 다시 나간다',preview:'다섯 전원 영구 이탈 · 모든 후속 사건 제거',trust:-8,pressure:-12,affection:-7,trait:'sever'}
+    ]
+  });
+  Object.assign(EVENTS.pact,{
+    title:'실패한 첫 하렘 · 보호 계획서',
+    desc:'복구된 문서에는 다섯의 역할이 적혀 있습니다. 예린은 일정을, 보라는 몸을, 서연은 평판을, 나영은 출구를, 미래는 연락과 계정을 맡았습니다. 외부 세력이 투자 주문을 악용했지만, 침입할 문과 공동 권한을 만든 것은 다섯이었습니다.',
+    speakers:[
+      ['예린','면접만 취소하면 대화할 시간이 생길 줄 알았어. 가족에게 네 대신 답장한 것도 내 선택이야.'],
+      ['보라','약은 위험한 양이 아니었다는 말로 빠져나가지 않을게. 목적을 숨긴 순간 돌봄이 아니었어.'],
+      ['서연','사진으로 학교와 가족의 눈을 가렸어. 네 말을 거짓말처럼 만든 사람은 나야.'],
+      ['나영','문을 지킨 건 나야. 나머지 계획을 몰랐어도 네가 나갈 수 없게 만든 책임은 남아.'],
+      ['미래','외부 세력이 마지막 주문을 넣었음. 하지만 계정을 복제하고 권한을 나눈 최초 원인은 우리.']
+    ],
+    choices:[
+      {id:'present',text:'증거를 모두 돌려받고 각자 책임을 자기 이름으로 남기게 한다',preview:'공동 변명 해체 · 선택권과 책임 회복',trust:18,pressure:-14,affection:8,trait:'present'},
+      {id:'rewind',text:'보호 계획을 더 안전한 방식으로 다시 운영하게 한다',preview:'이름만 바뀐 공동 통제 · 회귀 압력 급증',trust:4,pressure:26,affection:15,trait:'rewind'},
+      {id:'sever',text:'원본을 넘겨받고 다섯과의 관계를 끝낸다',preview:'증거 확보 · 세트 루트 단절',trust:-14,pressure:-15,affection:-12,trait:'sever'}
+    ]
+  });
+  Object.assign(EVENTS.motel_boundary,{
+    title:'실패한 첫 하렘 · 방 하나와 여섯 개의 책임',
+    desc:'외부 세력이 악용한 주문 원본을 찾으러 지방 서버 보관소까지 내려온 여섯은 막차를 놓쳤습니다. 학창 시절 이미 서로의 관계를 모두 알았기에 방 하나는 낯설지 않습니다. 그러나 편안함을 합의로 착각했던 과거를 반복하지 않으려면, 이번에는 주인공의 거절이 설명 없이도 끝이어야 합니다.'
+  });
+  Object.assign(EVENTS.sera_collision,{
+    title:'실패한 첫 하렘 · 차라리 솔직한 스토커',
+    desc:'윤세라의 열쇠를 발견한 다섯은 그녀를 비난하려다 멈춥니다. 한 사람의 노골적인 집착과 달리, 다섯은 일정·약·가족·평판·출구·계정을 역할처럼 나눠 주인공의 삶 전체를 감췄습니다. 비교가 성립하는 순간 윤세라조차 정직하고 단순한 사람처럼 보입니다.',
+    speakers:[
+      ['윤세라','적어도 전 혼자 했고, 이 사람 계좌·약·가족·진로를 나눠 가진 적은 없어요. 싫다고 하면 왜 싫은지 직접 물었고요.'],
+      ['예린','스토커에게 상식 지적을 들을 줄은 몰랐네. 그런데 반박할 말이 없어.'],
+      ['보라','세라 씨 약이 틀렸다는 말부터 하려 했는데… 몰래 먹인 내가 할 말은 아니지.'],
+      ['서연','한 명의 광기는 사진에 잡혀. 다섯 명의 선의는 정상적인 일상처럼 보여서 더 숨기기 쉬웠고.'],
+      ['나영','쟤보다 우리가 무섭다는 표정 지어도 돼. 이번엔 안 막을게.'],
+      ['미래','비교 결과: 윤세라의 침입은 단일 사용자. 우리 사건은 분산형 관리자 탈취. 후자가 더 악질.']
+    ]
+  });
+  Object.assign(EVENTS.graduation,{
+    title:'실패한 첫 하렘 · 두 번째 졸업식',
+    desc:'폐교를 앞둔 강당에 여섯 개 의자가 놓였습니다. 다섯은 각자의 잘못을 자기 이름으로 인정했고, 주인공은 관계가 망가지기 전 맞서지 못하고 도망만 준비했던 책임까지만 인정합니다. 사랑했던 사실은 통제에 대한 동의가 아니었습니다.',
+    speakers:[
+      ['서연','우리가 널 사랑했다는 건 사실이야. 그래서 용서받는다는 결론은 이제 사진에서 잘라 낼게.'],
+      ['예린','다섯 자리를 먼저 그리지 않을게. 네가 빈 의자를 둘 때만 앉을 거야.'],
+      ['보라','망가질까 봐 선택권을 뺏는 대신, 망가져도 네가 부를 때까지 기다릴게.'],
+      ['나영','싫으면 뛰라는 말도 협박이었어. 싫다는 한마디면 경기는 끝이야.'],
+      ['미래','관리자 권한 전부 반환. 다음 관계는 자동 복구가 아니라 여섯 명의 신규 동의로 생성.']
+    ],
+    choices:[
+      {id:'present',text:'과거가 아닌 오늘의 동의로 여섯의 첫날을 시작한다',preview:'정상 세트 엔딩 ‘처음이 아닌 첫날’ · 책임을 인정한 합의형 관계',trust:24,pressure:-22,affection:13,trait:'present',route:'old_promise'},
+      {id:'rewind',text:'잘못까지 사랑의 일부였다며 원래 자리로 돌아간다',preview:'위험 세트 엔딩 ‘끝나지 않은 졸업식’ · 보호 계획 재가동',trust:6,pressure:34,affection:19,trait:'rewind',route:'never_graduate'},
+      {id:'sever',text:'사과를 받은 뒤 혼자 강당을 나선다',preview:'단절 엔딩 ‘닫힌 졸업앨범’ · 피해자의 졸업',trust:-18,pressure:-28,affection:-18,trait:'sever',route:'cut_past'}
+    ]
+  });
+
   function ensure(life) {
     if (!life.childhoodCircle || typeof life.childhoodCircle !== 'object') {
-      life.childhoodCircle = { anchor:null, schoolId:null, stage:'dormant', pressure:0, trust:0, seen:{}, traits:{}, route:null, pending:null };
+      life.childhoodCircle = { anchor:null, schoolId:null, stage:'dormant', pressure:0, trust:0, accountability:0, refusals:0, pastStructure:'failed_shared_harem', collectiveFault:'protective_plan', playerFault:'conflict_avoidance', seen:{}, traits:{}, route:null, pending:null };
     }
     const state = life.childhoodCircle;
     state.seen = state.seen || {};
     state.traits = state.traits || {};
     if (!Number.isFinite(state.pressure)) state.pressure = 0;
     if (!Number.isFinite(state.trust)) state.trust = 0;
+    if (!Number.isFinite(state.accountability)) state.accountability = 0;
+    if (!Number.isFinite(state.refusals)) state.refusals = 0;
+    state.pastStructure = 'failed_shared_harem';
+    state.collectiveFault = 'protective_plan';
+    state.playerFault = 'conflict_avoidance';
     return state;
   }
   function register(life, person, schoolId) {
@@ -252,6 +357,9 @@
     state.schoolId = schoolId;
     state.stage = 'former_club';
     state.pastIncident = 'mock_investment_account';
+    state.pastStructure = 'failed_shared_harem';
+    state.collectiveFault = 'protective_plan';
+    state.playerFault = 'conflict_avoidance';
     person.childhoodFriend = true;
     person.formerClubEx = true;
     person.oldCircleRole = META[person.name] && META[person.name].role;
@@ -292,6 +400,9 @@
     const state = ensure(life);
     state.pressure = Math.max(0, Math.min(100, state.pressure + Number(choice.pressure || 0)));
     state.trust = Math.max(0, Math.min(100, state.trust + Number(choice.trust || 0)));
+    if (choice.trait === 'present') state.accountability = Math.min(100, state.accountability + 12);
+    if (choice.trait === 'rewind') state.accountability = Math.max(0, state.accountability - 7);
+    if (choice.trait === 'sever') state.refusals += 1;
     if (choice.trait) state.traits[choice.trait] = (state.traits[choice.trait] || 0) + 1;
     state.seen[id] = true;
     state.pending = null;
