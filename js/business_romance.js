@@ -161,20 +161,20 @@ const PERSONAL_STORIES={
 };
 
 const QUARTET_CHAPTERS=[
-  {id:'boardroom_pact',title:'제1장 · 호칭을 정하는 이사회',icon:'🏢',scene:'./assets/event-business-quartet-boardroom.png',
-    desc:'얼굴과 이름을 모두 공개한 네 사람이 처음으로 한 회의실에 모였습니다. 서로를 경쟁자로 볼지, 하나의 경영진으로 묶을지 정해야 합니다.',
+  {id:'boardroom_pact',title:'제1장 · 네 장의 사직서가 놓인 이사회',icon:'🏢',scene:'./assets/event-business-quartet-boardroom.png',
+    desc:'얼굴과 이름을 모두 공개한 네 사람이 첫 공동 이사회에 각자의 사직서를 가져왔습니다. 대표가 없어도 회사를 굴릴 수 있는 사람들이, 직원으로 붙잡힐지 공동창업자로 남을지 묻습니다.',
     dialogues:[
       ['박지수','대표님 한 사람 일정에 네 부서가 전부 매달리면 오래 못 가요.'],
       ['한이슬','그럼 재미없게 순번표라도 만들까? 감정도 회의 안건으로 올리고?'],
-      ['차서윤','농담으로 넘길 일이 아닙니다. 권한과 책임이 모호하면 반드시 누군가 이용합니다.'],
+      ['차서윤','우리 넷은 오늘 나가도 경쟁사 임원이 됩니다. 남을 이유는 연봉이 아니라 권한이어야 합니다.'],
       ['오혜린','적어도 누구도 몰래 희생하지 않는 규칙은 있었으면 해요.'],
     ],
     choices:[
       {id:'equal_board',text:'네 사람을 동등한 공동 경영진으로 세운다',preview:'공동 의사결정·업무 시너지 상승',effects:{synergy:10,governance:14,boundary:5,affectionEach:3,trustEach:6},outcome:'직함은 달라도 발언권은 같아졌습니다. 네 사람은 처음으로 서로를 대표의 사람이 아니라 동료로 바라봤습니다.'},
       {id:'founder_rule',text:'최종 결정권은 대표가 갖고 각자 영역을 보장한다',preview:'업무 시너지 상승 · 공사 경계 소폭 하락',effects:{synergy:8,governance:5,boundary:-3,affectionEach:5,trustEach:2},outcome:'결정은 빨라졌지만, 네 사람은 대표의 관심이 권한 배분에 영향을 주지 않는지 더 예민하게 지켜보기 시작했습니다.'},
     ]},
-  {id:'hostile_takeover',title:'제2장 · 네 개 부서를 노린 적대적 인수',icon:'⚠️',scene:'./assets/event-business-quartet-crisis.png',
-    desc:'경쟁 세력이 네 사업의 거래처와 핵심 인력을 동시에 흔들었습니다. 평소 서로를 견제하던 네 담당자가 처음으로 한 팀처럼 움직입니다.',
+  {id:'hostile_takeover',title:'제2장 · 얼굴을 본 대가',icon:'⚠️',scene:'./assets/event-business-quartet-crisis.png',
+    desc:'네 책임자가 실명과 얼굴을 공개하자 경쟁 세력이 가격 덤핑, 핵심 인재 스카우트, 허위 감사, 거래처 압박을 동시에 시작했습니다. 네 사람은 대표의 지시를 기다리지 않고 각자의 사업을 지키면서 상대 공격의 자금줄까지 역추적합니다.',
     dialogues:[
       ['차서윤','계약과 자금줄은 제가 잠급니다. 이슬 씨는 여론을 돌려요.'],
       ['한이슬','명령은 싫지만 이번 편집은 마음에 드네. 지수 씨, 고객 데이터 부탁해.'],
@@ -185,7 +185,7 @@ const QUARTET_CHAPTERS=[
       {id:'protect_all',text:'수익을 포기하고 직원·거래처를 모두 지킨다',preview:'현금 -500만 · 전 지표 크게 상승',effects:{cash:-5000000,synergy:16,governance:9,boundary:4,affectionEach:5,trustEach:8},outcome:'단기 손실은 컸지만 어느 부서도 버려지지 않았습니다. 네 사람은 당신이 자신들을 소모품으로 쓰지 않는다는 걸 확인했습니다.'},
       {id:'counterdeal',text:'서윤의 역인수안과 이슬의 여론전을 승인한다',preview:'현금 +300만 · 시너지 상승, 경계 하락',effects:{cash:3000000,synergy:13,governance:6,boundary:-5,affectionEach:6,trustEach:3},outcome:'상대의 계약과 평판을 동시에 무너뜨렸습니다. 완벽한 승리였지만 네 사람과 당신 사이의 결탁은 더 짙어졌습니다.'},
     ]},
-  {id:'after_hours_rules',title:'제3장 · 퇴근 뒤에는 누가 대표인가',icon:'🌃',scene:'./assets/event-business-quartet-afterhours.png',
+  {id:'after_hours_rules',title:'제3장 · 직급이 사라진 뒤의 네 이름',icon:'🌃',scene:'./assets/event-business-quartet-afterhours.png',
     desc:'위기를 넘긴 밤, 다섯 사람만 남은 사무실에서 업무 보고가 사적인 고백으로 바뀌었습니다. 이제 회사와 관계의 경계를 정해야 합니다.',
     dialogues:[
       ['한이슬','회사에서는 대표님. 여기서는 그냥 이름으로 부르면 안 돼?'],
@@ -197,7 +197,7 @@ const QUARTET_CHAPTERS=[
       {id:'clear_rules',text:'업무권한·사적 동의·질투의 선을 명확히 합의한다',preview:'공동 의사결정·공사 경계 크게 상승',effects:{synergy:7,governance:15,boundary:16,affectionEach:6,trustEach:10},outcome:'낭만적이지 않은 규칙들이 오히려 다섯 사람을 안심시켰습니다. 누구도 고용과 사랑을 거래하지 않기로 했습니다.'},
       {id:'trust_feeling',text:'규칙보다 서로의 마음을 믿고 자연스럽게 둔다',preview:'호감 크게 상승 · 공사 경계 하락',effects:{synergy:5,governance:-3,boundary:-10,affectionEach:11,trustEach:3},outcome:'그날 밤은 따뜻했지만 다음 날부터 사소한 배려와 업무 지시의 뜻을 두 번씩 해석해야 했습니다.'},
     ]},
-  {id:'branch_tour',title:'제4장 · 대표 없이 돌아간 하루',icon:'🚌',scene:'./assets/event-business-quartet-branch-tour-pixel-v1.png',
+  {id:'branch_tour',title:'제4장 · 대표가 필요 없었던 하루',icon:'🚌',scene:'./assets/event-business-quartet-branch-tour-pixel-v1.png',
     desc:'당신이 자리를 비운 날 네 담당자는 여러 사업장을 함께 돌며 문제를 해결했습니다. 돌아온 당신 앞에는 결재 요청이 아니라 이미 끝난 보고서와 네 사람의 단체사진이 놓여 있습니다.',
     dialogues:[
       ['박지수','지점 세 곳 근무표는 제가 묶었고, 직원들 저녁도 챙겼어요.'],
@@ -226,7 +226,7 @@ const QUARTET_CHAPTERS=[
 function freshStaff(){
   return{bond:0,trust:0,revealed:false,revealDay:0,temptationSeen:false,trapTriggered:false,
     introduced:false,hired:false,assignedBusinessId:null,rival:false,profitStreak:0,
-    boundaryKept:false,ending:null,lastContactDay:0,eventsSeen:[],storyChapter:0};
+    boundaryKept:false,ending:null,lastContactDay:0,eventsSeen:[],storyChapter:0,humanFirstCount:0};
 }
 function ensure(life){
   if(!life.businessRomance||typeof life.businessRomance!=='object'){
@@ -250,12 +250,15 @@ function ensure(life){
       boundaryKept:!!old.boundaryKept,
       eventsSeen:Array.isArray(old.eventsSeen)?old.eventsSeen:[],
       storyChapter:clamp(Math.floor(finite(old.storyChapter,0)),0,(PERSONAL_STORIES[id]||[]).length),
+      humanFirstCount:Math.max(0,Math.floor(finite(old.humanFirstCount,0))),
     });
   });
   state.profitableStreak=Math.max(0,Math.floor(finite(state.profitableStreak,0)));
   state.selectedId=IDS.includes(state.selectedId)?state.selectedId:null;
   state.rivalChapter=clamp(Math.floor(finite(state.rivalChapter,0)),0,3);
   state.lastEventDay=Math.max(0,Math.floor(finite(state.lastEventDay,0)));
+  state.retaliationSeen=!!state.retaliationSeen;
+  state.chaerinBoardSeen=!!state.chaerinBoardSeen;
   if(!state.quartet||typeof state.quartet!=='object')state.quartet={chapter:0,synergy:40,governance:40,boundary:45,lastStoryDay:0};
   state.quartet.chapter=clamp(Math.floor(finite(state.quartet.chapter,0)),0,QUARTET_CHAPTERS.length);
   state.quartet.synergy=clamp(finite(state.quartet.synergy,40),0,100);
@@ -270,9 +273,9 @@ function identity(life,id){
   if(!p)return null;
   return{
     ...p,revealed:!!s.revealed,introduced:!!s.introduced,hired:!!s.hired,rival:!!s.rival,
-    displayName:s.introduced?p.name:p.alias,
-    listName:s.introduced?p.name:p.hiddenName,
-    portrait:s.introduced?`./assets/characters/${p.portrait}`:null,
+    displayName:s.revealed?p.name:p.alias,
+    listName:s.revealed?p.name:p.hiddenName,
+    portrait:s.revealed?`./assets/characters/${p.portrait}`:null,
     bond:Math.round(s.bond),trust:Math.round(s.trust),
   };
 }
@@ -313,6 +316,7 @@ function applyDecision(life,id,effects){
   const harm=Math.max(0,-finite(e.morale,0))+Math.max(0,-finite(e.reputation,0))*.6;
   s.bond=clamp(s.bond+Math.round(2+care*.65-harm*.45),0,100);
   s.trust=clamp(s.trust+Math.round(care*.35-harm*.55),0,100);
+  if(care>=3)s.humanFirstCount=(s.humanFirstCount||0)+1;
   return{bond:s.bond,trust:s.trust};
 }
 function event(type,id,day){return{businessRomanceEvent:true,kind:type,staffId:id,day};}
@@ -357,6 +361,16 @@ function monthly(life,context){
     s.profitStreak=item&&item.lastNet>0?Math.max(0,finite(s.profitStreak,0))+1:0;
   });
   if(day-state.lastEventDay<1)return null;
+  const hiredCount=IDS.filter(id=>state.staff[id].hired).length;
+  const revealedCount=IDS.filter(id=>state.staff[id].revealed).length;
+  if(hiredCount>=3&&!state.retaliationSeen&&ctx.rivalName){
+    state.retaliationSeen=true;state.lastEventDay=day;
+    return{businessRomanceEvent:true,kind:'market-retaliation',rivalName:ctx.rivalName,day};
+  }
+  if(revealedCount>=2&&!state.chaerinBoardSeen&&(ctx.met||[]).some(person=>person.name==='한채린'&&!['ex','deceased'].includes(person.status))){
+    state.chaerinBoardSeen=true;state.lastEventDay=day;
+    return{businessRomanceEvent:true,kind:'chaerin-board',day};
+  }
 
   const partnerNames=ctx.partnerNames||[],businessPartners=partnerNames.filter(name=>IDS.some(id=>PROFILES[id].name===name));
   const outsidePartners=partnerNames.filter(name=>!IDS.some(id=>PROFILES[id].name===name));
@@ -375,7 +389,7 @@ function monthly(life,context){
 
   const revealTarget=IDS.find(id=>{
     const s=state.staff[id],item=((ctx.businessState&&ctx.businessState.owned)||[]).find(x=>(x.specialManagerId||x.managerId)===id);
-    return item&&s.hired&&!s.revealed&&(s.profitStreak||0)>=3&&s.bond>=12;
+    return item&&s.hired&&!s.revealed&&(s.profitStreak||0)>=2&&s.bond>=12&&(s.humanFirstCount||0)>=1;
   });
   if(revealTarget){
       state.lastEventDay=day;
@@ -401,6 +415,33 @@ function monthly(life,context){
 function view(life,payload,capital){
   if(!payload||!payload.businessRomanceEvent)return null;
   const state=ensure(life);
+  if(payload.kind==='market-retaliation')return{
+    kind:payload.kind,icon:'📉',title:`${payload.rivalName} · 네 사람을 향한 경제 보복`,
+    desc:'경쟁 세력은 네 책임자를 정면으로 이길 수 없다고 판단했습니다. 유통에는 덤핑, 콘텐츠에는 악성 여론, 계약에는 허위 감사, 현장에는 인력 스카우트를 동시에 걸었습니다. 네 사람은 공격받은 부서만 살릴지, 상대의 자금줄까지 끊을지 결정을 기다립니다.',
+    line:'“대표님, 이건 사업 보고가 아니라 선전포고예요. 어느 수준까지 되갚을지만 정해 주세요.”',
+    portrait:'./assets/event-business-quartet-crisis.png',
+    choices:[
+      {id:'shield',text:'직원과 거래처를 먼저 보호한다',preview:'현금 -400만 · 신뢰·경계 상승 · 공격 피해 차단'},
+      {id:'counter',text:'네 사업의 자료를 합쳐 상대 자금줄을 역공한다',preview:'현금 -200만 · 시너지 상승 · 경쟁 세력 압박'},
+    ],
+  };
+  if(payload.kind==='chaerin-board')return{
+    kind:payload.kind,icon:'👑',title:'한채린 · 사람을 사는 방식',
+    desc:'한채린이 네 책임자를 한 명씩 스카우트하려다 전원에게 거절당한 뒤 직접 이사회에 들어왔습니다. 채린은 돈으로 사람을 움직이는 자기 방식과, 권한을 줘서 사람이 남게 만드는 당신의 방식을 비교합니다.',
+    line:'“유능한 사람 넷을 고용해 놓고 아무도 소유하지 않았네. 그래서 더 마음에 안 들어. 저 사람들은 돈이 아니라 너 때문에 남았잖아.”',
+    portrait:'./assets/event-chaerin-contract.png',
+    dialogues:[
+      ['박지수','연봉은 감사하지만 대표를 바꿀 생각은 없습니다.'],
+      ['한이슬','사람을 작품처럼 수집하는 취미면 난 사양할게.'],
+      ['차서윤','제 계약에는 소유권 이전 조항이 없습니다.'],
+      ['오혜린','대표님이 아니라 직원들을 두고 갈 수 없어요.'],
+      ['한채린','…넷 다 정말 비효율적으로 충성하네.'],
+    ],
+    choices:[
+      {id:'seat',text:'채린에게 투자자 자리는 주되 인사권은 주지 않는다',preview:'자금 협력 · 네 사람의 독립성 보장'},
+      {id:'refuse',text:'사람을 사려는 투자는 받지 않는다',preview:'네 사람의 신뢰 크게 상승 · 채린의 경쟁심 상승'},
+    ],
+  };
   if(payload.kind==='quartet-story'){
     const chapter=QUARTET_CHAPTERS.find(item=>item.id===payload.chapterId);
     if(!chapter)return null;
@@ -441,7 +482,7 @@ function view(life,payload,capital){
   };
   if(payload.kind==='reveal')return{
     kind:payload.kind,profile:p,identity:who,icon:'📇',title:`${p.name}의 개인 연락망`,
-    desc:'전속 계약 뒤 세 달 동안 흑자와 현장 대응을 함께 겪었습니다. 업무용 채널 밖에서도 연락할 만큼 신뢰할 수 있는지 묻는 조용한 자리입니다.',
+    desc:'사업 위기에서 당신은 실적보다 책임자와 직원의 안전을 먼저 지켰고, 그 뒤에도 흑자를 이어 냈습니다. 늘 카메라 밖과 가린 얼굴로 보고하던 책임자가 처음으로 직급표를 내려놓고 본명과 얼굴을 보여 줍니다.',
     line:p.revealLine,
     portrait:p.scene,
     choices:[
@@ -462,6 +503,26 @@ function view(life,payload,capital){
 }
 function resolve(life,payload,choiceId,capital){
   const state=ensure(life),p=payload&&profile(payload.staffId),s=p&&state.staff[p.id];
+  if(payload.kind==='market-retaliation'){
+    if(choiceId==='shield'){
+      state.quartet.governance=clamp(state.quartet.governance+10,0,100);state.quartet.boundary=clamp(state.quartet.boundary+8,0,100);
+      return{ok:true,done:true,groupStory:true,rivalCounter:true,rivalName:payload.rivalName,cash:-4000000,affectionEach:3,trustEach:8,text:'네 사람은 핵심 직원과 거래처를 분산 보호했습니다. 상대는 사람을 빼내지 못했고 공격 비용만 떠안았습니다.',tone:'good'};
+    }
+    if(choiceId==='counter'){
+      state.quartet.synergy=clamp(state.quartet.synergy+14,0,100);state.quartet.governance=clamp(state.quartet.governance+5,0,100);
+      return{ok:true,done:true,groupStory:true,rivalCounter:true,rivalName:payload.rivalName,cash:-2000000,affectionEach:5,trustEach:5,text:'네 사업의 계약·고객·현장 자료가 하나의 역공 보고서가 됐습니다. 상대의 차명 자금줄과 허위 여론 계정이 동시에 드러났습니다.',tone:'good'};
+    }
+  }
+  if(payload.kind==='chaerin-board'){
+    if(choiceId==='seat'){
+      state.quartet.synergy=clamp(state.quartet.synergy+8,0,100);state.quartet.governance=clamp(state.quartet.governance+10,0,100);
+      return{ok:true,done:true,groupStory:true,chaerinCross:true,cash:5000000,affectionEach:3,trustEach:7,text:'채린은 인사권 없는 투자 계약에 서명했습니다. 네 책임자는 자리를 지켰고, 채린은 처음으로 돈을 대고도 사람을 명령하지 못했습니다.',tone:'good'};
+    }
+    if(choiceId==='refuse'){
+      state.quartet.boundary=clamp(state.quartet.boundary+14,0,100);
+      return{ok:true,done:true,groupStory:true,chaerinCross:true,affectionEach:5,trustEach:10,text:'네 사람은 아무 말 없이 사직서를 찢었습니다. 채린은 모욕당한 얼굴로 웃으며 “그 충성, 얼마까지 가는지 보자”고 다음 경쟁을 예고했습니다.',tone:'good'};
+    }
+  }
   if(payload.kind==='quartet-story'){
     const chapter=QUARTET_CHAPTERS.find(item=>item.id===payload.chapterId),choice=chapter&&chapter.choices.find(item=>item.id===choiceId);
     if(!chapter||!choice)return{ok:false,message:'이사회 이야기를 찾지 못했습니다.'};

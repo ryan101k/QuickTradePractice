@@ -170,17 +170,31 @@ for (const file of [
   const romance=context.QT_BUSINESS_ROMANCE,state=romance.ensure(life);
   assert.equal(context.QT_BUSINESS_ROMANCE.identity(life,'office').displayName,'박 매니저','공개 전에는 실명 대신 직함을 보여야 한다');
   romance.introduce(life,'office');
-  assert.equal(romance.identity(life,'office').displayName,'박지수','사교 모임에서 소개받으면 실명과 업계 소속을 알아야 한다');
+  assert.equal(romance.identity(life,'office').displayName,'박 매니저','소개 뒤에도 역할 붕괴 사건 전에는 직함과 가린 얼굴을 유지해야 한다');
   assert.equal(romance.recruit(life,'office','commerce').ok,true);
   state.staff.office.bond=30;
+  state.staff.office.humanFirstCount=1;
   const businesses={owned:[{id:'commerce',typeId:'commerce',managerId:'office',specialManagerId:'office',months:6,level:2,lastNet:1000000,totalProfit:10000000,reputation:70}]};
   assert.equal(romance.monthly(life,{day:1,businessState:businesses,partnerNames:[],met:[]}),null);
-  assert.equal(romance.monthly(life,{day:2,businessState:businesses,partnerNames:[],met:[]}),null);
-  const reveal=romance.monthly(life,{day:3,businessState:businesses,partnerNames:[],met:[]});
-  assert.equal(reveal.kind,'reveal','전속 책임자와 3개월 흑자를 내면 개인 연락망 이벤트가 자연 발생해야 한다');
+  const reveal=romance.monthly(life,{day:2,businessState:businesses,partnerNames:[],met:[]});
+  assert.equal(reveal.kind,'reveal','사람을 우선한 위기 대응과 연속 흑자 뒤 얼굴 공개 이벤트가 발생해야 한다');
   const revealed=romance.resolve(life,reveal,'meet',100000000);
   assert.equal(revealed.revealed,true);
   assert.match(revealed.text,/연애 가능성이 열립니다/,'연락처 교환 직후 바로 연애하지 않고 개인 이야기를 요구해야 한다');
+}
+
+{
+  const romance=context.QT_BUSINESS_ROMANCE;
+  const life={met:[]},state=romance.ensure(life);
+  ['office','creative','corporate'].forEach(id=>Object.assign(state.staff[id],{introduced:true,hired:true}));
+  const retaliation=romance.monthly(life,{day:1,businessState:{owned:[]},partnerNames:[],met:[],rivalName:'테스트 적대 세력'});
+  assert.equal(retaliation.kind,'market-retaliation','유능한 책임자 셋 이상을 고용하면 경쟁 세력이 경제 보복해야 한다');
+  const counter=romance.resolve(life,retaliation,'counter',10000000);
+  assert.equal(counter.rivalCounter,true);
+  const chaerinLife={met:[{name:'한채린',status:'friend'}]},chaerinState=romance.ensure(chaerinLife);
+  ['office','creative'].forEach(id=>Object.assign(chaerinState.staff[id],{introduced:true,hired:true,revealed:true}));
+  const chaerinEvent=romance.monthly(chaerinLife,{day:1,businessState:{owned:[]},partnerNames:[],met:chaerinLife.met});
+  assert.equal(chaerinEvent.kind,'chaerin-board','얼굴을 공개한 책임자가 둘 이상이면 한채린 스카우트 사건이 열려야 한다');
 }
 
 {
