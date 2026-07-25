@@ -116,6 +116,14 @@ for (const file of [
   assert.match(mealOptions.find(option=>option.id==='warm').text,/먹|식사/,'식사 안부에는 식사에 맞는 답을 해야 한다');
   const inviteOptions=context.QT_CHAT.replyOptions({name:'테스트'},'이번 주에 커피 마시러 갈래?');
   assert.match(inviteOptions.find(option=>option.id==='warm').text,/시간|보자/,'만남 제안에는 약속에 맞는 답을 해야 한다');
+  context.QT_CHARACTER_DIALOGUE={line:()=> '처음부터 당신이 보고 싶고 사랑해요.'};
+  const earlyPerson={name:'일반 인물',status:'friend',affection:14,trust:8,interactions:2,personality:'caring'};
+  const earlyIncoming=context.QT_CHAT.incoming(earlyPerson,{tag:'친구',earlyContact:true,personality:'caring'});
+  assert.notEqual(earlyIncoming,'처음부터 당신이 보고 싶고 사랑해요.','낮은 친분에서는 인물별 호감 대사를 바로 쓰면 안 된다');
+  assert.doesNotMatch(earlyIncoming,/사랑|보고 싶|기대/,'연락처를 막 받은 단계의 선연락은 정중한 안부여야 한다');
+  assert.equal(context.QT_CHAT.incoming({name:'윤세라',status:'friend'},{tag:'친구',earlyContact:true}),'처음부터 당신이 보고 싶고 사랑해요.','윤세라는 초반부터 과한 선연락을 하는 예외여야 한다');
+  assert.match(context.QT_CHAT.partnerAnswer(earlyPerson,'warm',{earlyContact:true}),/감사|다음/,'초기 답장 반응도 연애 대사가 아니라 정중한 말투여야 한다');
+  delete context.QT_CHARACTER_DIALOGUE;
   const parent={role:'mother'};
   const parentOptions=context.QT_SOCIAL.contactReplyOptions(parent,'집에 올 때 필요한 거 있으면 말해.');
   assert.match(parentOptions.find(option=>option.id==='meet').text,/집|밥/,'가족의 귀가 연락에는 방문 약속으로 답해야 한다');
@@ -502,6 +510,12 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /생활비 30,000 · 스트레스 -22/, '집 화면은 휴식 비용과 실제 스트레스 회복량을 함께 표시해야 한다');
   assert.match(appSource, /data-act="decompress"/, '비용 없이 스트레스를 내릴 수 있는 마음 정리 행동이 있어야 한다');
   assert.match(appSource, /data-chat-rival=/, '연락처에 연애 상대뿐 아니라 시장 경쟁자도 표시돼야 한다');
+  assert.match(appSource, /const CONTACT_RULES=\{affection:12,trust:6,interactions:2,months:1\}/, '일반 인물은 호감·신뢰·교류·기간을 채워야 연락처를 줘야 한다');
+  assert.match(appSource, /const people=ensureMet\(L\)\.filter\(r=>hasPersonalContact\(r\)\)/, '한 번 본 사람은 연락처 목록에 바로 나타나면 안 된다');
+  assert.match(appSource, /if\(!hasPersonalContact\(r\)&&!exReach\)return/, '개인 연락처가 없는 인물은 월말 선연락을 보내면 안 된다');
+  assert.match(appSource, /r\.name==='윤세라'\?\.72:earlyContact\?\.10:\.16/, '위험 히로인 중 윤세라만 초반 고빈도 연락 예외여야 한다');
+  assert.doesNotMatch(appSource, /첫인사를 나누고 연락처를 저장했습니다/, '첫 조우가 자동 연락처 저장으로 처리되면 안 된다');
+  assert.doesNotMatch(appSource, /data-ameet="casual"/, '활동 중 첫 만남에서 곧바로 가벼운 관계를 제안하면 안 된다');
   assert.match(appSource, /room\.lastIncomingDay=S\.day/, '상대가 실제로 먼저 연락한 날짜를 기록해야 한다');
   assert.match(appSource, /answeredDay>=unansweredDay/, '답장한 연락은 방치로 판정하면 안 된다');
   assert.match(appSource, /if \(m\.idleMonths < 2\) return;/, '실제 수신 연락을 두 달 이상 방치한 경우에만 관계 감소가 시작돼야 한다');

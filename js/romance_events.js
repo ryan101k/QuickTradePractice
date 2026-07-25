@@ -35,13 +35,14 @@ function dateLine(person,tier,approach,nameArg,opts){
   if(childhood){
     line=`“${childhood}”`;
   }else if(cv){
-    // 첫 만남이면 인사부터, 사이가 깊고 잘 풀렸으면 속 얘기가 나온다
-    if(o.first&&cv.first&&tier!=='실패') line=cv.first;
+    // 연락처도 없는 초반에는 성공해도 고백처럼 들리지 않는 첫인사·유보 대사를 쓴다.
+    if(o.early&&tier!=='실패')line=o.first&&cv.first?cv.first:pick(cv.mid||cv.first||['“조금 더 천천히 알아가고 싶어요.”']);
+    else if(o.first&&cv.first&&tier!=='실패') line=cv.first;
     else if(tier==='성공'&&(o.affection||0)>=60&&cv.deep&&Math.random()<0.6) line=pick(cv.deep);
     else line=pick(cv[key]||cv.mid||['...']);
   }else{
     const v=VOICES[personality]||VOICES.caring;
-    line=pick(v[key]);
+    line=pick(o.early&&tier!=='실패'?v.mid:v[key]);
   }
   return `${name}: ${line} (${APPROACH_REACTIONS[approach]||'대화'}에 대한 반응)`;
 }

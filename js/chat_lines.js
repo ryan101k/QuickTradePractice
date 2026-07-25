@@ -17,6 +17,14 @@
 
   /* ------------------------------------------------------ 관계 단계별 평상시 안부 */
   const TIER = {
+    acquaintance: [
+      '지난번에 잠깐 인사했던 분 맞죠? 그때 말씀하신 건 잘 마무리됐나요?',
+      '전에 같은 자리에서 뵀죠. 연락처를 주셔서 확인차 인사드립니다.',
+      '지난번 이야기가 생각나서 짧게 안부만 남깁니다.',
+      '아직 서로 잘 모르니 부담 없이 답해 주세요. 별일 없으시죠?',
+      '다음에 같은 자리에서 만나면 그때 조금 더 이야기해요.',
+      '전에 알려주신 내용은 확인했습니다. 감사합니다.',
+    ],
     friend: [
       '오랜만이다. 요즘 뭐 하고 지내?',
       '문득 네 생각나서 연락했어. 밥 한번 먹자.',
@@ -211,38 +219,42 @@
   const TIER_BY_TAG = {
     '친구': 'friend', '가벼운 관계': 'casual', '몰래 만나는 중': 'lover',
     '연인': 'dating', '배우자': 'spouse', '합의한 다자연애': 'polycule',
-    '전 연인': 'ex', '아는 사람': 'friend',
+    '전 연인': 'ex', '아는 사람': 'acquaintance',
   };
-  function tierFromTag(tag) { return TIER_BY_TAG[tag] || 'friend'; }
+  function tierFromTag(tag) { return TIER_BY_TAG[tag] || 'acquaintance'; }
 
   /* ------------------------------------------------------------------ 들어오는 메시지 */
   function incoming(person, ctx) {
     ctx = ctx || {};
-    // 고정 캐릭터는 성격 템플릿보다 개별 말투를 우선한다.
-    const authored = root.QT_CHARACTER_DIALOGUE && root.QT_CHARACTER_DIALOGUE.line(person, 'incoming');
-    if (authored) return authored;
     const obs = ctx.obsession || 0;
-    const tier = tierFromTag(ctx.tag) || 'friend';
+    const tier = tierFromTag(ctx.tag);
     const pers = ctx.personality || person && person.personality;
     const special = ctx.special || person && person.special;
+    const early=!!ctx.earlyContact||tier==='acquaintance';
+    const sera=person&&person.name==='윤세라';
+    // 개별 대사는 친분이 생긴 뒤에만 쓴다. 윤세라만 첫 연락부터 예외다.
+    const authored = root.QT_CHARACTER_DIALOGUE && root.QT_CHARACTER_DIALOGUE.line(person, 'incoming');
+    if (authored&&(!early||sera)) return authored;
 
     // 집착이 높으면 통제형 메시지가 우선한다
-    if (obs >= 90 && OBSESSION.extreme.length && Math.random() < 0.8) return pick(OBSESSION.extreme);
-    if (obs >= 70 && Math.random() < 0.7) return pick(OBSESSION.high);
-    if (obs >= 45 && Math.random() < 0.5) return pick(OBSESSION.mid);
+    if ((!early||sera)&&obs >= 90 && OBSESSION.extreme.length && Math.random() < 0.8) return pick(OBSESSION.extreme);
+    if ((!early||sera)&&obs >= 70 && Math.random() < 0.7) return pick(OBSESSION.high);
+    if ((!early||sera)&&obs >= 45 && Math.random() < 0.5) return pick(OBSESSION.mid);
 
     // 후보 풀을 가중치로 합쳐 하나 뽑는다
     const bag = [];
     const add = (arr, w) => { if (arr && arr.length) for (let i = 0; i < w; i++) bag.push(arr); };
-    add(TIER[tier], 4);
-    add(SPECIAL[special], special ? 3 : 0);
-    add(PERSONALITY[pers], 2);
+    add(TIER[early?'acquaintance':tier], 4);
+    if(!early||sera){
+      add(SPECIAL[special], special ? 3 : 0);
+      add(PERSONALITY[pers], 2);
+    }
     // 연애 단계에서는 투자 테마도 가끔 (게임 감성)
     if (['dating', 'spouse', 'lover', 'casual'].includes(tier)) {
       const mood = ctx.marketMood;
       add(INVESTING[mood === 'down' ? 'worried' : mood === 'up' ? 'supportive' : 'curious'], 1);
     }
-    if (!bag.length) return pick(TIER.friend);
+    if (!bag.length) return pick(TIER.acquaintance);
     return pick(pick(bag));
   }
 
@@ -316,6 +328,25 @@
     return pick(PLAYER_REPLY[kind] || PLAYER_REPLY.brief);
   }
   function replyOptions(person,incomingText) {
+    const early=person&&person.name!=='윤세라'&&!person.childhoodFriend&&
+      (person.status==='acquaintance'||(person.affection||0)<25||(person.trust||0)<12||(person.interactions||0)<4);
+    if(early){
+      const earlyWarm={
+        food:'연락 주셔서 감사합니다. 식사는 챙겨 먹었습니다.',
+        invite:'제안 감사합니다. 시간이 맞으면 다음에 뵈어요.',
+        whereabouts:'확인해 주셔서 감사합니다. 무사히 들어왔습니다.',
+        work:'자료 감사합니다. 확인해 보겠습니다.',
+        wellbeing:'안부 감사합니다. 별일 없이 지내고 있습니다.',
+        affection:'연락 주셔서 감사합니다. 지난번 이야기는 잘 기억하고 있어요.',
+        general:'연락 주셔서 감사합니다. 지난번 이야기는 잘 기억하고 있어요.',
+      };
+      return[
+      {id:'warm',text:earlyWarm[messageIntent(incomingText)]||earlyWarm.general},
+      {id:'brief',text:'네, 확인했습니다. 다음에 뵐게요.'},
+      {id:'boundary',text:'감사합니다. 아직은 필요한 일이 있을 때만 편하게 연락해 주세요.'},
+      {id:'ignore',text:'(읽고 답하지 않는다)'},
+      ];
+    }
     return [
       {id:'warm',text:playerReply('warm',incomingText,person)},
       {id:'brief',text:playerReply('brief',incomingText,person)},
@@ -359,6 +390,16 @@
   };
   function partnerAnswer(person, kind, ctx) {
     if (kind === 'ignore') return null;
+    const early=person&&person.name!=='윤세라'&&!person.childhoodFriend&&
+      ((ctx&&ctx.earlyContact)||person.status==='acquaintance'||(person.affection||0)<25||(person.trust||0)<12||(person.interactions||0)<4);
+    if(early){
+      const earlyAnswers={
+        warm:['저도 감사합니다. 다음에 뵈면 편하게 인사할게요.','네, 다음에 만나면 지난 이야기부터 이어가죠.'],
+        brief:['네, 알겠습니다. 좋은 하루 보내세요.','확인했습니다. 다음에 뵙겠습니다.'],
+        boundary:['알겠습니다. 필요한 일이 있을 때만 연락드릴게요.','네, 부담 드리지 않겠습니다.'],
+      };
+      return pick(earlyAnswers[kind]||earlyAnswers.brief);
+    }
     const authored = root.QT_CHARACTER_DIALOGUE && root.QT_CHARACTER_DIALOGUE.line(person, kind);
     if (authored) return authored;
     const set = ANSWER[kind] || ANSWER.brief;
