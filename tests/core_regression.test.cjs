@@ -826,6 +826,16 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/canSpecialFollowup\(chaerinRecord\)/,'한채린은 최초 세력 조건과 무관하게 후속 회동이 다시 떠야 한다');
   assert.match(appSource,/S\.life\.seraHousing==='cohabit'/,'윤세라 동거 중 후속 만남에는 위험 3인조 악우 변형이 있어야 한다');
   assert.match(appSource,/dangerousBadFriendsEncounters/,'동거 중 강유진·한채린 후속 만남은 악우 관계 기록을 쌓아야 한다');
+  assert.match(appSource,/function queueYujinInvestigation\(housing,attacker\)/,'첫 경쟁 세력 피해 뒤 강유진의 담당 수사를 자동 예약해야 한다');
+  assert.match(appSource,/queueImportantEvent\(\{yujinInvestigation:true/,'강유진 첫 조우는 플레이어가 숨은 버튼을 찾는 대신 주요 사건으로 떠야 한다');
+  assert.match(appSource,/eff\.seraHousing==='reject'&&L\.seraRescueOrigin\)L\.seraRescueOrigin\.ready=false/,'윤세라를 떠나보낸 뒤 같은 폐작업실 구조 사건이 반복되면 안 된다');
+  assert.match(appSource,/if \(event\.yujinInvestigation\) \{ showYujinInvestigation\(false\)/,'월말 주요 사건 큐가 강유진 방문 조사 화면으로 이어져야 한다');
+  const yujinInvestigationSource=appSource.slice(appSource.indexOf('function showYujinInvestigation'),appSource.indexOf('function meetSpecialPerson'));
+  assert.match(yujinInvestigationSource,/동거인입니까\? 아니면… 애인입니까\?/,'윤세라 동거 중 강유진은 관계를 자연스럽게 확인해야 한다');
+  assert.match(yujinInvestigationSource,/rec\.officialContact=true/,'첫 조사에서는 강유진의 업무용 연락만 열려야 한다');
+  assert.doesNotMatch(yujinInvestigationSource,/unlockPersonalContact\(rec\)/,'강유진 첫 조사에서 개인 연락처를 바로 주면 안 된다');
+  assert.match(appSource,/rec\.officialContact=false;rec\.personalContactReason='후속 수사 뒤 사적인 번호 교환'/,'후속 수사를 거친 뒤에만 강유진의 개인 번호로 전환돼야 한다');
+  assert.match(fs.readFileSync(path.join(root,'js/character_stories.js'),'utf8'),/동거인 확인서의 빈칸/,'강유진 첫 개인 이야기는 윤세라 동거 확인 조사에서 자연스럽게 이어져야 한다');
   assert.doesNotMatch(appSource, /첫인사를 나누고 연락처를 저장했습니다/, '첫 조우가 자동 연락처 저장으로 처리되면 안 된다');
   assert.doesNotMatch(appSource, /data-ameet="casual"/, '활동 중 첫 만남에서 곧바로 가벼운 관계를 제안하면 안 된다');
   assert.match(appSource, /room\.lastIncomingDay=S\.day/, '상대가 실제로 먼저 연락한 날짜를 기록해야 한다');
