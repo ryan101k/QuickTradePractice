@@ -2,6 +2,7 @@
 (function(root){'use strict';
 const HOMES=[
  {id:'parents',icon:'🏡',name:'부모님 집',deposit:0,rent:200000,manage:100000,capacity:2,health:1,stress:-2,charm:-3,education:0,commute:5,desc:'저렴하지만 독립성과 사생활이 부족'},
+ {id:'starter',icon:'🏠',name:'낡은 자취방',deposit:3000000,rent:450000,manage:100000,capacity:1,health:0,stress:2,charm:-1,education:0,commute:3,desc:'처음 독립할 때 구한 작은 월세방. 더 좋은 집으로 옮길 이유가 생긴다'},
  {id:'gosiwon',icon:'🚪',name:'고시원',deposit:1000000,rent:380000,manage:80000,capacity:1,health:-4,stress:7,charm:-8,education:-1,commute:2,desc:'매우 좁고 저렴한 도심 주거'},
  {id:'basement',icon:'🧱',name:'반지하 원룸',deposit:5000000,rent:520000,manage:120000,capacity:2,health:-3,stress:4,charm:-5,education:-1,commute:3,desc:'공간은 있지만 습기와 침수 위험'},
  {id:'studio',icon:'🏠',name:'신축 원룸',deposit:10000000,rent:750000,manage:180000,capacity:2,health:1,stress:0,charm:2,education:0,commute:2,desc:'혼자 또는 신혼부부에게 적당'},
@@ -11,7 +12,7 @@ const HOMES=[
  {id:'mansion',icon:'🏰',name:'대저택',deposit:800000000,rent:8000000,manage:2500000,capacity:8,health:9,stress:-8,charm:20,education:10,commute:5,desc:'가문을 상징하는 최고급 주거'},
 ];
 const TENURES={monthly:{id:'monthly',icon:'🧾',name:'월세'},jeonse:{id:'jeonse',icon:'🔑',name:'전세'},owned:{id:'owned',icon:'🏠',name:'매매'}};
-function ensure(life){if(!life.housing||!HOMES.some(h=>h.id===life.housing.id))life.housing={id:'parents',tenure:'monthly',depositPaid:0,assetValue:0,months:0};if(!life.housing.tenure)life.housing.tenure='monthly';return life.housing;}
+function ensure(life){if(!life.housing||!HOMES.some(h=>h.id===life.housing.id))life.housing={id:'starter',tenure:'monthly',depositPaid:3000000,assetValue:3000000,months:0,starterLease:true};if(!life.housing.tenure)life.housing.tenure='monthly';return life.housing;}
 function home(life){return HOMES.find(h=>h.id===ensure(life).id)||HOMES[0];}
 function quote(h,tenure){
  const price=Math.max(10000000,Math.round(h.deposit*3+h.rent*60));

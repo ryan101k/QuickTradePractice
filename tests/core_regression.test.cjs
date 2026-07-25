@@ -97,6 +97,7 @@ for (const file of [
   'js/character_stories.js',
   'js/family.js',
   'js/health.js',
+  'js/housing.js',
   'js/chat_lines.js',
   'js/social_network.js',
   'js/business.js',
@@ -111,6 +112,14 @@ for (const file of [
   'js/rivals.js',
 ]) {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename:file });
+}
+
+{
+  const life={};
+  const starter=context.QT_HOUSING.ensure(life);
+  assert.equal(starter.id,'starter','새 게임은 부모님 집이 아니라 월세 자취방에서 시작해야 한다');
+  assert.equal(starter.tenure,'monthly');
+  assert.ok(context.QT_HOUSING.monthly(life,1).expense>0,'시작 자취방은 매달 실제 월세가 나가야 한다');
 }
 
 {
@@ -509,6 +518,9 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /data-life-panel="assets"/, '분산된 자산 메뉴는 하나의 별도 자산·사업 관리 창으로 통합돼야 한다');
   assert.doesNotMatch(appSource, /<summary>🏪 사업체·직원/, '사업체 메뉴가 자산 운영 밖에 중복되면 안 된다');
   assert.match(appSource, /data-act="home-life"/, '일상 행동은 집에서 보내기와 외출하기를 구분해야 한다');
+  assert.match(appSource, /function showClubNight/, '클럽 스트레스 해소는 일반 히로인 조우와 분리된 행동이어야 한다');
+  assert.match(appSource, /관계·연락처 변화 없음/, '클럽에서 만난 일반 여성은 히로인이나 연락처로 남지 않아야 한다');
+  assert.match(appSource, /읽지 않고 알림을 지웠다/, '클럽 일반 여성의 후속 연락은 답장하지 않고 무시해야 한다');
   assert.match(appSource, /r\.key!=='intro'\|\|hasIntroducer/, '지인 소개는 친구나 인맥과 동행할 때만 열려야 한다');
   assert.doesNotMatch(appSource, /showDateCompanyModal/, '데이트 진입 전에 별도 동행 선택 관문을 다시 만들면 안 된다');
   assert.match(appSource, /class="date-companion-strip"/, '새 인연을 위한 동행 도움은 사람·장소 선택창 안에서 고를 수 있어야 한다');

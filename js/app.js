@@ -4894,9 +4894,8 @@ function showRouteModal() {
   ];
   const selectedCompanion=S._dateCompanion||S._dateCompanionOptions[0];
   const hasIntroducer=S._dateCompanion&&['friend','contact'].includes(S._dateCompanion.type);
-  const routes = D.DATE_ROUTES.filter(r => (!r.needsJob || (L.job && L.job !== 'none'))
+  const routes = D.DATE_ROUTES.filter(r => r.key!=='club'&&(!r.needsJob || (L.job && L.job !== 'none'))
     && (r.key!=='intro'||hasIntroducer)
-    && (r.key!=='club'||lifestylePrestige(L)>=8||SOCIAL.ensure(L).reputation>=28)
     && (!r.condition || r.condition(L, ctx)));
   const seraRecord=metRecord(L,'윤세라'),yandereSera=seraRecord&&seraRecord.yandere?candidateFromRecord(seraRecord):null;
   // 같은 화면에 같은 사람이 두 번 뜨지 않도록 경로별로 순차 배정
@@ -4914,7 +4913,7 @@ function showRouteModal() {
   const formerPartners = L.met.filter(m => m.status === 'ex');
   S._dateKnown = L.met.filter(m => m.status !== 'ex' && !RELATIONSHIPS.isPartner(L,m.name)).map(candidateFromRecord);
 
-  let cards = '';
+  let cards = `<div class="route-sep">🌙 혼자 밤을 보내는 방법</div><div class="date-place-grid"><button class="route-card place-card club-relief-card" data-club-night><div class="rc-head">🍸 클럽에서 밤 보내기</div><small>히로인이 아닌 처음 보는 여성과 가볍게 어울립니다. 연락이 와도 답하지 않습니다.</small><em>${won(180000)} · 스트레스 -20 · 체력 -2</em></button></div>`;
   S._datePartners=currentPartners;
   if (inRel) {
     cards += `<div class="route-sep">💕 현재 관계</div><div class="date-person-grid">`;
@@ -4974,7 +4973,10 @@ function showRouteModal() {
     S._dateCompanion={...S._dateCompanionOptions[+b.dataset.companionIndex]};
     showRouteModal();
   }));
+  const clubNightButton=host.querySelector('[data-club-night]');
+  if(clubNightButton)clubNightButton.addEventListener('click',showClubNight);
   host.querySelectorAll('.route-card').forEach(b => b.addEventListener('click', () => {
+    if (b.hasAttribute('data-club-night')) return;
     if (b.dataset.partnerI != null) {
       S._dateCompanion={type:'solo',name:'혼자',scoreMod:0,costMul:1};
       S._dateRoute = null;
@@ -5784,6 +5786,41 @@ function changeBusinessStrategy(id,strategyId){
   addNews(`${result.strategy.icon} ${type.name} 운영 방침 변경 · ${result.strategy.name} · ${manager.name} 담당`,'neutral');
   flashToast(`${result.strategy.icon} 다음 달부터 ${result.strategy.name}`,'good');
   renderLifePanel();autoSave();
+}
+
+function showClubNight(){
+  const host=$('date-host');if(!host)return;
+  const cost=180000;
+  const canGo=S.capital>=cost;
+  host.innerHTML=`<div class="window event-window place-encounter-window"><div class="title-bar event-bar"><div class="title-bar-text">🍸 클럽에서 밤 보내기</div><div class="title-bar-controls"><button aria-label="Close" id="club-night-x"></button></div></div><div class="window-body"><img class="dating-banner date-scene" src="${dateSceneImage('solo')}" alt="클럽의 붐비는 밤"><div class="event-title">아무 관계도 만들지 않고 오늘만 즐긴다</div><div class="event-desc">처음 보는 여성과 술과 음악을 즐깁니다. 히로인이나 인맥으로 등록되지 않으며, 다음 날 연락이 와도 답하지 않습니다.</div><div class="event-options"><button class="event-opt" id="club-night-go" ${canGo?'':'disabled'}><b>🌙 클럽에 간다 · ${won(cost)}원</b><span>스트레스 -20 · 체력 -2 · 건강 -1 · 행복 +5</span></button><button class="event-opt" id="club-night-back">다른 외출을 고른다</button></div>${canGo?'':`<div class="event-desc down">현금 ${won(cost)}원이 필요합니다.</div>`}<div id="club-night-outcome" class="event-outcome"></div></div></div>`;
+  const close=()=>showRouteModal();
+  $('club-night-x').addEventListener('click',close);
+  $('club-night-back').addEventListener('click',close);
+  if(canGo)$('club-night-go').addEventListener('click',resolveClubNight);
+}
+
+function resolveClubNight(){
+  const cost=180000;if(S.capital<cost)return;
+  const L=S.life;
+  S.capital-=cost;
+  L.stress=clamp((L.stress||0)-20,0,100);
+  L.fitness=Math.max(0,(L.fitness||0)-2);
+  L.health=clamp((L.health||0)-1,0,100);
+  L.happy=clamp((L.happy||0)+5,0,100);
+  const names=['지아','수빈','민서','하린','은채','다솜'];
+  const name=pick(names);
+  const messages=[
+    '어제 잘 들어갔어요? 다음 주에도 거기 갈 것 같은데.',
+    '어제 같이 찍은 사진 보내줄까요?',
+    '잠깐이었지만 재밌었어요. 또 볼래요?',
+  ];
+  const message=pick(messages);
+  addNews(`🍸 클럽에서 ${name}와 잠깐 어울렸습니다 · 스트레스 -20 · 체력 -2`,'neutral');
+  const outcome=$('club-night-outcome');
+  if(outcome)outcome.innerHTML=`<div class="phone-shell club-after-phone"><div class="phone-status"><span>다음 날</span><span>●●● 82%</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">💬</span><span><b>저장하지 않은 번호</b><small>QuickTalk · 방금</small></span></header><div class="phone-chat-log"><div class="phone-bubble incoming">${message}</div><div class="phone-bubble mine ignored">읽지 않고 알림을 지웠다.</div></div></div></div><div class="oc-changes">관계·연락처 변화 없음 · 스트레스 -20 · 체력 -2 · 건강 -1 · 행복 +5</div><button id="club-night-confirm" class="session-btn opening">휴대폰을 넣고 돌아간다</button>`;
+  const go=$('club-night-go'),back=$('club-night-back');if(go)go.disabled=true;if(back)back.disabled=true;
+  $('club-night-confirm').addEventListener('click',()=>{closeDateModal();afterLifeAction('휴식');});
+  autoSave();
 }
 
 function showPlaceEncounterModal(c,route){
