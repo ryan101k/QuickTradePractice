@@ -2661,7 +2661,7 @@ function resolveBusinessRomanceEvent(choiceId){
   else if(result.cash<0){
     const loss=Math.abs(result.cash),paid=Math.min(Math.max(0,S.capital),loss),debt=loss-paid;
     S.capital-=paid;
-    if(debt)LOAN.addDebt(S.life,debt,'사업 담당자 비밀유지·협박 합의금');
+    if(debt)LOAN.addDebt(S.life,debt,result.managementRescue?'사업 구조조정 자금':'사업 담당자 사건 수습금');
   }
   if(result.breakupAll){
     RELATIONSHIPS.consensualMembers(S.life).slice().forEach(person=>RELATIONSHIPS.removeMember(S.life,person.name,'ex'));
@@ -2671,9 +2671,28 @@ function resolveBusinessRomanceEvent(choiceId){
     S.life.stress=clamp((S.life.stress||0)+25,0,100);
   }
   if(result.badEnding){
-    changeMorality(-22,'사업 담당자와의 불륜 함정에 들어갔습니다');
-    S.life.guilt=clamp((S.life.guilt||0)+35,0,100);
-    LEGACY.push(S.life,dateInfo(S.day).age,'🕳️',`${result.title} · 사업 인연 불륜 배드엔딩`,'love');
+    if(result.managementBadEnding){
+      LEGACY.push(S.life,dateInfo(S.day).age,'📉',`${result.title} · 사업관리 실패 배드엔딩`,'career');
+    }else{
+      changeMorality(-22,'사업 담당자 사건의 함정에 들어갔습니다');
+      S.life.guilt=clamp((S.life.guilt||0)+35,0,100);
+      LEGACY.push(S.life,dateInfo(S.day).age,'🕳️',`${result.title} · 사업 인연 배드엔딩`,'love');
+    }
+  }
+  if(result.businessCollapse&&BUSINESS){
+    const businessState=BUSINESS.ensure(S.life),romanceState=BUSINESS_ROMANCE.ensure(S.life);
+    businessState.owned.forEach(item=>{
+      if(BUSINESS_ROMANCE.IDS.includes(item.specialManagerId)){
+        item.specialManagerId=null;item.managerId='internal';
+        item.reputation=clamp((item.reputation||45)-18,0,100);
+        item.morale=clamp((item.morale||65)-22,0,100);
+        item.momentum=Math.min(item.momentum||0,-.18);
+      }
+    });
+    BUSINESS_ROMANCE.IDS.forEach(id=>{
+      const staff=romanceState.staff[id];staff.hired=false;staff.assignedBusinessId=null;staff.rival=true;
+    });
+    S.life.businessQuartetBond=null;
   }
   if(result.revealed&&result.character){
     const rec=rememberPerson(result.character,'friend');
@@ -2681,6 +2700,7 @@ function resolveBusinessRomanceEvent(choiceId){
     rec.affection=Math.max(rec.affection||0,result.affection||0);
     rec.trust=Math.max(rec.trust||0,result.trust||0);
     rec.businessHeroineId=pending.staffId;
+    if(result.businessSuitor)rec.businessSuitor=true;
     pushPersonMessage(S.life,rec,`${rec.name}이에요. 업무 밖에서 부를 때는 이제 직함 말고 이름으로 불러요.`,false);
   }
   if(result.personalStory&&result.staffId){
@@ -2695,20 +2715,9 @@ function resolveBusinessRomanceEvent(choiceId){
   if(result.rivalRefused){
     const group=RELATIONSHIPS.ensure(S.life).relationshipGroup;
     group.stability=clamp(group.stability+6,0,100);
-    group.tension=clamp(group.tension+4,0,100);
+    if(!result.loyaltyTest)group.tension=clamp(group.tension+4,0,100);
     const rival=BUSINESS_ROMANCE.profile(result.staffId);
-    LEGACY.push(S.life,dateInfo(S.day).age,'🧱',`${rival.name}의 유혹을 거절 · ${result.currentPartner}과의 관계 유지`,'love');
-  }
-  if(result.rivalTakeover&&result.character){
-    const oldName=result.currentPartner;
-    if(oldName&&RELATIONSHIPS.isPartner(S.life,oldName))RELATIONSHIPS.removeMember(S.life,oldName,'ex');
-    const oldRec=oldName&&metRecord(S.life,oldName);if(oldRec){oldRec.status='ex';oldRec.businessRivalGrudge=(oldRec.businessRivalGrudge||0)+20;}
-    const rec=metRecord(S.life,result.character.name)||rememberPerson(result.character,'friend');
-    rec.status='partner';rec.affection=Math.max(rec.affection||0,68);rec.trust=Math.max(rec.trust||0,30);
-    RELATIONSHIPS.startRelationship(S.life,rec,S.day);
-    const group=RELATIONSHIPS.ensure(S.life).relationshipGroup;
-    group.stability=48;group.tension=35;
-    LEGACY.push(S.life,dateInfo(S.day).age,'⚔️',`${result.character.name}, ${oldName||'기존 연인'}에게서 연인의 자리를 빼앗음`,'love');
+    LEGACY.push(S.life,dateInfo(S.day).age,'🧱',`${result.loyaltyTest?rival.alias:rival.name}의 ${result.loyaltyTest?'대표 검증 통과':'유혹을 거절'} · ${result.currentPartner}과의 관계 유지`,'love');
   }
   if(result.groupStory){
     BUSINESS_ROMANCE.IDS.forEach(id=>{
@@ -5157,7 +5166,7 @@ function showDateModal(c, route) {
   const rec = metRecord(L, c.name);
   const established=rec&&['casual','lover','polycule','ex'].includes(rec.status);
   const businessRivalLocked=c.special==='business'&&!withPartner&&(
-    !BUSINESS_ROMANCE||!BUSINESS_ROMANCE.canRomance(L,c.name)||RELATIONSHIPS.names(L).length>0
+    !BUSINESS_ROMANCE||!BUSINESS_ROMANCE.canRomance(L,c.name)
   );
   S._dateMode=withPartner?'date':!rec?'encounter':(established||courtshipReadiness(rec).ready)&&!businessRivalLocked?'date':'outing';
   const modeLabel=S._dateMode==='encounter'?'첫 조우':S._dateMode==='outing'?'친분 외출':'데이트';
@@ -5329,7 +5338,15 @@ function resolveDate(i) {
     const alreadyPoly=poly.active&&poly.members.some(x=>x.name===c.name);
     const alreadyLover = L.lovers.some(x => x.name === c.name);
     const proposal = proposalResult(c, rec, tier);
-    if(poly.active&&!alreadyPoly&&proposal.attempted){
+    if(c.special==='business'&&rec.businessSuitor&&proposal.attempted){
+      rec.status='friend';
+      rec.businessHaremProgress=(rec.businessHaremProgress||0)+(proposal.accepted?1:0);
+      const businessState=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.ensure(L);
+      if(businessState)businessState.managementRisk=clamp((businessState.managementRisk||0)+(proposal.accepted?7:-2),0,100);
+      extra+=proposal.accepted
+        ?`<br>🏢 <b class="down">${c.name}님은 기존 연인을 알고도 물러서지 않았습니다. 비밀 연인으로 숨지 않고 사업 4인조 공동 경쟁 후보로 남습니다.</b>`
+        :`<br>📋 <span class="muted">${c.name}님은 거절을 업무 불이익으로 돌리지 않고 다음 이사회에서 다시 보자며 물러났습니다.</span>`;
+    } else if(poly.active&&!alreadyPoly&&proposal.attempted){
       if(poly.mode==='dangerous_trio'&&DANGEROUS_TRIO&&!DANGEROUS_TRIO.compatibleCandidate(c.name)){
         rec.trust=Math.max(0,(rec.trust||0)-3);
         extra+=`<br>🦂 <span class="muted">${c.name}님은 강유진·한채린·윤세라 사이의 위험한 견제 구조와 결이 맞지 않아 합류하지 않았습니다. 이 루트는 허락 확률이 아니라 정해진 결핍 조합으로만 유지됩니다.</span>`;

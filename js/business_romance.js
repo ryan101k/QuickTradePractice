@@ -226,7 +226,8 @@ const QUARTET_CHAPTERS=[
 function freshStaff(){
   return{bond:0,trust:0,revealed:false,revealDay:0,temptationSeen:false,trapTriggered:false,
     introduced:false,hired:false,assignedBusinessId:null,rival:false,profitStreak:0,
-    boundaryKept:false,ending:null,lastContactDay:0,eventsSeen:[],storyChapter:0,humanFirstCount:0};
+    boundaryKept:false,loyaltyTestPassed:false,supportOnly:false,romanticRival:false,
+    ending:null,lastContactDay:0,eventsSeen:[],storyChapter:0,humanFirstCount:0};
 }
 function ensure(life){
   if(!life.businessRomance||typeof life.businessRomance!=='object'){
@@ -248,6 +249,9 @@ function ensure(life){
       temptationSeen:!!old.temptationSeen,
       trapTriggered:!!old.trapTriggered,
       boundaryKept:!!old.boundaryKept,
+      loyaltyTestPassed:!!old.loyaltyTestPassed,
+      supportOnly:!!old.supportOnly,
+      romanticRival:!!old.romanticRival,
       eventsSeen:Array.isArray(old.eventsSeen)?old.eventsSeen:[],
       storyChapter:clamp(Math.floor(finite(old.storyChapter,0)),0,(PERSONAL_STORIES[id]||[]).length),
       humanFirstCount:Math.max(0,Math.floor(finite(old.humanFirstCount,0))),
@@ -259,6 +263,8 @@ function ensure(life){
   state.lastEventDay=Math.max(0,Math.floor(finite(state.lastEventDay,0)));
   state.retaliationSeen=!!state.retaliationSeen;
   state.chaerinBoardSeen=!!state.chaerinBoardSeen;
+  state.managementRisk=clamp(finite(state.managementRisk,0),0,100);
+  state.managementCollapseSeen=!!state.managementCollapseSeen;
   if(!state.quartet||typeof state.quartet!=='object')state.quartet={chapter:0,synergy:40,governance:40,boundary:45,lastStoryDay:0};
   state.quartet.chapter=clamp(Math.floor(finite(state.quartet.chapter,0)),0,QUARTET_CHAPTERS.length);
   state.quartet.synergy=clamp(finite(state.quartet.synergy,40),0,100);
@@ -306,7 +312,8 @@ function canRomance(life,nameOrId){
   const activeNames=new Set((life.met||[]).filter(rec=>['partner','polycule','lover'].includes(rec.status)).map(rec=>rec.name));
   (((life.relationshipGroup||{}).members)||[]).forEach(member=>activeNames.add(typeof member==='string'?member:member&&member.name));
   const outside=[...activeNames].filter(Boolean).some(name=>!IDS.some(key=>PROFILES[key].name===name));
-  return !!(id&&!outside&&state.staff[id].hired&&state.staff[id].revealed&&state.staff[id].storyChapter>=3);
+  const staff=id&&state.staff[id];
+  return !!(staff&&staff.hired&&staff.revealed&&staff.storyChapter>=3&&!staff.supportOnly&&(!outside||staff.romanticRival));
 }
 function applyDecision(life,id,effects){
   const s=staffState(life,id);if(!s)return null;
@@ -373,23 +380,28 @@ function monthly(life,context){
   }
 
   const partnerNames=ctx.partnerNames||[],businessPartners=partnerNames.filter(name=>IDS.some(id=>PROFILES[id].name===name));
-  const outsidePartners=partnerNames.filter(name=>!IDS.some(id=>PROFILES[id].name===name));
-  if(businessPartners.length&&outsidePartners.length===0){
+  const romanticRivals=IDS.filter(id=>state.staff[id].romanticRival).length;
+  const struggling=((ctx.businessState&&ctx.businessState.owned)||[]).filter(item=>item.lastNet<0||item.reputation<32||item.morale<32);
+  if(!state.managementCollapseSeen&&romanticRivals>=2&&(state.managementRisk>=45||struggling.length>=2)){
+    state.managementCollapseSeen=true;state.lastEventDay=day;
+    return{businessRomanceEvent:true,kind:'management-collapse',day,struggling:struggling.map(item=>item.id)};
+  }
+  if(partnerNames.length){
     const target=IDS.find(id=>{
       const s=state.staff[id],item=((ctx.businessState&&ctx.businessState.owned)||[]).find(x=>(x.specialManagerId||x.managerId)===id);
-      return !businessPartners.includes(PROFILES[id].name)&&item&&item.months>=6&&s.revealed&&s.storyChapter>=2&&s.bond>=30&&!s.temptationSeen;
+      return !businessPartners.includes(PROFILES[id].name)&&item&&item.months>=4&&s.hired&&s.bond>=20&&!s.temptationSeen;
     });
     if(target){
       state.staff[target].temptationSeen=true;
       state.staff[target].lastContactDay=day;
       state.lastEventDay=day;
-      return{...event('temptation',target,day),currentPartner:businessPartners[0]};
+      return{...event('temptation',target,day),currentPartner:partnerNames[0],pureTest:partnerNames.length===1};
     }
   }
 
   const revealTarget=IDS.find(id=>{
     const s=state.staff[id],item=((ctx.businessState&&ctx.businessState.owned)||[]).find(x=>(x.specialManagerId||x.managerId)===id);
-    return item&&s.hired&&!s.revealed&&(s.profitStreak||0)>=2&&s.bond>=12&&(s.humanFirstCount||0)>=1;
+    return item&&s.hired&&!s.revealed&&!s.supportOnly&&(s.profitStreak||0)>=2&&s.bond>=12&&(s.humanFirstCount||0)>=1;
   });
   if(revealTarget){
       state.lastEventDay=day;
@@ -462,6 +474,23 @@ function view(life,payload,capital){
       ],
     };
   }
+  if(payload.kind==='management-collapse')return{
+    kind:payload.kind,icon:'📉',title:'BAD END 분기 · 대표가 비운 결재석',
+    desc:'네 책임자와의 사적인 경쟁에 정신이 팔린 사이 적자 사업의 보고, 직원 이탈, 계약 갱신이 한꺼번에 밀렸습니다. 네 사람은 플레이어의 여성편력을 문제 삼지 않습니다. 대신 대표가 사업을 방치한 책임만큼은 대신 져주지 않습니다.',
+    line:'“누구와 만나든 대표님 사생활이죠. 하지만 결재하지 않은 손실까지 우리 사랑 탓으로 돌리지는 마세요.”',
+    portrait:'./assets/event-business-quartet-crisis.png',
+    dialogues:[
+      ['박지수','재고 손실 보고가 세 번 밀렸어요. 누구와 잤는지는 관심 없지만 이 결재는 대표님 일입니다.'],
+      ['한이슬','나랑 놀 시간은 있었으면서 납품 일정은 안 봤네. 재미와 무책임은 다른 거야.'],
+      ['차서윤','사생활은 계약 대상이 아닙니다. 방치한 손해와 대표 권한은 정확히 정산하죠.'],
+      ['오혜린','직원들이 쓰러지기 전에 멈춰 달라고 했어요. 이번에는 우리가 사람부터 데리고 나갈게요.'],
+    ],
+    meta:`경영 위험 ${Math.round(state.managementRisk)}/100 · 위험 사업 ${(payload.struggling||[]).length}곳`,
+    choices:[
+      {id:'restructure',text:'💰 사재를 투입하고 네 사람에게 구조조정 권한을 맡긴다',preview:'큰 비용 · 경영권 유지 · 사업관리 실패 회피'},
+      {id:'romance_first',text:'🥀 누군가 알아서 수습할 거라며 사적인 경쟁을 계속한다',preview:'사업관리 실패 배드엔딩 · 공동 경영권 상실'},
+    ],
+  };
   const p=profile(payload.staffId),s=p&&staffState(life,payload.staffId),who=p&&identity(life,payload.staffId);
   if(!p||!s)return null;
   if(payload.kind==='personal-story'){
@@ -472,12 +501,14 @@ function view(life,payload,capital){
       meta:`개인 업무 이야기 ${(s.storyChapter||0)+1}/${(PERSONAL_STORIES[p.id]||[]).length} · 업무 신뢰 ${Math.round(s.bond)} · 개인 신뢰 ${Math.round(s.trust)}`};
   }
   if(payload.kind==='temptation')return{
-    kind:payload.kind,profile:p,identity:who,icon:'⚔️',title:`${p.name}의 경쟁 선언`,
-    desc:`${payload.currentPartner||'다른 책임자'}와 사귀고 있다는 걸 알면서도 물러서지 않았습니다. 이 네 사람에게 연애는 합의형 공동 관계가 아니라, 서로가 당신을 빼앗으려는 업계 쟁탈전입니다.`,
+    kind:payload.kind,profile:p,identity:who,icon:'⚔️',title:`${who.displayName}의 대표 검증`,
+    desc:payload.pureTest
+      ?`${payload.currentPartner||'현재 연인'} 한 사람과 진지하게 사귀는 대표에게 일부러 선을 넘는 제안을 건넸습니다. 거절하면 얼굴과 이름을 감춘 유능한 조력자로 남고, 이 제안은 대표의 공사 구분을 확인한 테스트였다고 밝힙니다.`
+      :`${payload.currentPartner||'현재 연인'}이 있다는 사실도, 플레이어의 여성편력도 이미 알고 있습니다. 네 사람은 불륜 폭로로 싸우지 않고 서로보다 먼저 대표의 개인 경쟁 후보가 되려 합니다.`,
     line:p.temptation,portrait:p.maskedScene,
     choices:[
-      {id:'boundary',text:`🧱 ${payload.currentPartner||'현재 연인'}과의 관계를 지킨다`,preview:'현재 관계 안정 · 유혹한 책임자의 경쟁심 상승'},
-      {id:'meet',text:`⚔️ ${p.name}의 손을 잡고 현재 관계를 끝낸다`,preview:'불륜 배드엔딩이 아니라 연인 교체 · 전 연인의 반격 사건이 시작됨'},
+      {id:'boundary',text:`🧱 ${payload.currentPartner||'현재 연인'}과의 관계를 지킨다`,preview:payload.pureTest?'충성 테스트 통과 · 익명 조력자로 계속 근무':'현재 관계 유지 · 유혹은 거절하되 업무 관계 유지'},
+      {id:'meet',text:`⚔️ ${who.displayName}의 경쟁을 받아들인다`,preview:'기존 연인을 내보내지 않음 · 얼굴 공개 및 사업 4인 하렘 후보 등록 · 경영 위험 상승'},
     ],
   };
   if(payload.kind==='reveal')return{
@@ -543,6 +574,22 @@ function resolve(life,payload,choiceId,capital){
     state.lastEventDay=Math.max(0,(payload.day||1)-2);
     return{ok:true,done:true,text:'네 사람과 동업 관계를 유지했습니다. 마음이 같다면 다음 흑자 보고 뒤에 다시 이야기가 나올 수 있습니다.'};
   }
+  if(payload.kind==='management-collapse'){
+    if(choiceId==='restructure'){
+      const cost=12000000+Math.max(0,(payload.struggling||[]).length-1)*4000000;
+      state.managementRisk=clamp(state.managementRisk-32,0,100);
+      state.quartet.governance=clamp(state.quartet.governance+14,0,100);
+      state.quartet.boundary=clamp(state.quartet.boundary+10,0,100);
+      return{ok:true,done:true,managementRescue:true,cash:-cost,text:'네 사람은 각자 유통·제작·계약·현장을 나눠 수습했습니다. 플레이어는 사재를 투입하고 밀린 결재를 직접 처리해 대표 자리를 지켰습니다.',tone:'good',
+        meta:`경영 위험 ${Math.round(state.managementRisk)}/100 · 공동 의사결정 ${Math.round(state.quartet.governance)}`};
+    }
+    if(choiceId==='romance_first'){
+      state.quartetEnding={id:'management_failure',day:payload.day||1};
+      state.managementRisk=100;
+      return{ok:true,done:true,badEnding:true,managementBadEnding:true,businessCollapse:true,title:'네 개의 사직서와 빈 대표실',
+        text:'네 사람은 서로를 탓하지 않고 각자 담당 사업의 직원과 거래처부터 살렸습니다. 마지막 공동 결재는 플레이어의 대표 권한을 회수하는 안건이었습니다. 여성편력이 아니라, 누구도 사업을 관리하지 않은 결과로 모든 공동 경영권을 잃었습니다.',tone:'bad'};
+    }
+  }
   if(!p||!s)return{ok:false,message:'담당자 이벤트를 찾지 못했습니다.'};
   if(payload.kind==='personal-story'){
     const story=(PERSONAL_STORIES[p.id]||[]).find(item=>item.id===payload.eventId),choice=story&&story.choices.find(item=>item.id===choiceId);
@@ -559,13 +606,22 @@ function resolve(life,payload,choiceId,capital){
   }
   if(payload.kind==='temptation'){
     if(choiceId==='boundary'){
-      s.boundaryKept=true;s.bond=clamp(s.bond+10,0,100);s.trust=clamp(s.trust+14,0,100);
-      return{ok:true,done:true,rivalRefused:true,staffId:p.id,currentPartner:payload.currentPartner,text:`${p.boundary} 하지만 ${p.name}은 포기했다기보다 다음 기회를 계산하는 눈치입니다.`,tone:'good'};
+      s.boundaryKept=true;s.loyaltyTestPassed=!!payload.pureTest;s.supportOnly=!!payload.pureTest;
+      s.bond=clamp(s.bond+10,0,100);s.trust=clamp(s.trust+14,0,100);
+      state.managementRisk=clamp(state.managementRisk-6,0,100);
+      return{ok:true,done:true,rivalRefused:true,loyaltyTest:!!payload.pureTest,staffId:p.id,currentPartner:payload.currentPartner,
+        text:payload.pureTest
+          ?`${p.boundary} ${p.alias}는 방금 제안이 대표가 한 사람과 사업을 동시에 지킬 수 있는지 확인한 테스트였다고 밝혔습니다. 실명과 얼굴은 공개하지 않은 채 핵심 조력자로 남습니다.`
+          :`${p.boundary} 연애 경쟁에서는 한발 물러났지만 담당 사업과 대표를 돕는 일은 그대로 이어갑니다.`,tone:'good'};
     }
     if(choiceId==='meet'){
-      s.bond=clamp(s.bond+12,0,100);s.trust=clamp(s.trust+8,0,100);
-      return{ok:true,done:true,rivalTakeover:true,staffId:p.id,currentPartner:payload.currentPartner,
-        character:asCharacter(p.id),title:'빼앗긴 자리',text:`${p.name}은 숨어 만나는 관계를 거부하고, 당신이 먼저 기존 관계를 끝내게 했습니다. ${payload.currentPartner||'전 연인'}은 물러나지 않았고 다음 사업 보고부터 두 사람의 경쟁이 노골적으로 시작됩니다.`,tone:'bad'};
+      s.bond=clamp(s.bond+12,0,100);s.trust=clamp(s.trust+8,0,100);s.romanticRival=true;s.supportOnly=false;
+      s.revealed=true;s.revealDay=payload.day||1;
+      state.managementRisk=clamp(state.managementRisk+18,0,100);
+      return{ok:true,done:true,businessSuitor:true,revealed:true,staffId:p.id,currentPartner:payload.currentPartner,
+        character:asCharacter(p.id),affection:36,trust:Math.max(18,s.trust),title:'대표실 밖의 경쟁 후보',
+        text:`${p.name}은 기존 연인과 헤어지라고 요구하지 않았습니다. 대신 플레이어의 여성편력을 이미 안다며 자기 이름도 경쟁 명단에 올렸습니다. 아직 연인은 아니지만, 네 사람 전원 하렘 루트에서 사용할 공개 후보가 됐습니다.`,tone:'neutral',
+        meta:`경영 위험 ${Math.round(state.managementRisk)}/100 · 기존 관계 유지`};
     }
   }
   if(payload.kind==='reveal'){
