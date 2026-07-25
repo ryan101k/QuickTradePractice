@@ -1371,3 +1371,16 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
   .news-log .news-stock { padding: 9px 4px; font-size: 13px; }
 }
 @media (max-width:600px) { .char-portrait{width:96px;height:96px}.char-thumb{width:48px;height:48px} }
+.pixel-news-avatar{
+  display:grid;
+  place-items:center;
+  width:48px;
+  height:48px;
+  flex:0 0 48px;
+  border:2px solid #584b3d;
+  border-radius:4px;
+  background:#f4e6c8;
+  font-size:26px;
+  image-rendering:pixelated;
+  box-shadow:3px 3px 0 rgba(55,42,30,.22);
+}

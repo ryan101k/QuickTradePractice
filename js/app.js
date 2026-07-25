@@ -2444,7 +2444,7 @@ function importantEventPriority(event) {
   if(event.factionStory==='first_attack'||event.factionStory==='legal_result')return 100;
   if(event.factionVictory||event.captivity||event.type==='ending')return 95;
   if(event.type==='debt'||event.type==='incident'||event.dangerousHeroineEvent)return 85;
-  if(event.childhoodCircleEvent||event.dangerousTrioStart||event.freedomTrioStart)return 75;
+  if(event.childhoodCircleEvent||event.dangerousTrioStart||event.freedomTrioStart||event.freedomGuildEvent)return 75;
   if(event.crossEventId||event.story||event.bondEncounter)return 55;
   if(event.businessRomanceEvent)return 45;
   if(event.businessEvent)return 40;
@@ -2518,6 +2518,7 @@ function showNextImportantEvent(resumeCurrent = false) {
   if (event.dangerousTrioChapter) { showDangerousTrioStory(); return; }
   if (event.dangerousTrioAftermath) { showDangerousTrioAftermath(); return; }
   if (event.freedomTrioStart) { startFreedomTrioRoute(true); return; }
+  if (event.freedomGuildEvent) { showFreedomGuildEvent(event.freedomGuildEvent); return; }
   if (event.freedomTrioChapter) { showFreedomTrioStory(); return; }
   if (event.freedomTrioAftermath) { showFreedomTrioAftermath(); return; }
   if (event.freedomPersonalEvent) { showFreedomPersonalEvent(event.eventId); return; }
@@ -3171,6 +3172,14 @@ function doHobby(id) {
   else if (id === 'travel' || id === 'game') HEALTH.rest(S.life);
   flashToast(`${h.emoji} ${h.name}! 행복 +${h.happy}${h.charm ? ` 매력 +${h.charm}` : ''}${careerText}`, 'good');
   checkRelationship(); afterLifeAction('취미');
+  if(id==='game'&&FREEDOM_TRIO){
+    const guildEventId=FREEDOM_TRIO.playGuild(S.life);
+    if(guildEventId){
+      const eventHost=$('life-event');
+      if(eventHost&&eventHost.style.display==='block')queueImportantEvent({freedomGuildEvent:guildEventId});
+      else showFreedomGuildEvent(guildEventId);
+    }
+  }
   if(['food','gym','travel'].includes(id))maybeActivityEncounter(id);
 }
 
@@ -4224,6 +4233,29 @@ function monthlySocialMessages(L){
     const line=SOCIAL.contactLine(c);pushPersonMessage(L,c,line,false);
     queueImportantEvent({monthlyMessage:true,targetType:'contact',targetId:c.id,text:line});
   });
+}
+function showFreedomGuildEvent(eventId){
+  const event=FREEDOM_TRIO&&FREEDOM_TRIO.guildEvent(eventId),host=$('life-event');if(!event||!host)return;
+  S._freedomGuildEvent=eventId;host.style.display='block';
+  const members=FREEDOM_TRIO.GUILD_MEMBERS.map(member=>`<div class="trio-dialogue"><span class="pixel-news-avatar">${member.avatar}</span><div><b>${member.nickname}</b><p>“${member.line}”</p></div></div>`).join('');
+  host.innerHTML=`<div class="window event-window freedom-trio-window"><div class="title-bar event-bar"><div class="title-bar-text">🎮 온라인 길드 · ${event.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${event.scene}" alt="${event.title}"><div class="trio-dialogues">${members}</div><div class="event-desc">${event.desc}</div><div class="important-event-detail">현실 이름·직업 비공개 · 게임한 밤 ${FREEDOM_TRIO.ensure(S.life).gameSessions}회 · 파티의 온기 ${Math.round(FREEDOM_TRIO.ensure(S.life).guildWarmth)}</div><div class="event-options">${event.choices.map(choice=>`<button class="event-opt" data-guild-choice="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="freedom-guild-outcome"></div></div></div>`;
+  host.querySelectorAll('[data-guild-choice]').forEach(button=>button.addEventListener('click',()=>resolveFreedomGuildEvent(button.dataset.guildChoice)));
+}
+function resolveFreedomGuildEvent(choiceId){
+  const eventId=S._freedomGuildEvent,result=FREEDOM_TRIO&&FREEDOM_TRIO.resolveGuild(S.life,eventId,choiceId),host=$('life-event');if(!result||!host)return;
+  if(result.reveal){
+    FREEDOM_TRIO.NAMES.forEach(name=>{
+      const character=D.CHARACTERS.find(person=>person.name===name);if(!character)return;
+      const rec=rememberPerson(character,'friend');rec.affection=Math.max(rec.affection||0,20);rec.trust=Math.max(rec.trust||0,18);rec.guildFriend=true;unlockPersonalContact(rec);
+      const guild=FREEDOM_TRIO.GUILD_MEMBERS.find(member=>member.name===name);rec.guildNickname=guild&&guild.nickname;
+      pushPersonMessage(S.life,rec,`${guild.nickname} 말고 ${name}(이)라고 불러도 돼요. 그래도 게임에서는 원래대로 불러줘요.`,false);
+    });
+    addNews('🎮 막차요정·무보정·쉼표의 정체가 채원·유나·소희로 공개됐습니다','good');
+  }
+  const options=host.querySelector('.event-options');if(options)options.innerHTML='';
+  $('freedom-guild-outcome').innerHTML=`<div class="oc-text ${result.choice.warmth<0?'down':'up'}">${result.choice.result}</div><div class="oc-changes">파티의 온기 ${result.choice.warmth>=0?'+':''}${result.choice.warmth}</div><button id="freedom-guild-confirm" class="session-btn opening">${result.reveal?'세 사람의 연락처를 확인한다':'게임을 종료한다'}</button>`;
+  $('freedom-guild-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._freedomGuildEvent=null;renderLifePanel();autoSave();});
+  renderLifePanel();autoSave();
 }
 function monthlyRivalMessages(L){
   if(!RIVALS||!RIVALS.contactMessage)return;
