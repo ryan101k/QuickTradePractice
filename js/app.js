@@ -185,6 +185,8 @@ function newLife() {
     childhoodCircle: { anchor:null, schoolId:null, stage:'dormant', pressure:0, trust:0, seen:{}, route:null, pending:null },
     childhoodNightContract: null, // 소꿉친구와 하룻밤 뒤 다른 상대를 택했는지 추적
     seraHousing: null,        // cohabit | separate | reject — 위험한 3인조 편입 조건
+    outsideFearResolved: false, // 윤세라 작업실 사건 전까지 자발적인 외출을 피한다
+    outsideFearPromptCount: 0,
     met: [],                 // 한 번이라도 만난 사람 (헤어져도 기억한다) — rememberPerson() 참고
     properties: [],          // [{id, name, emoji, value, rent}]
     passiveAssets: [],       // 주식 외 월 현금흐름 자산 [{id, boughtAt}]
@@ -2007,7 +2009,11 @@ function showOriginFriendReferral(){
   const lines=[
     [contact.name,school&&school.guideLine||'돈 버는 법 알려 달라 했지? 괜찮은 투자지원 프로그램을 찾았어.'],
     ['플레이어','갑자기 웬 투자지원 프로그램이야? 너 이런 거 챙겨 주는 성격 아니잖아.'],
-    [contact.name,'무료 교육에 초보 지원금도 있대. 네가 먼저 들어 보고 괜찮으면 나한테 요약 좀 해 줘.'],
+    [contact.name,'무료 교육에 초보 지원금도 있대. 대신 첫 등록은 직접 가야 한대.'],
+    ['플레이어','온라인으로 하면 안 되냐고 물어봐 줘.'],
+    [contact.name,'또 집에만 있으려고? 출근 말고 네 발로 나가는 게 언제였는지도 기억 안 나잖아.'],
+    ['플레이어','그 얘기는 하지 마.'],
+    [contact.name,'알아. 그래서 억지로라도 예약해 둔 거야. 네가 먼저 들어 보고 괜찮으면 나한테 요약 좀 해 줘.'],
     ['플레이어','역시 공짜로 부려 먹으려는 거였네.'],
     [contact.name,'그것도 있고… 후기 보니까 상담 담당자가 설명도 잘하고 꽤 예쁘다더라.'],
     ['플레이어','그게 진짜 목적이지? 궁금하면 네가 직접 가.'],
@@ -2135,8 +2141,8 @@ function showTutorial() {
        <div class="window-body">
          <img class="life-scene-banner guide-scene-banner" src="./assets/life-guide.png" alt="나래가 게임을 안내하는 장면">
          <div class="date-profile"><img class="char-portrait" src="${characterPortrait(n,'happy')}" alt="나래">
-           <div class="dp-info"><strong>나래</strong> · 투자교육 매니저<br><span class="muted">“${S.life.originFriend&&S.life.originFriend.name}님 소개로 오셨죠? 지원 등록 전에 시장 화면부터 같이 볼까요?”</span></div></div>
-         <div class="event-desc">센터 안에는 초보 투자자용 신청서와 시장 안내 화면이 나란히 놓여 있습니다. 나래는 접수 서류를 넘겨받고 빈 의자를 가리켰습니다.</div>
+           <div class="dp-info"><strong>나래</strong> · 투자교육 매니저<br><span class="muted">“전화로 세 번이나 온라인 전환을 물어본 분 맞죠? 그래도 여기까지 오셨네요.”</span></div></div>
+         <div class="event-desc">센터 입구에서 한참 서성이는 동안 나래가 직접 내려왔습니다. 사람 많은 로비를 피해 옆 계단으로 안내한 뒤, 초보 투자자용 신청서와 시장 화면이 놓인 빈 자리를 가리켰습니다.</div>
          <div class="event-options">
            <button id="tutorial-listen" class="event-opt">📖 네, 설명을 들을게요</button>
            <button id="tutorial-skip" class="event-opt">📋 설명은 건너뛰고 지원 등록만 할게요</button>
@@ -2336,7 +2342,7 @@ function showGameGuide(fromStart = false) {
       • <b>이직</b>은 직업마다 <b>합격 확률</b>이 다르고(현재 경력 vs 목표 난이도), 성공/실패로 갈립니다.<br>
       • 취미의 <b>자기계발</b>과 자격증으로 능력을 키우면 <b>승진</b>과 이직에 유리합니다.`) +
     sec('💘', '사람과 관계', `
-      • 외출 장소와 생활 방식에 따라 마주치는 사람이 달라집니다. 첫 만남에서는 얼굴을 익히고, 연락처도 서로 마음이 놓인 뒤에야 건넵니다.<br>
+      • 혼자 하는 외출에서는 새로운 연락처가 생기지 않습니다. 사람과의 약속은 각자의 이야기에서 연락처를 교환한 뒤 잡을 수 있습니다.<br>
       • 같은 사람을 여러 번 만나도 어떤 태도를 보였는지에 따라 다음 대화가 달라집니다. 가까워지면 자연스럽게 둘만의 약속이나 고백이 이어집니다.<br>
       • 연애 중 다른 관계를 숨기면 말과 행동이 서로에게 전해질 수 있습니다. 이별 뒤에도 함께 겪은 일은 사라지지 않습니다.`) +
     sec('🤝', '인맥', `
@@ -3149,6 +3155,10 @@ function applyEventEffects(eff) {
   }
   if (eff.morality != null) { changeMorality(eff.morality); changes.push(`도덕성 ${eff.morality >= 0 ? '+' : ''}${eff.morality}`); }
   if (eff.guilt != null) { L.guilt=clamp((L.guilt||0)+eff.guilt,0,100);changes.push(`죄책감 ${eff.guilt>=0?'+':''}${eff.guilt}`); }
+  if(eff.outsideFearResolved){
+    L.outsideFearResolved=true;
+    changes.push('🚪 <b>그날 이후, 현관 앞에서 발이 멈추지 않았습니다</b>');
+  }
   if (eff.meetSera && !metRecord(L, '윤세라')) {
     const rec = rememberPerson(Object.assign({}, D.SPECIAL_CHARACTERS.sera), 'friend');
     rec.affection = Math.max(rec.affection || 0, 22);
@@ -3239,6 +3249,7 @@ function chooseJob(id) {
 /* ---- 마감 후 인생 행동 ---- */
 function doHobby(id) {
   const h = D.HOBBIES.find(x => x.id === id); if (!h) return;
+  if(!['game','study'].includes(id)&&!freeOutingUnlocked(S.life)){showOutsideFearModal();return;}
   if (S.capital < h.cost) { flashToast('💸 현금이 부족합니다', 'bad'); playSound('error'); return; }
   S.capital -= h.cost;
   S.life.happy = clamp(S.life.happy + h.happy, 0, 100);
@@ -3293,6 +3304,7 @@ function investmentMentorState(L=S.life){
   if(!L.investmentMentor||typeof L.investmentMentor!=='object')L.investmentMentor={skill:0,sessions:0,unlocks:[]};
   const state=L.investmentMentor;
   state.skill=clamp(Number(state.skill)||0,0,100);state.sessions=Math.max(0,Math.floor(Number(state.sessions)||0));
+  state.escortedSessions=Math.max(0,Math.floor(Number(state.escortedSessions)||0));
   state.unlocks=[];
   if(state.skill>=20)state.unlocks.push('국면 읽기');
   if(state.skill>=45)state.unlocks.push('수급 방향');
@@ -3316,12 +3328,22 @@ function investmentInsightHTML(){
 }
 
 function doNaraeConsulting(){
-  const cost=500000,state=investmentMentorState();
+  const cost=500000,state=investmentMentorState(),shutIn=!freeOutingUnlocked(S.life);
   if(S.capital<cost){flashToast('💸 컨설팅 비용 500,000원이 필요합니다','bad');return;}
   S.capital-=cost;state.sessions++;state.skill=clamp(state.skill+12,0,100);
+  if(shutIn)state.escortedSessions++;
   const before=new Set(state.unlocks);investmentMentorState();
   const unlocked=state.unlocks.filter(name=>!before.has(name));
-  addNews(`📘 나래 투자 컨설팅 · 투자 감각 ${state.skill>=70?'통찰':state.skill>=45?'분석':state.skill>=20?'기초':'입문'} 단계${unlocked.length?` · ${unlocked.join('·')} 습득`:''}`,'good');
+  addNews(`📘 나래 투자 컨설팅${shutIn?' · 센터 현장 출석':''} · 투자 감각 ${state.skill>=70?'통찰':state.skill>=45?'분석':state.skill>=20?'기초':'입문'} 단계${unlocked.length?` · ${unlocked.join('·')} 습득`:''}`,'good');
+  if(shutIn){
+    const host=$('life-event');
+    if(host){
+      host.style.display='block';
+      host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">📘 투자지원센터 · 현장 상담</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-guide.png" alt="나래가 센터 입구까지 마중 나온 장면"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'happy')}" alt="나래"><div><strong>나래 · 투자교육 매니저</strong><br><span class="muted">“온라인 변경은 안 된다고 했죠. 그래도 엘리베이터까지는 내려왔네요.”</span></div></div><div class="event-desc">약속 시간이 지나기 전에 나래가 건물 1층까지 찾아왔습니다. 사람 많은 길을 피해서 걷고, 센터에서도 출입문과 가장 가까운 자리를 비워 두었습니다. 차트를 읽는 시간보다 집 밖에 머문 시간이 더 길게 느껴졌습니다.</div><div class="oc-changes">투자 감각 +12${unlocked.length?` · ${unlocked.join(' · ')} 습득`:''} · 나래의 동행 상담 ${state.escortedSessions}회</div><button id="narae-consult-confirm" class="session-btn opening">상담을 마치고 집으로 돌아간다</button></div></div>`;
+      $('narae-consult-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';afterLifeAction('경력');});
+      autoSave();return;
+    }
+  }
   flashToast(unlocked.length?`📘 ${unlocked.join(' · ')}을 배웠습니다`:'📘 시장을 읽는 감각이 늘었습니다','good');
   afterLifeAction('경력');
 }
@@ -4930,7 +4952,26 @@ function currentDateSceneImage() {
   return (S._dateRoute && S._dateRoute.scene) || dateSceneImage((S._dateCompanion && S._dateCompanion.type) || 'solo');
 }
 
+function freeOutingUnlocked(L=S.life){
+  return !!(L&&(L.outsideFearResolved||L.seraHousing==='reject'||metRecord(L,'윤세라')));
+}
+
+function showOutsideFearModal(){
+  const L=S.life,host=$('date-host');if(!L||!host)return;
+  L.outsideFearPromptCount=Math.max(0,L.outsideFearPromptCount||0)+1;
+  const nudge=L.tutorialMet
+    ?`<div class="phone-shell outside-fear-phone"><div class="phone-status"><span>투자지원센터</span><span>방금</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">📘</span><span><b>나래 매니저</b><small>예약 안내</small></span></header><div class="phone-chat-log"><div class="phone-bubble incoming">${L.outsideFearPromptCount<=1?'다음 상담도 온라인 변경은 안 돼요. 현관까지만 나오세요. 제가 1층에서 기다릴게요.':'또 현관 앞에서 돌아갔죠? 괜찮으니까 다음 상담 날에는 엘리베이터만 타요. 나머지는 제가 같이 갈게요.'}</div></div></div></div>`
+    :'';
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window place-encounter-window outside-fear-window"><div class="title-bar event-bar"><div class="title-bar-text">🚪 현관 앞에서 멈춘 주말</div><div class="title-bar-controls"><button aria-label="Close" id="outside-fear-x"></button></div></div><div class="window-body"><img class="dating-banner date-scene" src="${dateSceneImage('solo')}" alt="문 앞에서 외출을 망설이는 장면"><div class="event-title">아직은 밖에 나가기가 무섭다.</div><div class="event-desc">출근이나 시간을 정해 둔 상담은 어떻게든 버티지만, 아무도 기다리지 않는 곳으로 혼자 나가려니 예전 일이 다시 떠오릅니다. 손잡이를 잡은 채 한참 서 있다가 신발을 벗었습니다.</div>${nudge}<div class="event-options"><button class="event-opt" id="outside-fear-close">오늘은 문을 잠그고 돌아간다</button></div></div></div>`;
+  const close=()=>{host.style.display='none';host.innerHTML='';autoSave();};
+  $('outside-fear-x').addEventListener('click',close);
+  $('outside-fear-close').addEventListener('click',close);
+  autoSave();
+}
+
 function doDate() {
+  if(!freeOutingUnlocked(S.life)){showOutsideFearModal();syncBGM();return;}
   S._dateCompanion={type:'solo',name:'혼자',scoreMod:0,costMul:1};
   showRouteModal();
   syncBGM();
@@ -5049,7 +5090,7 @@ function showRouteModal() {
 
   let cards = `<div class="route-sep">🚶 혼자 하는 외출</div><div class="date-place-grid">${SOLO_OUTINGS.map(outing=>
     `<button class="route-card place-card solo-outing-card" data-solo-outing="${outing.id}"><div class="rc-head">${outing.icon} ${outing.name}</div><small>${outing.desc}</small><em>${won(outing.cost)} · 행복 +${outing.happy} · 스트레스 ${outing.stress}</em></button>`
-  ).join('')}<button class="route-card place-card club-relief-card" data-club-night><div class="rc-head">🍸 클럽에서 밤 보내기</div><small>히로인이 아닌 처음 보는 여성과 가볍게 어울립니다. 연락은 저장하지 않습니다.</small><em>${won(180000)} · 스트레스 -20 · 체력 -2</em></button></div>`;
+  ).join('')}<button class="route-card place-card club-relief-card" data-club-night><div class="rc-head">🍸 클럽</div></button></div>`;
   S._datePartners=currentPartners;
   if (inRel) {
     cards += `<div class="route-sep">💕 현재 관계</div><div class="date-person-grid">`;
@@ -5080,7 +5121,7 @@ function showRouteModal() {
          <div class="title-bar-controls"><button aria-label="Close" id="route-x"></button></div></div>
        <div class="window-body">
          <img class="dating-banner date-scene" src="${currentDateSceneImage()}" alt="이번 주 외출 풍경">
-         <div class="date-picker-lead">외출 장소에서 새 히로인이 자동으로 생기지는 않습니다. 혼자 시간을 보내거나, 이미 연락처를 교환한 사람과 약속합니다.</div>
+         <div class="date-picker-lead">이번 주에는 누구를 만나기보다, 내가 갈 곳부터 정해 보기로 했습니다.</div>
          <div class="route-list">${cards}</div>
        </div>
      </div>`;
@@ -6002,7 +6043,7 @@ function showClubNight(){
   const host=$('date-host');if(!host)return;
   const cost=180000;
   const canGo=S.capital>=cost;
-  host.innerHTML=`<div class="window event-window place-encounter-window"><div class="title-bar event-bar"><div class="title-bar-text">🍸 클럽에서 밤 보내기</div><div class="title-bar-controls"><button aria-label="Close" id="club-night-x"></button></div></div><div class="window-body"><img class="dating-banner date-scene" src="${dateSceneImage('solo')}" alt="클럽의 붐비는 밤"><div class="event-title">이름도 묻지 않은 밤</div><div class="event-desc">처음 보는 사람과 술과 음악 속에서 잠깐 모든 생각을 잊습니다.</div><div class="event-options"><button class="event-opt" id="club-night-go" ${canGo?'':'disabled'}><b>🌙 클럽에 간다 · ${won(cost)}원</b></button><button class="event-opt" id="club-night-back">다른 외출을 고른다</button></div>${canGo?'':`<div class="event-desc down">현금 ${won(cost)}원이 필요합니다.</div>`}<div id="club-night-outcome" class="event-outcome"></div></div></div>`;
+  host.innerHTML=`<div class="window event-window place-encounter-window"><div class="title-bar event-bar"><div class="title-bar-text">🍸 클럽 입구</div><div class="title-bar-controls"><button aria-label="Close" id="club-night-x"></button></div></div><div class="window-body"><img class="dating-banner date-scene" src="${dateSceneImage('solo')}" alt="클럽의 붐비는 밤"><div class="event-title">내가 왜 여기까지 왔지?</div><div class="event-desc">문이 열릴 때마다 음악과 낯선 웃음소리가 쏟아집니다. 집으로 돌아가기 싫어서 여기까지 왔지만, 들어가서 무엇을 원하는지는 스스로도 모르겠습니다.</div><div class="important-event-detail">입장과 술값 ${won(cost)}원</div><div class="event-options"><button class="event-opt" id="club-night-go" ${canGo?'':'disabled'}>문을 열고 들어간다</button><button class="event-opt" id="club-night-back">그냥 집으로 돌아간다</button></div>${canGo?'':`<div class="event-desc down">지갑을 확인하고 발길을 돌렸습니다.</div>`}<div id="club-night-outcome" class="event-outcome"></div></div></div>`;
   const close=()=>showRouteModal();
   $('club-night-x').addEventListener('click',close);
   $('club-night-back').addEventListener('click',close);
@@ -6026,15 +6067,15 @@ function resolveClubNight(){
   L.happy=clamp((L.happy||0)+5,0,100);
   const names=['지아','수빈','민서','하린','은채','다솜'];
   const name=pick(names);
-  const messages=[
-    '어제 잘 들어갔어요? 다음 주에도 거기 갈 것 같은데.',
-    '어제 같이 찍은 사진 보내줄까요?',
-    '잠깐이었지만 재밌었어요. 또 볼래요?',
+  const exchanges=[
+    {incoming:'어제 잘 들어갔어요? 다음 주에도 거기 갈 것 같은데.',reply:'어제는 고마웠어요. 하지만 다시 만날 생각은 없어요. 좋은 하루 보내요.'},
+    {incoming:'어제 같이 찍은 사진 보내줄까요?',reply:'사진은 괜찮아요. 어제는 고마웠지만 연락을 이어가지는 않을게요.'},
+    {incoming:'잠깐이었지만 재밌었어요. 또 볼래요?',reply:'저도 즐거웠어요. 그래도 다시 만나는 건 어려울 것 같아요. 잘 지내요.'},
   ];
-  const message=pick(messages);
+  const exchange=pick(exchanges);
   addNews(`🍸 클럽에서 ${name}와 잠깐 어울렸습니다 · 스트레스 -20 · 체력 -2`,'neutral');
   const outcome=$('club-night-outcome');
-  if(outcome)outcome.innerHTML=`<div class="phone-shell club-after-phone"><div class="phone-status"><span>다음 날</span><span>●●● 82%</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">💬</span><span><b>저장하지 않은 번호</b><small>QuickTalk · 방금</small></span></header><div class="phone-chat-log"><div class="phone-bubble incoming">${message}</div><div class="phone-bubble mine ignored">읽지 않고 알림을 지웠다.</div></div></div></div><div class="oc-changes">관계·연락처 변화 없음 · 스트레스 -20 · 체력 -2 · 건강 -1 · 행복 +5</div><button id="club-night-confirm" class="session-btn opening">휴대폰을 넣고 돌아간다</button>`;
+  if(outcome)outcome.innerHTML=`<div class="phone-shell club-after-phone"><div class="phone-status"><span>다음 날</span><span>●●● 82%</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">💬</span><span><b>저장하지 않은 번호</b><small>QuickTalk · 방금</small></span></header><div class="phone-chat-log"><div class="phone-bubble incoming">${exchange.incoming}</div><div class="phone-bubble mine">${exchange.reply}</div></div></div></div><div class="oc-changes">관계·연락처 변화 없음 · 스트레스 -20 · 체력 -2 · 건강 -1 · 행복 +5</div><button id="club-night-confirm" class="session-btn opening">답장을 보내고 휴대폰을 넣는다</button>`;
   const go=$('club-night-go'),back=$('club-night-back');if(go)go.disabled=true;if(back)back.disabled=true;
   $('club-night-confirm').addEventListener('click',()=>{closeDateModal();afterLifeAction('휴식');});
   autoSave();
@@ -7028,6 +7069,7 @@ function lifeHubHTML() {
   const actionUsed = lifeActionCount();
   const actionLeft = lifeActionRemaining();
   const mentor=investmentMentorState(L);
+  const shutInOuting=!freeOutingUnlocked(L);
   const weekLabel = actionLeft > 0 ? `${actionUsed + 1}주차 일정 선택` : '이번 달 일정 완료';
   const quickBtns=`<button class="life-btn daily-choice home" data-act="home-life">🏠 집에서 보내기 <small>휴식·게임·공부·생활공간 꾸미기</small></button><button class="life-btn daily-choice outing" data-act="date">🌆 목적을 정해 외출하기 <small>장소·취미·약속을 먼저 선택</small></button><button class="life-btn daily-choice earning" data-act="income-work">💵 이번 주 돈 벌기 <small>추가 근무·단기 의뢰·일당 업무</small></button>`;
   const workspaceLaunchers=`<div class="life-workspace-launchers">
@@ -7040,10 +7082,10 @@ function lifeHubHTML() {
     <button data-life-window="assets"><span>🏢</span><b>자산·사업</b><small>부동산·사업체·직원 모집</small></button>
   </div>`;
   const lifeWorkspaces=`<div class="life-workspace-layer" hidden>
-    <section class="life-workspace-window" data-life-panel="wellbeing" hidden><header><div><span>🌿</span><b>생활·건강</b><small>밖에서 하는 취미, 건강관리, 관계 약속</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('health')}" alt="생활과 건강 관리"><div class="workspace-content"><div class="hub-note">게임과 자기계발은 집 화면에 있습니다. 이곳의 취미는 실제로 밖에 나가는 일정이며 장소에 어울리는 인물을 만날 수 있습니다.</div><div class="workspace-card-grid">${hobbyBtns}<button class="life-btn" data-act="checkup">🏥 건강검진 <small>500,000</small></button><button class="life-btn" data-act="treat" ${treatment?'':'disabled'}>💊 ${treatment?`${treatment.name} 치료 · ${won(treatment.cost)}`:'현재 필요한 치료 없음'}</button>${relBtns}</div></div></section>
+    <section class="life-workspace-window" data-life-panel="wellbeing" hidden><header><div><span>🌿</span><b>생활·건강</b><small>밖에서 하는 취미, 건강관리, 관계 약속</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('health')}" alt="생활과 건강 관리"><div class="workspace-content"><div class="hub-note">게임과 자기계발은 집에서, 운동·외식·여행은 이곳에서 일정을 잡습니다.</div><div class="workspace-card-grid">${hobbyBtns}<button class="life-btn" data-act="checkup">🏥 건강검진 <small>500,000</small></button><button class="life-btn" data-act="treat" ${treatment?'':'disabled'}>💊 ${treatment?`${treatment.name} 치료 · ${won(treatment.cost)}`:'현재 필요한 치료 없음'}</button>${relBtns}</div></div></section>
     <section class="life-workspace-window" data-life-panel="social" hidden><header><div><span>👨‍👩‍👧</span><b>가족·인맥</b><small>가까운 사람과 보내는 시간</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('network')}" alt="가족과 인맥 모임"><div class="workspace-content"><div class="workspace-card-grid">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👵 부모님 돌봄 <small>1,500,000</small></button><button class="life-btn" data-act="contact-meet">🍽️ 일반 업계 모임 <small>주요 인맥 연락처 만들기</small></button><button class="life-btn hot" data-act="industry-gathering">🥂 사교 모임 등급 <small>실적·평판을 쌓아 특별 책임자 소개받기</small></button>${specialMeetBtns}${personalBtns}${contactBtns}</div></div></section>
     <section class="life-workspace-window" data-life-panel="power" hidden><header><div><span>⚔️</span><b>세력·라이벌·법정</b><small>${justice.case?'진행 중인 사건 있음':'조직 운영과 경쟁 대응'}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${justice.case?lifeSceneImage('court'):lifeSceneImage('faction')}" alt="${justice.case?'법정 심리':'세력 작전실'}"><div class="workspace-content">${factionBox}<div class="route-sep">경쟁 세력 선택</div>${rivalSelect}<div class="workspace-card-grid">${rivalBtns}${courtBtns}</div></div></section>
-    <section class="life-workspace-window" data-life-panel="investment" hidden><header><div><span>📘</span><b>나래의 투자 컨설팅</b><small>시장 화면을 함께 읽는 정기 상담</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="./assets/life-guide.png" alt="나래의 투자 컨설팅"><div class="workspace-content"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래 · 투자교육 매니저</strong><br><span class="muted">“정답을 찍어드리진 않아요. 대신 무엇을 먼저 봐야 하는지는 알려드릴게요.”</span></div></div><div class="home-life-summary"><b>투자 감각 · ${mentor.skill>=70?'통찰':mentor.skill>=45?'분석':mentor.skill>=20?'기초':'입문'}</b><small>상담 ${mentor.sessions}회 · 배운 항목 ${mentor.unlocks.length?mentor.unlocks.join(' · '):'기초 화면 읽기'}</small></div>${investmentInsightHTML()}<div class="workspace-card-grid"><button class="life-btn" data-act="investment-consult">📚 월간 컨설팅 받기 <small>500,000 · 이번 달 경력 행동 사용</small></button></div></div></section>
+    <section class="life-workspace-window" data-life-panel="investment" hidden><header><div><span>📘</span><b>나래의 투자 컨설팅</b><small>${shutInOuting?'센터가 잡아 둔 대면 일정':'시장 화면을 함께 읽는 정기 상담'}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="./assets/life-guide.png" alt="나래의 투자 컨설팅"><div class="workspace-content"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래 · 투자교육 매니저</strong><br><span class="muted">“${shutInOuting?'또 화상으로 바꾸려고 했죠? 현관까지만 나오세요. 제가 1층에 있을게요.':'정답을 찍어드리진 않아요. 대신 무엇을 먼저 봐야 하는지는 알려드릴게요.'}”</span></div></div><div class="home-life-summary"><b>투자 감각 · ${mentor.skill>=70?'통찰':mentor.skill>=45?'분석':mentor.skill>=20?'기초':'입문'}</b><small>상담 ${mentor.sessions}회${mentor.escortedSessions?` · 나래가 마중 나온 날 ${mentor.escortedSessions}회`:''} · 배운 항목 ${mentor.unlocks.length?mentor.unlocks.join(' · '):'기초 화면 읽기'}</small></div>${investmentInsightHTML()}<div class="workspace-card-grid"><button class="life-btn" data-act="investment-consult">📚 ${shutInOuting?'센터 현장 상담에 출석한다':'월간 컨설팅 받기'} <small>500,000 · 이번 달 경력 행동 사용</small></button></div></div></section>
     <section class="life-workspace-window" data-life-panel="career" hidden><header><div><span>📈</span><b>경력 관리</b><small>${jobOf().name} · 능력 ${Math.round(career.skill||0)}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('career')}" alt="경력 관리 장면"><div class="workspace-content"><div class="hub-note">직장은 이직으로 바꾸고, 자격증은 지원 가능한 직업과 직무 능력을 넓힙니다.</div><div class="workspace-card-grid"><button class="life-btn" data-act="changejob">💼 이직 알아보기</button>${certBtns}</div></div></section>
     <section class="life-workspace-window" data-life-panel="housing" hidden><header><div><span>🏠</span><b>거주지 선택</b><small>현재 ${HOUSING.home(L).name} · ${HOUSING.TENURES[L.housing.tenure].name}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('home')}" alt="거주지 선택 장면"><div class="workspace-content"><div class="hub-note">월세는 초기 부담이 작고, 전세는 보증금을 맡기는 대신 월 부담이 낮습니다. 매매 주택에는 월 임대료가 없습니다.</div><div class="workspace-card-grid">${housingBtns}</div></div></section>
     <section class="life-workspace-window" data-life-panel="assets" hidden><header><div><span>🏢</span><b>자산·사업 관리실</b><small>서로 다른 업종을 동시에 운영하고 직원을 모집할 수 있습니다.</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('business')}" alt="자산과 사업을 관리하는 사무실"><div class="workspace-content">${assetPortfolioStrip}<nav class="workspace-tabs"><button data-workspace-tab="business" class="active">사업체·직원</button><button data-workspace-tab="property">투자 부동산</button><button data-workspace-tab="income">자동수입</button><button data-workspace-tab="finance">금융·보장</button></nav><div data-workspace-page="business"><div class="hub-note">각 업종은 매출 구조와 경기 민감도가 다릅니다. 직원을 늘리면 매출 여력이 커지지만 매달 인건비도 증가합니다.</div><div class="asset-business-grid">${businessBox}</div></div><div data-workspace-page="property" hidden>${propertyOwned}<div class="asset-action-grid">${propBtns}</div></div><div data-workspace-page="income" hidden><div class="asset-action-grid">${passiveBtns}</div></div><div data-workspace-page="finance" hidden><div class="hub-btns">${loanBtns}<button class="life-btn" data-act="repay">상환${L.loan>0?' '+won(L.loan):''}</button>${insuranceBtns}${pensionBtns}</div></div></div></section>

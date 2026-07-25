@@ -701,7 +701,9 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /data-act="home-life"/, '일상 행동은 집에서 보내기와 외출하기를 구분해야 한다');
   assert.match(appSource, /function showClubNight/, '클럽 스트레스 해소는 일반 히로인 조우와 분리된 행동이어야 한다');
   assert.match(appSource, /관계·연락처 변화 없음/, '클럽에서 만난 일반 여성은 히로인이나 연락처로 남지 않아야 한다');
-  assert.match(appSource, /읽지 않고 알림을 지웠다/, '클럽 일반 여성의 후속 연락은 답장하지 않고 무시해야 한다');
+  assert.match(appSource, /다시 만날 생각은 없어요\. 좋은 하루 보내요/, '클럽 일반 여성의 후속 연락에는 잠수 대신 정중히 거절해야 한다');
+  assert.match(appSource, /내가 왜 여기까지 왔지\?/, '클럽 입구에서는 플레이어도 자신의 행동을 이해하지 못하는 망설임이 보여야 한다');
+  assert.doesNotMatch(appSource, /히로인이 아닌 처음 보는 여성과 가볍게 어울립니다/, '클럽 카드가 결과를 시스템 설명처럼 미리 적어두면 안 된다');
   assert.match(appSource, /function showFactionMentorPhoneStory/, '첫 세력 공격은 장태식의 스마트폰 연락으로 이어져야 한다');
   assert.match(appSource, /function monthlyFactionMemberMessages/, '첫 부하는 플레이어 상태에 맞춘 월간 보고 연락을 보내야 한다');
   assert.doesNotMatch(appSource, /showDateCompanyModal/, '데이트 진입 전에 별도 동행 선택 관문을 다시 만들면 안 된다');
@@ -715,7 +717,12 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /class="pixel-home/, '현재 집과 사치품은 생활공간 장면으로 시각화돼야 한다');
   assert.match(appSource, /class="route-card place-card solo-outing-card"/, '혼자 하는 외출은 간결한 장소 카드로 보여야 한다');
   assert.doesNotMatch(appSource, /function makeCandidate/, '외출 화면이 전체 히로인 명부에서 새 사람을 추첨하면 안 된다');
-  assert.match(appSource, /외출 장소에서 새 히로인이 자동으로 생기지는 않습니다/, '외출과 히로인 조우의 경계를 화면에서 분명히 알려야 한다');
+  assert.match(appSource, /이번 주에는 누구를 만나기보다, 내가 갈 곳부터 정해 보기로 했습니다/, '외출 화면은 시스템 설명 대신 플레이어의 시점으로 말해야 한다');
+  assert.match(appSource, /if\(!freeOutingUnlocked\(S\.life\)\)\{showOutsideFearModal\(\)/, '윤세라 작업실 사건 전 자발적 외출은 현관 공포 장면으로 막혀야 한다');
+  assert.match(appSource, /!\['game','study'\]\.includes\(id\)&&!freeOutingUnlocked\(S\.life\)/, '외부 취미로 초반 은둔 외출 관문을 우회하면 안 된다');
+  assert.match(appSource, /아직은 밖에 나가기가 무섭다/, '초반 외출 팝업은 플레이어의 은둔 상태를 직접 보여줘야 한다');
+  assert.match(appSource, /제가 1층에서 기다릴게요/, '투자 컨설팅은 집에 틀어박힌 플레이어를 나래가 직접 데리러 나와야 한다');
+  assert.match(lifeEventsSource, /outsideFearResolved:true/, '윤세라 작업실 사건을 겪으면 어떤 선택에서도 자유 외출이 다시 열려야 한다');
   assert.match(appSource, /formerClubEx:true/, '옛 동아리 여성 다섯은 과거 연인 기록으로 시작해야 한다');
   assert.match(appSource, /former\.status='ex'/, '옛 동아리 여성 다섯은 현재 친구가 아니라 전 연인 상태여야 한다');
   assert.match(appSource, /function showOriginFriendReferral/, '직업 결정 뒤 고정 친구의 투자지원센터 소개 장면이 있어야 한다');
