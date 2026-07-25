@@ -907,8 +907,7 @@ function openMarket() {
   }
   if (!S.life || !S.life.started) {
     flashToast('🏠 먼저 가정환경과 학창생활을 정해 인생을 시작하세요', 'bad');
-    if (S.life && !S.life.tutorialSeen) showTutorial();
-    else startLifeSetup();
+    startLifeSetup();
     return;
   }
   if (S.awaitingNextDay) S.day++;       // 마감 후 개장이면 다음 달로 넘어감
@@ -1926,20 +1925,31 @@ function showSchoolLifeModal(){
   host.querySelectorAll('[data-school-life]').forEach(b=>b.addEventListener('click',()=>chooseSchoolLife(b.dataset.schoolLife)));
 }
 function chooseSchoolLife(id){
-  const school=ORIGIN&&ORIGIN.school(id);if(!school)return;const L=S.life;L.schoolLife=id;applyOriginStats(school);
+  const school=ORIGIN&&ORIGIN.school(id);if(!school)return;const L=S.life;L.schoolLife=id;L.originNarrativeVersion=2;applyOriginStats(school);
   const childhood=school.childhood||{},heroine=D.CHARACTERS.find(person=>person.name===childhood.heroine),ally=(D.WORLD_MALE_NPCS||[]).find(person=>person.name===childhood.ally);
-  if(heroine&&(!ally||Math.random()<.55)){
-    const friend=rememberPerson({...heroine,childhoodFriend:true,schoolTag:school.friendTag},'friend');
-    friend.childhoodFriend=true;friend.schoolTag=school.friendTag;unlockPersonalContact(friend);friend.affection=Math.max(friend.affection||0,18);friend.trust=Math.max(friend.trust||0,34);
-    ensureCourtship(friend).interactions=Math.max(1,ensureCourtship(friend).interactions||0);
-    L.originFriend={kind:'heroine',name:friend.name,schoolId:id};
-    if(CHILDHOOD_CIRCLE)CHILDHOOD_CIRCLE.register(L,friend,id);
-    const firstLine=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.line(friend,'first');
-    pushPersonMessage(L,friend,firstLine||`졸업하고도 네 소식은 가끔 들었어. 우리 사이에 새삼스럽게 안부부터 물어야 하나? 시간 되면 학교 앞에서 보자.`,false);
-  }else if(ally){
+  if(ally){
     const friend=SOCIAL.addContact(L,{name:ally.name,role:'schoolfriend',origin:'school',originKey:'school-best-friend',relationLabel:school.friendTag,trust:60,favor:2,schoolTag:school.friendTag,worldNpcId:ally.id,freeRecruit:true});
     L.originFriend={kind:'ally',name:friend.name,npcId:ally.id,contactId:friend.id,schoolId:id};
-    pushPersonMessage(L,friend,`${school.friendTag} ${friend.name}이(가) 연락했습니다. “돈 받고 도울 사이냐. 자리 필요하면 불러.”`,false);
+  }
+  const pastClub=ORIGIN&&ORIGIN.PAST_CLUB;
+  if(pastClub&&CHILDHOOD_CIRCLE){
+    pastClub.members.forEach(name=>{
+      const master=D.CHARACTERS.find(person=>person.name===name);if(!master)return;
+      const former=rememberPerson({...master,childhoodFriend:true,formerClubEx:true,schoolTag:`${pastClub.name} 전 연인`},'ex');
+      former.status='ex';former.childhoodFriend=true;former.formerClubEx=true;former.schoolTag=`${pastClub.name} 전 연인`;
+      former.contactUnlocked=false;former.contactDay=null;former.affection=Math.max(8,Math.min(former.affection||8,18));former.trust=Math.max(4,Math.min(former.trust||4,12));
+      ensureCourtship(former).interactions=0;
+    });
+    const anchor=heroine&&metRecord(L,heroine.name);
+    if(anchor)CHILDHOOD_CIRCLE.register(L,anchor,id);
+  }
+  const social=SOCIAL.ensure(L),father=social.contacts.find(contact=>contact.role==='father'),guardian=social.contacts.find(contact=>contact.role==='guardian');
+  const warning=father||guardian;
+  if(warning){
+    const line=father
+      ?'학교 때 생활경제연구회에서 있었던 일 잊지 마라. 돈도 조심하고 여자도 조심해. 예린이네하고 또 얽히면 이번에는 먼저 말하고.'
+      :'학교 때 동아리 일처럼 혼자 감당하지 마. 돈 문제든 사람 문제든 이상하면 먼저 연락해.';
+    pushPersonMessage(L,warning,line,false);
   }
   addNews(`${school.icon} 학창생활 · ${school.name}`,'neutral');autoSave();assignStartingCareer();
 }
@@ -1960,8 +1970,35 @@ function assignStartingCareer(){
   const host=$('life-modal');host.style.display='flex';host.className='life-modal-host';
   host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">💼 첫 취업 결과</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-career.png" alt="첫 직장에 출근하는 장면"><div class="origin-timeline"><div>${bg.icon}<b>${bg.name}</b></div><i>→</i><div>${school.icon}<b>${school.name}</b></div><i>→</i><div>${job.emoji}<b>${job.name}</b></div></div><div class="event-title">첫 직업은 ${job.name}입니다.</div><div class="event-desc">가정환경과 학창생활에서 만들어진 ${L.firstCareerPool.length}개 진로 중 하나로 취업했습니다. 앞으로 이직도 주요 인물들과 같은 생활권에 있는 핵심 직군을 중심으로 이루어집니다.</div><div class="important-event-detail">저장된 연락처 · ${contacts}</div><button id="origin-start" class="session-btn opening">이 인생으로 시작</button></div></div>`;
   addNews(`💼 ${job.name}(으)로 사회생활 시작 · ${bg.name} / ${school.name}`,'good');
-  $('origin-start').addEventListener('click',()=>{closeLifeModal();celebrate();checkAchievements();renderMarketPhase();renderAll();autoSave();});
+  $('origin-start').addEventListener('click',()=>{celebrate();checkAchievements();renderMarketPhase();renderAll();showOriginFriendReferral();autoSave();});
   autoSave();
+}
+
+function showOriginFriendReferral(){
+  const host=$('life-modal'),origin=S.life.originFriend,school=ORIGIN&&ORIGIN.school(S.life.schoolLife);
+  const contact=origin&&SOCIAL.ensure(S.life).contacts.find(item=>item.id===origin.contactId);
+  if(!host||!contact){S.life.tutorialSeen=true;closeLifeModal();renderAll();autoSave();return;}
+  const npc=(D.WORLD_MALE_NPCS||[]).find(item=>item.id===origin.npcId)||{name:contact.name,portrait:'mob-faction-intel.png',job:'학창시절 친구'};
+  const lines=[
+    [contact.name,school&&school.guideLine||'돈 버는 법 알려 달라 했지? 괜찮은 투자지원 프로그램을 찾았어.'],
+    [contact.name,'야, 거기 가면 투자하는 법도 알려주고 초보 지원도 해 준대.'],
+    ['플레이어','네가 이런 부탁을 다 할 리가 없는데.'],
+    [contact.name,'당연하지. 거기 담당자가 엄청 예쁘다더라. 번호 좀 받아 와.'],
+    ['플레이어','그런데 왜 네가 직접 안 가고 나를 보내냐?'],
+    [contact.name,'너 예린이 패거리랑 또 뭐 있냐? 걔들 눈에 띄면 난 진짜 죽어.'],
+    ['플레이어','걔들은 그냥… 같은 동아리였던 친구들이라니까.'],
+    [contact.name,'다섯 명 전부랑 헤어지고도 그 말을 하냐? 너 진짜 언젠가 칼 맞는다. 에휴. 일단 주소 보냈어.'],
+  ];
+  S._originReferralIndex=0;
+  const render=()=>{
+    const index=S._originReferralIndex||0,shown=lines.slice(0,index+1);
+    host.style.display='flex';host.className='life-modal-host';
+    host.innerHTML=`<div class="window event-window legacy-window tutorial-choice-window"><div class="title-bar"><div class="title-bar-text">📱 ${school.friendTag}의 수상한 소개</div></div><div class="window-body"><div class="date-profile"><img class="char-portrait" src="./assets/characters/${npc.portrait}" alt="${contact.name}"><div class="dp-info"><strong>${contact.name}</strong> · ${school.friendTag}<br><span class="muted">${npc.job}</span></div></div><div class="origin-chat-log">${shown.map(([speaker,text])=>`<div class="story-dialogue ${speaker==='플레이어'?'player-line':''}"><b>${speaker}</b> “${text}”</div>`).join('')}</div><div class="event-options">${index<lines.length-1?'<button id="origin-referral-next" class="event-opt">다음 메시지</button>':'<button id="origin-referral-go" class="event-opt hot">📍 투자지원센터로 간다</button><button id="origin-referral-skip" class="event-opt">설명은 나중에 듣고 바로 시작한다</button>'}</div></div></div>`;
+    const next=$('origin-referral-next');if(next)next.addEventListener('click',()=>{S._originReferralIndex++;render();});
+    const go=$('origin-referral-go');if(go)go.addEventListener('click',()=>{S.life.referralSeen=true;showTutorial();});
+    const skip=$('origin-referral-skip');if(skip)skip.addEventListener('click',()=>{S.life.referralSeen=true;S.life.tutorialSeen=true;closeLifeModal();renderAll();autoSave();});
+  };
+  render();
 }
 // 이직 합격 확률(%) — 목표 난이도 vs 현재 경력 + 적성 적합도
 function jobHireChance(target) {
@@ -2068,24 +2105,29 @@ function showTutorial() {
   host.style.display = 'flex';
   host.innerHTML =
     `<div class="window event-window legacy-window tutorial-choice-window">
-       <div class="title-bar"><div class="title-bar-text">🧭 나래와의 첫 만남</div></div>
+       <div class="title-bar"><div class="title-bar-text">🧭 투자지원센터 · 나래와의 첫 만남</div></div>
        <div class="window-body">
          <img class="life-scene-banner guide-scene-banner" src="./assets/life-guide.png" alt="나래가 게임을 안내하는 장면">
          <div class="date-profile"><img class="char-portrait" src="${characterPortrait(n,'happy')}" alt="나래">
-           <div class="dp-info"><strong>나래</strong> · 투자교육 매니저<br><span class="muted">“처음 오셨죠? 장을 열기 전에 제가 게임 진행 방법을 설명해드릴까요?”</span></div></div>
-         <div class="event-desc">설명을 듣거나 바로 출신 배경을 정할 수 있습니다. 부모님의 생활과 학창시절이 적성·인맥·첫 직업을 만들고, 부모님과 친구도 실제 연락처에 남습니다.</div>
+           <div class="dp-info"><strong>나래</strong> · 투자교육 매니저<br><span class="muted">“${S.life.originFriend&&S.life.originFriend.name}님 소개로 오셨죠? 지원 등록 전에 시장 화면부터 같이 볼까요?”</span></div></div>
+         <div class="event-desc">친구가 알려준 초보 투자지원 프로그램의 담당자입니다. 나래는 아직 플레이어를 개인적으로 알지 못하며, 이 교육을 계기로 처음 관계가 시작됩니다.</div>
          <div class="event-options">
            <button id="tutorial-listen" class="event-opt">📖 네, 설명을 들을게요</button>
-           <button id="tutorial-skip" class="event-opt">🏠 괜찮아요, 바로 성장 배경을 정할게요</button>
+           <button id="tutorial-skip" class="event-opt">📋 설명은 건너뛰고 지원 등록만 할게요</button>
          </div>
        </div>
      </div>`;
   const choose = listen => {
     S.life.tutorialSeen = true;
     S.life.tutorialMet = true;
+    const firstMeeting=rememberPerson({...n,metThrough:'investment-support'},'acquaintance');
+    firstMeeting.status='acquaintance';firstMeeting.affection=Math.min(firstMeeting.affection||0,5);firstMeeting.trust=Math.min(firstMeeting.trust||0,5);
+    firstMeeting.contactUnlocked=false;firstMeeting.interactions=Math.min(firstMeeting.interactions||0,1);
+    const origin=S.life.originFriend,friend=origin&&SOCIAL.ensure(S.life).contacts.find(item=>item.id===origin.contactId);
+    if(friend)pushPersonMessage(S.life,friend,'그래서 설명은 잘 들었고? …번호는 됐냐? 아니, 투자지원 담당자 연락처 말이야.',false);
     autoSave();
     if (listen) startNaraeTutorial();
-    else startLifeSetup();
+    else { closeLifeModal();renderAll();autoSave(); }
   };
   $('tutorial-listen').addEventListener('click', () => choose(true));
   $('tutorial-skip').addEventListener('click', () => choose(false));
@@ -2153,7 +2195,7 @@ const NARAE_TUTORIAL_STEPS = [
   { target:'#buy-btn', title:'매수·매도·공매도', text:'매수는 주식을 사는 것, 매도는 보유 주식을 파는 것이에요. 보유량 없이 매도하면 하락에 베팅하는 공매도가 되므로 손실이 크게 날 수 있어요.' },
   { target:'#leverage-select', title:'신용 레버리지', text:'레버리지는 빚을 섞어 투자 규모를 키우는 기능이에요. 수익도 커지지만 손실·이자·반대매매 위험도 같은 배율로 커집니다. ETF의 2배·인버스와는 별개예요.' },
   { target:'[data-tab="news"]', title:'뉴스와 기업 공시', text:'뉴스의 기업명을 누르면 해당 기업 리포트와 차트로 이동할 수 있어요. 호재는 긍정적 재료, 악재는 부정적 재료지만 가격이 반드시 같은 방향으로 움직인다는 보장은 없어요.' },
-  { target:'[data-tab="life"]', title:'장마감 후 인생 행동', text:'마감 뒤에는 자유시간 4회로 데이트·취미·경력·인맥·가족 행동을 선택해요. 월급·빚·부동산도 함께 정산됩니다. 이제 직업을 정하면 시작할 수 있어요!' },
+  { target:'[data-tab="life"]', title:'장마감 후 인생 행동', text:'마감 뒤에는 자유시간 4회로 데이트·취미·경력·인맥·가족 행동을 선택해요. 월급·빚·부동산도 함께 정산됩니다. 친구 소개로 온 지원 등록은 여기까지예요. 이제 직접 투자해 보세요.' },
 ];
 
 function clearTutorialFocus() {
@@ -2192,7 +2234,7 @@ function renderNaraeTutorialStep() {
          <div class="tutorial-coach-actions">
            <button id="tutorial-tour-skip">설명 건너뛰기</button>
            <button id="tutorial-tour-prev" ${index === 0 ? 'disabled' : ''}>이전</button>
-           <button id="tutorial-tour-next" class="session-btn opening">${index === NARAE_TUTORIAL_STEPS.length - 1 ? '성장 배경 정하기' : '다음'}</button>
+           <button id="tutorial-tour-next" class="session-btn opening">${index === NARAE_TUTORIAL_STEPS.length - 1 ? '지원 등록 완료 · 투자 시작' : '다음'}</button>
          </div>
        </div>
      </div>`;
@@ -2210,7 +2252,7 @@ function finishNaraeTutorial() {
   const host = $('life-modal');
   if (host) { host.className = 'life-modal-host'; host.style.display = 'none'; host.innerHTML = ''; }
   ensureSeraLoopPartner();
-  startLifeSetup();
+  renderAll();
   autoSave();
 }
 
@@ -3728,7 +3770,7 @@ function ensureChildhoodCircleCast(){
     const def=D.CHARACTERS.find(person=>person.name===name);if(!def)return null;
     const rec=metRecord(S.life,name)||rememberPerson(def,'acquaintance');
     rec.childhoodFriend=true;
-    rec.oldClassmate=true;
+    rec.oldClassmate=true;rec.formerClubEx=true;
     rec.oldCircleRole=(CHILDHOOD_CIRCLE.META[name]||{}).role;
     rec.affection=Math.max(rec.affection||0,name===CHILDHOOD_CIRCLE.ensure(S.life).anchor?18:12);
     rec.trust=Math.max(rec.trust||0,name===CHILDHOOD_CIRCLE.ensure(S.life).anchor?34:18);
@@ -3738,14 +3780,14 @@ function ensureChildhoodCircleCast(){
 }
 function childhoodCircleNarrative(state){
   if(!state)return{title:'오래된 인연',detail:'다섯의 관계가 아직 모습을 드러내지 않았습니다.',tone:''};
-  if(state.route==='never_graduate')return{title:'끝나지 않은 졸업식',detail:'다섯이 현재보다 학창 시절의 당신을 더 진짜라고 여기며 일상에 깊이 들어와 있습니다.',tone:'down'};
-  if(state.route==='old_promise')return{title:'오래된 약속',detail:'추억은 소유권이 아니라 서로의 현재를 이해하는 단서로 남았습니다.',tone:'up'};
-  if(state.route==='cut_past')return{title:'닫힌 졸업앨범',detail:'다섯과의 오래된 관계를 추억으로만 남기고 각자의 현재로 돌아갔습니다.',tone:'muted'};
-  if((state.pressure||0)>=75)return{title:'과거가 현재를 덮는 중',detail:'연락과 간섭이 촘촘해지고, 다섯은 예전의 생활 규칙을 다시 적용하려 합니다.',tone:'down'};
-  if((state.pressure||0)>=45)return{title:'되살아난 옛 규칙',detail:'다섯이 서로의 기록을 맞추며 당신의 현재 생활에 자주 관여합니다.',tone:''};
-  if(state.stage==='pact')return{title:'현재와 과거의 경계',detail:'오래 알았다는 사실을 어디까지 관계의 권리로 인정할지 정해야 합니다.',tone:''};
-  if(state.stage==='reunited')return{title:'다시 가까워진 다섯',detail:'학창 시절 친구들이 어른이 된 서로의 현재를 다시 알아가고 있습니다.',tone:'up'};
-  return{title:'복구된 단체방',detail:'끊겼던 연락이 돌아오며 오래된 친구들이 하나둘 모이기 시작했습니다.',tone:''};
+  if(state.route==='never_graduate')return{title:'끝나지 않은 졸업식',detail:'다섯 전 연인이 서로를 견제하면서도 주인공을 다시는 도망치지 못하게 붙잡고 있습니다.',tone:'down'};
+  if(state.route==='old_promise')return{title:'다시 쓴 결별',detail:'조작 사건의 진실을 확인하고, 과거 연애의 순서가 현재의 권리가 아니라고 합의했습니다.',tone:'up'};
+  if(state.route==='cut_past')return{title:'폐쇄된 동아리방',detail:'다섯 번의 연애와 조작 사건을 과거로 남기고 각자의 현재로 돌아갔습니다.',tone:'muted'};
+  if((state.pressure||0)>=75)return{title:'다섯 번째 재결합 요구',detail:'다섯은 서로가 더 정상적인 전 연인이라고 주장하며 주인공의 현재 관계를 압박합니다.',tone:'down'};
+  if((state.pressure||0)>=45)return{title:'다시 시작된 연애 경쟁',detail:'복구된 기록과 서로 다른 이별 기억이 현재의 연락과 외출에 끼어들고 있습니다.',tone:''};
+  if(state.stage==='pact')return{title:'다섯 개의 알리바이',detail:'조작 사건의 진실과 각자에게 했던 이별 말을 함께 확인해야 합니다.',tone:''};
+  if(state.stage==='reunited')return{title:'전 연인 단체방',detail:'다섯은 친구로 다시 시작했지만 누구도 과거 연애를 없던 일로 여기지 않습니다.',tone:'up'};
+  return{title:'폐쇄됐던 동아리',detail:'생활경제연구회와 다섯 번의 이별은 아직 과거 기록으로만 남아 있습니다.',tone:''};
 }
 function showChildhoodCircleEvent(eventId){
   const view=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.event(eventId),host=$('life-event');
@@ -3758,7 +3800,7 @@ function showChildhoodCircleEvent(eventId){
   }).join('');
   host.style.display='block';
   host.innerHTML=`<div class="window event-window trio-route-window childhood-circle-window">
-    <div class="title-bar event-bar"><div class="title-bar-text">${view.icon} 졸업하지 못한 다섯 · ${view.title}</div></div>
+    <div class="title-bar event-bar"><div class="title-bar-text">${view.icon} 한 번씩 헤어진 다섯 · ${view.title}</div></div>
     <div class="window-body">
       <img class="life-scene-banner" src="${view.scene}" alt="${view.title} 이벤트 장면">
       <div class="important-event-detail ${mood.tone}"><b>${mood.title}</b><br>${mood.detail}</div>
@@ -3819,7 +3861,7 @@ function resolveChildhoodCircleEvent(choiceId){
   const out=$('childhood-circle-outcome'),options=out&&out.parentElement.querySelector('.event-options');if(options)options.innerHTML='';
   const changedMood=childhoodCircleNarrative(state);
   out.innerHTML=`<div class="oc-text">${reaction}</div><div class="oc-changes ${changedMood.tone}"><b>${changedMood.title}</b> · ${changedMood.detail}</div>${ending}<button id="childhood-circle-confirm" class="session-btn opening">확인</button>`;
-  addNews(`${view.icon} 졸업하지 못한 다섯 · ${view.title}`,choice.id==='rewind'?'bad':choice.id==='present'?'good':'neutral');
+  addNews(`${view.icon} 한 번씩 헤어진 다섯 · ${view.title}`,choice.id==='rewind'?'bad':choice.id==='present'?'good':'neutral');
   $('childhood-circle-confirm').addEventListener('click',()=>{
     const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
     S._childhoodCircleEvent=null;renderLifePanel();autoSave();showNextImportantEvent();
@@ -4135,7 +4177,8 @@ function monthlyRelationshipMessages(L){
 function monthlySocialMessages(L){
   const arrivals=[];
   (SOCIAL.ensure(L).contacts||[]).forEach(c=>{
-    const chance=['mother','father','guardian'].includes(c.role)?.24:c.role==='schoolfriend'?.18:.08;
+    const isConcernedParent=['father','guardian'].includes(c.role)&&L.originNarrativeVersion===2;
+    const chance=isConcernedParent?.42:c.role==='mother'?.24:c.role==='schoolfriend'?.18:.08;
     if(Math.random()>chance)return;
     arrivals.push(c);
   });
@@ -4182,7 +4225,7 @@ function monthlyChildhoodCircleBond(L){
       const watcher=pick(people);
       const line=CHILDHOOD_CIRCLE.line(watcher,'boundary')||'새로 만난 사람이 네 과거까지 아는 건 아니잖아.';
       pushPersonMessage(L,watcher,`${outsider.name}보다 우리가 먼저였다는 말은 안 할게. 대신 이것만 기억해. ${line}`,false);
-      addNews(`🎓 ${outsider.name}와(과)의 새 관계를 눈치챈 소꿉친구 다섯이 서로의 기록을 맞춰 보기 시작했습니다`,'bad');
+      addNews(`🎓 ${outsider.name}와(과)의 새 관계를 눈치챈 옛 동아리 전 연인 다섯이 서로의 기록을 맞춰 보기 시작했습니다`,'bad');
     }else if(Math.random()<.55){
       const watcher=pick(people),line=CHILDHOOD_CIRCLE.line(watcher,'incoming');
       if(line){pushPersonMessage(L,watcher,line,false);addNews(`📱 ${watcher.name}: ${line}`,'neutral');}
@@ -6532,7 +6575,7 @@ function storyProgressHTML(L) {
   });
   const circle=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.ensure(L);
   const circleMood=childhoodCircleNarrative(circle);
-  const circleRow=circle&&circle.anchor?`<div class="story-progress-card childhood-circle-progress"><strong>🎓 졸업하지 못한 다섯</strong><div><small class="${circleMood.tone}"><b>${circleMood.title}</b> · ${circleMood.detail}</small></div></div>`:'';
+  const circleRow=circle&&circle.anchor?`<div class="story-progress-card childhood-circle-progress"><strong>🎓 한 번씩 헤어진 다섯</strong><div><small class="${circleMood.tone}"><b>${circleMood.title}</b> · ${circleMood.detail}</small></div></div>`:'';
   return rows.length||circleRow?`<div class="story-progress-list"><div class="hub-title">📖 이어지는 인물 이야기</div>${circleRow}${rows.slice(0,5).join('')}</div>`:'';
 }
 
@@ -8434,8 +8477,10 @@ function boot() {
     renderCurrentMonthCloseStep();
   }
   if (!S.life.started) {
-    if(!S.life.tutorialSeen)showTutorial();else startLifeSetup();
+    startLifeSetup();
     flashToast('🎬 QuickTrade Life! 가정환경과 학창생활에서 인생을 시작하세요', 'neutral');
+  } else if(S.life.originNarrativeVersion===2&&!S.life.tutorialSeen) {
+    S.life.referralSeen?showTutorial():showOriginFriendReferral();
   } else if (loaded) {
     flashToast(S.phase === 'open'
       ? `💾 ${dateInfo(S.day).label} 장중 상태 복원 · 안전하게 일시정지됨`
