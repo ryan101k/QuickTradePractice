@@ -1962,7 +1962,7 @@ function chooseSchoolLife(id){
       const master=D.CHARACTERS.find(person=>person.name===name);if(!master)return;
       const former=rememberPerson({...master,childhoodFriend:true,formerClubEx:true,schoolTag:`${pastClub.name} 전 연인`},'ex');
       former.status='ex';former.childhoodFriend=true;former.formerClubEx=true;former.schoolTag=`${pastClub.name} 전 연인`;
-      former.contactUnlocked=false;former.contactDay=null;former.affection=Math.max(8,Math.min(former.affection||8,18));former.trust=Math.max(4,Math.min(former.trust||4,12));
+      former.blockedByPlayer=true;former.contactUnlocked=false;former.contactDay=null;former.affection=Math.max(8,Math.min(former.affection||8,18));former.trust=Math.max(4,Math.min(former.trust||4,12));
       ensureCourtship(former).interactions=0;
     });
     const anchor=heroine&&metRecord(L,heroine.name);
@@ -1972,7 +1972,7 @@ function chooseSchoolLife(id){
   const warning=father||guardian;
   if(warning){
     const line=father
-      ?'학교 때 생활경제연구회에서 있었던 일 잊지 마라. 돈도 조심하고 여자도 조심해. 예린이네하고 또 얽히면 이번에는 먼저 말하고.'
+      ?'학교 때 일은 이제 놓고 살아라. 지나간 사람들 연락처는 차단해 두고, 집에만 있지 말고 밖에 나가 네 생활부터 만들어.'
       :'학교 때 동아리 일처럼 혼자 감당하지 마. 돈 문제든 사람 문제든 이상하면 먼저 연락해.';
     pushPersonMessage(L,warning,line,false);
   }
@@ -2880,7 +2880,11 @@ const BOND_ENCOUNTER_SCENES=[
   {icon:'🥡',title:'늦은 저녁의 안부',scene:'./assets/date-route-friend.png',desc:'각자 바쁜 하루를 끝낸 뒤 간단한 저녁을 함께 먹게 됐습니다.'}
 ];
 function queueBondEncounter(L){
-  const pool=ensureMet(L).filter(r=>(!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,r.name))&&['acquaintance','friend'].includes(r.status)&&!courtshipReadiness(r).ready&&r.lastBondEncounterDay!==S.day);
+  const pool=ensureMet(L).filter(r=>
+    (!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,r.name))&&
+    r.status==='friend'&&hasPersonalContact(r)&&
+    !courtshipReadiness(r).ready&&r.lastBondEncounterDay!==S.day
+  );
   if(!pool.length||Math.random()>.55)return;
   const r=pick(pool);r.lastBondEncounterDay=S.day;
   queueImportantEvent({bondEncounter:true,personName:r.name,sceneIndex:Math.floor(Math.random()*BOND_ENCOUNTER_SCENES.length)});
@@ -3257,7 +3261,6 @@ function doHobby(id) {
       else showFreedomGuildEvent(guildEventId);
     }
   }
-  if(['food','gym','travel'].includes(id))maybeActivityEncounter(id);
 }
 
 function doHealthCheckup() {
@@ -3640,20 +3643,24 @@ function migrateLifePeople(L) {
 }
 
 /* ---- 만난 사람 기억(인간관계 명부) ----
- * 한 번 만난 사람은 헤어져도 사라지지 않는다. 나이·성격·초상화·호감도를 그대로 들고 있다가
- * 다음 데이트 화면에 '아는 사람'으로 다시 나타난다. */
+ * 한 번 만난 사람의 기록은 남지만, 전 연인은 플레이어가 차단한 연락처로 분리한다. */
 function ensureMet(L) { if (!Array.isArray(L.met)) L.met = []; return L.met; }
 function metRecord(L, name) { return ensureMet(L).find(m => m.name === name); }
 
 const CONTACT_RULES={affection:12,trust:6,interactions:2,months:1};
 const COURTSHIP_RULES={affection:15,trust:8,interactions:3,months:1};
-function establishedContactStatus(status){return['partner','lover','casual','polycule','ex'].includes(status);}
+function establishedContactStatus(status){return['partner','lover','casual','polycule'].includes(status);}
 function ensureCourtship(rec){
   if(!rec)return rec;
   if(!Number.isFinite(rec.firstDay))rec.firstDay=S.day;
   if(!Number.isFinite(rec.interactions)){
     const established=establishedContactStatus(rec.status);
     rec.interactions=established?Math.max(3,rec.dates||0):Math.max(0,rec.dates||0);
+  }
+  if(rec.status==='ex'){
+    rec.blockedByPlayer=true;
+    rec.contactUnlocked=false;
+    return rec;
   }
   if(typeof rec.contactUnlocked!=='boolean'){
     const months=Math.max(0,S.day-rec.firstDay);
@@ -3679,7 +3686,7 @@ function contactProgress(rec){
   return r.ready?'📱 개인적인 연락을 건네도 어색하지 않습니다':'서로 얼굴과 말투를 알아가는 중입니다';
 }
 function unlockPersonalContact(rec){
-  if(!rec)return false;
+  if(!rec||rec.status==='ex')return false;
   const was=hasPersonalContact(rec);
   rec.contactUnlocked=true;
   if(!Number.isFinite(rec.contactDay))rec.contactDay=S.day;
@@ -3777,51 +3784,6 @@ function resolveSpecialMeet(status) {
     flashToast('개인 연락처는 조금 더 신뢰를 쌓아야 받을 수 있습니다','neutral');
   }
   const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}S._specialMeet=null;afterLifeAction('인맥');
-}
-
-/* 외출·취미 활동 중 자연스럽게 사람을 만나는 시스템 —
- * 활동마다 그 자리에 어울리는 성향의 사람과 우연히 마주친다. */
-const HOBBY_MEET = {
-  game:   { emoji:'🎮', pool:['homebody','cold','frugal'],  scene:'온라인 길드 정기모임에서 같은 팀이 되어' },
-  food:   { emoji:'🍽️', pool:['caring','lavish','free'],    scene:'웨이팅이 긴 맛집에서 합석하게 되어' },
-  gym:    { emoji:'🏋️', pool:['ambitious','free','caring'],  scene:'같은 시간대에 운동하다 스팟을 도와주며' },
-  study:  { emoji:'📚', pool:['ambitious','cold','frugal'],  scene:'자기계발 스터디 뒤풀이 자리에서' },
-  travel: { emoji:'✈️', pool:['free','lavish','caring'],     scene:'여행지 게스트하우스 라운지에서' },
-  rest:   { emoji:'🌿', pool:['homebody','caring','frugal'], scene:'쉬는 날 동네를 산책하다가' },
-};
-function maybeActivityEncounter(id) {
-  const meet = HOBBY_MEET[id]; if (!meet) return;
-  const host = $('life-event'); if (host && host.style.display === 'block') return;  // 다른 이벤트가 이미 떠 있으면 양보
-  const L = S.life;
-  if (Math.random() > (RELATIONSHIPS.consensualMembers(L).length ? 0.2 : 0.42)) return;   // 활동마다 낮은 확률로만 인연이 생긴다
-  const c = makeCandidate({ pool: meet.pool }, []); if (!c) return;   // 정말 처음 보는 사람만
-  S._activityMeet = { c, scene: meet.scene, emoji: meet.emoji };
-  showActivityEncounter();
-}
-function showActivityEncounter() {
-  const m = S._activityMeet; if (!m) return; const c = m.c;
-  const host = $('life-event'); if (!host) return;
-  const per = D.PERSONALITIES[c.personality] || {};
-  host.style.display = 'block';
-  host.innerHTML = `<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${m.emoji} 활동 중 만난 사람</div><div class="title-bar-controls"><button aria-label="Close" id="ameet-x"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="${c.name}"><div><strong>${c.name} · ${c.age}세 · ${c.job}</strong><br><span class="muted">${per.emoji || ''}${per.name || ''}</span></div></div><div class="event-desc">${m.scene} ${c.name}와(과) 자연스럽게 이야기를 나눴습니다. <span class="muted">${per.desc || ''}</span></div><div class="event-options"><button class="event-opt" data-ameet="talk">🙂 조금 더 대화를 나눈다</button><button class="event-opt" data-ameet="greet">🤝 다음에 마주치면 인사하기로 한다</button><button class="event-opt" id="ameet-skip">그냥 인사만 하고 헤어진다</button></div><div class="important-event-detail">처음 만난 자리에서는 바로 연락처나 연애 관계로 이어지지 않습니다.</div></div></div>`;
-  host.querySelectorAll('[data-ameet]').forEach(b => b.addEventListener('click', () => resolveActivityEncounter(b.dataset.ameet)));
-  [$('ameet-x'), $('ameet-skip')].forEach(b => { if (b) b.addEventListener('click', closeActivityEncounter); });
-}
-function closeActivityEncounter() { const h = $('life-event'); if (h) { h.style.display = 'none'; h.innerHTML = ''; } S._activityMeet = null; }
-function resolveActivityEncounter(kind) {
-  const m = S._activityMeet; if (!m) return; const c = m.c;
-  if(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(S.life,c.name)){
-    addNews(`${m.emoji} ${c.name}님은 짧게 인사만 하고 더는 대화를 이어가지 않았습니다`,'neutral');
-    flashToast('아직은 낯선 사람에게 관심이 없는 것 같습니다','neutral');
-    closeActivityEncounter();renderLifePanel();autoSave();return;
-  }
-  const rec = rememberPerson(c, 'acquaintance');
-  addBondInteraction(rec,'activity-meeting');
-  rec.affection = Math.max(rec.affection || 0, kind === 'talk' ? 7 : 3);
-  rec.trust = Math.max(rec.trust || 0, kind === 'talk' ? 4 : 2);
-  addNews(`${m.emoji} ${c.name}님과 얼굴을 익혔습니다`, 'neutral');
-  flashToast(`${m.emoji} 다음에 다시 만나면 조금 더 가까워질 수 있습니다`, 'neutral');
-  closeActivityEncounter(); renderLifePanel(); autoSave();
 }
 
 function showPersonRequest(name) {
@@ -4305,17 +4267,16 @@ function monthlyRelationshipMessages(L){
   const arrivals=[];
   ensureMet(L).forEach(r=>{
     if(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(L,r.name))return;
+    if(r.status==='ex'){ensureCourtship(r);return;}
     const active=RELATIONSHIPS.isPartner(L,r.name)||['acquaintance','friend','casual','lover','polycule'].includes(r.status);
-    // 전 연인도 아주 가끔은 안부를 보내온다(연락이 완전히 끊기지 않은 경우)
-    const exReach=r.status==='ex'&&(r.affection||0)>15&&Math.random()<.05;
-    if(!active&&!exReach)return;
-    if(!hasPersonalContact(r)&&!exReach)return;
+    if(!active)return;
+    if(!hasPersonalContact(r))return;
     const safeDangerFriend=isDangerousHeroine(r)&&r.status==='friend'&&!dangerousRomanceActive(L,r);
     const risk=dangerousRiskMeta(r),obsession=risk?risk.value:0;
     const gettingCloser=['acquaintance','friend'].includes(r.status)&&!courtshipReadiness(r).ready;
     const earlyContact=!r.childhoodFriend&&r.name!=='윤세라'&&!establishedContactStatus(r.status)&&
       ((r.affection||0)<25||(r.trust||0)<12||(r.interactions||0)<4);
-    const chance=exReach?1:safeDangerFriend?(r.name==='윤세라'?.72:earlyContact?.10:.16):earlyContact?.10:gettingCloser?.18:.22+(obsession/170)+(r.special?.12:0);
+    const chance=safeDangerFriend?(r.name==='윤세라'?.72:earlyContact?.10:.16):earlyContact?.10:gettingCloser?.18:.22+(obsession/170)+(r.special?.12:0);
     if(Math.random()>chance)return;
     const ctx={tag:relationTag(L,r.name),personality:r.personality,special:r.special,
       obsession,affection:r.affection||0,idleMonths:r.idleMonths||0,
@@ -4495,7 +4456,7 @@ function updateRelationships(L) {
   if (faded.length) addNews(`🕸️ 한동안 못 만난 ${faded.join(', ')}님과 사이가 조금 멀어졌습니다`, 'neutral');
 
   // 아직 연이 남아 있는 사람 중 한 명의 근황 (30% 확률) — 완전히 식은 사이는 소식도 끊긴다
-  const reachable = met.filter(m => (m.affection || 0) > 0);
+  const reachable = met.filter(m => m.status!=='ex'&&hasPersonalContact(m)&&(m.affection || 0) > 0);
   if (reachable.length && Math.random() < 0.3) {
     const who = pick(reachable);
     const line = ROMANCE.momentLine(who, 'news');
@@ -4553,8 +4514,8 @@ const SIGNATURE_EVENTS={
 function signatureContext(L){return{prestige:playerJobPrestige(),debtRatio:(L.loan||0)/Math.max(1,totalWealth()),marginCalled:!!S.marginCalled};}
 function signatureEvent(result){const rec=result.rec,s=result.spec,copy=SIGNATURE_EVENTS[rec.name]||[`${s.name} 변화`,`${s.name} 수치가 관계를 바꾸기 시작했습니다.`];queueImportantEvent({type:'love',scene:`./assets/${s.scene}`,icon:s.icon,title:`${rec.name} · ${copy[0]}`,desc:copy[1],detail:`${s.name} ${Math.round(result.state.value)}/100 · ${CHAR_TRAITS.stageText(rec)}`,tone:s.good?'good':result.afterStage>=2?'bad':'neutral'});}
 function updateCharacterSignatureSystems(L){
-  if(!CHAR_TRAITS)return;const results=CHAR_TRAITS.monthly(L,signatureContext(L));results.forEach(x=>{if((!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,x.rec.name))&&x.changed)signatureEvent(x);});
-  ensureMet(L).forEach(r=>{if(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(L,r.name))return;const s=CHAR_TRAITS.system(r.name),st=CHAR_TRAITS.ensure(r);if(!s||!st)return;const stage=CHAR_TRAITS.stageOf(s,st.value);if(stage<3)return;
+  if(!CHAR_TRAITS)return;const active=new Set(['friend','casual','partner','lover','polycule']),results=CHAR_TRAITS.monthly(L,signatureContext(L));results.forEach(x=>{if((!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,x.rec.name))&&x.changed)signatureEvent(x);});
+  ensureMet(L).forEach(r=>{if(!active.has(r.status)||(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(L,r.name)))return;const s=CHAR_TRAITS.system(r.name),st=CHAR_TRAITS.ensure(r);if(!s||!st)return;const stage=CHAR_TRAITS.stageOf(s,st.value);if(stage<3)return;
     if(r.name==='강유진'){r.menhera=true;r.affection=clamp((r.affection||0)+3,0,100);L.legalShield=Math.min(5,(L.legalShield||0)+1);L.stress=clamp((L.stress||0)+1,0,100);r.protectionEnjoyed=true;}
     else if(r.name==='하은'||r.name==='수아'){r.affection=Math.max(0,(r.affection||0)-3);}
     else if(r.name==='유나'){SOCIAL.ensure(L).reputation-=2;}
@@ -4779,7 +4740,9 @@ function relationshipImage(L,name){
 
 function renderChatPanel(){
   const host=$('chat-panel');if(!host||!S.life)return;const L=S.life;
-  const people=ensureMet(L).filter(r=>(!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,r.name))&&hasPersonalContact(r));
+  const knownPeople=ensureMet(L).filter(r=>!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,r.name));
+  const blockedPeople=knownPeople.filter(r=>r.status==='ex').map(r=>{ensureCourtship(r);return r;});
+  const people=knownPeople.filter(r=>r.status!=='ex'&&hasPersonalContact(r));
   const contacts=(SOCIAL.ensure(L).contacts||[]).slice().sort((a,b)=>{
     const priority=c=>['mother','father','guardian'].includes(c.role)?0:c.role==='schoolfriend'?1:2;
     return priority(a)-priority(b)||(b.trust||0)-(a.trust||0);
@@ -4804,7 +4767,7 @@ function renderChatPanel(){
     const log=host.querySelector('.chat-log');if(log)log.scrollTop=log.scrollHeight;return;
   }
   if(S._chatPerson){
-    const r=metRecord(L,S._chatPerson);if(!r||(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(L,r.name))){S._chatPerson=null;return renderChatPanel();}
+    const r=metRecord(L,S._chatPerson);if(!r||r.status==='ex'||(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(L,r.name))){S._chatPerson=null;return renderChatPanel();}
     const room=personChat(L,r.name);room.unread=0;
     const ttsOn=S.ttsOn&&VOICE;
     const risk=dangerousRiskMeta(r);
@@ -4815,8 +4778,9 @@ function renderChatPanel(){
   }
   const contactRows=contacts.map(c=>{const room=personChat(L,c.name),last=room.messages[room.messages.length-1],r=SOCIAL.role(c);return`<button class="chat-contact social-chat-contact" data-chat-contact="${c.id}"><span class="contact-avatar">${r.icon}</span><span><b>${c.name}</b> · ${c.relationLabel||r.name}<br><span class="chat-preview">${last?last.text:'먼저 안부를 물어보세요.'}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;}).join('');
   const romanceRows=people.map(r=>{const room=personChat(L,r.name),last=room.messages[room.messages.length-1];return`<button class="chat-contact" data-chat-person="${r.name}"><img src="${characterPortrait(r)}" alt="${r.name}"><span><b>${r.name}</b> · ${relationTag(L,r.name)}<br><span class="chat-preview">${last?last.text:'대화를 시작해보세요.'}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;}).join('');
+  const blockedRows=blockedPeople.map(r=>`<button class="chat-contact blocked-chat-contact" disabled><img src="${characterPortrait(r,'sad')}" alt="${r.name}"><span><b>${r.name}</b> · 전 연인<br><span class="chat-preview">내가 차단한 연락처 · 메시지 수신 안 함</span></span><span class="blocked-contact-mark">🚫</span></button>`).join('');
   const rivalRows=rivals.map(({bot,index})=>{const room=personChat(L,bot.name),last=room.messages[room.messages.length-1],avatar=bot.portrait?`<img src="./assets/characters/${bot.portrait}" alt="${bot.leader}">`:`<span class="contact-avatar">📈</span>`;return`<button class="chat-contact rival-chat-contact" data-chat-rival="${index}">${avatar}<span><b>${bot.name}</b> · ${bot.bankrupt?'파산·해산':bot.faction}<br><span class="chat-preview">${last?last.text:'아직 직접 연락은 없습니다.'}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;}).join('');
-  host.innerHTML=`<div class="chat-list"><div class="hub-note">시장 경쟁자·가족·학창 친구·업계 인맥·연애 상대의 연락이 한곳에 저장됩니다. 경쟁자는 실제 종목과 세력 상황을 두고 연락합니다.</div>${rivalRows?`<div class="chat-group-title">📈 경쟁자·시장</div>${rivalRows}`:''}${contactRows?`<div class="chat-group-title">🏠 가족·친구·인맥</div>${contactRows}`:''}${romanceRows?`<div class="chat-group-title">💕 친구·연애 관계</div>${romanceRows}`:''}${!rivalRows&&!contactRows&&!romanceRows?'<span class="muted">아직 저장된 연락처가 없습니다.</span>':''}</div>`;
+  host.innerHTML=`<div class="chat-list"><div class="hub-note">시장 경쟁자·가족·학창 친구·업계 인맥·연애 상대의 연락이 한곳에 저장됩니다. 경쟁자는 실제 종목과 세력 상황을 두고 연락합니다.</div>${rivalRows?`<div class="chat-group-title">📈 경쟁자·시장</div>${rivalRows}`:''}${contactRows?`<div class="chat-group-title">🏠 가족·친구·인맥</div>${contactRows}`:''}${romanceRows?`<div class="chat-group-title">💕 친구·연애 관계</div>${romanceRows}`:''}${blockedRows?`<div class="chat-group-title blocked-group-title">🚫 내가 차단한 연락처</div>${blockedRows}`:''}${!rivalRows&&!contactRows&&!romanceRows&&!blockedRows?'<span class="muted">아직 저장된 연락처가 없습니다.</span>':''}</div>`;
   host.querySelectorAll('[data-chat-rival]').forEach(b=>b.addEventListener('click',()=>{S._chatPerson=null;S._chatContact=null;S._chatRival=Number(b.dataset.chatRival);renderChatPanel();autoSave();}));
   host.querySelectorAll('[data-chat-contact]').forEach(b=>b.addEventListener('click',()=>{S._chatPerson=null;S._chatRival=null;S._chatContact=b.dataset.chatContact;renderChatPanel();autoSave();}));
   host.querySelectorAll('[data-chat-person]').forEach(b=>b.addEventListener('click',()=>{S._chatContact=null;S._chatRival=null;S._chatPerson=b.dataset.chatPerson;renderChatPanel();autoSave();
@@ -4908,65 +4872,6 @@ function proposalResult(c, rec, tier) {
   if (tier !== '성공' || affection < 60 || (rec.trust||0)<18 || (rec.dates || 0) < 3 || knownMonths(rec)<3) return { attempted: false };
   const chance = clamp((per.confess || 0.5) + (affection - 60) / 140+(rec.trust||0)/500, 0.25, 0.92);
   return { attempted: true, accepted: Math.random() < chance, chance };
-}
-
-// 이미 아는 사람인가 (연인·양다리 상대·명부 등재자)
-function isKnownPerson(L, name) {
-  return RELATIONSHIPS.isPartner(L,name) ||
-         (L.lovers || []).some(x => x.name === name) ||
-         !!metRecord(L, name);
-}
-
-function heroinePlaceKeys(character){
-  const byJob={
-    '디자이너':['hobby','office'],'간호사':['medical'],'공무원':['office','street'],'승무원':['street','cafe'],
-    '모델':['street','club'],'교사':['culture','office'],'약사':['medical'],'파티시에':['cafe'],
-    '연구원':['medical','culture'],'연주자':['culture','hobby'],'편집자':['culture','office'],
-    '트레이너':['fitness'],'게임 기획자':['hobby','office'],'경찰관':['street'],'프리랜서 일러스트레이터':['hobby','cafe'],
-    '재벌가 전략실 이사':['office','club'],
-  };
-  return byJob[character.job]||['street','hobby'];
-}
-
-// 데이트 상대 프로필 생성 (이름·나이·직업·성격) — 경로(route)에 따라 성향 풀이 다름
-// 이미 아는 사람은 새 소개팅 상대로 다시 뽑지 않는다(같은 사람이 초면인 척 등장하던 버그).
-function makeCandidate(route, exclude) {
-  const L = S.life;
-  if (route && route.fixed && D.SPECIAL_CHARACTERS[route.fixed]) {
-    const fixed=Object.assign({},D.SPECIAL_CHARACTERS[route.fixed]);
-    Object.assign(fixed,ROMANCE_META[fixed.personality]||ROMANCE_META.caring);
-    return fixed;
-  }
-  let pool = D.CHARACTERS;
-  if(FREEDOM_TRIO){
-    pool=pool.filter(character=>FREEDOM_TRIO.canMeetOffline(L,character.name));
-  }
-  if(CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.ensure(L).removed){
-    pool=pool.filter(character=>!CHILDHOOD_CIRCLE.MEMBERS.includes(character.name));
-  }
-  if(route&&route.key&&!['intro','street'].includes(route.key)){
-    const placed=pool.filter(character=>heroinePlaceKeys(character).includes(route.key));
-    if(placed.length)pool=placed;
-  }
-  if(route&&route.office&&ORIGIN){
-    const jobs=ORIGIN.WORKPLACE_HEROINE_JOBS[L.job]||[];
-    const sameIndustry=D.CHARACTERS.filter(c=>c.gender==='f'&&jobs.includes(c.job));
-    if(sameIndustry.length)pool=sameIndustry;
-  }
-  if (route && Array.isArray(route.pool) && route.pool.length) {
-    const filtered = pool.filter(c => route.pool.includes(c.personality));
-    if (filtered.length) pool = filtered;
-  }
-  const taken = exclude || [];
-  // 아는 사람이 초면인 척 다시 소개되지 않도록, 정말 처음 보는 사람만 뽑는다
-  const fresh = pool.filter(c => (!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,c.name))&&!isKnownPerson(L, c.name) && !taken.includes(c.name));
-  if (!fresh.length) return null;   // 로스터를 다 만났다 — 새로 소개받을 사람 없음
-  const c = Object.assign({}, pick(fresh));
-  const pAge = dateInfo(S.day).age;              // 플레이어 또래 위주로 만난다
-  c.age = clamp(pAge + Math.round(rand(-5, 6)), 19, 55);
-  Object.assign(c, ROMANCE_META[c.personality] || ROMANCE_META.caring);
-  if (route && route.office) c.workplace = '같은 직장·업계';  // 고유 직업은 유지한다
-  return c;
 }
 
 // 명부에 기록된 사람을 데이트 상대 객체로 되살린다 (나이·직업·초상화 그대로)
@@ -5105,45 +5010,46 @@ function specialRouteContext(L) {
   };
 }
 
-// 상대 고르기 — 연인 / 이미 아는 사람 / 경로별 새 소개팅 상대
+const SOLO_OUTINGS=[
+  {id:'walk',icon:'🌳',name:'공원과 동네 산책',cost:20000,happy:3,stress:-10,health:1,fitness:2,desc:'사람을 찾지 않고 걷다가 벤치에서 잠깐 쉽니다.'},
+  {id:'bookstore',icon:'📚',name:'서점과 조용한 카페',cost:70000,happy:6,stress:-8,careerSkill:1,desc:'읽고 싶던 책을 고르고 혼자 생각을 정리합니다.'},
+  {id:'culture',icon:'🎬',name:'영화·전시 한 편',cost:120000,happy:10,stress:-7,desc:'누구를 만나기 위한 일정이 아니라 온전히 취향을 위한 외출입니다.'},
+  {id:'marketwalk',icon:'🏙️',name:'상권과 거리 둘러보기',cost:50000,happy:4,stress:-5,mentorSkill:2,desc:'가게와 사람들의 소비 흐름을 보며 시장 감각을 익힙니다.'},
+];
+
+function resolveSoloOuting(id){
+  const outing=SOLO_OUTINGS.find(item=>item.id===id);if(!outing)return;
+  if(lifeActionExhausted()){flashToast(`📅 이번 달 자유시간 ${LIFE_ACTIONS_PER_MONTH}회를 모두 사용했습니다`,'neutral');return;}
+  if(S.capital<outing.cost){flashToast(`💸 ${won(outing.cost)}원이 필요합니다`,'bad');return;}
+  const L=S.life;S.capital-=outing.cost;
+  L.happy=clamp((L.happy||0)+outing.happy,0,100);
+  L.stress=clamp((L.stress||0)+outing.stress,0,100);
+  if(outing.health)L.health=clamp((L.health||0)+outing.health,0,100);
+  if(outing.fitness)L.fitness=clamp((L.fitness||0)+outing.fitness,0,100);
+  if(outing.careerSkill){const career=CAREER.ensure(L);career.skill=clamp((career.skill||0)+outing.careerSkill,0,100);}
+  if(outing.mentorSkill){const mentor=investmentMentorState(L);mentor.skill=clamp((mentor.skill||0)+outing.mentorSkill,0,100);}
+  addNews(`${outing.icon} ${outing.name} · 관계·연락처 변화 없음`,'neutral');
+  flashToast(`${outing.icon} 혼자 시간을 보냈습니다 · 스트레스 ${outing.stress} · 행복 +${outing.happy}`,'good');
+  closeDateModal();afterLifeAction('취미');
+}
+
+// 외출 고르기 — 혼자 보내는 시간 / 연락처를 교환한 사람과의 약속 / 차단 기록
 function showRouteModal() {
   const host = $('date-host'); if (!host) return;
   const L = S.life;
   ensureMet(L);
   const currentPartners=RELATIONSHIPS.consensualMembers(L);
   const inRel = currentPartners.length > 0;
-  const ctx = specialRouteContext(L);
-  const friends=L.met.filter(m=>m.status!=='ex'&&hasPersonalContact(m)&&!RELATIONSHIPS.isPartner(L,m.name)&&(!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,m.name)))
-    .sort((a,b)=>(b.affection||0)-(a.affection||0)).slice(0,2);
-  const contacts=(SOCIAL.ensure(L).contacts||[]).filter(c=>!['mother','father','guardian'].includes(c.role))
-    .sort((a,b)=>(b.trust||0)-(a.trust||0)).slice(0,2);
-  S._dateCompanionOptions=[
-    {type:'solo',name:'혼자',scoreMod:0,costMul:1,label:'🚶 혼자'},
-    ...friends.map(m=>({type:'friend',name:m.name,scoreMod:6,costMul:1,label:`🙂 ${m.name} · 대화 +6`})),
-    ...contacts.map(c=>({type:'contact',id:c.id,name:c.name,scoreMod:c.trust>=60?10:7,costMul:.85,label:`🤝 ${c.name} · 소개 도움`})),
-  ];
-  const selectedCompanion=S._dateCompanion||S._dateCompanionOptions[0];
-  const hasIntroducer=S._dateCompanion&&['friend','contact'].includes(S._dateCompanion.type);
-  const routes = D.DATE_ROUTES.filter(r => r.key!=='club'&&(!r.needsJob || (L.job && L.job !== 'none'))
-    && (r.key!=='intro'||hasIntroducer)
-    && (!r.condition || r.condition(L, ctx)));
-  const seraRecord=metRecord(L,'윤세라'),yandereSera=seraRecord&&seraRecord.yandere?candidateFromRecord(seraRecord):null;
-  // 같은 화면에 같은 사람이 두 번 뜨지 않도록 경로별로 순차 배정
-  // 후보 풀이 좁은 경로부터 배정해야 넓은 경로가 먼저 사람을 채가지 않는다 (표시 순서는 원래대로)
-  const taken = [];
-  const poolSize = r => Array.isArray(r.pool) && r.pool.length ? r.pool.length : 99;
-  const assigned = new Map();
-  routes.slice().sort((a, b) => poolSize(a) - poolSize(b)).forEach(r => {
-    const cand = yandereSera&&!r.fixed ? yandereSera : makeCandidate(r, taken);
-    if (cand) { taken.push(cand.name); assigned.set(r.key, cand); }
-  });
-  S._dateOffers = routes.filter(r => assigned.has(r.key)).map(r => {const cand=assigned.get(r.key);return{route:cand.name==='윤세라'?Object.assign({},r,{scene:'./assets/event-sera-doorstep.png'}):r,cand};});
+  S._dateCompanion={type:'solo',name:'혼자',scoreMod:0,costMul:1};
+  const formerPartners = L.met.filter(m => m.status === 'ex').map(m=>{ensureCourtship(m);return m;});
+  S._dateKnown = L.met.filter(m =>
+    m.status !== 'ex'&&hasPersonalContact(m)&&!RELATIONSHIPS.isPartner(L,m.name)&&
+    (!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,m.name))
+  ).map(candidateFromRecord);
 
-  // 이미 아는 사람들 — 연인은 따로, 양다리 상대·전 연인·그냥 아는 사람은 여기에
-  const formerPartners = L.met.filter(m => m.status === 'ex');
-  S._dateKnown = L.met.filter(m => m.status !== 'ex' && !RELATIONSHIPS.isPartner(L,m.name)&&(!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,m.name))).map(candidateFromRecord);
-
-  let cards = `<div class="route-sep">🌙 혼자 밤을 보내는 방법</div><div class="date-place-grid"><button class="route-card place-card club-relief-card" data-club-night><div class="rc-head">🍸 클럽에서 밤 보내기</div><small>히로인이 아닌 처음 보는 여성과 가볍게 어울립니다. 연락이 와도 답하지 않습니다.</small><em>${won(180000)} · 스트레스 -20 · 체력 -2</em></button></div>`;
+  let cards = `<div class="route-sep">🚶 혼자 하는 외출</div><div class="date-place-grid">${SOLO_OUTINGS.map(outing=>
+    `<button class="route-card place-card solo-outing-card" data-solo-outing="${outing.id}"><div class="rc-head">${outing.icon} ${outing.name}</div><small>${outing.desc}</small><em>${won(outing.cost)} · 행복 +${outing.happy} · 스트레스 ${outing.stress}</em></button>`
+  ).join('')}<button class="route-card place-card club-relief-card" data-club-night><div class="rc-head">🍸 클럽에서 밤 보내기</div><small>히로인이 아닌 처음 보는 여성과 가볍게 어울립니다. 연락은 저장하지 않습니다.</small><em>${won(180000)} · 스트레스 -20 · 체력 -2</em></button></div>`;
   S._datePartners=currentPartners;
   if (inRel) {
     cards += `<div class="route-sep">💕 현재 관계</div><div class="date-person-grid">`;
@@ -5155,60 +5061,35 @@ function showRouteModal() {
     }).join('')+'</div>';
   }
   if (S._dateKnown.length) {
-    cards += `<div class="route-sep">🌱 다시 마주칠 만한 사람</div><div class="date-person-grid">`;
+    cards += `<div class="route-sep">📱 약속할 수 있는 사람</div><div class="date-person-grid">`;
     cards += S._dateKnown.map((c, i) => {
-      const tag = relationTag(L, c.name);
-      const readiness=courtshipReadiness(c);
-      const hasContact=hasPersonalContact(c);
-      const idle=c.idleMonths>=3?` · ${c.idleMonths}개월 만`:'';
-      return personCardHTML(c, `${readiness.ready?'💘 데이트 가능':hasContact?'📱 친분 외출':'👋 다시 마주치기'} · ${tag}`,
-        `data-known="${i}"`, 'known-card', `호감 ${Math.round(c.affection||0)} · ${readiness.ready?'마음을 확인할 때':hasContact?'조금 더 알아가는 중':contactProgress(c)}${idle}`);
+      const readiness=courtshipReadiness(c),idle=c.idleMonths>=3?` · ${c.idleMonths}개월 만`:'';
+      return personCardHTML(c, `${readiness.ready?'💘 데이트 가능':'📱 친분 외출'} · ${relationTag(L,c.name)}`,
+        `data-known="${i}"`, 'known-card', `호감 ${Math.round(c.affection||0)} · ${readiness.ready?'마음을 확인할 때':'서로 연락처를 교환한 사이'}${idle}`);
     }).join('')+'</div>';
   }
-  S._dateEx = formerPartners.map(candidateFromRecord);
-  if (formerPartners.length && L.relationship === 'single') {
-    cards += `<div class="route-sep">💔 전 연인</div><div class="date-person-grid">`;
-    cards += S._dateEx.map((c, i) => personCardHTML(c,
-      '💔 다시 연락하기', `data-ex="${i}"`, 'known-card ex-card', `호감 ${Math.round(c.affection||0)} · 재회 시도`)).join('')+'</div>';
-  } else if (formerPartners.length) {
-    cards += `<div class="route-sep">💔 전 연인</div><div class="date-person-grid">`;
-    cards += S._dateEx.map(c => personCardHTML(c,
-      '💔 지금은 연락할 수 없음', 'disabled', 'known-card ex-card', '현재 관계를 먼저 정리해야 합니다')).join('')+'</div>';
+  if (formerPartners.length) {
+    cards += `<div class="route-sep">🚫 차단한 전 연인</div><div class="date-person-grid">`;
+    cards += formerPartners.map(c => personCardHTML(c,
+      '🚫 내가 차단한 연락처', 'disabled', 'known-card ex-card blocked-ex-card', '메시지 수신 안 함 · 외출에서 다시 만나지 않음')).join('')+'</div>';
   }
-  if (S._dateOffers.length) {
-    cards += `<div class="route-sep">🗺️ 혼자 나갈 장소</div><div class="date-place-grid">`;
-    cards += S._dateOffers.map((o, i) =>
-      `<button class="route-card place-card" data-i="${i}"><div class="rc-head">${o.route.emoji} ${o.route.name}</div><small>${o.route.desc}</small><em>${won(o.route.cost)}${o.route.key==='intro'?` · ${S._dateCompanion.name}의 소개`:''}</em></button>`).join('')+'</div>';
-  } else {
-    cards += `<div class="route-sep muted">더 이상 새로 소개받을 사람이 없어요. 아는 사람을 다시 만나보세요.</div>`;
-  }
-  const companionButtons=S._dateCompanionOptions.map((option,index)=>{
-    const active=option.type===selectedCompanion.type&&option.name===selectedCompanion.name;
-    return `<button class="${active?'active':''}" data-companion-index="${index}">${option.label}</button>`;
-  }).join('');
-  const title='🌆 이번 주, 누구와 어디로 갈까?';
   host.style.display = 'block';
   host.innerHTML =
     `<div class="window event-window date-picker-window">
-       <div class="title-bar event-bar"><div class="title-bar-text">${title}</div>
+       <div class="title-bar event-bar"><div class="title-bar-text">🌆 이번 주, 어디서 시간을 보낼까?</div>
          <div class="title-bar-controls"><button aria-label="Close" id="route-x"></button></div></div>
        <div class="window-body">
-         <img class="dating-banner date-scene" src="${currentDateSceneImage()}" alt="선택한 동행 방식의 데이트 풍경">
-         <div class="date-picker-lead">아는 사람과 다시 마주치거나, 혼자 나가 새 장소를 둘러봅니다.</div>
-         ${S._dateCompanionOptions.length>1?`<div class="date-companion-row"><b>새 인연 도움</b><div class="date-companion-strip">${companionButtons}</div></div>`:''}
+         <img class="dating-banner date-scene" src="${currentDateSceneImage()}" alt="이번 주 외출 풍경">
+         <div class="date-picker-lead">외출 장소에서 새 히로인이 자동으로 생기지는 않습니다. 혼자 시간을 보내거나, 이미 연락처를 교환한 사람과 약속합니다.</div>
          <div class="route-list">${cards}</div>
        </div>
      </div>`;
-  host.querySelectorAll('[data-companion-index]').forEach(b=>b.addEventListener('click',()=>{
-    S._dateCompanion={...S._dateCompanionOptions[+b.dataset.companionIndex]};
-    showRouteModal();
-  }));
+  host.querySelectorAll('[data-solo-outing]').forEach(button=>button.addEventListener('click',()=>resolveSoloOuting(button.dataset.soloOuting)));
   const clubNightButton=host.querySelector('[data-club-night]');
   if(clubNightButton)clubNightButton.addEventListener('click',showClubNight);
   host.querySelectorAll('.route-card').forEach(b => b.addEventListener('click', () => {
-    if (b.hasAttribute('data-club-night')) return;
+    if (b.hasAttribute('data-club-night')||b.hasAttribute('data-solo-outing')) return;
     if (b.dataset.partnerI != null) {
-      S._dateCompanion={type:'solo',name:'혼자',scoreMod:0,costMul:1};
       S._dateRoute = null;
       const person=S._datePartners[+b.dataset.partnerI];
       S._dateCandidate = Object.assign({ age: person.age || 28 }, person);
@@ -5216,22 +5097,10 @@ function showRouteModal() {
       return;
     }
     if (b.dataset.known != null) {
-      S._dateCompanion={type:'solo',name:'혼자',scoreMod:0,costMul:1};
       S._dateRoute = null;
       S._dateCandidate = S._dateKnown[+b.dataset.known];
       showDateModal(S._dateCandidate, null);
-      return;
     }
-    if (b.dataset.ex != null) {
-      S._dateCompanion={type:'solo',name:'혼자',scoreMod:0,costMul:1};
-      S._dateRoute = null;
-      S._dateCandidate = S._dateEx[+b.dataset.ex];
-      showDateModal(S._dateCandidate, null);
-      return;
-    }
-    const o = S._dateOffers[+b.dataset.i];
-    S._dateCandidate = o.cand; S._dateRoute = o.route;
-    showPlaceEncounterModal(o.cand,o.route);
   }));
   const x = $('route-x'); if (x) x.addEventListener('click', closeDateModal);
 }
@@ -5679,7 +5548,7 @@ function startDating(partnerObj) {
   celebrate(); playSound('buy');
 }
 
-/* 이별 처리 공용 — 헤어진 상대는 명부에 '전 연인'으로 남아 다시 만날 수 있다.
+/* 이별 처리 공용 — 헤어진 상대는 명부에 '전 연인' 기록으로 남고 연락처는 차단한다.
  * charmPenalty: 매력에 곱할 비율, happyPenalty: 행복 감소치 */
 function breakUp(charmPenalty, happyPenalty) {
   const L = S.life;
@@ -5694,6 +5563,7 @@ function breakUp(charmPenalty, happyPenalty) {
   const poly=ensurePolycule(L);poly.members.forEach(x=>{const r=metRecord(L,x.name);if(r)r.status='ex';});poly.active=false;poly.members=[];poly.trust=0;
   if(L.dangerousTrioBond&&L.dangerousTrioBond.active){DANGEROUS_HEROINE_NAMES.forEach(n=>{const r=metRecord(L,n);if(r)r.status='ex';});removeDangerousTrioFaction(L);L.dangerousTrioBond=null;}
   if(L.freedomTrioBond&&L.freedomTrioBond.active){FREEDOM_TRIO.NAMES.forEach(n=>{const r=metRecord(L,n);if(r)r.status='ex';});L.freedomTrioBond=null;}
+  ensureMet(L).filter(rec=>rec.status==='ex').forEach(ensureCourtship);
   L.partner = null;
   L.affection = 0;
   if (charmPenalty != null) L.charm = Math.floor(L.charm * charmPenalty);
@@ -5755,7 +5625,7 @@ function confirmBreakup() {
     text = `${p.name}님은 눈물을 훔치면서도 결정을 받아들였다. 두 사람은 마지막 인사를 나눴다.`;
   }
   if (cost > 0) { const paid = Math.min(Math.max(0, S.capital), cost); S.capital -= paid; if (cost > paid) LOAN.addDebt(L, cost - paid, married ? '이혼 위자료·정리비용' : '관계 정리 비용'); }
-  const name = breakUp(resisted ? 0.45 : 0.75, resisted ? 30 : 18);   // 상대는 '전 연인'으로 명부에 남는다
+  const name = breakUp(resisted ? 0.45 : 0.75, resisted ? 30 : 18);   // 상대는 차단된 '전 연인' 기록으로 남는다
   addNews(`💔 ${married ? '이혼' : '이별'} · ${text} 정리 비용 ${won(cost)}원`, 'bad');
   playSound('error');
   const out = $('breakup-outcome');
@@ -5763,7 +5633,7 @@ function confirmBreakup() {
   out.innerHTML =
     `<div class="oc-text">💔 ${text}</div>` +
     `<div class="oc-changes">정리 비용 -${won(cost)}${resisted ? ' · 평판 -8' : ''} · 매력·행복 감소</div>` +
-    `<div class="oc-text muted" style="margin-top:4px">${name}님은 이제 '전 연인'으로 남았어요. 소개팅 화면에서 다시 만나 재회를 노려볼 수 있어요.</div>` +
+    `<div class="oc-text muted" style="margin-top:4px">${name}님은 '전 연인' 기록으로 남고 연락처는 차단했습니다. 새 메시지는 도착하지 않습니다.</div>` +
     `<button id="breakup-confirm" class="session-btn opening">확인</button>`;
   const cf = $('breakup-confirm'); if (cf) cf.addEventListener('click', closeBreakupModal);
   renderCapital(); renderLifePanel(); checkAchievements(); autoSave();
@@ -6168,22 +6038,6 @@ function resolveClubNight(){
   const go=$('club-night-go'),back=$('club-night-back');if(go)go.disabled=true;if(back)back.disabled=true;
   $('club-night-confirm').addEventListener('click',()=>{closeDateModal();afterLifeAction('휴식');});
   autoSave();
-}
-
-function showPlaceEncounterModal(c,route){
-  const host=$('date-host');if(!host||!c||!route)return;
-  const introduced=route.key==='intro'&&S._dateCompanion&&S._dateCompanion.type!=='solo';
-  const placeLines={
-    street:'사람들이 오가는 길목에서 혼자 잠시 멈춰 있는 사람이 보입니다.',
-    office:'공용 공간에서 몇 번 마주쳤던 사람이 혼자 자료를 정리하고 있습니다.',
-    intro:`${S._dateCompanion&&S._dateCompanion.name||'지인'}이 “잘 맞을 것 같은 사람이 있다”며 자리를 마련했습니다.`,
-    hobby:'같은 활동을 반복해서 고르다 보니 자연스럽게 눈에 익은 사람이 생겼습니다.',
-    club:'화려한 자리에서도 주변보다 자기 페이스를 지키는 사람이 눈에 띕니다.',
-    narae:'장 마감 이야기를 마친 나래가 커피를 한 잔 더 주문합니다.',
-  };
-  host.innerHTML=`<div class="window event-window place-encounter-window"><div class="title-bar event-bar"><div class="title-bar-text">${route.emoji} ${route.name}</div><div class="title-bar-controls"><button aria-label="Close" id="place-x"></button></div></div><div class="window-body"><img class="dating-banner date-scene" src="${route.scene||dateSceneImage(introduced?'contact':'solo')}" alt="${route.name} 풍경"><div class="place-observation"><span class="place-silhouette">${introduced||route.fixed?c.emoji||'🙂':'?'}</span><div><b>${introduced?'소개받을 사람':route.fixed?c.name:'눈에 띄는 사람'}</b><p>${placeLines[route.key]||'장소를 둘러보다 잠깐 이야기를 나눌 만한 사람이 보입니다.'}</p><small>${introduced?'지인이 먼저 인사를 연결해 줍니다.':'말을 걸지 않고 오늘 일정을 그대로 보낼 수도 있습니다.'}</small></div></div><div class="event-options"><button class="event-opt" id="place-approach">${introduced?'🤝 소개를 받고 대화를 시작한다':'💬 자연스럽게 말을 걸어본다'}</button><button class="event-opt" id="place-skip">🚶 원래 하려던 일만 하고 돌아간다<span class="opt-sub">비용과 행동력을 쓰지 않고 장소 선택으로 돌아갑니다</span></button></div></div></div>`;
-  $('place-approach').addEventListener('click',()=>showDateModal(c,route));
-  $('place-skip').addEventListener('click',showRouteModal);$('place-x').addEventListener('click',closeDateModal);
 }
 
 function businessApplicants(item){
@@ -6888,7 +6742,6 @@ function dangerousTrioFollowsOuting(group){
 }
 function afterLifeAction(monthlyGroup) {
   markMonthAction(monthlyGroup);
-  if(CHAR_TRAITS&&monthlyGroup)ensureMet(S.life).filter(r=>r.status!=='ex'||r.name==='윤세라').forEach(r=>{const result=CHAR_TRAITS.action(r,monthlyGroup,signatureContext(S.life));if(result&&result.changed)signatureEvent({rec:r,...result});});
   renderCapital(); renderLifePanel(); checkAchievements(); autoSave();
   const homeHost=$('life-event');
   if(homeHost&&homeHost.querySelector('.home-life-window')){homeHost.style.display='none';homeHost.innerHTML='';}
