@@ -4522,57 +4522,47 @@ function currentDateSceneImage() {
   return (S._dateRoute && S._dateRoute.scene) || dateSceneImage((S._dateCompanion && S._dateCompanion.type) || 'solo');
 }
 
-function doDate() { showDateCompanyModal(); syncBGM(); }
-
-function showDateCompanyModal() {
-  const host = $('date-host'); if (!host) return;
-  const L = S.life;
-  const friends = ensureMet(L).filter(m => m.status !== 'ex' && !RELATIONSHIPS.isPartner(L,m.name));
-  const contacts = (SOCIAL.ensure(L).contacts || []).filter(c=>!['mother','father','guardian'].includes(c.role));
-  const friendCards = friends.slice().sort((a,b)=>(b.affection||0)-(a.affection||0)).slice(0,4).map((m,i) =>
-    `<button class="route-card companion-card" data-kind="friend" data-i="${i}">
-       <div class="rc-head">🙂 ${m.name}님과 같이 가기 <span class="muted">호감도 ${Math.round(m.affection||0)}</span></div>
-       <div class="rc-person"><img class="char-thumb" src="${characterPortrait(m)}" alt="${m.name}"><span>어색함을 풀어주고 만남 성공 점수 +6</span></div>
-     </button>`).join('');
-  S._dateFriends = friends.slice().sort((a,b)=>(b.affection||0)-(a.affection||0)).slice(0,4);
-  S._dateContacts = contacts.slice().sort((a,b)=>(b.trust||0)-(a.trust||0)).slice(0,4);
-  const contactCards = S._dateContacts.map((c,i) => { const r=SOCIAL.role(c); return `<button class="route-card companion-card" data-kind="contact" data-i="${i}">
-       <div class="rc-head">${r.icon} ${c.name}님과 같이 가기 <span class="muted">${r.name} · 신뢰 ${c.trust}</span></div>
-       <div class="rc-person"><img class="char-thumb" src="${emojiAvatar({emoji:r.icon})}" alt="${c.name}"><span>소개와 대화를 도와 성공 점수 +${c.trust>=60?10:7} · 비용 15% 절약</span></div>
-     </button>`; }).join('');
-  host.style.display = 'block';
-  host.innerHTML = `<div class="window event-window date-company-window">
-    <div class="title-bar event-bar"><div class="title-bar-text">🌆 오늘 누구와 나갈까?</div><div class="title-bar-controls"><button aria-label="Close" id="date-company-x"></button></div></div>
-    <div class="window-body">
-      <img class="dating-banner date-scene" src="${dateSceneImage('solo')}" alt="데이트를 준비하는 저녁 풍경">
-      <div class="event-desc">먼저 동행 여부만 정합니다. 혼자 나가면 장소를 둘러보다 직접 말을 걸고, 친구나 인맥과 함께 나갈 때만 소개를 부탁할 수 있습니다.</div>
-      <div class="route-list">
-        <button class="route-card solo-card" data-kind="solo"><div class="rc-head">🚶 혼자 외출하기</div><div class="rc-person"><span>장소를 고른 뒤 주변을 둘러보거나, 눈에 띄는 사람에게 직접 말을 겁니다.</span></div></button>
-        ${friendCards ? `<div class="route-sep">🙂 친구·아는 사람과 함께</div>${friendCards}` : '<div class="route-sep muted">아직 같이 갈 친구가 없어요. 데이트와 관계 행동으로 아는 사람을 만드세요.</div>'}
-        ${contactCards ? `<div class="route-sep">🤝 인맥과 함께</div>${contactCards}` : '<div class="route-sep muted">아직 같이 갈 인맥이 없어요. 인맥 모임에서 사람을 만나보세요.</div>'}
-      </div>
-    </div></div>`;
-  host.querySelectorAll('.companion-card,.solo-card').forEach(b => b.addEventListener('click', () => {
-    if (b.dataset.kind === 'friend') {
-      const m=S._dateFriends[+b.dataset.i]; S._dateCompanion={type:'friend',name:m.name,scoreMod:6,costMul:1};
-    } else if (b.dataset.kind === 'contact') {
-      const c=S._dateContacts[+b.dataset.i]; S._dateCompanion={type:'contact',id:c.id,name:c.name,scoreMod:c.trust>=60?10:7,costMul:.85};
-    } else S._dateCompanion={type:'solo',name:'혼자',scoreMod:0,costMul:1};
-    showRouteModal();
-  }));
-  const x=$('date-company-x'); if(x)x.addEventListener('click',closeDateModal);
+function doDate() {
+  S._dateCompanion={type:'solo',name:'혼자',scoreMod:0,costMul:1};
+  showRouteModal();
+  syncBGM();
 }
 
 // 사람 카드 한 장 (연인/아는 사람/새 소개팅 상대 공용)
-function personCardHTML(c, head, attrs, cls) {
+function personCardHTML(c, head, attrs, cls, detail) {
   const per = D.PERSONALITIES[c.personality] || {};
-  const g = (D.GENDER_LABEL || {})[c.gender] || '';
-  const age = c.age ? ` · 만 ${c.age}세` : '';
-  const prof = ROMANCE.profileOf(c);
   return `<button class="route-card ${cls || ''}" ${attrs}>
        <div class="rc-head">${head}</div>
-       <div class="rc-person"><img class="char-thumb" src="${characterPortrait(c)}" alt="${c.name}"><span><strong>${c.emoji || ''}${c.name}</strong>${g ? ` · ${g}` : ''}${age} · ${c.job} · 월 ${won(partnerIncomeNow(c))}<br>${per.emoji || ''}${per.name || ''}${prof ? ` <span class="muted">· 🗣️ ${prof.style}</span>` : ''}</span></div>
+       <div class="rc-person"><img class="char-thumb" src="${characterPortrait(c)}" alt="${c.name}"><span><strong>${c.emoji || ''}${c.name}</strong><small>${c.job} · ${per.emoji || ''}${per.name || ''}</small>${detail?`<em>${detail}</em>`:''}</span></div>
      </button>`;
+}
+
+function dateOpeningLine(c) {
+  const authored=window.QT_CHARACTER_DIALOGUE&&QT_CHARACTER_DIALOGUE.line(c,'incoming');
+  if(authored)return authored;
+  const fallback={
+    ambitious:'시간은 비워 뒀어요. 오늘은 어떤 모습을 보여 줄 건가요?',
+    cold:'긴 설명은 됐어요. 편하게 있다 가죠.',
+    lavish:'평범한 하루로 끝내진 않을 거죠?',
+    free:'계획은 나중에요. 일단 재밌는 데부터 가요.',
+    homebody:'시끄러운 곳보다는 오래 이야기할 수 있는 곳이 좋아요.',
+    frugal:'무리해서 쓰지 않아도 돼요. 같이 걷는 것도 좋으니까.',
+    caring:'오늘은 당신 이야기를 듣고 싶어요. 천천히 말해요.',
+    obsessive:'늦지 않았네요… 기다리고 있었어요.',
+  };
+  return fallback[c.personality]||'왔네요. 오늘은 천천히 이야기해 봐요.';
+}
+
+function dateApproachChoices(c,mode) {
+  const byKey=new Map(D.DATE_APPROACHES.map(a=>[a.key,a]));
+  const preferred=Array.isArray(c.best)?c.best:[];
+  const sceneKeys=mode==='encounter'
+    ? ['humor','sincere','direct','listen']
+    : mode==='outing'
+      ? ['listen','vulnerable','humor','sincere']
+      : ['plan','vulnerable','direct','flex','push'];
+  const keys=[...new Set([...preferred.slice(0,2),...sceneKeys,...D.DATE_APPROACHES.map(a=>a.key)])];
+  return keys.map(key=>byKey.get(key)).filter(Boolean).slice(0,4);
 }
 
 // 특수 캐릭터 조우 조건에 넘길 상황 정보 (피습·세력·빚 등 — 자연스러운 인연을 위해)
@@ -4595,6 +4585,16 @@ function showRouteModal() {
   const currentPartners=RELATIONSHIPS.consensualMembers(L);
   const inRel = currentPartners.length > 0;
   const ctx = specialRouteContext(L);
+  const friends=L.met.filter(m=>m.status!=='ex'&&!RELATIONSHIPS.isPartner(L,m.name))
+    .sort((a,b)=>(b.affection||0)-(a.affection||0)).slice(0,2);
+  const contacts=(SOCIAL.ensure(L).contacts||[]).filter(c=>!['mother','father','guardian'].includes(c.role))
+    .sort((a,b)=>(b.trust||0)-(a.trust||0)).slice(0,2);
+  S._dateCompanionOptions=[
+    {type:'solo',name:'혼자',scoreMod:0,costMul:1,label:'🚶 혼자'},
+    ...friends.map(m=>({type:'friend',name:m.name,scoreMod:6,costMul:1,label:`🙂 ${m.name} · 대화 +6`})),
+    ...contacts.map(c=>({type:'contact',id:c.id,name:c.name,scoreMod:c.trust>=60?10:7,costMul:.85,label:`🤝 ${c.name} · 소개 도움`})),
+  ];
+  const selectedCompanion=S._dateCompanion||S._dateCompanionOptions[0];
   const hasIntroducer=S._dateCompanion&&['friend','contact'].includes(S._dateCompanion.type);
   const routes = D.DATE_ROUTES.filter(r => (!r.needsJob || (L.job && L.job !== 'none'))
     && (r.key!=='intro'||hasIntroducer)
@@ -4619,59 +4619,65 @@ function showRouteModal() {
   let cards = '';
   S._datePartners=currentPartners;
   if (inRel) {
-    cards += `<div class="route-sep">💕 현재 관계 <span class="muted">각 연인과 따로 시간을 보낼 수 있습니다</span></div>`;
+    cards += `<div class="route-sep">💕 현재 관계</div><div class="date-person-grid">`;
     cards += currentPartners.map((person,index)=>{
       const record=metRecord(L,person.name),affection=record&&record.affection!=null?record.affection:L.affection||0;
       return personCardHTML(Object.assign({ age:person.age||28 },person),
-        `💞 ${relationTag(L,person.name)}과 데이트 <span class="muted">비용 ${won(D.RELATIONSHIP.DATE_COST)} · 친밀도 ${Math.max(0,affection)}</span>`,
-        `data-partner-i="${index}"`, 'partner-card');
-    }).join('');
+        `💞 ${relationTag(L,person.name)}과 데이트`,
+        `data-partner-i="${index}"`, 'partner-card', `함께 보내는 저녁 · 친밀도 ${Math.max(0,affection)} · ${won(D.RELATIONSHIP.DATE_COST)}`);
+    }).join('')+'</div>';
   }
   if (S._dateKnown.length) {
-    cards += `<div class="route-sep">📇 아는 사람과 외출하기 <span class="muted">대화와 외출로 가까워지면 정식 데이트가 열립니다</span></div>`;
+    cards += `<div class="route-sep">📇 아는 사람에게 연락</div><div class="date-person-grid">`;
     cards += S._dateKnown.map((c, i) => {
       const tag = relationTag(L, c.name);
-      const idle = c.idleMonths >= 3 ? ` · <span class="down">${c.idleMonths}개월째 못 봄</span>` : '';
       const readiness=courtshipReadiness(c);
-      return personCardHTML(c, `${readiness.ready?'💘 정식 데이트':'🌱 친분 외출'} · ${tag} · ${stageBadge(c.affection)} <span class="muted">호감 ${Math.round(c.affection || 0)} · 신뢰 ${Math.round(c.trust||0)} · 교류 ${c.interactions||0}회${idle}<br>${courtshipProgress(c)}</span>`,
-        `data-known="${i}"`, 'known-card');
-    }).join('');
+      const idle=c.idleMonths>=3?` · ${c.idleMonths}개월 만`:'';
+      return personCardHTML(c, `${readiness.ready?'💘 데이트 가능':'🌱 친분 외출'} · ${tag}`,
+        `data-known="${i}"`, 'known-card', `호감 ${Math.round(c.affection||0)} · ${readiness.ready?'마음을 확인할 때':'조금 더 알아가는 중'}${idle}`);
+    }).join('')+'</div>';
   }
   S._dateEx = formerPartners.map(candidateFromRecord);
   if (formerPartners.length && L.relationship === 'single') {
-    cards += `<div class="route-sep">💔 전 연인 <span class="muted">비용 ${won(D.RELATIONSHIP.DATE_COST)} · 다시 만나 재회를 노려볼 수 있어요</span></div>`;
+    cards += `<div class="route-sep">💔 전 연인</div><div class="date-person-grid">`;
     cards += S._dateEx.map((c, i) => personCardHTML(c,
-      `💔 전 연인 · ${stageBadge(c.affection)} <span class="muted">호감도 ${Math.round(c.affection || 0)} · 재회 시도</span>`, `data-ex="${i}"`, 'known-card ex-card')).join('');
+      '💔 다시 연락하기', `data-ex="${i}"`, 'known-card ex-card', `호감 ${Math.round(c.affection||0)} · 재회 시도`)).join('')+'</div>';
   } else if (formerPartners.length) {
-    cards += `<div class="route-sep">💔 전 연인 <span class="muted">연애 중엔 전 연인과 만날 수 없어요</span></div>`;
+    cards += `<div class="route-sep">💔 전 연인</div><div class="date-person-grid">`;
     cards += S._dateEx.map(c => personCardHTML(c,
-      `💔 전 연인 · <span class="muted">지금은 연락할 수 없습니다</span>`, 'disabled', 'known-card ex-card')).join('');
+      '💔 지금은 연락할 수 없음', 'disabled', 'known-card ex-card', '현재 관계를 먼저 정리해야 합니다')).join('')+'</div>';
   }
   if (S._dateOffers.length) {
-    cards += `<div class="route-sep">🗺️ 갈 만한 장소 <span class="muted">장소에 도착한 뒤 누구에게 말을 걸지 결정합니다</span></div>`;
+    cards += `<div class="route-sep">🗺️ 혼자 나갈 장소</div><div class="date-place-grid">`;
     cards += S._dateOffers.map((o, i) =>
-      `<button class="route-card place-card" data-i="${i}"><div class="rc-head">${o.route.emoji} ${o.route.name}</div><div class="rc-person"><span><b>${o.route.desc}</b><br><span class="muted">예상 비용 ${won(o.route.cost)} · ${o.route.key==='intro'?`${S._dateCompanion.name}의 소개`:'현장에서 주변을 둘러봄'}</span></span></div></button>`).join('');
+      `<button class="route-card place-card" data-i="${i}"><div class="rc-head">${o.route.emoji} ${o.route.name}</div><small>${o.route.desc}</small><em>${won(o.route.cost)}${o.route.key==='intro'?` · ${S._dateCompanion.name}의 소개`:''}</em></button>`).join('')+'</div>';
   } else {
     cards += `<div class="route-sep muted">더 이상 새로 소개받을 사람이 없어요. 아는 사람을 다시 만나보세요.</div>`;
   }
-  const title = inRel ? '💘 누구와 만날까?' : '🌆 외출 — 누구를 만날까?';
-  const companionHint = S._dateCompanion && S._dateCompanion.type !== 'solo'
-    ? ` · <b>${S._dateCompanion.name}</b>님과 함께 왔어요${S._dateCompanion.type==='contact'?' (소개 도움·비용 절약)':' (대화 도움)'}` : '';
-  const hint = (inRel ? '연인과 데이트하거나 아는 사람·새로운 사람을 몰래 만날 수도 있어요. 양다리는 발각 위험!'
-    : '첫 조우 뒤 연락과 재회 이벤트로 친해지면 정식 데이트가 해금됩니다. 경로에 따라 새로 만나는 사람이 달라집니다.') + companionHint;
+  const companionButtons=S._dateCompanionOptions.map((option,index)=>{
+    const active=option.type===selectedCompanion.type&&option.name===selectedCompanion.name;
+    return `<button class="${active?'active':''}" data-companion-index="${index}">${option.label}</button>`;
+  }).join('');
+  const title='🌆 이번 주, 누구와 어디로 갈까?';
   host.style.display = 'block';
   host.innerHTML =
-    `<div class="window event-window">
+    `<div class="window event-window date-picker-window">
        <div class="title-bar event-bar"><div class="title-bar-text">${title}</div>
          <div class="title-bar-controls"><button aria-label="Close" id="route-x"></button></div></div>
        <div class="window-body">
          <img class="dating-banner date-scene" src="${currentDateSceneImage()}" alt="선택한 동행 방식의 데이트 풍경">
-         <div class="event-desc">${hint}</div>
+         <div class="date-picker-lead">아는 사람에게 연락하거나, 혼자 나가 새 장소를 둘러봅니다.</div>
+         ${S._dateCompanionOptions.length>1?`<div class="date-companion-row"><b>새 인연 도움</b><div class="date-companion-strip">${companionButtons}</div></div>`:''}
          <div class="route-list">${cards}</div>
        </div>
      </div>`;
+  host.querySelectorAll('[data-companion-index]').forEach(b=>b.addEventListener('click',()=>{
+    S._dateCompanion={...S._dateCompanionOptions[+b.dataset.companionIndex]};
+    showRouteModal();
+  }));
   host.querySelectorAll('.route-card').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.partnerI != null) {
+      S._dateCompanion={type:'solo',name:'혼자',scoreMod:0,costMul:1};
       S._dateRoute = null;
       const person=S._datePartners[+b.dataset.partnerI];
       S._dateCandidate = Object.assign({ age: person.age || 28 }, person);
@@ -4679,12 +4685,14 @@ function showRouteModal() {
       return;
     }
     if (b.dataset.known != null) {
+      S._dateCompanion={type:'solo',name:'혼자',scoreMod:0,costMul:1};
       S._dateRoute = null;
       S._dateCandidate = S._dateKnown[+b.dataset.known];
       showDateModal(S._dateCandidate, null);
       return;
     }
     if (b.dataset.ex != null) {
+      S._dateCompanion={type:'solo',name:'혼자',scoreMod:0,costMul:1};
       S._dateRoute = null;
       S._dateCandidate = S._dateEx[+b.dataset.ex];
       showDateModal(S._dateCandidate, null);
@@ -4710,32 +4718,41 @@ function showDateModal(c, route) {
   const modeLabel=S._dateMode==='encounter'?'첫 조우':S._dateMode==='outing'?'친분 외출':'데이트';
   const prof = ROMANCE.profileOf(c);   // 말투·사연 (인물 전용 목소리가 있을 때만)
   const gLabel = (D.GENDER_LABEL || {})[c.gender] || '';
+  const age=Number.isFinite(Number(c.age))?` · 만 ${Math.round(Number(c.age))}세`:'';
+  const openingLine=dateOpeningLine(c);
   // 감당 못 하는 선택지는 비활성화해서 '돈 없어서 아무것도 못 하고 갇히는' 상황을 막는다
   const base = dateBaseCost();
-  const opts = D.DATE_APPROACHES.map((a, i) => {
+  S._dateApproaches=dateApproachChoices(c,S._dateMode);
+  const opts = S._dateApproaches.map((a, i) => {
     const total = base + (a.cost || 0);
     const poor = S.capital < total;
-    return `<button class="event-opt" data-i="${i}" ${poor ? 'disabled' : ''}>${a.emoji} ${a.label}<span class="opt-sub">${a.desc}${a.cost ? ` · 추가 ${won(a.cost)}원` : ''}${poor ? ` · 💸 현금 ${won(total)}원 필요` : ''}</span></button>`;
+    return `<button class="event-opt" data-i="${i}" title="${a.desc}" ${poor ? 'disabled' : ''}><span>${a.emoji} ${a.label}</span>${a.cost?`<small>추가 ${won(a.cost)}</small>`:''}${poor?`<small class="down">현금 ${won(total)} 필요</small>`:''}</button>`;
   }).join('');
   const broke = S.capital < base;
+  const glance=rec
+    ? `<span>${stageBadge(rec.affection)}</span><span>호감 ${Math.round(rec.affection||0)}</span><span>신뢰 ${Math.round(rec.trust||0)}</span>`
+    : '<span>오늘 처음 만남</span>';
+  const detail=rec
+    ? `${relationTag(L,c.name)} · 교류 ${rec.interactions||0}회 · ${courtshipProgress(rec)}`
+    : '첫 조우 뒤 연락처를 교환하면 다음 만남으로 이어집니다.';
   host.style.display = 'block';
   host.innerHTML =
-    `<div class="window event-window">
+    `<div class="window event-window date-focus-window">
        <div class="title-bar event-bar"><div class="title-bar-text">${S._dateMode==='date'?'💘':'🌱'} ${withPartner ? `${relationTag(L,c.name)}와 데이트` : known ? `${c.name}님과 ${modeLabel}` : (route ? `${route.emoji} ${route.name} · 첫 조우` : modeLabel)}</div>
          <div class="title-bar-controls"><button aria-label="Close" id="date-x"></button></div></div>
        <div class="window-body">
-         <img id="date-event-scene" class="dating-banner compact date-scene" src="${currentDateSceneImage()}" alt="데이트 시작 장면">
-         <div class="date-profile">
-           <img id="date-portrait" class="char-portrait" src="${characterPortrait(c)}" alt="${c.name}">
-           <div class="dp-info"><strong>${c.emoji || ''}${c.name}</strong>${gLabel ? ` · ${gLabel}` : ''} · 만 ${c.age}세<br>
-             <span class="muted">${c.job} · ${per.emoji || ''}${per.name || ''}${prof ? ` · 🗣️ ${prof.style}` : ''}</span><br>
-             <span class="muted">관심사 ${(c.interests || []).join(' · ')} · 중요 가치 ${c.value || '신뢰'}</span>
-             ${prof ? `<br><span class="muted">📖 ${prof.background}</span>` : ''}
-              ${rec ? `<br><span class="muted">${stageBadge(rec.affection)} · 호감 ${Math.round(rec.affection || 0)} · 신뢰 ${Math.round(rec.trust||0)} · 교류 ${rec.interactions||0}회<br>${courtshipProgress(rec)}</span>` : '<br><span class="muted">🫥 오늘 처음 만나는 사람 · 첫 조우 후 관계가 시작됩니다</span>'}</div>
+         <div class="date-focus-top">
+           <img id="date-event-scene" class="dating-banner date-scene" src="${currentDateSceneImage()}" alt="데이트 시작 장면">
+           <div class="date-focus-person">
+             <img id="date-portrait" class="char-portrait" src="${characterPortrait(c)}" alt="${c.name}">
+             <div><strong>${c.emoji||''}${c.name}</strong><small>${c.job} · ${per.emoji||''}${per.name||''}${gLabel?` · ${gLabel}`:''}${age}</small><blockquote>“${openingLine}”</blockquote></div>
+           </div>
          </div>
-          <div class="event-desc"><b>${modeLabel}</b> · 첫인상 <b>${S.life.charm>=70?'눈에 띔':S.life.charm>=35?'단정함':'소박함'}</b> · 생활 분위기 <b>${lifestylePrestige(L)>=30?'여유로움':lifestylePrestige(L)>=8?'취향이 보임':'꾸밈없음'}</b> · 예상 비용 <b>${won(dateBaseCost())}</b>${S._dateMode!=='date'?'<br><span class="muted">이번 만남에서는 연애를 정하지 않습니다. 대화와 신뢰를 쌓아 정식 데이트를 해금하세요.</span>':''}</div>
+         <div class="date-glance"><b>${modeLabel}</b>${glance}<span>예상 ${won(base)}</span></div>
+         <details class="date-more"><summary>인물과 관계 정보 보기</summary><div><b>관심사</b> ${(c.interests||[]).join(' · ')||'아직 모름'}<br><b>중요 가치</b> ${c.value||'신뢰'}${prof?`<br><b>말투</b> ${prof.style}<br><b>배경</b> ${prof.background}`:''}<br><b>현재 관계</b> ${detail}</div></details>
          ${broke ? `<div class="event-desc down">💸 현금이 ${won(base)}원 이상 있어야 만날 수 있어요. 창을 닫고 돈을 마련한 뒤 다시 오세요.</div>` : ''}
-         <div class="event-options">${opts}</div>
+         <div class="date-prompt">어떻게 시간을 보낼까?</div>
+         <div class="event-options date-choice-grid">${opts}</div>
          <div class="close-actions">
            <button id="date-back">↩ 다른 사람 고르기</button>
            <button id="date-cancel">닫기</button>
@@ -4750,7 +4767,7 @@ function showDateModal(c, route) {
 
 function resolveDate(i) {
   const L = S.life, R = D.RELATIONSHIP;
-  const c = S._dateCandidate, a = D.DATE_APPROACHES[i];
+  const c = S._dateCandidate, a = (S._dateApproaches||D.DATE_APPROACHES)[i];
   if (!c || !a) return;
   S._romance = null;   // 이번 데이트의 연애 선택 대기 상태 초기화
   const cost = dateBaseCost() + (a.cost || 0);

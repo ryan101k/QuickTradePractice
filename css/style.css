@@ -811,6 +811,54 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
 .route-card:hover { background: #ffe6f2; }
 .date-company-window .dating-banner { max-height: 190px; object-fit: cover; }
 .companion-card .rc-person, .solo-card .rc-person { color: #465166; font-size: 12px; }
+.date-picker-window, .date-focus-window { width:min(720px,94vw); }
+.date-picker-window .dating-banner { max-height:135px; }
+.date-picker-lead {
+  padding:7px 9px; background:#f7f2ff; border-left:4px solid #7050a0;
+  color:#423c4c; font-size:12px;
+}
+.date-companion-row { margin-top:7px; padding:6px 7px; background:#eef5ff; border:1px solid #9aafd2; }
+.date-companion-row > b { display:block; margin-bottom:4px; font-size:11px; color:#415477; }
+.date-companion-strip { display:flex; gap:5px; overflow-x:auto; padding-bottom:2px; scrollbar-width:thin; }
+.date-companion-strip button {
+  flex:0 0 auto; min-height:28px; padding:4px 8px; cursor:pointer;
+  border:1px solid #8998b4; background:#fff; font-size:11px; white-space:nowrap;
+}
+.date-companion-strip button.active { background:#263d75; color:#fff; border-color:#17274f; font-weight:bold; }
+.date-person-grid, .date-place-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+.date-person-grid .route-card, .date-place-grid .route-card { min-width:0; }
+.rc-person > span { min-width:0; }
+.rc-person strong, .rc-person small, .rc-person em { display:block; }
+.rc-person small { margin-top:2px; color:#555; font-size:10.5px; line-height:1.35; }
+.rc-person em { margin-top:4px; color:#566075; font-size:10.5px; font-style:normal; line-height:1.35; }
+.date-place-grid .place-card { display:flex; flex-direction:column; gap:4px; min-height:76px; }
+.date-place-grid small { color:#4e5360; font-size:10.5px; line-height:1.35; }
+.date-place-grid em { margin-top:auto; color:#6a5472; font-size:10.5px; font-style:normal; }
+.date-focus-top { display:grid; grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr); gap:8px; }
+.date-focus-top .dating-banner { height:174px; margin:0; }
+.date-focus-person {
+  display:flex; align-items:center; gap:10px; min-width:0; padding:10px;
+  background:linear-gradient(135deg,#fff0f5,#f5f0ff); border:1px solid #cf9fbb;
+}
+.date-focus-person .char-portrait { width:92px; height:128px; }
+.date-focus-person > div { min-width:0; }
+.date-focus-person strong { display:block; font-size:16px; }
+.date-focus-person small { display:block; margin-top:3px; color:#555; font-size:10.5px; line-height:1.4; }
+.date-focus-person blockquote {
+  margin:8px 0 0; padding:7px 8px; border-left:3px solid #a24c76;
+  background:rgba(255,255,255,.72); font-size:12px; line-height:1.45;
+}
+.date-glance { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0 6px; }
+.date-glance span, .date-glance b { padding:3px 7px; border:1px solid #aaa; background:#fff; font-size:10.5px; }
+.date-glance b { background:#ffe6f2; border-color:#c783a5; }
+.date-more { margin-bottom:8px; border:1px solid #b5afc1; background:#faf8ff; font-size:11px; }
+.date-more summary { padding:6px 8px; cursor:pointer; font-weight:bold; color:#514866; }
+.date-more > div { padding:7px 9px; border-top:1px dotted #bbb; line-height:1.55; }
+.date-prompt { margin:8px 0 5px; font-size:13px; font-weight:bold; }
+.event-options.date-choice-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+.date-choice-grid .event-opt { min-width:0; min-height:56px; padding:8px 9px; justify-content:center; }
+.date-choice-grid .event-opt > span { line-height:1.35; }
+.date-choice-grid .event-opt small { font-size:10px; color:#666; font-weight:normal; }
 .life-btn.month-used { opacity: .52; filter: grayscale(.45); }
 .hub-note { margin: 4px 2px 7px; padding: 6px 8px; background: #fffbe6; border: 1px solid #c9b86a; font-size: 11px; line-height: 1.45; }
 .month-action-status { display:flex; flex-wrap:wrap; gap:4px; margin:5px 0 7px; }
@@ -1220,6 +1268,17 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
 @media (max-width: 600px) {
   .life-scene-banner { max-height: 180px; }
   .hub-scene-banner { max-height: 125px; }
+  .date-picker-window .window-body, .date-focus-window .window-body { padding:8px; }
+  .date-picker-window .dating-banner { max-height:105px; }
+  .date-person-grid { grid-template-columns:1fr; }
+  .date-place-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .date-focus-top { grid-template-columns:1fr; }
+  .date-focus-top .dating-banner { height:118px; }
+  .date-focus-person { padding:7px; }
+  .date-focus-person .char-portrait { width:76px; height:96px; }
+  .date-focus-person blockquote { margin-top:5px; padding:5px 7px; font-size:11.5px; }
+  .event-options.date-choice-grid { grid-template-columns:1fr; gap:5px; }
+  .date-choice-grid .event-opt { min-height:44px; padding:6px 8px; }
   .cross-cast { grid-template-columns:1fr; }
   .cross-person img { width:54px; height:66px; }
   .trio-cast { grid-template-columns:repeat(3,1fr); }
