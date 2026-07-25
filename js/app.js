@@ -1843,6 +1843,7 @@ function settleMonth() {
     if(publicityResult.type==='exposed')queueImportantEvent({type:'love',icon:'📸',title:'비공개 관계가 먼저 소문났다',desc:publicityResult.text,detail:`평판 ${publicityResult.reputationDelta} · 그룹 긴장도 증가 · 관계 공개 여부를 다시 정할 수 있습니다.`,tone:'bad'});
   }
   monthlySocialMessages(L);
+  monthlyFactionMemberMessages(L);
   const justiceResult=JUSTICE.monthly(L,SOCIAL.legalShield(L)+(L.legalShield||0)*.03);
   justiceResult.news.forEach(text=>{
     const good=text.includes('무죄')||text.includes('불기소');
@@ -2511,7 +2512,7 @@ function showNextImportantEvent(resumeCurrent = false) {
   if (event.freedomTrioChapter) { showFreedomTrioStory(); return; }
   if (event.freedomTrioAftermath) { showFreedomTrioAftermath(); return; }
   if (event.freedomPersonalEvent) { showFreedomPersonalEvent(event.eventId); return; }
-  if (event.factionStory) { showFactionStory(event.factionStory); return; }
+  if (event.factionStory) { showFactionMentorPhoneStory(event.factionStory); return; }
   if (event.factionVictory) { showFactionVictoryEnding(); return; }
   if (event.businessEvent) { showBusinessReport(event); return; }
   if (event.businessRomanceEvent) { showBusinessRomanceEvent(event); return; }
@@ -4208,6 +4209,27 @@ function monthlyRivalMessages(L){
   L.lastRivalMessageDay=S.day;
   pushPersonMessage(L,entry.bot,message.text,false);
   queueImportantEvent({monthlyMessage:true,targetType:'rival',targetId:entry.index,text:message.text,rivalMessage:message});
+}
+
+function monthlyFactionMemberMessages(L){
+  const faction=RIVALS.ensureFaction(L);
+  if(!faction.level||!faction.members.length||Math.random()>.48)return;
+  const member=faction.members.find(item=>(item.injuredMonths||0)<=0);
+  if(!member)return;
+  const contact=(SOCIAL.ensure(L).contacts||[]).find(item=>item.factionMemberId===member.sourceId);
+  if(!contact)return;
+  const women=ensureMet(L).filter(person=>person.gender!=='m'&&['friend','casual','partner','lover','polycule'].includes(person.status));
+  const partners=RELATIONSHIPS.names(L);
+  const loan=(L.loan||0)+(S.loan||0);
+  let message;
+  if(women.length>=5)message=`형님, 여사친이 ${women.length}명이나 되는데 일정표는 제가 봐도 위험합니다. 칼보다 단체 채팅방이 먼저 터지겠어요.`;
+  else if(partners.length>=2)message=`형님 연애 사정은 안 묻겠습니다. 다만 ${partners.join(', ')} 쪽 일정과 작전 일정이 겹치면 저도 미리 알아야 합니다.`;
+  else if(loan>=20000000)message=`빚이 ${won(loan)}원입니다. 체면보다 현금흐름부터 지키죠. 이번 달엔 공격보다 방어가 먼저입니다.`;
+  else if((L.stress||0)>=75)message='형님, 요즘 답장이 짧고 판단도 급합니다. 오늘 작전은 제가 볼 테니 한 번 쉬십시오.';
+  else if(faction.lastAttacker)message=`${faction.lastAttacker} 쪽 움직임 다시 잡았습니다. 바로 치진 말고, 형님 신호 올 때까지 기록부터 모으겠습니다.`;
+  else message='이번 달은 조용합니다. 조용할 때 사람과 돈줄을 챙겨두는 게 세력 운영입니다.';
+  pushPersonMessage(L,contact,message,false);
+  queueImportantEvent({monthlyMessage:true,targetType:'contact',targetId:contact.id,text:message});
 }
 
 function monthlyChildhoodCircleBond(L){
@@ -6032,6 +6054,55 @@ function closeFactionStory() {
   renderLifePanel();
   autoSave();
   showNextImportantEvent();
+}
+
+function showFactionMentorPhoneStory(stage){
+  if(stage!=='first_attack'){showFactionStory(stage);return;}
+  const host=$('life-event');if(!host||!FACTION_CAMPAIGN)return;
+  const faction=FACTION_CAMPAIGN.ensure(S.life),t=D.SPECIAL_CHARACTERS.taesik;
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window faction-mentor-window">
+    <div class="title-bar event-bar"><div class="title-bar-text">📱 저장하지 않은 번호 · 첫 공격 직후</div></div>
+    <div class="window-body">
+      <img class="life-scene-banner" src="${lifeSceneImage('faction')}" alt="첫 공격 뒤 장태식에게 연락이 온 장면">
+      <div class="phone-shell faction-mentor-phone"><div class="phone-status"><span>공격 직후</span><span>●●● 61%</span></div><div class="phone-chat-screen open"><header><img class="char-thumb" src="${characterPortrait(t,'neutral')}" alt="장태식"><span><b>저장하지 않은 번호</b><small>QuickTalk · 지금</small></span></header><div class="phone-chat-log"><div class="phone-bubble incoming">혼자서 돈 좀 번다고 시장이 네 편이 되는 건 아니다. 이번엔 돈만 잃었지만 다음엔 사람을 잃는다.</div></div></div></div>
+      <div class="event-desc"><b>${faction.firstAttacker}</b>에게 처음 공격받은 직후, 피해 규모와 상대 이름까지 아는 낯선 사람이 연락해 왔습니다.</div>
+      <div class="event-options">
+        <button class="event-opt" data-mentor-first="number">내 번호는 어떻게 알았습니까?<span class="opt-sub">상대의 정보력을 확인합니다</span></button>
+        <button class="event-opt" data-mentor-first="identity">당신 누구야. 공격한 놈과 한패입니까?<span class="opt-sub">정체와 목적을 추궁합니다</span></button>
+        <button class="event-opt" data-mentor-first="help">방법이 있다면 먼저 말해보세요<span class="opt-sub">즉시 해결책을 요구합니다</span></button>
+      </div>
+      <div id="faction-mentor-outcome" class="event-outcome"></div>
+    </div>
+  </div>`;
+  host.querySelectorAll('[data-mentor-first]').forEach(button=>button.addEventListener('click',()=>resolveFactionMentorPhone(button.dataset.mentorFirst)));
+}
+
+function resolveFactionMentorPhone(choice){
+  const host=$('life-event'),faction=FACTION_CAMPAIGN.ensure(S.life);if(!host)return;
+  faction.firstResponse=choice;
+  faction.tempDefense=Math.max(faction.tempDefense||0,.22);
+  const options=host.querySelector('.event-options');if(options)options.innerHTML='';
+  const opener=choice==='number'
+    ?'“다 방법이 있다. 네가 뭘 샀는지 아는 놈들이 네 번호 하나를 모르겠냐.”'
+    :choice==='identity'
+      ?'“한패였으면 경고부터 했겠나. 장태식이다. 예전엔 저쪽 사람을 가르쳤고, 지금은 네가 얼마나 버티나 보고 있다.”'
+      :'“좋아. 신고서부터 찾는 놈보다는 말이 빠르군. 대신 사람을 받으면 끝까지 책임져라.”';
+  $('faction-mentor-outcome').innerHTML=`<div class="phone-bubble incoming followup">${opener}<br><br>“스승으로 모시라는 소리는 안 한다. 길 하나를 골라. 거기에 맞는 놈 하나를 붙여주지. 그놈을 부하로 세울 수 있으면 네 세력의 시작이다.”</div><div class="event-options">${Object.values(FACTION_CAMPAIGN.PATHS).map(path=>{const member=FACTION_CAMPAIGN.FOUNDING_MEMBERS[path.id];return`<button class="event-opt" data-mentor-path="${path.id}"><b>${path.icon} ${path.name}</b><span>${path.mentor}</span><small>${member.name} · ${member.desc}</small></button>`;}).join('')}</div>`;
+  host.querySelectorAll('[data-mentor-path]').forEach(button=>button.addEventListener('click',()=>foundFactionFromMentor(button.dataset.mentorPath)));
+}
+
+function foundFactionFromMentor(pathId){
+  const result=FACTION_CAMPAIGN.foundWithMentor(S.life,pathId);
+  if(pathId==='legal')changeMorality(4,'합법 투자조합 창설 원칙을 세웠습니다');
+  if(pathId==='underground')changeMorality(-6,'지하 세력의 규칙을 받아들였습니다');
+  LEGACY.push(S.life,dateInfo(S.day).age,result.path.icon,`${result.path.name} 창설 · 장태식의 첫 제자`,'faction');
+  SOCIAL.addContact(S.life,{id:`faction-${result.member.sourceId}`,name:result.member.name,role:'schoolfriend',origin:'faction',originKey:`faction-${result.member.sourceId}`,relationLabel:'첫 부하 · 상황 보고',trust:55,favor:1,factionMemberId:result.member.sourceId});
+  addNews(`${result.path.icon} ${result.path.factionName} 창설 · 장태식의 소개로 ${result.member.name} 합류`,'good');
+  const contact=SOCIAL.ensure(S.life).contacts.find(item=>item.originKey===`faction-${result.member.sourceId}`);
+  pushPersonMessage(S.life,contact,'형님, 장 선생님한테 얘기 들었습니다. 오늘부터 제가 먼저 상황 보고드리겠습니다.',false);
+  flashToast(`${result.path.factionName} 창설 · 첫 부하 ${result.member.name} 합류`,'good');
+  closeFactionStory();
 }
 
 function showFactionStory(stage) {

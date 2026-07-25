@@ -19,6 +19,11 @@
       ending:{icon:'👑',name:'새로운 시장의 왕',desc:'당신을 먹잇감으로 보던 세력을 차례로 무너뜨리고, 누구도 함부로 건드리지 못하는 새로운 지배자가 되었습니다.'}
     }
   };
+  const FOUNDING_MEMBERS={
+    legal:{uid:'mentor-legal-1',sourceId:'mentor-legal',name:'윤도현',role:'legal',portrait:'mob-faction-intel.png',loyalty:82,upkeep:120000,stats:{defense:.02,intel:.04,legal:8,income:350000},named:true,desc:'장태식이 붙여준 기록·법률 담당. 사고보다 증거를 먼저 챙긴다.',injuredMonths:0},
+    network:{uid:'mentor-intel-1',sourceId:'mentor-intel',name:'강도윤',role:'intel',portrait:'mob-faction-intel.png',loyalty:78,upkeep:140000,stats:{defense:.02,intel:.10,income:550000},named:true,desc:'장태식이 붙여준 정보 담당. 시장과 사람의 움직임을 연락으로 보고한다.',injuredMonths:0},
+    underground:{uid:'mentor-field-1',sourceId:'mentor-field',name:'김성호',role:'field',portrait:'mob-faction-field.png',loyalty:88,upkeep:150000,stats:{defense:.10,intel:.02,income:450000},named:true,desc:'장태식이 붙여준 현장 담당. 주인공의 뒤를 지키며 돌직구로 충고한다.',injuredMonths:0},
+  };
 
   function ensure(life){
     const f=root.QT_RIVALS.ensureFaction(life);
@@ -69,6 +74,17 @@
     f.foundingDiscount=500000;
     f.xp=(f.xp||0)+10;
     return{faction:f,path};
+  }
+
+  function foundWithMentor(life,pathId){
+    const result=choosePath(life,pathId),f=result.faction,template=FOUNDING_MEMBERS[result.path.id]||FOUNDING_MEMBERS.network;
+    f.level=Math.max(1,f.level||0);
+    f.storyStage='active';
+    f.mentor='장태식';
+    f.mentorContactUnlocked=true;
+    if(!f.members.some(member=>member.sourceId===template.sourceId))f.members.push({...template,stats:{...template.stats}});
+    root.QT_RIVALS.ensureFaction(life);
+    return{...result,member:f.members.find(member=>member.sourceId===template.sourceId)};
   }
 
   function activateSpecial(life,pathId='underground'){
@@ -126,7 +142,7 @@
   }
 
   root.QT_FACTION_CAMPAIGN={
-    PATHS,ensure,onAttack,completeFirstAttack,takeDueStory,choosePath,
+    PATHS,FOUNDING_MEMBERS,ensure,onAttack,completeFirstAttack,takeDueStory,choosePath,foundWithMentor,
     activateSpecial,checkVictory,progress,ending,recordEnding,stageText
   };
 })(window);

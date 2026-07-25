@@ -110,6 +110,7 @@ for (const file of [
   'js/ui/month-close-flow.js',
   'js/campaign_endings.js',
   'js/rivals.js',
+  'js/faction_campaign.js',
 ]) {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename:file });
 }
@@ -521,6 +522,8 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /function showClubNight/, '클럽 스트레스 해소는 일반 히로인 조우와 분리된 행동이어야 한다');
   assert.match(appSource, /관계·연락처 변화 없음/, '클럽에서 만난 일반 여성은 히로인이나 연락처로 남지 않아야 한다');
   assert.match(appSource, /읽지 않고 알림을 지웠다/, '클럽 일반 여성의 후속 연락은 답장하지 않고 무시해야 한다');
+  assert.match(appSource, /function showFactionMentorPhoneStory/, '첫 세력 공격은 장태식의 스마트폰 연락으로 이어져야 한다');
+  assert.match(appSource, /function monthlyFactionMemberMessages/, '첫 부하는 플레이어 상태에 맞춘 월간 보고 연락을 보내야 한다');
   assert.match(appSource, /r\.key!=='intro'\|\|hasIntroducer/, '지인 소개는 친구나 인맥과 동행할 때만 열려야 한다');
   assert.doesNotMatch(appSource, /showDateCompanyModal/, '데이트 진입 전에 별도 동행 선택 관문을 다시 만들면 안 된다');
   assert.match(appSource, /class="date-companion-strip"/, '새 인연을 위한 동행 도움은 사람·장소 선택창 안에서 고를 수 있어야 한다');
@@ -788,6 +791,15 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
 }
 
 {
+  const foundedLife={};
+  const founded=context.QT_FACTION_CAMPAIGN.foundWithMentor(foundedLife,'network');
+  assert.equal(founded.faction.level,1,'장태식의 선택 직후 세력이 즉시 1단계로 창설돼야 한다');
+  assert.equal(founded.faction.storyStage,'active');
+  assert.equal(founded.faction.mentor,'장태식');
+  assert.equal(founded.faction.members.length,1,'선택한 노선에 맞는 첫 부하 한 명이 즉시 합류해야 한다');
+  assert.equal(founded.member.sourceId,'mentor-intel');
+  const taesikOnly=[{name:'🤜 장태식',leader:'장태식',aggression:1,jailMonths:0,bankrupt:false}];
+  assert.equal(context.QT_RIVALS.attackPlayer(taesikOnly,10000000,8),null,'스승 장태식은 플레이어의 첫 공격자가 되면 안 된다');
   const protectedStatus = context.QT_CAMPAIGN.attackStatus({
     month:3, totalWealth:100000000, monthlyProfit:20000000, rank:1,
   });
