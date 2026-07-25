@@ -3793,6 +3793,11 @@ function rememberPerson(c, status) {
 function meetSpecialPerson(id) {
   const c = D.SPECIAL_CHARACTERS && D.SPECIAL_CHARACTERS[id];
   if (!c) return;
+  const known=metRecord(S.life,c.name);
+  if(known&&!hasPersonalContact(known)){
+    showSpecialFollowupMeet(id,c,known);
+    return;
+  }
   const host = $('life-event'); if (!host) return;
   S._specialMeet = c;
   const intro = id === 'yujin' ? '사건 상담을 마친 뒤, 강유진이 업무용 명함을 건넸습니다. “급한 일이면 이쪽으로요. 개인적인 용건은… 아직 곤란하고요.”'
@@ -3819,10 +3824,76 @@ function resolveSpecialMeet(status) {
     pushPersonMessage(S.life,rec,status==='casual'?'가볍게라고 했지만… 연락은 매일 해도 되는 거죠?':'번호 저장했어요. 먼저 사라지지만 말아요.',false);
     addNews(`${c.emoji} ${c.name}님과 ${status==='friend'?'친구가':status==='casual'?'가벼운 관계가':'연락하는 사이가'} 됐습니다`,'neutral');
   }else{
+    rec.lastSpecialFollowupDay=S.day;
+    rec.specialFollowupInterest=status==='followup'?'open':'formal';
     addNews(`${c.emoji} ${c.name}님과 ${status==='followup'?'다음 만남의 여지를 남겼습니다':'업무상 인사를 나눴습니다'}`,'neutral');
-    flashToast('개인 연락처는 조금 더 신뢰를 쌓아야 받을 수 있습니다','neutral');
+    flashToast('명함 뒷면에 다음 약속의 날짜를 받아냈습니다','neutral');
   }
   const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}S._specialMeet=null;afterLifeAction('인맥');
+}
+
+function showSpecialFollowupMeet(id,c,rec){
+  const host=$('life-event');if(!host)return;
+  const sera=metRecord(S.life,'윤세라');
+  const seraAtHome=!!(sera&&S.life.seraHousing==='cohabit');
+  S._specialFollowup={id,c,rec,seraAtHome};
+  const count=(rec.specialFollowupCount||0)+1;
+  let intro='',interruption='';
+  if(id==='yujin'){
+    intro=count===1
+      ? '유진은 경찰서 정문이 아니라 길 건너 조용한 카페를 골랐습니다. 업무용 명함 뒤에 적힌 시간을 정확히 지킨 당신을 보고도 한동안 개인 번호를 꺼내지 않습니다.'
+      : '유진은 지난번에 끝내지 못한 이야기를 먼저 꺼냅니다. 사건이 없어도 다시 만난 건 이번이 처음입니다. 보호할 이유가 없어도 곁에 있을 수 있는지를 서로 확인하는 자리입니다.';
+    interruption=seraAtHome
+      ? '<div class="hub-note bad-friends-note"><b>세라와 동거 중</b><br>집에 돌아오자 세라가 약속 장소와 귀가 시간을 정확히 읊습니다. 유진이 “남의 동선을 그만 훔쳐보라”고 하자 세라는 “제복 입고 안전 확인이라고 부르면 스토킹이 아닌가 봐요?”라고 받아칩니다. 유진은 부정하면서도 다음 약속 시간을 세라에게도 남깁니다.</div>'
+      : '';
+  }else{
+    intro=count===1
+      ? '채린은 첫 회동보다 작은 방을 잡았습니다. 수행원도 계약서도 없이 나타났지만, 당신이 정말 다시 올지는 이미 사람을 시켜 확인한 눈치입니다.'
+      : '채린은 이번에는 당신 세력의 규모를 묻지 않습니다. 대신 지난 만남 뒤 무슨 선택을 했는지, 자기 제안 없이도 같은 자리에 올라올 사람인지 묻습니다.';
+    interruption=seraAtHome
+      ? '<div class="hub-note bad-friends-note"><b>세라와 동거 중</b><br>채린이 보낸 차가 집 앞에 서기 전부터 세라는 현관에 앉아 있었습니다. 채린이 “돈을 쓰면 최소한 유능한 사람에게 뒤를 밟게 하죠”라고 웃자 세라는 “사람을 산다고 친구가 되는 건 아닌데요”라고 답합니다. 둘은 서로를 싫어한다면서도 당신의 다음 일정만큼은 정확히 공유합니다.</div>'
+      : '';
+  }
+  const name=id==='yujin'?'강유진':'한채린';
+  const progress=contactReadiness(rec);
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${c.emoji} ${name} · ${count}번째 후속 약속</div><div class="title-bar-controls"><button aria-label="Close" id="special-followup-close"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="${name}"><div><strong>${name} · 아직 개인 연락처 없음</strong><br><span class="muted">${progress.missing.join(' · ')||'조금 더 솔직한 대화가 필요합니다'}</span></div></div><div class="event-desc">${intro}</div>${interruption}<div class="event-options"><button class="event-opt" data-special-followup="open">업무가 아닌 다음 약속을 먼저 제안한다</button><button class="event-opt" data-special-followup="practical">${id==='yujin'?'서로의 비상연락망을 정리한다':'서로 이용할 수 있는 정보부터 교환한다'}</button><button class="event-opt" data-special-followup="formal">서두르지 않고 오늘의 대화만 마친다</button><button class="event-opt" id="special-followup-cancel">다음으로 미룬다</button></div></div></div>`;
+  host.querySelectorAll('[data-special-followup]').forEach(b=>b.addEventListener('click',()=>resolveSpecialFollowupMeet(b.dataset.specialFollowup)));
+  [$('special-followup-close'),$('special-followup-cancel')].forEach(b=>{if(b)b.addEventListener('click',closeSpecialFollowupMeet);});
+}
+function closeSpecialFollowupMeet(){
+  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
+  S._specialFollowup=null;
+}
+function resolveSpecialFollowupMeet(kind){
+  const pending=S._specialFollowup;if(!pending)return;
+  const {id,c,rec,seraAtHome}=pending;
+  const gain=kind==='open'?{affection:6,trust:4}:kind==='practical'?{affection:4,trust:5}:{affection:3,trust:3};
+  rec.affection=clamp((rec.affection||0)+gain.affection,0,100);
+  rec.trust=clamp((rec.trust||0)+gain.trust,0,100);
+  rec.specialFollowupCount=(rec.specialFollowupCount||0)+1;
+  rec.lastSpecialFollowupDay=S.day;
+  addBondInteraction(rec,`special-followup-${kind}`);
+  if(seraAtHome){
+    S.life.dangerousBadFriendsEncounters=(S.life.dangerousBadFriendsEncounters||0)+1;
+    rec.dangerousBadFriendsSeed=true;
+  }
+  const ready=contactReadiness(rec);
+  let result='';
+  if(ready.ready){
+    unlockPersonalContact(rec);
+    result=id==='yujin'
+      ? '유진이 업무용 명함을 거두고 개인 번호를 직접 찍어줍니다. “사건이 없어도 연락해요. 대신 답이 늦다고 순찰차부터 보내지는 않을게요.”'
+      : '채린이 비서의 번호가 적힌 카드를 치우고 자기 휴대폰을 내밉니다. “회사 거치지 말고 직접 연락해요. 어디까지나 당신이 그럴 만한 사람인지 더 보려는 거예요.”';
+    pushPersonMessage(S.life,rec,id==='yujin'?'집에는 잘 들어갔어요? 이건 업무 확인 아니에요.':'내 번호 저장했죠? 비서에게 답장하면 이번 약속은 없던 일로 할게요.',false);
+    addNews(`📱 ${rec.name}과 개인 연락처를 교환했습니다`,'good');
+  }else{
+    result=`대화는 전보다 길어졌지만 개인 번호는 아직 받지 못했습니다. 헤어지기 전, ${rec.name}은 다음에 비워둘 날짜 하나를 말해줬습니다.`;
+    addNews(`${c.emoji} ${rec.name}과 ${rec.specialFollowupCount}번째 후속 만남을 가졌습니다`,'neutral');
+  }
+  closeSpecialFollowupMeet();
+  flashToast(result,ready.ready?'good':'neutral');
+  afterLifeAction('인맥');
 }
 
 function showPersonRequest(name) {
@@ -4079,6 +4150,16 @@ function resolveCharacterStory(choice){
 }
 function characterStoryEndingScene(r,ending){
   if(!r||!ending)return null;
+  if(r.name==='강유진')return{
+    dangerous_dependence:'./assets/event-yujin-safehouse-ending.png',
+    accomplice:'./assets/event-yujin-night-call.png',
+    equal:'./assets/event-yujin-riverside-date.png'
+  }[ending.route]||'./assets/event-yujin-rain-rescue.png';
+  if(r.name==='한채린')return{
+    private_submission:'./assets/event-chaerin-golden-cage-ending.png',
+    boardroom_pair:'./assets/event-chaerin-thrown-contract.png',
+    equal:'./assets/event-chaerin-private-dinner.png'
+  }[ending.route]||'./assets/event-chaerin-contract.png';
   if(r.name!=='윤세라')return null;
   return{
     mutual_salvation:'./assets/event-sera-story.png',
@@ -7161,10 +7242,15 @@ function lifeHubHTML() {
   const pensionBtns = [.05,.09,.15].map(rate=>`<button class="life-btn ${Math.abs(finance.pensionRate-rate)<.001?'hot':''}" data-act="pension" data-rate="${rate}">연금 ${Math.round(rate*100)}%</button>`).join('');
   const contactBtns = social.contacts.map(c=>{const r=SOCIAL.role(c);const ready=c.trust>=30&&c.favor>=1;return `<button class="life-btn" data-act="contact-nurture" data-contact="${c.id}">${r.icon} ${c.name} 만나기 <small>신뢰 ${c.trust}/30 · 호의 ${c.favor} · 300,000</small></button><button class="life-btn ${ready?'hot':''}" data-act="contact-ask" data-contact="${c.id}" ${ready?'':'disabled'}>🙏 ${r.benefit} 부탁 <small>${ready?'가능':'신뢰30·호의1 필요'}</small></button>${c.freeRecruit&&!c.recruitedTo?`<button class="life-btn hot" data-act="origin-ally" data-contact="${c.id}">🎒 ${c.name}에게 합류 제안 <small>사업체·세력 영입비 0원</small></button>`:''}`}).join('');
   const specialMet = id => ensureMet(L).some(m => m.special === id);
+  const specialRecord=id=>ensureMet(L).find(m=>m.special===id);
+  const canSpecialFollowup=rec=>!!(rec&&rec.status==='acquaintance'&&!hasPersonalContact(rec)&&rec.lastSpecialFollowupDay!==S.day);
+  const yujinRecord=specialRecord('police'),chaerinRecord=specialRecord('heiress');
   const sctx = specialRouteContext(L);
   const specialMeetBtns = [
-    (!specialMet('police') && (justice.case || L.criminalRecord > 0 || sctx.attacked)) ? '<button class="life-btn" data-act="meet-special" data-special="yujin">👮‍♀️ 경찰서에서 상담한다 <small>공격·사건·전과가 만든 인연</small></button>' : '',
-    (!specialMet('heiress') && sctx.factionLevel >= 2 && sctx.factionMembers >= 3) ? '<button class="life-btn" data-act="meet-special" data-special="chaerin">🥂 한채린의 비공개 회동 제안을 받는다 <small>세력 2단계 · 조직원 3명 이상</small></button>' : ''
+    (!specialMet('police') && (justice.case || L.criminalRecord > 0 || sctx.attacked)) ? '<button class="life-btn" data-act="meet-special" data-special="yujin">👮‍♀️ 경찰서에서 상담한다 <small>공격·사건·전과가 만든 인연</small></button>' :
+      canSpecialFollowup(yujinRecord)?`<button class="life-btn hot" data-act="meet-special" data-special="yujin">👮‍♀️ 강유진과 후속 약속을 잡는다 <small>${(yujinRecord.specialFollowupCount||0)+1}번째 대화 · 업무 밖에서 이어진 약속</small></button>`:'',
+    (!specialMet('heiress') && sctx.factionLevel >= 2 && sctx.factionMembers >= 3) ? '<button class="life-btn" data-act="meet-special" data-special="chaerin">🥂 한채린의 비공개 회동 제안을 받는다 <small>세력 2단계 · 조직원 3명 이상</small></button>' :
+      canSpecialFollowup(chaerinRecord)?`<button class="life-btn hot" data-act="meet-special" data-special="chaerin">🥂 한채린과 후속 회동을 잡는다 <small>${(chaerinRecord.specialFollowupCount||0)+1}번째 대화 · 조건이 아닌 사람을 확인하는 자리</small></button>`:''
   ].join('');
   const personalBtns = ensureMet(L).filter(m=>(!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,m.name))&&['friend','casual','partner','polycule','lover'].includes(m.status)).map(m=>{const sig=CHAR_TRAITS&&CHAR_TRAITS.label(m);return`<button class="life-btn" data-act="person-request" data-person="${m.name}">🙏 ${m.name}에게 부탁하기 <small>${relationTag(L,m.name)} · 호감 ${Math.round(m.affection||0)}${m.childhoodFriend?' · 소꿉친구':''}${sig?` · ${sig}`:''}</small></button>`;}).join('');
   const courtBtns=justice.case?`<div class="court-status">⚖️ <b>${justice.case.crime}</b> · <b class="down">${justice.case.phase}</b> 단계 · ${justice.case.months}개월 남음<br><span class="muted">${justice.case.phase==='수사'?'변호사를 미리 선임하면 유리합니다':justice.case.phase==='기소'?'변호사 등급이 불기소 확률에 영향':'⚠️ 재판 전략 3가지 중 하나를 꼭 선택하세요'}</span></div><button class="life-btn" data-act="lawyer" data-tier="public">국선변호인</button><button class="life-btn" data-act="lawyer" data-tier="standard">전문 변호사 <small>5,000,000</small></button><button class="life-btn" data-act="lawyer" data-tier="elite">대형 로펌 <small>20,000,000</small></button>${justice.case.phase==='재판'?'<button class="life-btn" data-act="court" data-strategy="plea">혐의 인정·선처</button><button class="life-btn" data-act="court" data-strategy="contest">무죄 다툼</button><button class="life-btn" data-act="court" data-strategy="cooperate">수사 협조</button>':''}`:'<span class="muted">진행 중인 사건 없음</span>';
