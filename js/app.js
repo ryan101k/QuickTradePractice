@@ -171,7 +171,13 @@ function newLife() {
     lifeView: null,          // 구버전 세이브 호환
     familyBackground: null,  // 시작 가정환경
     schoolLife: null,        // 학창생활
-    firstCareerPool: [],     // 가정·학창생활로 만들어진 첫 직업 후보
+    firstCareerPool: [],     // 가정·학창생활로 만들어진 첫 정규직 후보
+    prologue: {              // 실패한 학창 관계 뒤 은둔·단기 알바로 버티는 도입부
+      stage: 'origin',       // origin | shut_in | support | career
+      careerUnlocked: false,
+      firstCareerStarted: false,
+      candidateJobs: [],
+    },
     job: 'none',             // 직업 id
     happy: 50,               // 행복도 0~100
     charm: 0,                // 매력(연애 진행도)
@@ -1947,7 +1953,7 @@ function chooseFamilyBackground(id){
 function showSchoolLifeModal(){
   const host=$('life-modal');if(!host)return;host.style.display='flex';host.className='life-modal-host';
   const bg=ORIGIN&&ORIGIN.family(S.life.familyBackground);
-  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🎒 인생 시작 2/2 · 학창시절은 어땠을까?</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-school.png" alt="방과 후 여러 동아리와 친구 사이에서 진로를 고민하는 장면"><div class="origin-selected">${bg?`${bg.icon} ${bg.name}에서 자랐습니다.`:''}</div><p class="life-intro">학창시절 선택이 강점과 취업 후보를 좁히고, 졸업 뒤에도 연락하는 친구 한 명을 만듭니다. 첫 직업은 두 이력 안에서 자동으로 정해집니다.</p><div class="event-options">${SCHOOL_LIVES.map(v=>`<button class="event-opt origin-choice" data-school-life="${v.id}"><b>${v.icon} ${v.name}</b><span>${v.desc}</span><small>${v.result}</small></button>`).join('')}</div></div></div>`;
+  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🎒 인생 시작 2/2 · 학창시절은 어땠을까?</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-school.png" alt="방과 후 여러 동아리와 친구 사이에서 진로를 고민하는 장면"><div class="origin-selected">${bg?`${bg.icon} ${bg.name}에서 자랐습니다.`:''}</div><p class="life-intro">학창시절 선택이 강점과 훗날 지원할 진로를 좁히고, 졸업 뒤에도 연락하는 친구 한 명을 만듭니다. 하지만 학교를 떠난 직후에는 곧바로 번듯한 직장에 들어가지 못합니다.</p><div class="event-options">${SCHOOL_LIVES.map(v=>`<button class="event-opt origin-choice" data-school-life="${v.id}"><b>${v.icon} ${v.name}</b><span>${v.desc}</span><small>${v.result}</small></button>`).join('')}</div></div></div>`;
   host.querySelectorAll('[data-school-life]').forEach(b=>b.addEventListener('click',()=>chooseSchoolLife(b.dataset.schoolLife)));
 }
 function chooseSchoolLife(id){
@@ -1989,21 +1995,29 @@ function originCareerCandidates(){
 }
 function assignStartingCareer(){
   const L=S.life;if(L.started)return;
-  const pool=originCareerCandidates();L.firstCareerPool=[...new Set(pool)];const id=pick(pool),job=D.JOBS.find(j=>j.id===id)||D.JOBS.find(j=>j.id==='office');
+  const pool=originCareerCandidates(),job=D.JOBS.find(j=>j.id==='parttime')||D.JOBS.find(j=>j.id==='none');
+  L.firstCareerPool=[...new Set(pool)];
+  L.prologue={stage:'shut_in',careerUnlocked:false,firstCareerStarted:false,candidateJobs:[...L.firstCareerPool]};
   L.job=job.id;L.lifeView='origin';CAREER.switchJob(L,job.id);L.started=true;
   const bg=ORIGIN&&ORIGIN.family(L.familyBackground),school=ORIGIN&&ORIGIN.school(L.schoolLife),social=SOCIAL.ensure(L);
   const contacts=social.contacts.filter(c=>c.origin).map(c=>`${SOCIAL.role(c).icon} ${c.name}`).join(' · ');
   const host=$('life-modal');host.style.display='flex';host.className='life-modal-host';
-  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">💼 첫 취업 결과</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-career.png" alt="첫 직장에 출근하는 장면"><div class="origin-timeline"><div>${bg.icon}<b>${bg.name}</b></div><i>→</i><div>${school.icon}<b>${school.name}</b></div><i>→</i><div>${job.emoji}<b>${job.name}</b></div></div><div class="event-title">첫 직업은 ${job.name}입니다.</div><div class="event-desc">가정환경과 학창생활에서 만들어진 ${L.firstCareerPool.length}개 진로 중 하나로 취업했습니다. 앞으로 이직도 주요 인물들과 같은 생활권에 있는 핵심 직군을 중심으로 이루어집니다.</div><div class="important-event-detail">저장된 연락처 · ${contacts}</div><button id="origin-start" class="session-btn opening">이 인생으로 시작</button></div></div>`;
-  addNews(`💼 ${job.name}(으)로 사회생활 시작 · ${bg.name} / ${school.name}`,'good');
+  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🌒 프롤로그 · 문을 잠근 뒤</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-school.png" alt="불이 꺼진 방에서 휴대전화를 뒤집어 둔 밤"><div class="origin-timeline"><div>${bg.icon}<b>${bg.name}</b></div><i>→</i><div>${school.icon}<b>${school.name}</b></div><i>→</i><div>🌒<b>멈춘 생활</b></div></div><div class="event-title">졸업 뒤, 한동안 집 밖으로 나갈 이유를 만들지 못했습니다.</div><div class="event-desc">생활경제연구회에서 끝내 정리하지 못한 관계와 실패가 겹친 뒤 연락처를 차단하고 방 안에 머물렀습니다. 사람 없는 새벽 시간의 편의점 대타와 집에서 받는 단기 의뢰만으로 월세와 식비를 버팁니다. 지금의 직업은 경력이 아니라 <b>${job.name}</b>입니다.</div><div class="important-event-detail">과거가 남긴 정규직 후보 ${L.firstCareerPool.length}개 · 투자지원 등록 뒤 지원 가능<br>남아 있는 연락처 · ${contacts}</div><button id="origin-start" class="session-btn opening">불이 켜진 휴대전화를 확인한다</button></div></div>`;
+  addNews(`🌒 은둔 생활 시작 · ${job.name}와 단기 의뢰로 생활비를 버팁니다`,'neutral');
   $('origin-start').addEventListener('click',()=>{celebrate();checkAchievements();renderMarketPhase();renderAll();showOriginFriendReferral();autoSave();});
   autoSave();
+}
+
+function unlockPrologueCareer(){
+  const L=S.life;if(!L)return;
+  L.prologue=Object.assign({stage:'shut_in',careerUnlocked:false,firstCareerStarted:false,candidateJobs:[...(L.firstCareerPool||[])]},L.prologue||{});
+  L.prologue.stage='support';L.prologue.careerUnlocked=true;
 }
 
 function showOriginFriendReferral(){
   const host=$('life-modal'),origin=S.life.originFriend,school=ORIGIN&&ORIGIN.school(S.life.schoolLife);
   const contact=origin&&SOCIAL.ensure(S.life).contacts.find(item=>item.id===origin.contactId);
-  if(!host||!contact){S.life.tutorialSeen=true;closeLifeModal();renderAll();autoSave();return;}
+  if(!host||!contact){S.life.tutorialSeen=true;unlockPrologueCareer();closeLifeModal();renderAll();autoSave();return;}
   const npc=(D.WORLD_MALE_NPCS||[]).find(item=>item.id===origin.npcId)||{name:contact.name,portrait:'mob-faction-intel.png',job:'학창시절 친구'};
   const lines=[
     [contact.name,school&&school.guideLine||'돈 버는 법 알려 달라 했지? 괜찮은 투자지원 프로그램을 찾았어.'],
@@ -2027,7 +2041,7 @@ function showOriginFriendReferral(){
     host.innerHTML=`<div class="window event-window legacy-window tutorial-choice-window"><div class="title-bar"><div class="title-bar-text">📱 ${school.friendTag}의 수상한 소개</div></div><div class="window-body"><div class="date-profile"><img class="char-portrait" src="./assets/characters/${npc.portrait}" alt="${contact.name}"><div class="dp-info"><strong>${contact.name}</strong> · ${school.friendTag}<br><span class="muted">${npc.job}</span></div></div><div class="origin-chat-log">${shown.map(([speaker,text])=>`<div class="story-dialogue ${speaker==='플레이어'?'player-line':''}"><b>${speaker}</b> “${text}”</div>`).join('')}</div><div class="event-options">${index<lines.length-1?'<button id="origin-referral-next" class="event-opt">다음 메시지</button>':'<button id="origin-referral-go" class="event-opt hot">📍 투자지원센터로 간다</button><button id="origin-referral-skip" class="event-opt">설명은 나중에 듣고 바로 시작한다</button>'}</div></div></div>`;
     const next=$('origin-referral-next');if(next)next.addEventListener('click',()=>{S._originReferralIndex++;render();});
     const go=$('origin-referral-go');if(go)go.addEventListener('click',()=>{S.life.referralSeen=true;showTutorial();});
-    const skip=$('origin-referral-skip');if(skip)skip.addEventListener('click',()=>{S.life.referralSeen=true;S.life.tutorialSeen=true;closeLifeModal();renderAll();autoSave();});
+    const skip=$('origin-referral-skip');if(skip)skip.addEventListener('click',()=>{S.life.referralSeen=true;S.life.tutorialSeen=true;unlockPrologueCareer();closeLifeModal();renderAll();autoSave();});
   };
   render();
 }
@@ -2044,7 +2058,10 @@ function jobHireChance(target) {
 function showJobModal(isChange) {
   const host = $('life-modal'); if (!host) return;
   host.className = 'life-modal-host';
-  const focusedJobs=D.JOBS.filter(j=>CORE_JOB_IDS.includes(j.id)||j.id===S.life.job);
+  const prologue=S.life.prologue||{},enteringCareer=S.life.job==='parttime'&&!prologue.firstCareerStarted;
+  if(isChange&&enteringCareer&&!prologue.careerUnlocked){flashToast('📱 투자지원 등록을 마치면 처음 정규직에 지원할 수 있습니다','neutral');return;}
+  const candidateIds=new Set(prologue.candidateJobs&&prologue.candidateJobs.length?prologue.candidateJobs:S.life.firstCareerPool||[]);
+  const focusedJobs=D.JOBS.filter(j=>enteringCareer?(j.id===S.life.job||candidateIds.has(j.id)):(CORE_JOB_IDS.includes(j.id)||j.id===S.life.job));
   const rows = focusedJobs.map(j => {
     const extra = isChange
       ? (j.id === S.life.job ? '<span class="risk-tag">현재 직업</span>' : `<span class="risk-tag">합격 ${jobHireChance(j)}%</span>`)
@@ -2069,7 +2086,7 @@ function showJobModal(isChange) {
          ${isChange ? '<div class="title-bar-controls"><button aria-label="Close" id="job-x"></button></div>' : ''}</div>
        <div class="window-body">
          <img class="life-scene-banner" src="./assets/life-career.png" alt="직업 면접 장면">
-         <p class="life-intro">${isChange ? '주요 인물들의 직장·업계와 실제로 연결되는 핵심 직군만 표시됩니다. 지원하면 <b>합격 확률</b>로 성패가 갈립니다.' : '첫 직업은 가정환경과 학창생활에 따라 자동으로 정해집니다.'}</p>
+         <p class="life-intro">${enteringCareer?'가정환경과 학창생활이 남긴 후보입니다. 단기 알바로 버티던 생활을 끝내고 첫 정규직에 지원합니다.':isChange ? '주요 인물들의 직장·업계와 실제로 연결되는 핵심 직군만 표시됩니다. 지원하면 <b>합격 확률</b>로 성패가 갈립니다.' : '첫 직업은 가정환경과 학창생활에 따라 자동으로 정해집니다.'}</p>
          <ul class="clean-list job-list">${rows}</ul>
        </div>
      </div>`;
@@ -2085,10 +2102,12 @@ function attemptJobChange(id) {
   markMonthAction('경력');
   closeLifeModal();
   if (Math.random() * 100 < chance) {
+    const firstCareer=S.life.job==='parttime'&&S.life.prologue&&!S.life.prologue.firstCareerStarted;
     S.life.job = id;
     CAREER.switchJob(S.life, id);
+    if(firstCareer){S.life.prologue.firstCareerStarted=true;S.life.prologue.stage='career';}
     addNews(`✅ ${target.name} 이직 성공! (합격 확률 ${chance}%)`, 'good');
-    flashToast(`✅ ${target.name} 합격!`, 'good'); celebrate(); playSound('buy');
+    flashToast(firstCareer?`✅ 첫 정규직 · ${target.name} 합격!`:`✅ ${target.name} 합격!`, 'good'); celebrate(); playSound('buy');
   } else {
     S.life.happy = clamp(S.life.happy - 4, 0, 100);
     addNews(`❌ ${target.name} 이직 실패 — 서류 탈락 (합격 확률 ${chance}%)`, 'bad');
@@ -2151,6 +2170,7 @@ function showTutorial() {
   const choose = listen => {
     S.life.tutorialSeen = true;
     S.life.tutorialMet = true;
+    unlockPrologueCareer();
     const firstMeeting=rememberPerson({...n,metThrough:'investment-support'},'acquaintance');
     firstMeeting.status='acquaintance';firstMeeting.affection=Math.min(firstMeeting.affection||0,5);firstMeeting.trust=Math.min(firstMeeting.trust||0,5);
     firstMeeting.contactUnlocked=false;firstMeeting.interactions=Math.min(firstMeeting.interactions||0,1);
@@ -2282,6 +2302,7 @@ function finishNaraeTutorial() {
   S._tutorialStep = null;
   const host = $('life-modal');
   if (host) { host.className = 'life-modal-host'; host.style.display = 'none'; host.innerHTML = ''; }
+  unlockPrologueCareer();
   ensureSeraLoopPartner();
   renderAll();
   autoSave();
@@ -3370,6 +3391,7 @@ function doNaraeConsulting(){
 
 function pixelHomeHTML(L=S.life){
   const home=HOUSING.home(L),goods=L.luxuryGoods||[],tier=home.id==='parents'?'family':home.id==='gosiwon'||home.id==='basement'?'small':['premium','mansion'].includes(home.id)?'luxury':'normal';
+  const sera=metRecord(L,'윤세라'),seraHere=!!(sera&&L.seraHousing==='cohabit');
   const furniture=[
     '<i class="px-window"></i>','<i class="px-bed"></i>','<i class="px-table"></i>',
     goods.includes('gaming')?'<i class="px-gaming">🖥️</i>':'',
@@ -3378,7 +3400,7 @@ function pixelHomeHTML(L=S.life){
     goods.includes('car')?'<i class="px-car">🏎️</i>':'',
     goods.includes('yacht')?'<i class="px-yacht">🛥️</i>':'',
   ].join('');
-  return `<div class="pixel-home ${tier}" aria-label="${home.name} 생활공간"><div class="px-wall"></div><div class="px-floor"></div>${furniture}<i class="px-player">🧍</i><span>${home.icon} ${home.name} · ${HOUSING.TENURES[L.housing.tenure].name}</span></div>`;
+  return `<div class="pixel-home ${tier}" aria-label="${home.name} 생활공간"><div class="px-wall"></div><div class="px-floor"></div>${furniture}<i class="px-player">🧍</i>${seraHere?'<i class="px-sera" title="윤세라">🧎‍♀️</i>':''}<span>${home.icon} ${home.name} · ${HOUSING.TENURES[L.housing.tenure].name}${seraHere?' · 윤세라와 동거 중':''}</span></div>`;
 }
 
 function showHomeLifeModal(){
@@ -3386,12 +3408,33 @@ function showHomeLifeModal(){
   L.luxuryGoods=Array.isArray(L.luxuryGoods)?L.luxuryGoods:[];
   const indoor=D.HOBBIES.filter(h=>['game','study'].includes(h.id));
   const goods=(D.LUXURY_GOODS||[]).filter(g=>!L.luxuryGoods.includes(g.id));
+  const sera=metRecord(L,'윤세라'),seraHere=!!(sera&&L.seraHousing==='cohabit');
+  const seraHome=seraHere?`<div class="route-sep">세라와 한집에서 보내는 시간</div><div class="date-profile sera-home-profile"><img class="char-portrait" src="${characterPortrait(sera,'happy')}" alt="집에서 쉬고 있는 윤세라"><div><strong>윤세라 · 동거 중</strong><br><span class="muted">“오늘은 어디 안 가도 되는 거죠? 그러면… 뭘 같이 할지 제가 골라도 돼요?”</span></div></div><div class="home-action-grid"><button class="life-btn" data-act="sera-home" data-sera-home="late-morning">☕ 늦은 아침을 같이 보낸다 <small>행복 +8 · 신뢰 +3 · 집착 +1</small></button><button class="life-btn" data-act="sera-home" data-sera-home="keys">🔑 열쇠와 귀가 약속을 다시 정한다 <small>행복 +5 · 신뢰 +5 · 집착 -4</small></button><button class="life-btn" data-act="sera-home" data-sera-home="studio">🎨 세라의 작업을 옆에서 지켜본다 <small>행복 +6 · 호감 +5</small></button></div>`:'';
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window home-life-window"><div class="title-bar event-bar"><div class="title-bar-text">🏠 오늘은 집에서</div><div class="title-bar-controls"><button aria-label="Close" id="home-life-x"></button></div></div><div class="window-body">${pixelHomeHTML(L)}<div class="home-life-summary"><b>${L.luxuryGoods.length?'내 취향이 보이는 공간':'아직 소박한 생활공간'}</b><small>생활 격 ${lifestylePrestige(L)>=45?'유명 인사':lifestylePrestige(L)>=20?'눈에 띄는 생활':lifestylePrestige(L)>=8?'여유 있음':'소박함'} · 보유품 ${L.luxuryGoods.length}개 · 현재 스트레스 ${Math.round(L.stress||0)}/100</small></div><div class="route-sep">이번 주를 집에서 보내기</div><div class="home-action-grid"><button class="life-btn" data-act="rest">🛌 아무 일정 없이 푹 쉰다 <small>생활비 30,000 · 스트레스 -22 · 건강 +3</small></button><button class="life-btn" data-act="decompress">🌿 휴대폰을 끄고 마음을 정리한다 <small>비용 없음 · 스트레스 -16 · 행복 +3</small></button>${indoor.map(h=>`<button class="life-btn" data-act="hobby" data-id="${h.id}">${h.emoji} ${h.name} <small>${won(h.cost)}</small></button>`).join('')}</div><div class="route-sep">돈을 번 흔적 남기기 <span class="muted">구매는 자유시간을 쓰지 않음</span></div><div class="luxury-shop">${goods.length?goods.map(g=>`<button data-luxury-buy="${g.id}" ${S.capital<g.price?'disabled':''}><span>${g.emoji}</span><b>${g.name}</b><small>${g.desc}<br>${won(g.price)}원</small></button>`).join(''):'<div class="asset-empty">모든 생활 컬렉션을 갖췄습니다.</div>'}</div><button id="home-life-close" class="session-btn">밖으로 나가기</button></div></div>`;
+  host.innerHTML=`<div class="window event-window home-life-window"><div class="title-bar event-bar"><div class="title-bar-text">🏠 오늘은 집에서</div><div class="title-bar-controls"><button aria-label="Close" id="home-life-x"></button></div></div><div class="window-body">${pixelHomeHTML(L)}<div class="home-life-summary"><b>${L.luxuryGoods.length?'내 취향이 보이는 공간':'아직 소박한 생활공간'}</b><small>생활 격 ${lifestylePrestige(L)>=45?'유명 인사':lifestylePrestige(L)>=20?'눈에 띄는 생활':lifestylePrestige(L)>=8?'여유 있음':'소박함'} · 보유품 ${L.luxuryGoods.length}개 · 현재 행복 ${Math.round(L.happy||0)}/100 · 스트레스 ${Math.round(L.stress||0)}/100</small></div><div class="route-sep">이번 주를 집에서 보내기</div><div class="home-action-grid"><button class="life-btn" data-act="rest">🛌 아무 일정 없이 푹 쉰다 <small>생활비 30,000 · 스트레스 -22 · 건강 +3${seraHere?' · 세라와 쉬는 방식 선택':''}</small></button><button class="life-btn" data-act="decompress">🌿 휴대폰을 끄고 마음을 정리한다 <small>비용 없음 · 스트레스 -16 · 행복 +3</small></button>${indoor.map(h=>`<button class="life-btn" data-act="hobby" data-id="${h.id}">${h.emoji} ${h.name} <small>${won(h.cost)}</small></button>`).join('')}</div>${seraHome}<div class="route-sep">돈을 번 흔적 남기기 <span class="muted">구매는 자유시간을 쓰지 않음</span></div><div class="luxury-shop">${goods.length?goods.map(g=>`<button data-luxury-buy="${g.id}" ${S.capital<g.price?'disabled':''}><span>${g.emoji}</span><b>${g.name}</b><small>${g.desc}<br>${won(g.price)}원</small></button>`).join(''):'<div class="asset-empty">모든 생활 컬렉션을 갖췄습니다.</div>'}</div><button id="home-life-close" class="session-btn">밖으로 나가기</button></div></div>`;
   wireLifeHub(host);
   host.querySelectorAll('[data-luxury-buy]').forEach(button=>button.addEventListener('click',()=>buyLuxuryGood(button.dataset.luxuryBuy)));
   const close=()=>{host.style.display='none';host.innerHTML='';};
   $('home-life-x').addEventListener('click',close);$('home-life-close').addEventListener('click',()=>{close();doDate();});
+}
+
+const SERA_HOME_MOMENTS={
+  'late-morning':{icon:'☕',title:'늦은 오전, 두 사람 몫의 컵',scene:'./assets/event-sera-shoulder-confession.png',desc:'세라는 먼저 깨어 있었지만 깨우지 않았습니다. 식어 버린 커피를 다시 데우고, 당신이 일어날 때까지 소파 끝에 기대 있었습니다. 오늘만큼은 어디 있었는지 묻는 대신 같은 창밖을 봅니다.',happy:8,stress:-8,affection:4,trust:3,obsession:1,line:'깨울까 봐 몇 번이나 참았어요. 같이 늦잠 자는 것도… 동거하는 사람만 할 수 있는 거네요.'},
+  keys:{icon:'🔑',title:'감시가 아니라 돌아올 약속',scene:'./assets/event-sera-lip-confession.png',desc:'서로의 열쇠를 빼앗지 않고, 늦는 날에는 한 줄만 남기기로 정했습니다. 세라는 몇 번이나 예외 상황을 묻다가 마지막에는 열쇠를 현관 그릇에 내려놓았습니다.',happy:5,stress:-5,affection:3,trust:5,obsession:-4,line:'모르는 시간을 견디는 게 약속이라면… 해볼게요. 대신 꼭 돌아온다고 말해줘요.'},
+  studio:{icon:'🎨',title:'작업하는 사람의 옆자리',scene:'./assets/event-sera-7.png',desc:'세라는 당신을 그리지 않는 그림을 일부러 꺼냈습니다. 붓을 씻고 색을 고르는 동안 아무 말도 하지 않아도 되는 시간이 이어집니다. 완성된 그림 구석에는 결국 두 사람 몫의 작은 의자가 생겼습니다.',happy:6,stress:-5,affection:5,trust:2,obsession:2,line:'안 보고 있어도 여기 있는 거 알아요. 그게 이렇게 조용할 수 있는 건지 처음 알았어요.'},
+};
+
+function resolveSeraHomeMoment(id){
+  if(lifeActionExhausted()){flashToast(`📅 이번 달 자유시간 ${LIFE_ACTIONS_PER_MONTH}회를 모두 사용했습니다`,'neutral');return;}
+  const L=S.life,r=metRecord(L,'윤세라'),moment=SERA_HOME_MOMENTS[id],host=$('life-event');
+  if(!r||L.seraHousing!=='cohabit'||!moment||!host)return;
+  L.happy=clamp((L.happy||0)+moment.happy,0,100);L.stress=clamp((L.stress||0)+moment.stress,0,100);
+  r.affection=clamp((r.affection||0)+moment.affection,0,100);r.trust=clamp((r.trust||0)+moment.trust,0,100);r.obsession=clamp((r.obsession||0)+moment.obsession,0,100);
+  pushPersonMessage(L,r,moment.line,false);
+  addNews(`${moment.icon} 윤세라와 집에서 보낸 하루 · 행복 +${moment.happy} · 신뢰 +${moment.trust}`,'good');
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${moment.icon} 윤세라와 집에서</div></div><div class="window-body"><img class="life-scene-banner" src="${moment.scene}" alt="${moment.title}"><div class="event-title">${moment.title}</div><div class="event-desc">${moment.desc}</div><div class="story-dialogue"><b>윤세라</b> “${moment.line}”</div><div class="oc-changes">행복 +${moment.happy} · 스트레스 ${moment.stress} · 호감 +${moment.affection} · 신뢰 +${moment.trust} · 집착 ${moment.obsession>=0?'+':''}${moment.obsession}</div><button id="sera-home-confirm" class="session-btn opening">같은 집의 하루를 마친다</button></div></div>`;
+  $('sera-home-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';afterLifeAction('휴식');});
+  autoSave();
 }
 
 function incomeWorkOptions(){
@@ -3447,8 +3490,35 @@ function buyLuxuryGood(id){
 }
 
 function doRestMonth() {
+  const sera=metRecord(S.life,'윤세라');
+  if(sera&&S.life.seraHousing==='cohabit'){showSeraRestModal(sera);return;}
   S.capital -= Math.min(Math.max(0,S.capital),30000);
   HEALTH.rest(S.life); flashToast('🛌 푹 쉬었습니다 · 스트레스 -22 · 건강 +3', 'good'); afterLifeAction('휴식');
+}
+function showSeraRestModal(sera){
+  const host=$('life-event');if(!host)return;
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🛌 윤세라와 쉬는 밤</div><div class="title-bar-controls"><button aria-label="Close" id="sera-rest-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-sera-shoulder-confession.png" alt="소파에서 어깨를 맞대고 쉬는 윤세라"><div class="event-title">세라는 불을 끈 뒤에도 현관과 휴대전화를 번갈아 봅니다.</div><div class="event-desc">“그냥 자도 돼요. 제가 보고 있을게요.” 안심시키는 말인지, 감시하겠다는 말인지 구분하기 어렵습니다. 이번 밤의 규칙을 정할 수 있습니다.</div><div class="event-options"><button class="event-opt" data-sera-rest="open"><b>🌅 휴대전화를 엎어 두고 같은 소파에서 쉰다</b><span>서로 깨어 있는지 확인하지 않고 아침까지 기다립니다.</span><small>행복 +8 · 신뢰 +5 · 집착 -4</small></button><button class="event-opt hot" data-sera-rest="locked"><b>🔐 오늘만 같이 문을 잠그자고 한다</b><span>세라가 하려던 말을 당신이 먼저 꺼냅니다.</span><small>행복 +10 · 호감 +6 · 상호집착 +1</small></button><button class="event-opt" data-sera-rest="alone"><b>🚪 오늘은 각자 방에서 쉬자고 한다</b><span>혼자 있을 시간도 동거의 약속에 포함시킵니다.</span><small>행복 -3 · 신뢰 +2 · 집착 +4</small></button></div></div></div>`;
+  const close=()=>{host.style.display='none';host.innerHTML='';showHomeLifeModal();};
+  $('sera-rest-x').addEventListener('click',close);
+  host.querySelectorAll('[data-sera-rest]').forEach(button=>button.addEventListener('click',()=>resolveSeraRest(sera,button.dataset.seraRest)));
+}
+function resolveSeraRest(sera,choice){
+  const L=S.life,host=$('life-event');if(!host)return;
+  const outcomes={
+    open:{happy:8,affection:3,trust:5,obsession:-4,text:'세라는 몇 번이나 눈을 떴지만 당신의 휴대전화에는 손대지 않았습니다. 아침에 당신이 먼저 이름을 부르자 그제야 어깨의 힘을 풉니다.',line:'안 확인해도 돌아와 있었네요. 다음에도… 한 번쯤은 기다려볼게요.'},
+    locked:{happy:10,affection:6,trust:3,obsession:5,mutual:1,text:'당신이 안쪽 잠금장치를 먼저 걸자 세라가 당황해 손을 멈춥니다. 누가 누구를 붙잡았는지 따지지 않은 채 같은 침묵 속에서 잠이 듭니다.',line:'잠깐만요. 왜 당신이 먼저 그래요? 이러면 제가 말려야 하는 쪽이잖아요.'},
+    alone:{happy:-3,affection:-2,trust:2,obsession:4,text:'세라는 닫힌 방문 앞에 한참 앉아 있었지만 열쇠를 쓰지는 않았습니다. 혼자 쉬는 데 성공했어도, 문 아래의 그림자는 새벽까지 사라지지 않습니다.',line:'들어가진 않을게요. 대신 여기 있는 것까지 싫다고 하지는 말아줘요.'},
+  };
+  const out=outcomes[choice];if(!out)return;
+  S.capital-=Math.min(Math.max(0,S.capital),30000);HEALTH.rest(L);
+  L.happy=clamp((L.happy||0)+out.happy,0,100);sera.affection=clamp((sera.affection||0)+out.affection,0,100);sera.trust=clamp((sera.trust||0)+out.trust,0,100);sera.obsession=clamp((sera.obsession||0)+out.obsession,0,100);
+  if(out.mutual)sera.mutualObsession=(sera.mutualObsession||0)+out.mutual;
+  pushPersonMessage(L,sera,out.line,false);
+  addNews(`🛌 윤세라와 동거 휴식 · 행복 ${out.happy>=0?'+':''}${out.happy} · 집착 ${out.obsession>=0?'+':''}${out.obsession}`,'neutral');
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🌙 같은 집에서 맞은 아침</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-sera-shoulder-confession.png" alt="윤세라와 함께 쉰 다음 날 아침"><div class="event-desc">${out.text}</div><div class="story-dialogue"><b>윤세라</b> “${out.line}”</div><div class="oc-changes">스트레스 -22 · 건강 +3 · 행복 ${out.happy>=0?'+':''}${out.happy} · 호감 ${out.affection>=0?'+':''}${out.affection} · 신뢰 +${out.trust} · 집착 ${out.obsession>=0?'+':''}${out.obsession}${out.mutual?' · 상호집착 +1':''}</div><button id="sera-rest-confirm" class="session-btn opening">아침 일정을 시작한다</button></div></div>`;
+  $('sera-rest-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';afterLifeAction('휴식');});
+  autoSave();
 }
 function doDecompressMonth() {
   HEALTH.decompress(S.life);S.life.happy=clamp((S.life.happy||0)+3,0,100);
@@ -5065,9 +5135,12 @@ function replyToPerson(r,kind,options){
   const text=options.text||(window.QT_CHAT&&QT_CHAT.playerReply(kind,options.incoming,r))||
     {warm:'오늘 정신이 없었어. 그래도 네 연락 보니까 좋다.',brief:'응, 확인했어. 나중에 연락할게.',boundary:'연락이 늦을 수 있어. 재촉하거나 위치를 확인하는 건 하지 말아줘.',ignore:'(읽음)'}[kind];
   pushPersonMessage(L,r,text,true);r.idleMonths=0;
-  if(kind==='warm'){r.affection=Math.min(100,(r.affection||0)+3);r.trust=Math.min(100,(r.trust||0)+2);if(r.name==='윤세라')r.obsession=Math.min(100,(r.obsession||0)+3);}
-  else if(kind==='boundary'){r.trust=Math.min(100,(r.trust||0)+2);if(r.name==='윤세라')r.obsession=Math.max(0,(r.obsession||0)-4);else if(isDangerousHeroine(r))r.dangerLevel=Math.max(0,(r.dangerLevel||0)-6);}
-  else if(kind==='ignore'){r.affection=Math.max(0,(r.affection||0)-2);if(r.name==='윤세라')r.obsession=Math.min(100,(r.obsession||0)+7);}
+  let seraHappy=0;
+  if(kind==='warm'){r.affection=Math.min(100,(r.affection||0)+3);r.trust=Math.min(100,(r.trust||0)+2);if(r.name==='윤세라'){r.obsession=Math.min(100,(r.obsession||0)+3);seraHappy=4;}}
+  else if(kind==='boundary'){r.trust=Math.min(100,(r.trust||0)+2);if(r.name==='윤세라'){r.obsession=Math.max(0,(r.obsession||0)-4);seraHappy=-2;}else if(isDangerousHeroine(r))r.dangerLevel=Math.max(0,(r.dangerLevel||0)-6);}
+  else if(kind==='ignore'){r.affection=Math.max(0,(r.affection||0)-2);if(r.name==='윤세라'){r.obsession=Math.min(100,(r.obsession||0)+7);seraHappy=-5;}}
+  else if(kind==='brief'&&r.name==='윤세라')seraHappy=1;
+  if(r.name==='윤세라'&&seraHappy)L.happy=clamp((L.happy||0)+seraHappy,0,100);
   if(kind!=='ignore')addBondInteraction(r,`message-${kind}`);
   let answer='';
   if(kind!=='ignore'){
@@ -5077,7 +5150,8 @@ function replyToPerson(r,kind,options){
       (kind==='boundary'?'알겠어요. 약속한 선은 지켜볼게요.':kind==='warm'?'먼저 연락해줘서 기뻐요.':'별일 없었어요. 당신은 오늘 어땠어요?');
     if(answer)pushPersonMessage(L,r,answer,false);
   }
-  if(!options.popup)renderChatPanel();renderLifePanel();autoSave();return{ok:true,text,answer};
+  const meta=r.name==='윤세라'&&seraHappy?`윤세라의 집착 문자는 스트레스 대신 행복에 남았습니다 · 행복 ${seraHappy>0?'+':''}${seraHappy}`:'';
+  if(!options.popup)renderChatPanel();renderLifePanel();autoSave();return{ok:true,text,answer,meta};
 }
 
 function relationshipDateLine(L, c) {
@@ -6929,7 +7003,7 @@ function resolveFactionTradeCall(choice) {
 }
 
 const MONTHLY_ACTION_GROUPS = {
-  date:'데이트', hobby:'취미', rest:'휴식', decompress:'휴식',
+  date:'데이트', hobby:'취미', rest:'휴식', decompress:'휴식', 'sera-home':'휴식',
   'income-work':'수입',
   cert:'경력', changejob:'경력', 'investment-consult':'경력',
   'contact-meet':'인맥', 'contact-nurture':'인맥', 'contact-ask':'인맥', 'meet-special':'인맥', 'person-request':'인맥',
@@ -6970,17 +7044,20 @@ function maybeSeraIntrusion(context){
   const host=$('life-event');if(!host||host.style.display==='block')return;L.seraIntrusionDay=S.day;
   const places={데이트:'다른 사람을 만나기로 한 장소 맞은편에서',취미:'취미 모임 출입구에서',휴식:'집으로 돌아오는 골목에서',경력:'직장 건물 로비에서',인맥:'약속 장소의 바로 옆 테이블에서',가족:'가족과 함께 있던 장소 근처에서',라이벌:'세력 사무실 앞에서'};
   const place=places[context]||((L.conditions||[]).length?'병원 접수대 건너편에서':'밖에서 돌아오는 길에');
-  L.stress=clamp((L.stress||0)+6,0,100);host.style.display='block';
-  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🖤 어디를 가도 윤세라</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-sera-doorstep.png" alt="윤세라가 기다리는 장면"><div class="event-title down">“진짜 우연이에요. 그렇게 믿어주면 안 돼요?”</div><div class="event-desc">${place} 세라가 이미 기다리고 있었습니다. 일정과 목적지를 말한 적은 없습니다.</div><div class="important-event-detail">집착 ${Math.round(r.obsession||0)}/100 · 스트레스 +6</div><div class="event-options"><button class="event-opt" data-sera-response="key">열쇠 이미 줬는데 돈 아깝게 왜 밖에서 기다려?</button><button class="event-opt" data-sera-response="reverse">나도 네가 어디 있는지 궁금했어</button><button class="event-opt" data-sera-response="placate">오늘만 함께 간다</button><button class="event-opt" data-sera-response="boundary">따라오지 말라고 분명히 경고한다</button><button class="event-opt" data-sera-response="report">증거를 남기고 신고·도움을 요청한다</button></div></div></div>`;
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🖤 어디를 가도 윤세라</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-sera-doorstep.png" alt="윤세라가 기다리는 장면"><div class="event-title down">“진짜 우연이에요. 그렇게 믿어주면 안 돼요?”</div><div class="event-desc">${place} 세라가 이미 기다리고 있었습니다. 일정과 목적지를 말한 적은 없습니다.</div><div class="important-event-detail">집착 ${Math.round(r.obsession||0)}/100 · 대응에 따라 행복도가 달라집니다</div><div class="event-options"><button class="event-opt" data-sera-response="key">열쇠 이미 줬는데 돈 아깝게 왜 밖에서 기다려?</button><button class="event-opt" data-sera-response="reverse">나도 네가 어디 있는지 궁금했어</button><button class="event-opt" data-sera-response="placate">오늘만 함께 간다</button><button class="event-opt" data-sera-response="boundary">따라오지 말라고 분명히 경고한다</button><button class="event-opt" data-sera-response="report">증거를 남기고 신고·도움을 요청한다</button></div></div></div>`;
   host.querySelectorAll('[data-sera-response]').forEach(b=>b.addEventListener('click',()=>resolveSeraIntrusion(r,b.dataset.seraResponse)));playSound('crash');
 }
 function resolveSeraIntrusion(r,choice){
   const L=S.life;
-  if(choice==='key'){r.affection=clamp((r.affection||0)+7,0,100);r.obsession=clamp((r.obsession||0)+3,0,100);r.hasHomeKey=true;L.stress=clamp((L.stress||0)-5,0,100);pushPersonMessage(L,r,'그러네. 내가 들어가서 기다리면 되는 거였어요. 열쇠, 절대 잃어버리지 않을게요.',false);}
-  else if(choice==='reverse'){r.affection=clamp((r.affection||0)+9,0,100);r.obsession=clamp((r.obsession||0)+5,0,100);r.mutualObsession=(r.mutualObsession||0)+1;L.stress=clamp((L.stress||0)-6,0,100);pushPersonMessage(L,r,'그 말 다시 해줘요. 나만 찾고 있었던 게 아니라고.',false);}
-  else if(choice==='placate'){r.affection=clamp((r.affection||0)+4,0,100);r.obsession=clamp((r.obsession||0)+7,0,100);pushPersonMessage(L,r,'역시 결국 나랑 같이 있어주는구나.',false);}
-  else if(choice==='boundary'){r.affection=Math.max(0,(r.affection||0)-7);r.obsession=clamp((r.obsession||0)+(Math.random()<.45?4:-6),0,100);pushPersonMessage(L,r,'그 선은 누가 정한 건데요?',false);}
-  else{const hasProtection=!!((D.SPECIAL_CHARACTERS.yujin&&metRecord(L,'강유진'))||SOCIAL.ensure(L).contacts.some(c=>SOCIAL.role(c).id==='official'));r.obsession=Math.max(0,(r.obsession||0)-(hasProtection?24:12));r.affection=Math.max(0,(r.affection||0)-18);r.reported=true;if(r.obsession<65)r.yandere=false;pushPersonMessage(L,r,hasProtection?'경찰까지 부를 줄은 몰랐네. 그래도 끝난 건 아니에요.':'신고했다고 내가 모를 줄 알았어요?',false);}
+  let happyDelta=0;
+  if(choice==='key'){r.affection=clamp((r.affection||0)+7,0,100);r.obsession=clamp((r.obsession||0)+3,0,100);r.hasHomeKey=true;happyDelta=4;pushPersonMessage(L,r,'그러네. 내가 들어가서 기다리면 되는 거였어요. 열쇠, 절대 잃어버리지 않을게요.',false);}
+  else if(choice==='reverse'){r.affection=clamp((r.affection||0)+9,0,100);r.obsession=clamp((r.obsession||0)+5,0,100);r.mutualObsession=(r.mutualObsession||0)+1;happyDelta=7;pushPersonMessage(L,r,'그 말 다시 해줘요. 나만 찾고 있었던 게 아니라고.',false);}
+  else if(choice==='placate'){r.affection=clamp((r.affection||0)+4,0,100);r.obsession=clamp((r.obsession||0)+7,0,100);happyDelta=2;pushPersonMessage(L,r,'역시 결국 나랑 같이 있어주는구나.',false);}
+  else if(choice==='boundary'){r.affection=Math.max(0,(r.affection||0)-7);r.obsession=clamp((r.obsession||0)+(Math.random()<.45?4:-6),0,100);happyDelta=-3;pushPersonMessage(L,r,'그 선은 누가 정한 건데요?',false);}
+  else{const hasProtection=!!((D.SPECIAL_CHARACTERS.yujin&&metRecord(L,'강유진'))||SOCIAL.ensure(L).contacts.some(c=>SOCIAL.role(c).id==='official'));r.obsession=Math.max(0,(r.obsession||0)-(hasProtection?24:12));r.affection=Math.max(0,(r.affection||0)-18);r.reported=true;if(r.obsession<65)r.yandere=false;happyDelta=-6;pushPersonMessage(L,r,hasProtection?'경찰까지 부를 줄은 몰랐네. 그래도 끝난 건 아니에요.':'신고했다고 내가 모를 줄 알았어요?',false);}
+  L.happy=clamp((L.happy||0)+happyDelta,0,100);
+  addNews(`🖤 윤세라의 집착에 대응했습니다 · 행복 ${happyDelta>=0?'+':''}${happyDelta}`,'neutral');
   closeLifeEvent();renderLifePanel();autoSave();
 }
 function dangerousTrioFollowsOuting(group){
@@ -7377,6 +7454,7 @@ function wireLifeHub(host) {
     else if (act === 'treat') doTreatment();
     else if (act === 'rest') doRestMonth();
     else if (act === 'decompress') doDecompressMonth();
+    else if (act === 'sera-home') resolveSeraHomeMoment(b.dataset.seraHome);
     else if (act === 'family-plan') doFamilyPlan(b.dataset.method);
     else if (act === 'child-bond') doChildBond(b.dataset.child);
     else if (act === 'child-edu') doChildEducation(b.dataset.child);
