@@ -20,9 +20,24 @@
     }
   };
   const FOUNDING_MEMBERS={
-    legal:{uid:'mentor-legal-1',sourceId:'mentor-legal',name:'윤도현',role:'legal',portrait:'mob-faction-intel.png',loyalty:82,upkeep:120000,stats:{defense:.02,intel:.04,legal:8,income:350000},named:true,desc:'장태식이 붙여준 기록·법률 담당. 사고보다 증거를 먼저 챙긴다.',injuredMonths:0},
-    network:{uid:'mentor-intel-1',sourceId:'mentor-intel',name:'강도윤',role:'intel',portrait:'mob-faction-intel.png',loyalty:78,upkeep:140000,stats:{defense:.02,intel:.10,income:550000},named:true,desc:'장태식이 붙여준 정보 담당. 시장과 사람의 움직임을 연락으로 보고한다.',injuredMonths:0},
-    underground:{uid:'mentor-field-1',sourceId:'mentor-field',name:'김성호',role:'field',portrait:'mob-faction-field.png',loyalty:88,upkeep:150000,stats:{defense:.10,intel:.02,income:450000},named:true,desc:'장태식이 붙여준 현장 담당. 주인공의 뒤를 지키며 돌직구로 충고한다.',injuredMonths:0},
+    legal:{
+      uid:'mentor-legal-1',sourceId:'mentor-legal',name:'윤도현',role:'legal',portrait:'mob-faction-intel.png',loyalty:82,upkeep:120000,
+      stats:{defense:.02,intel:.04,legal:8,income:350000},named:true,desc:'장태식이 붙여준 기록·법률 담당. 사고보다 증거를 먼저 챙긴다.',injuredMonths:0,
+      mentorBond:'조작된 채무 서류를 들고 도망치던 자신을 장태식이 숨겨 주고, 원본 장부를 보존하게 했다.',
+      revengeVow:'장 선생님이 마지막으로 남긴 사람은 형님입니다. 저쪽이 법으로 빠져나갈 구멍부터 제가 막겠습니다.'
+    },
+    network:{
+      uid:'mentor-intel-1',sourceId:'mentor-intel',name:'강도윤',role:'intel',portrait:'mob-faction-intel.png',loyalty:78,upkeep:140000,
+      stats:{defense:.02,intel:.10,income:550000},named:true,desc:'장태식이 붙여준 정보 담당. 시장과 사람의 움직임을 연락으로 보고한다.',injuredMonths:0,
+      mentorBond:'차명계좌 기록을 복사했다가 업계에서 매장됐을 때 장태식이 정보원을 빼내 새 신분과 일을 마련해 줬다.',
+      revengeVow:'장 선생님이 죽기 전에 형님 번호와 장부 위치를 보냈습니다. 배후 자금줄은 제가 끝까지 찾겠습니다.'
+    },
+    underground:{
+      uid:'mentor-field-1',sourceId:'mentor-field',name:'김성호',role:'field',portrait:'mob-faction-field.png',loyalty:88,upkeep:150000,
+      stats:{defense:.10,intel:.02,income:450000},named:true,desc:'장태식이 붙여준 현장 담당. 주인공의 뒤를 지키며 돌직구로 충고한다.',injuredMonths:0,
+      mentorBond:'불법 회수 현장에서 버림받은 동료들의 치료비를 장태식이 대신 내고, 다시는 사람을 버리지 말라고 가르쳤다.',
+      revengeVow:'선생님을 치고도 끝난 줄 아는 모양입니다. 형님 뒤는 제가 맡겠습니다. 저쪽 간판 내려갈 때까지 안 떠납니다.'
+    },
   };
 
   function ensure(life){
@@ -30,8 +45,9 @@
     if(!f.bankruptcyCampaignVersion){
       // 랭킹 1위를 목표로 하던 이전 캠페인 엔딩은 새 파산 캠페인의 승리로 간주하지 않는다.
       f.campaignWon=false;f.endingSeen=false;f.endingQueued=false;f.storyStage=f.level>0?'active':(f.storyStage||'locked');
-      f.bankruptcyCampaignVersion=1;
+      f.bankruptcyCampaignVersion=2;
     }
+    if(f.bankruptcyCampaignVersion<2)f.bankruptcyCampaignVersion=2;
     if(!f.storyStage)f.storyStage=f.level>0?'active':'locked';
     if(!Number.isFinite(f.storyDay))f.storyDay=0;
     if(f.level>0&&['locked','attacked','legal_wait','forming'].includes(f.storyStage))f.storyStage='active';
@@ -76,15 +92,49 @@
     return{faction:f,path};
   }
 
-  function foundWithMentor(life,pathId){
+  function foundWithMentor(life,pathId,day){
     const result=choosePath(life,pathId),f=result.faction,template=FOUNDING_MEMBERS[result.path.id]||FOUNDING_MEMBERS.network;
     f.level=Math.max(1,f.level||0);
     f.storyStage='active';
     f.mentor='장태식';
     f.mentorContactUnlocked=true;
+    f.mentorDeathPending=!f.mentorDeathSeen;
+    f.mentorHandoffDay=day||f.mentorHandoffDay||1;
     if(!f.members.some(member=>member.sourceId===template.sourceId))f.members.push({...template,stats:{...template.stats}});
     root.QT_RIVALS.ensureFaction(life);
     return{...result,member:f.members.find(member=>member.sourceId===template.sourceId)};
+  }
+
+  function resolveMentorFall(life,attackerName,day){
+    const f=ensure(life);
+    if(!f.mentorDeathPending||f.mentorDeathSeen)return{ok:false,alreadySeen:!!f.mentorDeathSeen,faction:f};
+    const attacker=attackerName||f.firstAttacker||f.lastAttacker||'정체불명의 경쟁 세력';
+    const member=f.members.find(item=>item.sourceId===(FOUNDING_MEMBERS[f.path]||FOUNDING_MEMBERS.network).sourceId)
+      ||f.members[0];
+    f.mentorDeathPending=false;
+    f.mentorDeathSeen=true;
+    f.mentorKilledBy=attacker;
+    f.mentorDeathDay=day||1;
+    f.mentorContactUnlocked=false;
+    f.mentorLegacy='장태식의 마지막 소개와 해산한 태식 사채라인의 장부';
+    life.worldDeaths=life.worldDeaths||{};
+    life.worldDeaths['장태식']={day:day||1,cause:`${attacker}의 보복 습격`,source:'faction-prologue'};
+    if(member){
+      member.revengeTarget=attacker;
+      member.revengeVow=member.revengeVow||(FOUNDING_MEMBERS[f.path]||FOUNDING_MEMBERS.network).revengeVow;
+      member.joinReason=`장태식의 마지막 지시를 이어 ${attacker}의 배후를 무너뜨리기 위해 합류`;
+      member.loyalty=Math.max(88,member.loyalty||0);
+    }
+    f.personalMotives=f.personalMotives||[];
+    if(!f.personalMotives.some(motive=>motive.source==='taesik-death')){
+      f.personalMotives.push({
+        source:'taesik-death',
+        title:'장태식의 마지막 장부',
+        detail:`${attacker}은 세력 창설을 돕던 장태식을 제거하고 태식 사채라인을 강제로 해산시켰다.`,
+        target:attacker,day:day||1,resolved:false
+      });
+    }
+    return{ok:true,faction:f,member,attacker,mentorBond:member&&member.mentorBond,revengeVow:member&&member.revengeVow};
   }
 
   function activateSpecial(life,pathId='underground'){
@@ -143,6 +193,6 @@
 
   root.QT_FACTION_CAMPAIGN={
     PATHS,FOUNDING_MEMBERS,ensure,onAttack,completeFirstAttack,takeDueStory,choosePath,foundWithMentor,
-    activateSpecial,checkVictory,progress,ending,recordEnding,stageText
+    resolveMentorFall,activateSpecial,checkVictory,progress,ending,recordEnding,stageText
   };
 })(window);

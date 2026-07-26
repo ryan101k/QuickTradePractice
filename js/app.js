@@ -7304,16 +7304,65 @@ function resolveFactionMentorPhone(choice){
 }
 
 function foundFactionFromMentor(pathId){
-  const result=FACTION_CAMPAIGN.foundWithMentor(S.life,pathId);
+  const result=FACTION_CAMPAIGN.foundWithMentor(S.life,pathId,S.day);
   if(pathId==='legal')changeMorality(4,'합법 투자조합 창설 원칙을 세웠습니다');
   if(pathId==='underground')changeMorality(-6,'지하 세력의 규칙을 받아들였습니다');
   LEGACY.push(S.life,dateInfo(S.day).age,result.path.icon,`${result.path.name} 창설 · 장태식의 첫 제자`,'faction');
   SOCIAL.addContact(S.life,{id:`faction-${result.member.sourceId}`,name:result.member.name,role:'subordinate',origin:'faction',originKey:`faction-${result.member.sourceId}`,relationLabel:'첫 부하 · 상황 보고',trust:55,favor:1,factionMemberId:result.member.sourceId});
   addNews(`${result.path.icon} ${result.path.factionName} 창설 · 장태식의 소개로 ${result.member.name} 합류`,'good');
   const contact=SOCIAL.ensure(S.life).contacts.find(item=>item.originKey===`faction-${result.member.sourceId}`);
+  const fall=FACTION_CAMPAIGN.resolveMentorFall(S.life,result.faction.firstAttacker,S.day);
+  const taesikBot=(S.bots||[]).find(bot=>bot.leader==='장태식');
+  if(fall.ok&&taesikBot){
+    RIVALS.collapseFaction(
+      taesikBot,S.day,
+      `수장 장태식 사망 · ${fall.attacker}의 보복으로 태식 사채라인 강제 해산`,
+      result.faction,
+      {leaderDeceased:true,killedBy:fall.attacker,collapseSource:'mentor-fall'}
+    );
+  }
+  if(fall.ok){
+    LEGACY.push(S.life,dateInfo(S.day).age,'🕯️',`장태식 사망 · 태식 사채라인 해산 · ${fall.attacker} 배후`,'faction');
+    addNews(`🚨 속보 · 장태식 사망, 태식 사채라인 파산·강제 해산 · 배후 ${fall.attacker}`,'bad');
+    showFactionMentorFall(result,fall,taesikBot,contact);
+    return;
+  }
   pushPersonMessage(S.life,contact,'형님, 장 선생님한테 얘기 들었습니다. 오늘부터 제가 먼저 상황 보고드리겠습니다.',false);
   flashToast(`${result.path.factionName} 창설 · 첫 부하 ${result.member.name} 합류`,'good');
   closeFactionStory();
+}
+
+function showFactionMentorFall(result,fall,taesikBot,contact){
+  const host=$('life-event');if(!host)return;
+  const t=D.SPECIAL_CHARACTERS.taesik,member=result.member;
+  const attacker=(S.bots||[]).find(bot=>bot.name===fall.attacker);
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window faction-mentor-fall-window">
+    <div class="title-bar event-bar"><div class="title-bar-text">🚨 세력 속보 · 태식 사채라인 해산</div></div>
+    <div class="window-body">
+      <img class="life-scene-banner" src="${lifeSceneImage('faction')}" alt="비어 버린 태식 사채라인 사무실과 끊긴 연락망">
+      <div class="date-profile"><img class="char-portrait" src="${characterPortrait(t,'neutral')}" alt="장태식"><div><strong>장태식 · 사망</strong><br><span class="down">수장 부재 · 조직 강제 해산</span></div></div>
+      <div class="event-title">길을 고른 지 한 시간도 지나지 않아 장태식의 번호가 끊겼습니다.</div>
+      <div class="event-desc">${fall.attacker}은 장태식이 당신에게 사람과 장부를 넘겼다는 사실을 알아냈습니다. 사무실은 습격당했고, 남은 조직원은 흩어졌습니다. 현장에 도착했을 때 장태식은 이미 숨져 있었고 마지막 발신 기록에는 당신과 ${member.name}의 번호만 남아 있었습니다.</div>
+      ${attacker?`<div class="date-profile"><img class="char-portrait" src="./assets/characters/${attacker.portrait||'mob-faction-intel.png'}" alt="${attacker.name}"><div><strong>배후 · ${attacker.name}</strong><br><span class="down">${attacker.faction||'경쟁 세력'} · 장태식 제거 지시</span></div></div>`:''}
+      <div class="faction-operation-summary faction-collapse-summary">
+        <span>현금 <b>0원</b></span>
+        <span>거점 <b>전부 폐쇄</b></span>
+        <span>연락망 <b>해산</b></span>
+        <span>세력 상태 <b class="down">파산·해산</b></span>
+      </div>
+      <div class="important-event-detail"><b>파산 사유</b> · ${(taesikBot&&taesikBot.bankruptcyReason)||`수장 사망과 ${fall.attacker}의 강제 해산`}<br><small>장부 마지막 장에는 “현금, 거점, 연락망. 셋이 끊기면 이름이 남아도 세력은 끝난다”는 장태식의 메모가 남아 있습니다.</small></div>
+      <div class="date-profile"><img class="char-portrait" src="./assets/characters/${member.portrait}" alt="${member.name}"><div><strong>${member.name} · 장태식의 마지막 소개</strong><br><span class="muted">${member.mentorBond||'장태식에게 목숨 빚을 진 실무자'}</span></div></div>
+      <div class="event-title">“${member.revengeVow||fall.revengeVow}”</div>
+      <div class="event-desc">고용 계약보다 먼저 복수의 이유가 생겼습니다. ${member.name}은 장태식이 남긴 이력서 묶음과 장부를 들고 당신의 첫 부하가 됩니다. 이후 인원 모집에서는 그가 확인한 이력서를 먼저 읽고 영입 여부를 결정합니다.</div>
+      <button id="faction-mentor-legacy" class="session-btn opening">장태식의 장부와 이력서를 넘겨받는다</button>
+    </div>
+  </div>`;
+  $('faction-mentor-legacy').addEventListener('click',()=>{
+    pushPersonMessage(S.life,contact,`${member.revengeVow} 앞으로 지원자는 제가 먼저 확인해서 이력서로 올리겠습니다.`,false);
+    flashToast(`${result.path.factionName} 창설 · ${member.name}이 복수를 다짐하고 합류`,'good');
+    closeFactionStory();
+  });
 }
 
 function showFactionStory(stage) {
@@ -7389,13 +7438,7 @@ function showFactionMentorChoice() {
 }
 
 function chooseFactionCampaignPath(pathId) {
-  const result=FACTION_CAMPAIGN.choosePath(S.life,pathId);
-  if(pathId==='legal')changeMorality(4,'합법 투자연합 창설 원칙을 세웠습니다');
-  if(pathId==='underground')changeMorality(-6,'지하 세력의 규칙을 받아들였습니다');
-  LEGACY.push(S.life,dateInfo(S.day).age,result.path.icon,`${result.path.name} 창설을 준비했다`,'faction');
-  addNews(`${result.path.icon} 세력 노선 결정 · ${result.path.name} · 첫 거점 창설 비용 지원`, 'good');
-  flashToast(`${result.path.factionName} 창설 준비 완료 · 월말 메뉴에서 첫 거점을 마련하세요`, 'good');
-  closeFactionStory();
+  foundFactionFromMentor(pathId);
 }
 
 function showFactionVictoryEnding() {
@@ -7499,21 +7542,55 @@ function showFactionRecruitment() {
   host.innerHTML=`<div class="window event-window">
     <div class="title-bar event-bar"><div class="title-bar-text">👥 ${faction.name} 인원 모집</div><div class="title-bar-controls"><button aria-label="Close" id="faction-recruit-x"></button></div></div>
     <div class="window-body">
-      <div class="event-title">이름뿐인 세력이 아니라, 사람이 움직이는 조직을 만듭니다</div>
-      <div class="event-desc">현재 구성원 <b>${faction.members.length}/${faction.capacity}명</b> · 모집 평판 <b>${faction.recruitReputation||0}</b>. 세력 단계·역공 실적·기존 구성원의 충성도가 높아질수록 더 숙련된 지원자와 이름 있는 인물이 나타납니다. 아직 자격이 닿지 않는 사람은 목록에도 공개되지 않습니다.</div>
+      <div class="event-title">${(faction.members||[])[0]&&((faction.members||[])[0].name)}이 확인한 이력서가 도착했습니다</div>
+      <div class="event-desc">현재 구성원 <b>${faction.members.length}/${faction.capacity}명</b> · 모집 평판 <b>${faction.recruitReputation||0}</b>. 카드를 누른다고 바로 영입되지 않습니다. 지원자의 사정과 적대 세력 관련 기록을 읽고 면담한 뒤 최종 결정합니다.</div>
       <div class="faction-recruit-grid">${options.map(c=>{
         const role=RIVALS.ROLE_LABELS[c.role]||{icon:'👤',name:c.role};
+        const resume=c.resume||RIVALS.recruitBrief(S.life,c);
         return `<button class="faction-recruit-card ${c.locked?'locked':''}" data-recruit-id="${c.id}" ${c.locked?'disabled':''}>
-          <img src="./assets/characters/${c.portrait}" alt="${c.name}">
-          <span><b>${c.named===false?'':c.name}</b>${c.id.startsWith('mob-')?`<b>${c.name}</b>`:''}<small>${role.icon} ${role.name} · 영입 ${won(c.cost)} · 월 ${won(c.upkeep||0)}</small><em>${c.locked?`🔒 ${c.reason}`:c.desc}</em></span>
+          <img src="./assets/characters/${c.portrait}" alt="${resume.displayName}">
+          <span><b>${resume.displayName}</b><small>${role.icon} ${role.name} · ${resume.career}</small><em>${c.locked?`🔒 ${c.reason}`:`${resume.referrer} 추천 · 이력서 열람`}</em></span>
         </button>`;
       }).join('')}</div>
       <button id="faction-recruit-close" class="session-btn">돌아가기</button>
     </div>
   </div>`;
-  host.querySelectorAll('[data-recruit-id]').forEach(b=>b.addEventListener('click',()=>doFactionRecruit(b.dataset.recruitId)));
+  host.querySelectorAll('[data-recruit-id]').forEach(b=>b.addEventListener('click',()=>showFactionResume(b.dataset.recruitId)));
   const close=()=>{host.style.display='none';host.innerHTML='';};
   $('faction-recruit-x').addEventListener('click',close);$('faction-recruit-close').addEventListener('click',close);
+}
+
+function showFactionResume(candidateId){
+  const host=$('life-event');if(!host)return;
+  const candidate=RIVALS.recruitOptions(S.life).find(item=>item.id===candidateId);
+  if(!candidate||candidate.locked){flashToast(`⛔ ${candidate&&candidate.reason||'지원자를 찾을 수 없습니다'}`,'bad');return;}
+  const faction=RIVALS.ensureFaction(S.life),resume=candidate.resume||RIVALS.recruitBrief(S.life,candidate);
+  const role=RIVALS.ROLE_LABELS[candidate.role]||{icon:'👤',name:candidate.role};
+  host.innerHTML=`<div class="window event-window faction-resume-window">
+    <div class="title-bar event-bar"><div class="title-bar-text">📄 ${faction.name} · 지원자 이력서</div><div class="title-bar-controls"><button aria-label="Close" id="faction-resume-x"></button></div></div>
+    <div class="window-body">
+      <div class="date-profile"><img class="char-portrait" src="./assets/characters/${candidate.portrait}" alt="${resume.displayName}"><div><strong>${resume.displayName}</strong><br><span class="muted">${role.icon} ${role.name} · ${resume.career}</span></div></div>
+      <div class="important-event-detail"><b>추천 경로</b><br>${resume.recommendation}</div>
+      <div class="event-title">지원 경위</div>
+      <div class="event-desc">${resume.history}</div>
+      <div class="event-title">적대 세력 관련 기록</div>
+      <div class="event-desc down">${resume.enemyClue}</div>
+      <div class="event-title">면담 메모</div>
+      <div class="event-desc">${resume.motivation}</div>
+      <div class="faction-operation-summary">
+        <span>영입 비용 <b>${won(candidate.cost)}</b></span>
+        <span>월 운영비 <b>${won(candidate.upkeep||0)}</b></span>
+        <span>초기 충성 <b>${candidate.loyalty==null?60:candidate.loyalty}</b></span>
+        <span>현재 정원 <b>${faction.members.length}/${faction.capacity}명</b></span>
+      </div>
+      <div class="event-options">
+        <button class="event-opt opening" id="faction-resume-hire">면담을 마치고 영입한다<span class="opt-sub">이 버튼을 누르면 비용과 행동 1회를 사용합니다</span></button>
+        <button class="event-opt" id="faction-resume-hold">이번에는 보류한다<span class="opt-sub">이력서 목록으로 돌아갑니다</span></button>
+      </div>
+    </div>
+  </div>`;
+  $('faction-resume-hire').addEventListener('click',()=>doFactionRecruit(candidateId));
+  [$('faction-resume-x'),$('faction-resume-hold')].forEach(button=>button.addEventListener('click',showFactionRecruitment));
 }
 
 function doFactionRecruit(candidateId) {
@@ -7534,6 +7611,12 @@ function showFactionOutcome(kind,result) {
   const title=kind==='build'?'🛡️ 세력 확장 보고':kind==='recruit'?'👥 영입 결과':kind==='bankrupt'?'🏦 최종 파산 작전 보고':kind==='negotiate'?'🤝 휴전 협상 결과':'🔥 역공 작전 보고';
   const target=result.target;
   const targetReaction=target?`<div class="date-profile">${target.portrait?`<img class="char-portrait" src="./assets/characters/${target.portrait}" alt="${target.name}">`:'<span class="message-popup-avatar">⚔️</span>'}<div><strong>${target.name} · ${target.faction}</strong><br><span class="${target.bankrupt?'down':'muted'}">${RIVALS.reactionLine(target,target.bankrupt?'bankrupt':target.reactionStage||'stable')}</span></div></div>`:'';
+  const recruitDetail=kind==='recruit'&&result.member&&result.member.resume
+    ?`<div class="important-event-detail"><b>${result.member.name}의 첫 보고</b><br>${result.member.resume.joiningLine}<br><small>합류 이유 · ${result.member.joinReason}</small></div>`
+    :'';
+  const bankruptcyDetail=kind==='bankrupt'&&success&&target
+    ?`<div class="faction-operation-summary faction-collapse-summary"><span>현금 <b>0원</b></span><span>거점 <b>전부 폐쇄</b></span><span>연락망 <b>해산</b></span><span>세력 상태 <b class="down">파산·해산</b></span></div><div class="important-event-detail"><b>파산 사유</b> · ${target.bankruptcyReason||'최종 자금·신용 압박'}</div>`
+    :'';
   host.style.display='block';
   host.innerHTML=`<div class="window event-window">
     <div class="title-bar event-bar"><div class="title-bar-text">${title}</div></div>
@@ -7542,6 +7625,8 @@ function showFactionOutcome(kind,result) {
       ${targetReaction}
       <div class="event-title ${success?'up':''}">${success?'작전 완료':'작전 결과 보류'}</div>
       <div class="event-desc">${result.message}</div>
+      ${recruitDetail}
+      ${bankruptcyDetail}
       <div class="faction-operation-summary">
         <span>세력 단계 <b>${faction.level}/5</b></span>
         <span>구성원 <b>${faction.members.length}/${faction.capacity}명</b></span>

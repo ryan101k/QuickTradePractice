@@ -80,6 +80,80 @@
     {id:'mob-field',name:'현장 인력 모집',role:'field',portrait:'mob-faction-field.png',cost:1200000,upkeep:150000,loyalty:55,stats:{defense:.075,intel:.01,income:650000},names:['김성호','박기철','오민석','이현준','정우람'],desc:'거점 경비와 현장 대응을 맡으며 경호·회수 업무로 수입을 만든다.'},
     {id:'mob-intel',name:'정보 인력 모집',role:'intel',portrait:'mob-faction-intel.png',cost:1500000,upkeep:180000,loyalty:50,stats:{defense:.015,intel:.085,income:750000},names:['강도현','문재호','배준영','윤정민','최인호'],desc:'시세·언론·경쟁 세력을 추적하며 조사 의뢰와 정보 거래 수입을 만든다.'},
   ];
+  const RECRUIT_STORIES={
+    'mob-field':{
+      career:'민간 경비·현장 회수 4년',
+      history:'하청 경비팀에서 일하다 불법 회수 명령을 거부했다. 그날 다친 동료들의 치료비와 밀린 급여를 대신 받아낼 곳을 찾고 있다.',
+      clue:'지원자가 보관한 배차표에는 공격 세력이 버린 차명 용역회사와 현장 책임자 서명이 남아 있다.',
+      motivation:'돈보다 현장에서 사람을 버리지 않는 지휘관인지 확인하고 싶다.'
+    },
+    'mob-intel':{
+      career:'거래 추적·전산 감사 3년',
+      history:'차명계좌 삭제 지시를 거부한 뒤 업계 공유 명단에 올라 재취업을 막혔다. 삭제 전 복사한 일부 로그를 아직 가지고 있다.',
+      clue:'로그의 결제 계정이 플레이어를 처음 공격한 세력의 자금 흐름과 겹친다.',
+      motivation:'숨겨 둔 기록을 증거로 바꿔 줄 조직을 찾고 있다.'
+    },
+    minjun:{
+      career:'기업·형사 분쟁 변호사',
+      history:'공격 세력이 피해자들에게 허위 합의서와 채무승인서를 돌린 사건을 맡았다가 의뢰인까지 협박받았다.',
+      clue:'사건 기록에는 차명회사, 로비 창구, 압류 순서가 정리돼 있다.',
+      motivation:'돈으로 재판 시작선까지 바꾸는 세력에 맞설 독립된 법률팀을 원한다.'
+    },
+    doyun:{
+      career:'응급의학과 의사·현장 의료 자문',
+      history:'용역 충돌 부상자들이 신원 미상으로 버려진 밤, 치료비 지급을 약속했던 회사가 사라지는 것을 목격했다.',
+      clue:'응급기록의 이송 차량 번호가 적대 세력의 차명 용역회사와 연결된다.',
+      motivation:'다친 사람을 비용표에서 지우지 않는 조직인지 직접 보고 합류하려 한다.'
+    },
+    siwoo:{
+      career:'침해대응·보안 개발 6년',
+      history:'차명계좌 서버 침해를 조사하다 오히려 내부 유출범으로 몰렸다. 원본 접속 기록만 별도 보관하고 있다.',
+      clue:'접속 기록의 관리자 계정이 플레이어 공격 직전 같은 중계망에 접속했다.',
+      motivation:'누명을 벗는 것보다 다음 피해를 막을 권한과 장비를 원한다.'
+    },
+    geonwoo:{
+      career:'도심 물류망 운영 7년',
+      history:'거래처를 통째로 빼앗긴 뒤 운송 기사들의 보증채무까지 떠안았다. 직원부터 살리느라 자기 회사를 접었다.',
+      clue:'계약을 가로챈 페이퍼컴퍼니의 실소유자가 적대 세력 자금책과 같다.',
+      motivation:'빼앗기지 않는 물류망을 다시 만들고 남은 기사들을 데려오려 한다.'
+    },
+    hantaeseok:{
+      career:'분쟁 중재·위기 구조',
+      history:'장태식이 죽은 뒤 어느 편에도 서지 않고 플레이어의 싸움을 지켜봤다. 사람을 도구로 버리지 않는지 세 번의 역공으로 시험했다.',
+      clue:'그가 정리한 인맥도에는 장태식 피습 명령이 여러 경쟁 세력의 거래를 거쳐 전달된 흔적이 있다.',
+      motivation:'쉽게 형님이라 부르지 않는다. 하지만 인정한 사람은 감옥, 빚, 관계 사고에서도 끝까지 꺼내 온다.'
+    },
+    'faction-haeun':{
+      career:'응급 병동·현장 의무지원',
+      history:'불법 회수 현장에서 다친 사람을 치료했다는 이유로 병원 계약이 끊겼다.',
+      clue:'계약 해지 공문 발신인이 적대 세력의 의료재단 대리인이다.',
+      motivation:'부상자를 버리지 않는 현장 의료망을 만들고 싶다.'
+    },
+    'faction-sua':{
+      career:'조직 교육·분쟁 조정',
+      history:'하청 직원들의 민원을 모았다가 회사가 통째로 폐업 처리되며 책임자로 몰렸다.',
+      clue:'폐업 직전 자산은 적대 세력 계열사로 헐값에 넘어갔다.',
+      motivation:'명령보다 규칙이 먼저인 조직을 직접 세우고 싶다.'
+    },
+    'faction-daeun':{
+      career:'거점 보급·식음 운영',
+      history:'소형 점포 납품망을 키웠지만 경쟁 세력의 강제 독점계약으로 거래처를 모두 잃었다.',
+      clue:'계약서 위약금 수취 계좌가 첫 공격자의 차명계좌 목록과 일치한다.',
+      motivation:'작은 거래처도 함께 살아남는 보급망을 다시 만들고 싶다.'
+    },
+    'faction-hyejin':{
+      career:'자료 감정·증거 보전 연구',
+      history:'조작 보고서를 진짜로 인정하라는 압박을 거부한 뒤 연구비와 경력을 동시에 잃었다.',
+      clue:'폐기 명령을 받은 원본 시료와 서명이 적대 세력의 증거 인멸 방식을 보여 준다.',
+      motivation:'검증 결과가 돈 때문에 뒤집히지 않는 분석실을 원한다.'
+    },
+    'faction-arin':{
+      career:'기록 편집·대외문서 작성',
+      history:'피해자 공동성명을 편집했다가 신상과 가족 연락처가 유출돼 모든 문서를 내렸다.',
+      clue:'유출 직후 적대 세력 홍보팀이 같은 문구로 피해자를 공격했다.',
+      motivation:'지워진 사람들의 기록을 다시 세상에 남길 조직을 찾고 있다.'
+    }
+  };
   const rand=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)];
   function createBots(){return PERSONAS.map((p,i)=>{
     const assets=i%3===0?[{...ASSETS[i%ASSETS.length]}]:[];
@@ -232,6 +306,27 @@
     const data=root.QT_DATA&&(root.QT_DATA.WORLD_FACTION_NPCS||root.QT_DATA.WORLD_MALE_NPCS);
     return (data||[]).filter(n=>n.recruitable);
   }
+  function recruitBrief(life,candidate){
+    const f=ensureFaction(life),base=candidate||{},story=RECRUIT_STORIES[base.id]||RECRUIT_STORIES[base.role==='field'?'mob-field':'mob-intel'];
+    const used=new Set((f.members||[]).map(member=>member.name));
+    const displayName=base.names?(base.names.find(name=>!used.has(name))||`${(ROLE_LABELS[base.role]||{}).name||'현장'} 지원자 ${f.mobCounter+1}`):base.name;
+    const referrer=(f.members||[]).find(member=>/^mentor-/.test(member.sourceId||''))||(f.members||[])[0];
+    const enemy=f.firstAttacker||f.lastAttacker||'플레이어를 공격한 경쟁 세력';
+    return{
+      displayName,
+      career:story.career,
+      history:story.history,
+      enemyClue:`${enemy} 관련 확인 사항 · ${story.clue}`,
+      motivation:story.motivation,
+      referrer:referrer?referrer.name:'작전실',
+      recommendation:referrer
+        ?`${referrer.name}이 직접 확인하고 가져온 이력서다. 경력보다 적대 세력에게 무엇을 빼앗겼는지를 먼저 읽어 달라고 적었다.`
+        :'작전실이 신원과 경력을 1차 확인한 이력서다.',
+      joiningLine:base.id==='hantaeseok'
+        ?'“이번 일은 돈으로 고용되는 게 아닙니다. 내가 형님으로 인정하면 그때부터 끝까지 갑니다.”'
+        :`“${enemy}에게 당한 일을 갚는 것만으로 끝내고 싶진 않습니다. 다음 사람을 지킬 조직을 만들고 싶습니다.”`
+    };
+  }
   function recruitRequirement(life,npc){
     const f=ensureFaction(life);
     if((f.level||0)<(npc.minLevel||1))return `세력 ${npc.minLevel}단계 필요`;
@@ -244,9 +339,9 @@
     const reputation=Math.round((f.level||0)*18+(f.wins||0)*10+(f.members||[]).reduce((sum,m)=>sum+(m.loyalty||0),0)/20);
     f.recruitReputation=reputation;
     const mobLimit=reputation>=75?MOB_RECRUITS.length:reputation>=42?Math.min(3,MOB_RECRUITS.length):Math.min(2,MOB_RECRUITS.length);
-    const mobs=MOB_RECRUITS.slice(0,mobLimit).map(x=>({...x,locked:!f.level,reason:!f.level?'먼저 세력을 만들어야 함':''}));
+    const mobs=MOB_RECRUITS.slice(0,mobLimit).map(x=>({...x,locked:!f.level,reason:!f.level?'먼저 세력을 만들어야 함':'',resume:recruitBrief(life,x)}));
     const named=namedRecruits().filter(n=>reputation>=Math.max(45,(n.minLevel||1)*20+(n.minWins||0)*8))
-      .map(n=>({...n,locked:!!recruitRequirement(life,n),reason:recruitRequirement(life,n)}));
+      .map(n=>({...n,locked:!!recruitRequirement(life,n),reason:recruitRequirement(life,n),resume:recruitBrief(life,n)}));
     return mobs.concat(named);
   }
   function recruit(life,cash,candidateId){
@@ -258,16 +353,16 @@
     if(named){const reason=recruitRequirement(life,named);if(reason)return{ok:false,cash,message:reason};}
     if(cash<base.cost)return{ok:false,cash,message:`영입 비용 ${base.cost.toLocaleString('ko-KR')}원이 필요합니다.`};
     f.mobCounter++;
-    const used=new Set(f.members.map(m=>m.name));
-    const mobName=mob&&(mob.names.find(n=>!used.has(n))||`${ROLE_LABELS[mob.role].name} 요원 ${f.mobCounter}`);
+    const resume=recruitBrief(life,base);
+    const mobName=mob&&resume.displayName;
     const member={
       uid:`${base.id}-${f.mobCounter}`,sourceId:base.id,name:mobName||base.name,role:base.role,portrait:base.portrait,
       loyalty:base.loyalty==null?60:base.loyalty,upkeep:base.upkeep||0,stats:{...(base.stats||{})},named:!!named,
-      desc:base.desc||'',injuredMonths:0
+      desc:base.desc||'',resume:{...resume},joinReason:resume.motivation,injuredMonths:0
     };
     f.members.push(member);f.xp=(f.xp||0)+(named?15:5);recalcFaction(f);
     const arc=named&&root.QT_CHARACTER_STORIES&&root.QT_CHARACTER_STORIES.WORLD_ARCS&&root.QT_CHARACTER_STORIES.WORLD_ARCS[member.name];
-    return{ok:true,cash:cash-base.cost,cost:base.cost,member,success:true,message:`${member.name}(${(ROLE_LABELS[member.role]||{}).name||member.role})이 ${f.name}에 합류했습니다. 현재 ${f.members.length}/${f.capacity}명${arc?` · 첫 사건 예고: ${arc.chapters[0]}`:''}`};
+    return{ok:true,cash:cash-base.cost,cost:base.cost,member,resume,success:true,message:`${member.name}(${(ROLE_LABELS[member.role]||{}).name||member.role})이 이력서 검토와 면담을 거쳐 ${f.name}에 합류했습니다. 현재 ${f.members.length}/${f.capacity}명${arc?` · 첫 사건 예고: ${arc.chapters[0]}`:''}`};
   }
   function settleFaction(life,cash){
     const f=ensureFaction(life),events=[];if(!f.level)return{cash,income:0,upkeep:0,events,left:null};
@@ -373,6 +468,15 @@
     target.truceUntil=(month||1)+3;target.settlementOffer=null;const reaction=updateReaction(target,month);
     return{ok:true,cash:cash+offer,offer,target,reaction,message:`${target.name}의 휴전금 ${offer.toLocaleString('ko-KR')}원을 받고 3개월 상호불가침에 합의했습니다. 상대는 그동안 재정비합니다.`};
   }
+  function collapseFaction(target,month,reason,faction,meta){
+    if(!target)return null;
+    target.bankrupt=true;target.bankruptDay=month||1;target.bankruptcyReason=reason||'자금·신용망 붕괴';
+    target.capital=0;target.owned={};target.assets=[];target.monthlyProfit=0;target.settlementOffer=null;
+    target.reactionStage='bankrupt';target.credibility=0;target.pressure=100;
+    if(meta&&typeof meta==='object')Object.assign(target,meta);
+    if(faction&&Array.isArray(faction.bankruptcies)&&!faction.bankruptcies.includes(target.name))faction.bankruptcies.push(target.name);
+    return target;
+  }
   function bankruptRival(life,bots,targetIndex,cash,currentWorth,month){
     const f=ensureFaction(life),target=bots[targetIndex],c=campaign();
     if(!target)return{ok:false,cash,message:'파산 압박 대상을 찾을 수 없습니다.'};
@@ -389,9 +493,7 @@
       return{ok:true,success:false,cash:cash-cost-counterLoss,cost,counterLoss,target,message:`${target.name}이 마지막 자금줄을 동원해 파산 신청을 막았습니다. 역공 피해 ${counterLoss.toLocaleString('ko-KR')}원 · ${reactionLine(target,target.reactionStage)}`};
     }
     const recovered=Math.min(10000000,Math.round(Math.max(0,currentWorth||structuralWorth(target))*.05));
-    target.bankrupt=true;target.bankruptDay=month||1;target.bankruptcyReason=`${f.name}의 최종 자금·신용 압박`;
-    target.capital=0;target.owned={};target.assets=[];target.monthlyProfit=0;target.settlementOffer=null;target.reactionStage='bankrupt';target.credibility=0;target.pressure=100;
-    if(!f.bankruptcies.includes(target.name))f.bankruptcies.push(target.name);
+    collapseFaction(target,month,`${f.name}의 최종 자금·신용 압박`,f);
     f.wins=(f.wins||0)+1;f.xp=(f.xp||0)+30;
     return{ok:true,success:true,cash:cash-cost+recovered,cost,recovered,target,message:`${target.name} 파산·해산 확정 · ${reactionLine(target,'bankrupt')}${recovered?` · 회수금 ${recovered.toLocaleString('ko-KR')}원`:''}`};
   }
@@ -453,5 +555,5 @@
     }
     return{reply:'침묵도 답으로 기록하겠습니다. 다음에는 숫자로 통보하죠.',relation:0,meta:'정보 노출 없음'};
   }
-  root.QT_RIVALS={PERSONAS,REACTION_LINES,ACTIONS,ASSETS,ROLE_LABELS,MOB_RECRUITS,createBots,settleBots,botsFight,act,attackPlayer,ensureFaction,recruitOptions,recruit,settleFaction,buildFaction,defendAttack,revenge,reactionLine,updateReaction,negotiate,bankruptRival,contactMessage,contactReplyOptions,resolveContact};
+  root.QT_RIVALS={PERSONAS,REACTION_LINES,ACTIONS,ASSETS,ROLE_LABELS,MOB_RECRUITS,RECRUIT_STORIES,createBots,settleBots,botsFight,act,attackPlayer,ensureFaction,recruitBrief,recruitOptions,recruit,settleFaction,buildFaction,defendAttack,revenge,reactionLine,updateReaction,negotiate,collapseFaction,bankruptRival,contactMessage,contactReplyOptions,resolveContact};
 })(window);

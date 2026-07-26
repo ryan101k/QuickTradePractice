@@ -1152,6 +1152,11 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /내가 왜 여기까지 왔지\?/, '클럽 입구에서는 플레이어도 자신의 행동을 이해하지 못하는 망설임이 보여야 한다');
   assert.doesNotMatch(appSource, /히로인이 아닌 처음 보는 여성과 가볍게 어울립니다/, '클럽 카드가 결과를 시스템 설명처럼 미리 적어두면 안 된다');
   assert.match(appSource, /function showFactionMentorPhoneStory/, '첫 세력 공격은 장태식의 스마트폰 연락으로 이어져야 한다');
+  assert.match(appSource, /function showFactionMentorFall/, '세력 창설 직후 장태식 사망과 태식 사채라인 해산 화면이 이어져야 한다');
+  assert.match(appSource, /RIVALS\.collapseFaction\(/, '장태식 세력 해산은 일반 경쟁 세력 파산과 같은 상태 변경을 사용해야 한다');
+  assert.match(appSource, /function showFactionResume/, '세력 지원자는 즉시 영입되지 않고 이력서를 먼저 보여줘야 한다');
+  assert.match(appSource, /data-recruit-id[\s\S]{0,250}showFactionResume/, '모집 카드 클릭은 영입 확정이 아니라 이력서 열람으로 이어져야 한다');
+  assert.match(appSource, /faction-resume-hire[\s\S]{0,180}doFactionRecruit/, '이력서에서 명시적으로 영입한 뒤에만 실제 합류가 실행돼야 한다');
   assert.match(appSource, /function monthlyFactionMemberMessages/, '첫 부하는 플레이어 상태에 맞춘 월간 보고 연락을 보내야 한다');
   assert.doesNotMatch(appSource, /showDateCompanyModal/, '데이트 진입 전에 별도 동행 선택 관문을 다시 만들면 안 된다');
   assert.doesNotMatch(appSource, /class="date-companion-strip"/, '외출에서 새 인연을 뽑는 동행 선택을 다시 노출하면 안 된다');
@@ -1521,12 +1526,29 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
 
 {
   const foundedLife={};
-  const founded=context.QT_FACTION_CAMPAIGN.foundWithMentor(foundedLife,'network');
+  const founded=context.QT_FACTION_CAMPAIGN.foundWithMentor(foundedLife,'network',8);
   assert.equal(founded.faction.level,1,'장태식의 선택 직후 세력이 즉시 1단계로 창설돼야 한다');
   assert.equal(founded.faction.storyStage,'active');
   assert.equal(founded.faction.mentor,'장태식');
   assert.equal(founded.faction.members.length,1,'선택한 노선에 맞는 첫 부하 한 명이 즉시 합류해야 한다');
   assert.equal(founded.member.sourceId,'mentor-intel');
+  assert.equal(founded.faction.mentorDeathPending,true,'새 창설 흐름은 장태식 피습 후속 사건을 예약해야 한다');
+  founded.faction.firstAttacker='🦁 태양';
+  const fall=context.QT_FACTION_CAMPAIGN.resolveMentorFall(foundedLife,'🦁 태양',8);
+  assert.equal(fall.ok,true);
+  assert.equal(foundedLife.worldDeaths['장태식'].source,'faction-prologue');
+  assert.equal(founded.member.revengeTarget,'🦁 태양');
+  assert.equal(founded.faction.personalMotives[0].source,'taesik-death');
+  assert.match(founded.member.revengeVow,/장 선생님/);
+  const resume=context.QT_RIVALS.recruitOptions(foundedLife).find(candidate=>candidate.id==='mob-field').resume;
+  assert.equal(resume.referrer,'강도윤','창설 부하가 추가 지원자의 이력서를 추천해야 한다');
+  assert.match(resume.enemyClue,/🦁 태양/);
+  assert.match(resume.history,/치료비|급여/);
+  const hired=context.QT_RIVALS.recruit(foundedLife,10000000,'mob-field');
+  assert.equal(hired.ok,true);
+  assert.equal(hired.member.name,resume.displayName,'이력서에서 본 지원자와 실제 합류자가 같아야 한다');
+  assert.equal(hired.member.resume.referrer,'강도윤');
+  assert.match(hired.member.joinReason,/조직|지휘관/);
   const taesikOnly=[{name:'🤜 장태식',leader:'장태식',aggression:1,jailMonths:0,bankrupt:false}];
   assert.equal(context.QT_RIVALS.attackPlayer(taesikOnly,10000000,8),null,'스승 장태식은 플레이어의 첫 공격자가 되면 안 된다');
   const protectedStatus = context.QT_CAMPAIGN.attackStatus({
@@ -1568,6 +1590,26 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.equal(result.success, true);
   assert.equal(bots[0].bankrupt, true);
   assert.equal(context.QT_CAMPAIGN.campaignProgress(bots).complete, true);
+}
+
+{
+  const faction={bankruptcies:[]};
+  const taesik={
+    name:'🦈 장태식',leader:'장태식',faction:'태식 사채라인',capital:5000000,
+    assets:[{name:'사무실',value:1000000}],owned:{A:10},monthlyProfit:500000,
+    settlementOffer:100000,pressure:0,credibility:100,reactionStage:'stable',bankrupt:false,
+  };
+  const collapsed=context.QT_RIVALS.collapseFaction(
+    taesik,9,'수장 장태식 사망 · 강제 해산',faction,
+    {leaderDeceased:true,killedBy:'🦁 태양'}
+  );
+  assert.equal(collapsed.bankrupt,true);
+  assert.equal(collapsed.capital,0);
+  assert.deepEqual(Object.keys(collapsed.owned),[]);
+  assert.equal(collapsed.assets.length,0);
+  assert.equal(collapsed.leaderDeceased,true);
+  assert.equal(collapsed.killedBy,'🦁 태양');
+  assert.deepEqual(Array.from(faction.bankruptcies),['🦈 장태식']);
 }
 
 {
