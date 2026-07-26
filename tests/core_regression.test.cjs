@@ -109,6 +109,7 @@ for (const file of [
   'js/character_traits.js',
   'js/dangerous_trio.js',
   'js/character_cross_events.js',
+  'js/character_chemistry.js',
   'js/family.js',
   'js/health.js',
   'js/housing.js',
@@ -251,6 +252,8 @@ for (const file of [
   assert.match(appSource,/if\(event\.storyBridge\)return 78/,'후속 그룹 첫 대면은 정식 그룹 루트 시작보다 먼저 보여야 한다');
   assert.match(appSource,/while\(event&&!routeEventAllowed\(event\)\)event=queue\.shift\(\)/,'조건이 사라진 그룹 사건은 중요 사건 큐에서 건너뛰어야 한다');
   assert.match(appSource,/function showGroupConfession\(event\)/,'그룹의 모든 이야기가 끝난 뒤 별도 선고백 알림을 보여줘야 한다');
+  assert.match(appSource,/CHEMISTRY\.monthly\(L,S\.day\)/,'캐릭터 캐미 사건은 월말 중요 사건 큐에서 별도 쿨다운으로 검사해야 한다');
+  assert.match(appSource,/CHEMISTRY\.applyActionFatigue\(L,group,S\.day\)/,'다중 관계의 생활 피로는 광기 3인뿐 아니라 성립한 모든 그룹 행동에 적용돼야 한다');
   assert.match(appSource,/player_confession_before_group_story_complete/,'그룹 사건 도중 플레이어가 먼저 고백하면 개인 순애 루트로 기록돼야 한다');
   assert.match(appSource,/showGroupRouteBadEnding\(id,'cohabitation_refusal'\)/,'공동생활 제안을 거절하면 그룹별 배드엔딩으로 직행해야 한다');
   assert.match(appSource,/showPureRouteAffairEnding\(c\)/,'개인 순애 뒤 다른 사람을 유혹하면 불륜 배드엔딩 판정을 거쳐야 한다');
@@ -266,6 +269,72 @@ for (const file of [
   const businessRomanceSource=fs.readFileSync(path.join(root,'js/business_romance.js'),'utf8');
   assert.doesNotMatch(lifeEventSource,/훗날 .*루트가 열|공동생활 루트가 닫|위험한 3인조 역시 이번 인생/,'인생 사건 결과가 이후 관계 공략법을 설명하면 안 된다');
   assert.doesNotMatch(businessRomanceSource,/하렘 루트에서 사용할/,'사업 인연의 반응이 시스템상 편입 방법을 설명하면 안 된다');
+}
+
+{
+  const chemistry=context.QT_CHARACTER_CHEMISTRY;
+  assert.match(fs.readFileSync(path.join(root,'index.html'),'utf8'),/js\/character_chemistry\.js/,'캐릭터 캐미 모듈이 앱보다 먼저 로드돼야 한다');
+  assert.ok(chemistry.EVENTS.length>=20,'그룹별·그룹 너머·소진 사건이 충분히 다양한 텍스트 캐미 뱅크로 구성돼야 한다');
+  const dangerousLife={
+    health:80,met:[
+      {name:'강유진',status:'polycule',affection:70,trust:55},
+      {name:'한채린',status:'polycule',affection:70,trust:55},
+      {name:'윤세라',status:'polycule',affection:70,trust:55,obsession:65},
+    ],
+    dangerousTrioBond:{active:true,members:[{name:'강유진'},{name:'한채린'},{name:'윤세라'}]},
+    relationshipGroup:{status:'dating',members:[{name:'강유진'},{name:'한채린'},{name:'윤세라'}],agreement:{cohabiting:true}},
+  };
+  assert.equal(chemistry.eligible(dangerousLife,chemistry.get('dangerous_handcuff_theft',dangerousLife),1),true,'수갑 캐미는 광기 3인 공동생활과 해당 연인 관계가 모두 성립해야 열린다');
+  const dangerousFatigue=chemistry.applyActionFatigue(dangerousLife,'데이트',1);
+  assert.equal(dangerousFatigue.drain,4,'광기 3인 공동생활 외출은 기존 체력 소모 4를 유지해야 한다');
+  assert.equal(dangerousLife.health,76,'다중 관계 행동 피로는 실제 건강 자원에 반영돼야 한다');
+  dangerousLife.met.find(person=>person.name==='한채린').status='ex';
+  assert.equal(chemistry.eligible(dangerousLife,chemistry.get('dangerous_handcuff_theft',dangerousLife),2),false,'전연인이나 사망자가 포함된 캐미는 저장된 그룹 플래그가 남아도 발생하면 안 된다');
+
+  const freedomLife={
+    health:80,met:chemistry.FREEDOM.map(name=>({name,status:'polycule',affection:65,trust:55})),
+    freedomTrio:{identityState:'revealed',harmony:72},
+    freedomTrioBond:{active:true,members:chemistry.FREEDOM.map(name=>({name}))},
+    relationshipGroup:{status:'dating',members:chemistry.FREEDOM.map(name=>({name})),agreement:{cohabiting:false}},
+  };
+  assert.equal(chemistry.applyActionFatigue(freedomLife,'데이트',2).drain,2,'자유인 3인 관계도 엇갈린 일정 때문에 외출 체력이 소모돼야 한다');
+  assert.equal(chemistry.applyActionFatigue(freedomLife,'휴식',2).drain,0,'자유인 그룹에서 명시적으로 쉬는 행동까지 체력을 깎으면 안 된다');
+  chemistry.ensure(freedomLife).totalDrain=9;
+  assert.equal(chemistry.eligible(freedomLife,chemistry.get('freedom_chaewon_tonic_bag',freedomLife),3),true,'누적 피로가 쌓이면 채원의 보양식 가방 반개그 사건이 열려야 한다');
+  freedomLife.health=28;
+  const hospital=chemistry.monthly(freedomLife,4,()=>0.99);
+  assert.equal(hospital.id,'fatigue_group_hospital','저체력 병원 사건은 일반 확률과 쿨다운보다 우선해야 한다');
+  assert.match(hospital.title,/오랜만에 만났을 뿐/,'병원 사건은 자유인 그룹의 핑계와 분위기에 맞는 변형 대사를 사용해야 한다');
+  chemistry.resolved(freedomLife,hospital.id,'회복일',4);
+  assert.equal(chemistry.eligible(freedomLife,chemistry.get(hospital.id,freedomLife),5),false,'반복 병원 사건도 최소 쿨다운 전에는 다시 발생하면 안 된다');
+
+  const sixLife={
+    health:50,met:[...chemistry.DANGEROUS,...chemistry.FREEDOM].map(name=>({name,status:'polycule',affection:70,trust:60,obsession:name==='윤세라'?70:0})),
+    dangerousTrioBond:{active:true},freedomTrioBond:{active:true},
+    freedomTrio:{identityState:'revealed',harmony:70},
+    relationshipGroup:{status:'dating',members:[...chemistry.DANGEROUS,...chemistry.FREEDOM].map(name=>({name})),agreement:{cohabiting:true}},
+  };
+  chemistry.ensure(sixLife).totalDrain=14;
+  assert.equal(chemistry.eligible(sixLife,chemistry.get('six_chat_summons',sixLife),9),true,'광기·자유 확장 관계에서만 두 단체방의 동시 호출 사건이 열려야 한다');
+  assert.equal(chemistry.eligible(sixLife,chemistry.get('fatigue_leader_rationing',sixLife),9),true,'두 그룹 이상과 충분한 누적 피로가 있을 때만 리더 배급 협상이 열려야 한다');
+
+  const crossLife={met:[
+    {name:'한채린',status:'partner',affection:70,trust:55},
+    {name:'유나',status:'friend',affection:45,trust:40},
+  ],partner:{name:'한채린'}};
+  const rightsEvent=chemistry.get('cross_chaerin_yuna_rights',crossLife);
+  assert.equal(chemistry.eligible(crossLife,rightsEvent,3),true,'그룹 밖 캐미는 관련 인물 중 연인 한 명과 친구·지인 한 명 구도에서 열려야 한다');
+  crossLife.met.find(person=>person.name==='유나').status='partner';
+  crossLife.relationshipGroup.members.push({name:'유나'});
+  assert.equal(chemistry.eligible(crossLife,rightsEvent,3),false,'6인 합의가 아닌데 서로 다른 그룹 인물 둘이 동시에 연인인 교차 캐미를 열면 안 된다');
+
+  const generalLife={
+    health:70,met:[{name:'나래',status:'partner'},{name:'서연',status:'polycule'}],
+    relationshipGroup:{status:'dating',members:[{name:'나래'},{name:'서연'}],agreement:{cohabiting:false}},
+    polycule:{active:true,members:[{name:'서연'}],trust:70},
+  };
+  assert.equal(chemistry.activeGroups(generalLife)[0],'general','전용 세트가 아닌 일반 합의 다자연애도 생활 피로 시스템에서 빠지면 안 된다');
+  assert.equal(chemistry.applyActionFatigue(generalLife,'데이트',4).drain,2,'일반 다자연애 외출에도 완만한 체력 소모가 적용돼야 한다');
 }
 
 {
