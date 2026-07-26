@@ -12,6 +12,7 @@
     attackReason:'주인공이 다시 실전 거래를 시작하자 과거 장부와 같은 주문 습관이 시장에 찍혔다. 경쟁 세력은 조작 증거를 회수하고 혼자인 주인공을 침묵시키려 공격한다.',
     members:['예린','보라','서연','나영','미래'],
   };
+  const FIXED_SCHOOL_LIFE_ID='collapsed_club';
 
   const FAMILY_BACKGROUNDS = [
     {
@@ -25,6 +26,14 @@
   ];
 
   const SCHOOL_LIVES = [
+    {
+      id:FIXED_SCHOOL_LIFE_ID,icon:'📉',name:'끝나 버린 생활경제연구회',
+      desc:'졸업 직전 공동 연애와 모의투자 대회 사건이 함께 무너졌다.',
+      result:'선택한 학창생활이 아니라, 플레이어가 자취방에 틀어박히게 된 고정된 과거다.',
+      charm:4,reputation:2,skill:6,aptitude:{analysis:10,creative:6,social:4,diligence:4},
+      friends:['시우'],friendTag:'학교 친구',
+      childhood:{heroine:'예린',ally:'시우'},guideLine:'야, 살아 있냐? 돈 버는 법 알려 달라더니 답이 없네.',
+    },
     {
       id:'student_council',icon:'📣',name:'학생회와 반장 일을 맡았다',
       desc:'행사와 갈등을 조율하며 얼굴이 넓어졌다.',
@@ -87,8 +96,9 @@
 
   const byId=(rows,id)=>rows.find(x=>x.id===id)||null;
   root.QT_ORIGIN={
-    CORE_JOB_IDS,FAMILY_BACKGROUNDS,SCHOOL_LIVES,WORKPLACE_HEROINE_JOBS,PAST_CLUB,
+    CORE_JOB_IDS,FAMILY_BACKGROUNDS,SCHOOL_LIVES,FIXED_SCHOOL_LIFE_ID,WORKPLACE_HEROINE_JOBS,PAST_CLUB,
     family:id=>byId(FAMILY_BACKGROUNDS,id),
     school:id=>byId(SCHOOL_LIVES,id),
+    fixedSchool:()=>byId(SCHOOL_LIVES,FIXED_SCHOOL_LIFE_ID),
   };
 })(window);

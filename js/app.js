@@ -170,10 +170,10 @@ const FATHER_MONTHLY_SUPPORT = 1000000;
 
 function newLife() {
   return {
-    started: false,          // 직업 선택 완료 여부
+    started: false,          // 고정 프롤로그 상태 초기화 여부
     lifeView: null,          // 구버전 세이브 호환
     familyBackground: null,  // 새 게임은 father_home으로 자동 고정
-    schoolLife: null,        // 학창생활
+    schoolLife: null,        // 새 게임은 끝나 버린 생활경제연구회 과거로 자동 고정
     firstCareerPool: [],     // 구버전 저장 호환(새 게임에서는 사용하지 않음)
     prologue: {              // 실패한 학창 관계 뒤 은둔하다 투자·사업으로 재기하는 도입부
       stage: 'origin',       // origin | shut_in | support
@@ -929,7 +929,7 @@ function openMarket() {
     return;
   }
   if (!S.life || !S.life.started) {
-    flashToast('🏠 먼저 가정환경과 학창생활을 정해 인생을 시작하세요', 'bad');
+    flashToast('🌒 먼저 휴대전화에 도착한 친구의 메시지를 확인하세요', 'bad');
     startLifeSetup();
     return;
   }
@@ -1045,7 +1045,7 @@ function renderMarketPhase() {
   } else {
     if (btn) {
       btn.textContent = S.life && !S.life.started
-        ? '🧭 인생 시작 선택 필요'
+        ? '📱 친구의 메시지 확인 필요'
         : `🔔 ${dateInfo(S.awaitingNextDay ? S.day + 1 : S.day).label} 개장`;
       btn.className = 'session-btn opening';
     }
@@ -1902,19 +1902,17 @@ function settleMonth() {
   b.campaignBankrupt=(b.debtGameOver||b.solvency.bankrupt)&&!L.campaignSolvency.endingSeen;
 }
 
-/* ---- 출신 배경 / 학창생활 / 직업 ---- */
-const SCHOOL_LIVES=(ORIGIN&&ORIGIN.SCHOOL_LIVES)||[];
+/* ---- 고정 과거 / 은둔 프롤로그 ---- */
 
 function startLifeSetup(){
   if(!S.life.familyBackground){
     const fatherHome=ORIGIN&&ORIGIN.family('father_home');
     S.life.familyBackground='father_home';
     if(fatherHome)applyOriginStats(fatherHome);
-    const father=SOCIAL.addContact(S.life,{name:'아버지',role:'father',origin:'family',originKey:'family-father',relationLabel:'가족',trust:66,favor:1});
-    pushPersonMessage(S.life,father,'학교 때 일은 이제 놓고 살아라. 생활비는 보낼 테니 집에만 있지 말고 네 생활부터 만들어.',false);
+    SOCIAL.addContact(S.life,{name:'아버지',role:'father',origin:'family',originKey:'family-father',relationLabel:'가족',trust:66,favor:1});
   }
-  if(!S.life.schoolLife)showSchoolLifeModal();
-  else assignStartingCareer();
+  if(!S.life.schoolLife)applyFixedSchoolHistory();
+  assignStartingCareer();
 }
 function boostOriginAptitude(effects){
   if(!APTITUDE||!effects)return;const apt=APTITUDE.ensure(S.life);
@@ -1927,18 +1925,13 @@ function applyOriginStats(origin){
   const social=SOCIAL.ensure(L);social.reputation=clamp(social.reputation+(origin.reputation||0),0,100);
   boostOriginAptitude(origin.aptitude);
 }
-function showSchoolLifeModal(){
-  const host=$('life-modal');if(!host)return;host.style.display='flex';host.className='life-modal-host';
-  const bg=ORIGIN&&ORIGIN.family(S.life.familyBackground);
-  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🎒 인생 시작 · 학창시절은 어땠을까?</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-school.png" alt="방과 후 여러 동아리와 친구 사이에서 진로를 고민하는 장면"><div class="origin-selected">${bg?`${bg.icon} ${bg.name} · 연락이 남은 가족은 아버지뿐입니다.`:''}</div><p class="life-intro">학창시절 선택은 직업을 정하지 않습니다. 대신 사업과 세력을 운영할 때 쓰는 강점, 졸업 뒤에도 연락하는 고정 친구, 그리고 생활경제연구회의 과거를 정합니다.</p><div class="event-options">${SCHOOL_LIVES.map(v=>`<button class="event-opt origin-choice" data-school-life="${v.id}"><b>${v.icon} ${v.name}</b><span>${v.desc}</span><small>${v.result}</small></button>`).join('')}</div></div></div>`;
-  host.querySelectorAll('[data-school-life]').forEach(b=>b.addEventListener('click',()=>chooseSchoolLife(b.dataset.schoolLife)));
-}
-function chooseSchoolLife(id){
-  const school=ORIGIN&&ORIGIN.school(id);if(!school)return;const L=S.life;L.schoolLife=id;L.originNarrativeVersion=3;applyOriginStats(school);
+function applyFixedSchoolHistory(){
+  const school=ORIGIN&&(ORIGIN.fixedSchool?ORIGIN.fixedSchool():ORIGIN.school(ORIGIN.FIXED_SCHOOL_LIFE_ID));if(!school)return;
+  const L=S.life;L.schoolLife=school.id;L.originNarrativeVersion=4;applyOriginStats(school);
   const childhood=school.childhood||{},heroine=D.CHARACTERS.find(person=>person.name===childhood.heroine),ally=(D.WORLD_MALE_NPCS||[]).find(person=>person.name===childhood.ally);
   if(ally){
     const friend=SOCIAL.addContact(L,{name:ally.name,role:'schoolfriend',origin:'school',originKey:'school-best-friend',relationLabel:school.friendTag,trust:60,favor:2,schoolTag:school.friendTag,worldNpcId:ally.id,freeRecruit:true});
-    L.originFriend={kind:'ally',name:friend.name,npcId:ally.id,contactId:friend.id,schoolId:id};
+    L.originFriend={kind:'ally',name:friend.name,npcId:ally.id,contactId:friend.id,schoolId:school.id};
   }
   const pastClub=ORIGIN&&ORIGIN.PAST_CLUB;
   if(pastClub&&CHILDHOOD_CIRCLE){
@@ -1950,11 +1943,9 @@ function chooseSchoolLife(id){
       ensureCourtship(former).interactions=0;
     });
     const anchor=heroine&&metRecord(L,heroine.name);
-    if(anchor)CHILDHOOD_CIRCLE.register(L,anchor,id);
+    if(anchor)CHILDHOOD_CIRCLE.register(L,anchor,school.id);
   }
-  const father=SOCIAL.ensure(L).contacts.find(contact=>contact.role==='father');
-  if(father)pushPersonMessage(L,father,'학교 때 일은 이제 놓고 살아라. 지나간 사람들 연락처는 차단해 두고, 집에만 있지 말고 밖에 나가 네 생활부터 만들어.',false);
-  addNews(`${school.icon} 학창생활 · ${school.name}`,'neutral');autoSave();assignStartingCareer();
+  addNews(`${school.icon} 지나간 기록 · ${school.name}`,'neutral');
 }
 function assignStartingCareer(){
   const L=S.life;if(L.started)return;
@@ -1962,12 +1953,12 @@ function assignStartingCareer(){
   L.firstCareerPool=[];
   L.prologue={stage:'shut_in',careerUnlocked:false,firstCareerStarted:false,candidateJobs:[],attackForeshadowed:true};
   L.job='none';L.lifeView='origin';CAREER.switchJob(L,'none');L.started=true;
-  const bg=ORIGIN&&ORIGIN.family(L.familyBackground),school=ORIGIN&&ORIGIN.school(L.schoolLife),social=SOCIAL.ensure(L);
-  const contacts=social.contacts.filter(c=>c.origin).map(c=>`${SOCIAL.role(c).icon} ${c.name}`).join(' · ');
+  const school=ORIGIN&&ORIGIN.school(L.schoolLife);
+  const origin=L.originFriend,friend=origin&&SOCIAL.ensure(L).contacts.find(item=>item.id===origin.contactId);
   const host=$('life-modal');host.style.display='flex';host.className='life-modal-host';
-  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🌒 프롤로그 · 문을 잠근 뒤</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-family.png" alt="아버지의 송금 문자만 켜진 채 어두운 자취방에 남은 밤"><div class="origin-timeline"><div>${bg.icon}<b>${bg.name}</b></div><i>→</i><div>${school.icon}<b>${school.name}</b></div><i>→</i><div>🌒<b>멈춘 생활</b></div></div><div class="event-title">졸업 뒤, 직업도 약속도 없이 자취방에 틀어박혔습니다.</div><div class="event-desc">${ORIGIN.PAST_CLUB.incident} 당신은 그날 내려받은 원본 거래 장부를 지우지 못한 채 사람들과 연락을 끊었습니다. 월세가 밀리지 않는 건 매달 생활비를 보내는 아버지 덕분입니다. 아버지는 돈을 보낼 때마다 같은 말을 남깁니다. <b>“직업을 가지든, 네 일을 만들든 이제는 밖으로 나가라.”</b></div><div class="important-event-detail">현재 상태 · ${job.name} · 아버지 생활비 월 ${won(FATHER_MONTHLY_SUPPORT)}원<br>남아 있는 연락처 · ${contacts}<br>⚠️ 과거 장부와 같은 주문 습관이 다시 시장에 찍히면, 사라진 후원사의 사람들이 당신을 알아볼 수 있습니다.</div><button id="origin-start" class="session-btn opening">불이 켜진 휴대전화를 확인한다</button></div></div>`;
+  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🌒 프롤로그 · 멈춘 방</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-family.png" alt="읽지 않은 메시지가 켜진 채 어두운 자취방에 놓인 휴대전화"><div class="event-title">졸업 뒤, 자취방의 문을 잠갔습니다.</div><div class="event-desc">생활경제연구회의 다섯 사람과 맺었던 관계는 서로를 지킨다는 명목 아래 망가졌고, 마지막 모의투자 대회에서는 후원사의 조작 장부까지 발견됐습니다. 당신은 누구와도 끝까지 이야기하지 못한 채 연락처를 차단하고 원본 장부만 들고 사라졌습니다.<br><br>아버지가 보내는 월 생활비로 버티던 어느 밤, 오랫동안 조용하던 휴대전화가 켜졌습니다.</div><div class="phone-shell prologue-phone"><div class="phone-status"><span>오전 11:42</span><span>●●● 38%</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">📱</span><span><b>${friend&&friend.name||'학교 친구'}</b><small>메시지 1개</small></span></header><div class="phone-chat-log"><div class="phone-bubble incoming">야, 살아 있냐? 돈 버는 법 알려 달라더니 답이 없네.</div></div></div></div><div class="important-event-detail">현재 · ${job.name} · 낡은 자취방 · 아버지 생활비 월 ${won(FATHER_MONTHLY_SUPPORT)}원<br>${school.icon} ${school.name}</div><button id="origin-start" class="session-btn opening">${friend&&friend.name||'친구'}의 메시지를 연다</button></div></div>`;
   addNews(`🌒 은둔 생활 시작 · 무직 · 아버지가 매달 최소 생활비를 보냅니다`,'neutral');
-  $('origin-start').addEventListener('click',()=>{celebrate();checkAchievements();renderMarketPhase();renderAll();showOriginFriendReferral();autoSave();});
+  $('origin-start').addEventListener('click',()=>{checkAchievements();renderMarketPhase();renderAll();showOriginFriendReferral();autoSave();});
   autoSave();
 }
 
@@ -1983,30 +1974,22 @@ function showOriginFriendReferral(){
   if(!host||!contact){S.life.tutorialSeen=true;unlockPrologueCareer();closeLifeModal();renderAll();autoSave();return;}
   const npc=(D.WORLD_MALE_NPCS||[]).find(item=>item.id===origin.npcId)||{name:contact.name,portrait:'mob-faction-intel.png',job:'학창시절 친구'};
   const lines=[
-    [contact.name,school&&school.guideLine||'직업 좀 가져. 언제까지 아버지가 보내 주는 돈으로 버틸 거야?'],
-    ['플레이어','출근해서 사람들 사이에 끼는 건 아직 싫어.'],
-    [contact.name,'그럴 줄 알았다. 그래서 네가 혼자 시작할 수 있는 투자지원 프로그램도 찾아봤어.'],
-    ['플레이어','갑자기 웬 투자지원 프로그램이야? 너 이런 거 챙겨 주는 성격 아니잖아.'],
-    [contact.name,'무료 교육에 초보 지원금도 있대. 대신 첫 등록은 직접 가야 한대.'],
-    ['플레이어','온라인으로 하면 안 되냐고 물어봐 줘.'],
-    [contact.name,'또 집에만 있으려고? 출근 말고 네 발로 나가는 게 언제였는지도 기억 안 나잖아.'],
-    ['플레이어','그 얘기는 하지 마.'],
-    [contact.name,'알아. 그래서 억지로라도 예약해 둔 거야. 네가 먼저 들어 보고 괜찮으면 나한테 요약 좀 해 줘.'],
-    ['플레이어','역시 공짜로 부려 먹으려는 거였네.'],
-    [contact.name,'그것도 있고… 후기 보니까 상담 담당자가 설명도 잘하고 꽤 예쁘다더라.'],
-    ['플레이어','그게 진짜 목적이지? 궁금하면 네가 직접 가.'],
-    [contact.name,'처음부터 둘이 들이대면 영업하러 온 줄 알잖아. 네가 교육부터 들어 보고 자연스럽게 분위기 좀 봐 줘.'],
-    ['플레이어','투자를 배우라는 건지 번호를 받아 오라는 건지 하나만 해.'],
-    [contact.name,'투자가 먼저지. 취업이 싫으면 네 사업이라도 만들든가. 그리고 옛날 대회 계정은 절대 다시 쓰지 마. 그 장부 아직 갖고 있으면 더더욱. 주소 보냈다.'],
+    [contact.name,school&&school.guideLine||'야, 살아 있냐? 돈 버는 법 알려 달라더니 답이 없네.'],
+    ['플레이어','살아 있어. 무슨 일인데.'],
+    [contact.name,'직장 들어가는 건 싫다며. 혼자 투자부터 배울 수 있는 지원센터를 찾았어. 첫 등록은 직접 가야 한대.'],
+    ['플레이어','네가 이런 걸 알아봐 줄 리가 없는데.'],
+    [contact.name,'거기 담당자가 설명도 잘하고 엄청 예쁘다는 후기가 있더라. 네가 먼저 가 보고 번호 좀… 아니, 분위기 좀 봐 줘.'],
+    ['플레이어','역시 그럴 줄 알았다. 궁금하면 네가 가.'],
+    [contact.name,'너부터 방에서 나와. 그리고 옛날 대회 계정은 쓰지 마. 그 장부 아직 가지고 있으면 더더욱. 주소랑 예약 시간 보냈다.'],
+    ['플레이어','돈 버는 법 알려 달랬더니 사람을 밖으로 끌어내네.'],
   ];
   S._originReferralIndex=0;
   const render=()=>{
     const index=S._originReferralIndex||0,shown=lines.slice(0,index+1);
     host.style.display='flex';host.className='life-modal-host';
-    host.innerHTML=`<div class="window event-window legacy-window tutorial-choice-window"><div class="title-bar"><div class="title-bar-text">📱 ${school.friendTag}의 수상한 소개</div></div><div class="window-body"><div class="date-profile"><img class="char-portrait" src="./assets/characters/${npc.portrait}" alt="${contact.name}"><div class="dp-info"><strong>${contact.name}</strong> · ${school.friendTag}<br><span class="muted">${npc.job}</span></div></div><div class="origin-chat-log">${shown.map(([speaker,text])=>`<div class="story-dialogue ${speaker==='플레이어'?'player-line':''}"><b>${speaker}</b> “${text}”</div>`).join('')}</div><div class="event-options">${index<lines.length-1?'<button id="origin-referral-next" class="event-opt">다음 메시지</button>':'<button id="origin-referral-go" class="event-opt hot">📍 투자지원센터로 간다</button><button id="origin-referral-skip" class="event-opt">설명은 나중에 듣고 바로 시작한다</button>'}</div></div></div>`;
+    host.innerHTML=`<div class="window event-window legacy-window tutorial-choice-window"><div class="title-bar"><div class="title-bar-text">📱 ${contact.name}에게서 온 메시지</div></div><div class="window-body"><div class="phone-shell origin-referral-phone"><div class="phone-status"><span>QuickTalk</span><span>●●● 36%</span></div><div class="phone-chat-screen open"><header><img class="char-thumb" src="./assets/characters/${npc.portrait}" alt="${contact.name}"><span><b>${contact.name}</b><small>${school.friendTag} · ${npc.job}</small></span></header><div class="phone-chat-log">${shown.map(([speaker,text])=>`<div class="phone-bubble ${speaker==='플레이어'?'outgoing':'incoming'}">${text}</div>`).join('')}</div></div></div><div class="event-options">${index<lines.length-1?'<button id="origin-referral-next" class="event-opt">다음 메시지</button>':'<button id="origin-referral-go" class="event-opt hot">📍 주소를 확인하고 투자지원센터로 간다</button>'}</div></div></div>`;
     const next=$('origin-referral-next');if(next)next.addEventListener('click',()=>{S._originReferralIndex++;render();});
     const go=$('origin-referral-go');if(go)go.addEventListener('click',()=>{S.life.referralSeen=true;showTutorial();});
-    const skip=$('origin-referral-skip');if(skip)skip.addEventListener('click',()=>{S.life.referralSeen=true;S.life.tutorialSeen=true;unlockPrologueCareer();closeLifeModal();renderAll();autoSave();});
   };
   render();
 }
@@ -7936,7 +7919,7 @@ function renderLifePanel() {
   el.innerHTML =
     `<div class="life-stat"><span>나이/시점</span><strong>${info.label}</strong></div>
      <div class="life-stat"><span>가정환경</span><strong>${((ORIGIN&&ORIGIN.family(L.familyBackground))||{icon:'🏠',name:'기록 없음'}).icon} ${((ORIGIN&&ORIGIN.family(L.familyBackground))||{name:'기록 없음'}).name}</strong></div>
-     <div class="life-stat"><span>학창생활</span><strong>${((ORIGIN&&ORIGIN.school(L.schoolLife))||{icon:'🎒',name:'기록 없음'}).icon} ${((ORIGIN&&ORIGIN.school(L.schoolLife))||{name:'기록 없음'}).name}</strong></div>
+     <div class="life-stat"><span>지나간 학교 기록</span><strong>${((ORIGIN&&ORIGIN.school(L.schoolLife))||{icon:'🎒',name:'기록 없음'}).icon} ${((ORIGIN&&ORIGIN.school(L.schoolLife))||{name:'기록 없음'}).name}</strong></div>
      <div class="life-stat"><span>경제 국면</span><strong>${ECONOMY.phase(S.economy).icon} ${ECONOMY.phase(S.economy).name} · ${S.economy.monthsLeft}개월 예상</strong></div>
      <div class="life-stat"><span>기준금리</span><strong>🏦 ${ECONOMY.ensure(S.economy).baseRate.toFixed(2)}% · ${ECONOMY.ensure(S.economy).lastRateDelta > 0 ? '인상' : ECONOMY.ensure(S.economy).lastRateDelta < 0 ? '인하' : '동결'}</strong></div>
      <div class="life-stat"><span>물가상승률</span><strong>🌡️ ${ECONOMY.ensure(S.economy).inflation.toFixed(1)}%</strong></div>
@@ -9630,7 +9613,7 @@ function loadSave() {
     S.life.job='none';
     S.life.familyBackground='father_home';
     S.life.firstCareerPool=[];
-    S.life.originNarrativeVersion=Math.max(3,S.life.originNarrativeVersion||0);
+    S.life.originNarrativeVersion=Math.max(4,S.life.originNarrativeVersion||0);
     S.economy = ECONOMY.ensure(d.economy);
     LOAN.ensure(S.life); HEALTH.ensure(S.life); FAMILY.ensure(S.life);
     CAREER.ensure(S.life); HOUSING.ensure(S.life); LIFE_FINANCE.ensure(S.life);
@@ -9947,7 +9930,7 @@ function boot() {
   }
   if (!S.life.started) {
     startLifeSetup();
-    flashToast('🎬 아버지와 남은 집 · 학창생활에서 재기를 시작하세요', 'neutral');
+    flashToast('🎬 문을 잠근 뒤 · 친구의 메시지에서 재기를 시작합니다', 'neutral');
   } else if(S.life.originNarrativeVersion>=2&&!S.life.tutorialSeen) {
     S.life.referralSeen?showTutorial():showOriginFriendReferral();
   } else if (loaded) {

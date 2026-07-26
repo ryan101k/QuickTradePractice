@@ -409,6 +409,8 @@ for (const file of [
   assert.deepEqual(Array.from(circle.MEMBERS),['예린','보라','서연','나영','미래'],'소꿉친구 세트는 다섯 명으로 고정돼야 한다');
   assert.deepEqual(Array.from(context.QT_ORIGIN.PAST_CLUB.members),Array.from(circle.MEMBERS),'옛 동아리 전 연인 명단은 관계 세트와 일치해야 한다');
   assert.ok(context.QT_ORIGIN.SCHOOL_LIVES.every(school=>school.childhood.ally&&school.guideLine),'모든 학창 생활에는 고정 남자 친구와 투자 소개 대사가 있어야 한다');
+  assert.equal(context.QT_ORIGIN.FIXED_SCHOOL_LIFE_ID,'collapsed_club','새 게임의 학교 과거는 선택지가 아닌 고정 기록이어야 한다');
+  assert.equal(context.QT_ORIGIN.fixedSchool().childhood.ally,'시우','은둔 프롤로그에서 연락하는 학교 친구는 시우로 고정돼야 한다');
   const anchor={name:'나영',status:'friend',affection:35,trust:40};
   const life={met:[anchor]};
   circle.register(life,anchor,'athletics');
@@ -1182,6 +1184,11 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /formerClubEx:true/, '옛 동아리 여성 다섯은 과거 연인 기록으로 시작해야 한다');
   assert.match(appSource, /former\.status='ex'/, '옛 동아리 여성 다섯은 현재 친구가 아니라 전 연인 상태여야 한다');
   assert.match(appSource, /function showOriginFriendReferral/, '은둔 프롤로그 뒤 고정 친구의 투자지원센터 소개 장면이 있어야 한다');
+  assert.match(appSource, /function applyFixedSchoolHistory/, '새 게임은 선택 없이 고정 학교 과거를 적용해야 한다');
+  assert.doesNotMatch(appSource, /function showSchoolLifeModal|data-school-life|function chooseSchoolLife/, '새 게임에 학창생활 선택 UI나 선택 핸들러가 남으면 안 된다');
+  assert.match(appSource, /class="phone-shell prologue-phone"/, '은둔 이유를 보여준 뒤 친구의 휴대폰 알림이 떠야 한다');
+  assert.match(appSource, /class="phone-shell origin-referral-phone"/, '투자지원센터 소개 대화는 일반 설명창이 아니라 휴대폰 대화로 진행돼야 한다');
+  assert.doesNotMatch(appSource, /origin-referral-skip/, '친구 연락에서 나래 첫 만남을 건너뛰는 버튼이 있으면 안 된다');
   const careerAssignSource=appSource.slice(appSource.indexOf('function assignStartingCareer'),appSource.indexOf('function unlockPrologueCareer'));
   assert.match(careerAssignSource,/const job=\{id:'none',name:'무직'\}/,'새 인생은 직업 없이 은둔 상태로 시작해야 한다');
   assert.match(careerAssignSource,/L\.job='none'/,'플레이어의 직업 상태는 무직으로 고정돼야 한다');
@@ -1197,6 +1204,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   const referralSource=appSource.slice(appSource.indexOf('function showOriginFriendReferral'),appSource.indexOf('function closeLifeModal'));
   assert.doesNotMatch(referralSource,/윤세라/,'시작 친구는 아직 만나지 않은 윤세라를 알고 있으면 안 된다');
   assert.match(referralSource,/옛날 대회 계정/,'시작 친구의 경고는 함께 겪어 알고 있는 학창 시절 사건까지만 언급해야 한다');
+  assert.match(referralSource,/엄청 예쁘다는 후기/,'시우가 투자지원센터를 알아본 데에는 나래에 대한 가벼운 사심도 있어야 한다');
   assert.match(appSource, /freeRecruit:true/, '남성 시작 친구는 무료 조력자 영입 권한을 가져야 한다');
   assert.match(appSource, /data-act="origin-ally"/, '무료 조력자는 사업체나 세력 합류 UI를 제공해야 한다');
   assert.match(appSource, /data-life-panel="investment"/, '나래는 별도의 투자 컨설팅 창을 가져야 한다');
