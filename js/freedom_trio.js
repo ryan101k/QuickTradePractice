@@ -199,12 +199,14 @@ AFTERMATH.push({
 
 function ensure(life){
   if(!life.freedomTrio||typeof life.freedomTrio!=='object'){
-    life.freedomTrio={active:false,queued:false,encountered:false,stage:0,harmony:50,rest:45,axes:{freedom:0,career:0,control:0},history:[],personal:{},ending:null,aftermathIndex:0,gameSessions:0,guildStage:0,guildWarmth:0};
+    life.freedomTrio={active:false,queued:false,encountered:false,stage:0,harmony:50,rest:45,axes:{freedom:0,career:0,control:0},history:[],personal:{},counseling:{},firstOuting:'locked',ending:null,aftermathIndex:0,gameSessions:0,guildStage:0,guildWarmth:0};
   }
   const state=life.freedomTrio;
   if(!state.axes)state.axes={freedom:0,career:0,control:0};
   if(!Array.isArray(state.history))state.history=[];
   if(!state.personal||typeof state.personal!=='object')state.personal={};
+  if(!state.counseling||typeof state.counseling!=='object')state.counseling={};
+  if(!['locked','queued','seen'].includes(state.firstOuting))state.firstOuting='locked';
   state.harmony=clamp(finite(state.harmony,50),0,100);
   state.rest=clamp(finite(state.rest,45),0,100);
   state.stage=clamp(Math.floor(finite(state.stage,0)),0,CHAPTERS.length);
@@ -227,13 +229,60 @@ const GUILD_EVENTS=[
       {id:'soup',text:'아픈 파티원에게 게임 대신 죽 배달 쿠폰을 보낸다',warmth:16,result:'다음 접속 날 세 사람 모두 같은 값싼 이모티콘으로 고맙다고 답했습니다.'},
       {id:'brag',text:'현실에서 성공한 사람임을 은근히 과시한다',warmth:-7,result:'무보정이 짧게 말했습니다. “여기서는 장비 말고 사람 자랑도 금지예요.”'},
     ]},
-  {id:'offline_table',title:'첫 오프라인 모임 · 화려한 사람들의 소박한 식탁',scene:'./assets/event-freedom-trio-home.png',
-    desc:'여섯 번째 게임 밤 뒤 잡은 모임 장소는 유명 식당이 아니라 작은 집이었습니다. 문을 열자 승무원 채원, 모델 유나, 연주자 소희가 편한 옷차림으로 냄비와 접시를 들고 있습니다.',
+  {id:'offline_table',title:'단체 영상통화 · 화면 밖의 이름',scene:'./assets/event-freedom-trio-home.png',
+    desc:'여섯 번째 게임 밤, 세 사람은 처음으로 카메라를 켰습니다. 막차요정은 승무원 채원, 무보정은 모델 유나, 쉼표는 연주자 소희였습니다. 화려한 직업과 달리 화면에는 작은 방과 식은 차만 보입니다.',
     choices:[
-      {id:'names',text:'직업 이야기는 미뤄 두고 닉네임으로 저녁을 먹는다',warmth:20,reveal:true,result:'누구도 비행·촬영·공연 성과를 말하지 않았습니다. 설거지가 끝난 뒤에야 세 사람은 본명과 개인 연락처를 알려 주었습니다.'},
-      {id:'date',text:'셋 중 누구와 먼저 데이트할 수 있는지 묻는다',warmth:-12,result:'채원이 현관을 열고 유나가 웃음을 거두고 소희가 컵을 내려놓았습니다. “우리가 초대한 건 파티원이지, 고르라고 선 사람은 아니에요.”'},
+      {id:'names',text:'직업보다 서로 지친 날의 이야기를 먼저 듣는다',warmth:20,reveal:true,result:'통화가 끝난 뒤 세 사람은 본명과 개인 연락처를 남겼습니다. 당장 만나자는 약속 대신, 힘든 날에는 메시지를 보내도 된다는 말이 함께 왔습니다.'},
+      {id:'date',text:'셋 중 누구와 먼저 데이트할 수 있는지 묻는다',warmth:-12,result:'세 사람의 화면이 차례로 꺼졌습니다. “우리가 연락처를 주려던 건 파티원을 더 알고 싶어서였지, 고르라고 선 게 아니에요.”'},
     ]},
 ];
+
+const COUNSELING_EVENTS=[
+  {
+    id:'chaewon_last_train',name:'채원',icon:'🌙',title:'막차요정 · 도착하지 못한 밤',
+    desc:'심야 비행을 마친 채원이 공항 대기실에서 전화를 걸었습니다. 늘 사람을 목적지까지 데려다주면서도 정작 자기 집 현관 앞에서는 한참 서 있게 된다는 고민을 털어놓습니다.',
+    lines:[
+      '채원: “웃기죠. 남들은 매일 다른 도시까지 데려다주면서, 나는 집 문 하나 여는 게 버거운 날이 있어요.”',
+      '당신: “안 웃겨요. 나도 밖으로 나가는 문 앞에서 멈추니까.”',
+      '채원: “그럼 누가 먼저 괜찮아지라고 하지 말고, 문 앞에 선 시간부터 서로 보고해요.”'
+    ],
+    choices:[
+      {id:'admit',text:'밖이 무섭다는 말을 숨기지 않고 서로의 현관 시간을 공유한다',affection:4,trust:10,warmth:8,result:'채원은 도착 보고 대신 ‘문 앞’이라는 짧은 메시지를 보내기 시작했습니다. 당신도 답장할 이유가 생겼습니다.'},
+      {id:'listen',text:'해결책을 말하지 않고 채원이 집에 들어갈 때까지 통화를 이어 간다',affection:3,trust:8,warmth:7,result:'통화 끝에 문 닫히는 소리가 들렸습니다. 다음에는 채원이 당신 차례를 기다리겠다고 했습니다.'}
+    ]
+  },
+  {
+    id:'yuna_camera_off',name:'유나',icon:'📷',title:'무보정 · 카메라를 끈 사람',
+    desc:'촬영을 마친 유나가 영상 없이 메시지만 보냈습니다. 밖에 나가면 늘 누군가의 시선과 평가가 따라와, 쉬는 날에는 세상에서 지워지고 싶다는 이야기였습니다.',
+    lines:[
+      '유나: “사람들이 날 보는 건 익숙한데, 아무도 안 볼 때 내가 누군지는 아직 모르겠어요.”',
+      '당신: “나는 반대예요. 아무도 안 보는데도 밖에 나가면 모두가 보는 것 같아요.”',
+      '유나: “그럼 첫 외출은 사진도 인증도 없이 해요. 성공했다는 보고도 필요 없게.”'
+    ],
+    choices:[
+      {id:'no_proof',text:'서로에게도 인증을 요구하지 않는 산책 약속을 적어 둔다',affection:4,trust:10,warmth:8,result:'유나는 위치 공유 대신 동네의 조용한 길 하나를 보내 왔습니다. 그 길은 보여 주기 위한 장소가 아니었습니다.'},
+      {id:'ordinary',text:'화려한 직업 이야기를 묻지 않고 오늘 먹은 것만 이야기한다',affection:3,trust:8,warmth:7,result:'대화창은 식은 도시락과 편의점 우유 이야기로 채워졌습니다. 유나는 처음으로 카메라 없는 연락을 오래 이어 갔습니다.'}
+    ]
+  },
+  {
+    id:'sohee_five_minutes',name:'소희',icon:'🎻',title:'쉼표 · 침묵을 견디는 통화',
+    desc:'공연을 앞둔 소희가 아무 말 없이 전화를 걸었습니다. 무대에 오르기 전 숨이 막힐 때 누군가 해결하려 들면 더 힘들어진다며, 딱 다섯 분만 조용히 있어 달라고 합니다.',
+    lines:[
+      '소희: “말 안 해도 끊지 않을 수 있어요?”',
+      '당신: “응. 나도 문밖에 나갈 때는 누가 재촉하지 않았으면 하니까.”',
+      '소희: “그럼 다음에는 내가 당신의 다섯 분을 지킬게요. 현관에서 벤치까지만.”'
+    ],
+    choices:[
+      {id:'silence',text:'아무 충고 없이 호흡이 가라앉을 때까지 통화를 지킨다',affection:4,trust:11,warmth:9,result:'다섯 분 뒤 소희가 짧게 웃었습니다. 세 사람의 고민이 모두 당신의 현관 앞과 연결되기 시작했습니다.'},
+      {id:'hum',text:'게임에서 들었던 짧은 회복 음악만 낮게 흥얼거린다',affection:5,trust:8,warmth:8,result:'소희는 다음 공연 전에도 그 소리를 부탁했습니다. 대신 당신이 나가는 날에는 자신이 전화를 걸겠다고 했습니다.'}
+    ]
+  }
+];
+
+const FIRST_OUTING={
+  id:'first_offline_table',icon:'🏠',title:'첫 오프라인 모임 · 현관에서 식탁까지',scene:'./assets/event-freedom-trio-home.png',
+  desc:'세 사람은 유명 식당 대신 조용한 작은 집을 골랐습니다. 채원은 현관 앞에서, 유나는 사진 없는 골목에서, 소희는 다섯 분의 침묵으로 당신을 기다립니다.'
+};
 function playGuild(life){
   const state=ensure(life),needs=[2,4,6],index=state.guildStage;
   state.gameSessions++;
@@ -254,12 +303,81 @@ function revealed(life){
   if(state.guildStage>=GUILD_EVENTS.length)return true;
   return NAMES.every(name=>{const person=rec(life,name);return !!(person&&person.guildFriend);});
 }
-function canMeetOffline(life,name){
+function canContact(life,name){
   return !NAMES.includes(name)||revealed(life);
+}
+function canMeetOffline(life,name){
+  return !NAMES.includes(name)||(revealed(life)&&ensure(life).firstOuting==='seen');
+}
+function relationshipNames(life){
+  const names=[];
+  const add=name=>{if(name&&!names.includes(name))names.push(name);};
+  if(life.partner)add(life.partner.name);
+  ((life.relationshipGroup&&life.relationshipGroup.members)||[]).forEach(person=>add(typeof person==='string'?person:person.name));
+  ((life.polycule&&life.polycule.members)||[]).forEach(person=>add(typeof person==='string'?person:person.name));
+  return names;
+}
+function relationshipMode(life){
+  const names=relationshipNames(life);
+  const groupActive=!!((life.dangerousTrioBond&&life.dangerousTrioBond.active)||(life.businessQuartetBond&&life.businessQuartetBond.active)||(life.childhoodCircleBond&&life.childhoodCircleBond.active)||(life.polycule&&life.polycule.active&&names.length>1));
+  return{names,none:names.length===0,poly:groupActive||names.length>1,exclusive:names.length===1&&!groupActive,canAdvance:names.length===0||groupActive||names.length>1};
+}
+function storyMode(life){
+  if((life.dangerousTrioBond&&life.dangerousTrioBond.active)||(life.dangerousTrio&&life.dangerousTrio.badFriendsFormed))return'guarded';
+  if(!life.outsideFearResolved&&!life.freedomRescueComplete)return'rescue';
+  return'social';
+}
+function nextCounselingEvent(life){
+  const state=ensure(life);
+  if(!revealed(life)||state.firstOuting==='seen')return null;
+  return COUNSELING_EVENTS.find(event=>state.counseling[event.id]!=='seen')||null;
+}
+function queueCounseling(life){
+  const state=ensure(life),event=nextCounselingEvent(life);
+  if(!event)return null;
+  if(state.counseling[event.id]==='queued')return event.id;
+  state.counseling[event.id]='queued';
+  return event.id;
+}
+function counselingEvent(id){return COUNSELING_EVENTS.find(event=>event.id===id)||null;}
+function applyCounseling(life,id,choiceId){
+  const state=ensure(life),event=counselingEvent(id),person=event&&rec(life,event.name);
+  if(!event||!person)return null;
+  const choice=event.choices.find(item=>item.id===choiceId);if(!choice)return null;
+  person.affection=clamp((person.affection||0)+(choice.affection||0),0,100);
+  person.trust=clamp((person.trust||0)+(choice.trust||0),0,100);
+  state.guildWarmth=clamp(state.guildWarmth+(choice.warmth||0),0,100);
+  state.counseling[id]='seen';
+  state.history.push({type:'counseling',id,choice:choice.id,mode:storyMode(life)});
+  return{event,choice,r:person,state,complete:COUNSELING_EVENTS.every(item=>state.counseling[item.id]==='seen')};
+}
+function counselingComplete(life){
+  const state=ensure(life);
+  return COUNSELING_EVENTS.every(event=>state.counseling[event.id]==='seen');
+}
+function queueFirstOuting(life){
+  const state=ensure(life);
+  if(!revealed(life)||!counselingComplete(life)||state.firstOuting==='seen')return false;
+  if(state.firstOuting==='queued')return true;
+  state.firstOuting='queued';
+  return true;
+}
+function applyFirstOuting(life){
+  const state=ensure(life);
+  if(!counselingComplete(life))return null;
+  const mode=storyMode(life);
+  state.firstOuting='seen';
+  state.history.push({type:'first-outing',mode});
+  if(mode==='rescue'){
+    life.freedomRescueComplete=true;
+    life.outsideFearResolved=true;
+  }
+  NAMES.forEach(name=>{const person=rec(life,name);if(person){person.affection=clamp((person.affection||0)+4,0,100);person.trust=clamp((person.trust||0)+6,0,100);}});
+  return{state,mode,event:FIRST_OUTING};
 }
 function nextPersonalEvent(life){
   const state=ensure(life);
-  if(!revealed(life))return null;
+  if(!revealed(life)||state.firstOuting!=='seen')return null;
   return Object.entries(PERSONAL_EVENTS).map(([id,event])=>({id,event})).find(({id,event})=>{
     const person=rec(life,event.name);
     if(!person||['ex','deceased'].includes(person.status)||state.personal[id]==='seen')return false;
@@ -299,12 +417,9 @@ function progress(life){
   });
 }
 function eligibility(life){
-  const state=ensure(life),rows=progress(life),integratedDangerous=!!(life.dangerousTrioBond&&life.dangerousTrioBond.active);
-  const partner=!!life.partner&&(NAMES.includes(life.partner.name)||integratedDangerous);
-  const allowed=new Set([...NAMES,...(integratedDangerous?['강유진','한채린','윤세라']:[])]);
-  const poly=life.polycule||{},outsiders=(poly.members||[]).filter(person=>!allowed.has(person.name));
+  const state=ensure(life),rows=progress(life),mode=relationshipMode(life),integratedDangerous=!!(life.dangerousTrioBond&&life.dangerousTrioBond.active);
   const guard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'freedom');
-  return{ok:(!guard||guard.ok)&&!state.encountered&&!state.active&&!state.ending&&partner&&!outsiders.length&&rows.every(row=>row.ready),partner,dangerous:integratedDangerous,integratedDangerous,outsiders,rows,guard};
+  return{ok:(!guard||guard.ok)&&!state.encountered&&!state.active&&!state.ending&&state.firstOuting==='seen'&&mode.canAdvance&&rows.every(row=>row.ready),partner:mode.names.length>0,friendOnly:mode.exclusive,relationshipMode:mode,dangerous:integratedDangerous,integratedDangerous,outsiders:[],rows,guard};
 }
 function queue(life){
   const check=eligibility(life),state=ensure(life);
@@ -379,7 +494,8 @@ function recovery(life){
 function compatibleCandidate(name){return NAMES.includes(name);}
 
 root.QT_FREEDOM_TRIO={
-  NAMES,GUILD_MEMBERS,GUILD_EVENTS,PERSONAL_EVENTS,CHAPTERS,AFTERMATH,ensure,playGuild,guildEvent,resolveGuild,nextPersonalEvent,queuePersonal,personalEvent,
-  revealed,canMeetOffline,applyPersonal,progress,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,recovery,compatibleCandidate,
+  NAMES,GUILD_MEMBERS,GUILD_EVENTS,COUNSELING_EVENTS,FIRST_OUTING,PERSONAL_EVENTS,CHAPTERS,AFTERMATH,ensure,playGuild,guildEvent,resolveGuild,
+  revealed,canContact,canMeetOffline,relationshipMode,storyMode,nextCounselingEvent,queueCounseling,counselingEvent,applyCounseling,counselingComplete,queueFirstOuting,applyFirstOuting,
+  nextPersonalEvent,queuePersonal,personalEvent,applyPersonal,progress,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,recovery,compatibleCandidate,
 };
 })(window);
