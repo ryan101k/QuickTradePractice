@@ -49,14 +49,22 @@ function gatheringStatus(life,gatheringId){
  if(s.industry.standing<g.minStanding)return{available:false,gathering:g,reason:`사교 실적 ${g.minStanding} 필요`};
  return{available:true,gathering:g,reason:''};
 }
+function businessIntroductionsUnlocked(life){
+ const module=root.QT_BUSINESS_ROMANCE;
+ if(module&&typeof module.chaerinAccess==='function')return module.chaerinAccess(life);
+ const chaerin=(life.met||[]).find(person=>person.name==='한채린');
+ return!!(chaerin&&['friend','casual','partner','lover','polycule'].includes(chaerin.status)
+  ||life.dangerousTrioBond&&life.dangerousTrioBond.active);
+}
 function attendIndustry(life,gatheringId,random){
  const status=gatheringStatus(life,gatheringId);if(!status.available)return{ok:false,message:status.reason};
  const s=ensure(life),g=status.gathering,rng=typeof random==='function'?random:Math.random;
  s.industry.meetings++;s.industry.standing+=1+g.tier;s.reputation=clamp(s.reputation+2+g.tier,0,100);
- const candidates=g.candidates.filter(id=>!s.industry.introduced.includes(id));
+ const access=businessIntroductionsUnlocked(life);
+ const candidates=access?g.candidates.filter(id=>!s.industry.introduced.includes(id)):[];
  const introduced=candidates.length?candidates[Math.floor(rng()*candidates.length)]:null;
  if(introduced)s.industry.introduced.push(introduced);
- return{ok:true,gathering:g,introduced,standing:s.industry.standing,reputation:s.reputation};
+ return{ok:true,gathering:g,introduced,chaerinRequired:!access&&g.candidates.length>0,standing:s.industry.standing,reputation:s.reputation};
 }
 function addContact(life,spec){const s=ensure(life),same=s.contacts.find(c=>(spec.originKey&&c.originKey===spec.originKey)||(c.name===spec.name&&c.role===spec.role));if(same){Object.assign(same,spec||{});if(same.origin==='faction'||same.factionMemberId)same.role='subordinate';return same;}const c=Object.assign({id:'contact-'+Date.now()+'-'+Math.random(),name:'연락처',role:'schoolfriend',trust:15,favor:0,months:0},spec||{});if(c.origin==='faction'||c.factionMemberId)c.role='subordinate';s.contacts.push(c);return c;}
 function meet(life){const s=ensure(life),networkRoles=ROLES.filter(r=>!r.personal&&!r.faction),available=networkRoles.filter(r=>!s.contacts.some(c=>c.role===r.id));if(!available.length)return null;const r=pick(available),c={id:'contact-'+Date.now()+'-'+Math.random(),name:pick(NAMES),role:r.id,trust:15,favor:0,months:0};s.contacts.push(c);return c;}
@@ -93,5 +101,5 @@ function contactAnswer(c,kind,incomingText){if(isSubordinate(c)){const lines={ac
  meet:family?['이번 달에는 시간 내서 집에 갈게. 같이 밥 먹자.']:c.role==='schoolfriend'?['우리 학교 앞에서 한번 보자. 내가 밥 살게.']:['이번 달에 시간 괜찮으면 직접 뵙고 싶어요.'],
 };return pick(lines[kind]||lines.brief);}
 function contactReplyOptions(c,incomingText){const ids=isSubordinate(c)?['ack','order','protect','question']:['warm','advice','meet','brief'];return ids.map(id=>({id,text:contactAnswer(c,id,incomingText)}));}
-root.QT_SOCIAL={ROLES,INDUSTRY_GATHERINGS,ensure,addContact,meet,gatheringStatus,attendIndustry,role,isSubordinate,nurture,ask,monthly,legalShield,contactLine,contactAnswer,contactReplyOptions};
+root.QT_SOCIAL={ROLES,INDUSTRY_GATHERINGS,ensure,addContact,meet,gatheringStatus,businessIntroductionsUnlocked,attendIndustry,role,isSubordinate,nurture,ask,monthly,legalShield,contactLine,contactAnswer,contactReplyOptions};
 })(window);

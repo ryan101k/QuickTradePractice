@@ -112,6 +112,7 @@ function complete(life,id,ending,tone){
 function canStart(life,id){
   const state=ensure(life);
   if(!META[id])return{ok:false,reason:'unknown'};
+  if(life.familyRouteLock&&life.familyRouteLock!==id)return{ok:false,reason:'family_route_locked',active:life.familyRouteLock};
   if(state.completed[id]||state.failed[id])return{ok:false,reason:'resolved'};
   if(state.declined[id])return{ok:false,reason:'declined'};
   if(state.active&&state.active!==id)return{ok:false,reason:'another_route',active:state.active};
