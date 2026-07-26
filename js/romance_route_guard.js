@@ -185,7 +185,12 @@ function devotion(life,id){
 }
 function groupConfessionAvailable(life,id){
   const state=ensure(life);
-  return romanceAvailable(life,id)&&!state.devotions[id];
+  return romanceAvailable(life,id)&&!state.devotions[id]&&(!state.active||state.active===id);
+}
+function clearQueuedConfession(life,id){
+  const state=ensure(life),row=state.confessions[id];
+  if(row&&row.status==='queued')delete state.confessions[id];
+  return state;
 }
 function endDevotion(life,id,reason){
   const state=ensure(life),row=state.devotions[id];
@@ -205,5 +210,5 @@ function preserveMembers(life,names){
   return poly;
 }
 
-root.QT_ROMANCE_ROUTES={ORDER,META,ensure,engage,decline,engaged,fallbackReady,center,begin,complete,canStart,markCross,activeGroups,memberGroup,lockRomance,romanceAvailable,setConfession,confession,beginDevotion,devotion,groupConfessionAvailable,endDevotion,preserveMembers};
+root.QT_ROMANCE_ROUTES={ORDER,META,ensure,engage,decline,engaged,fallbackReady,center,begin,complete,canStart,markCross,activeGroups,memberGroup,lockRomance,romanceAvailable,setConfession,confession,beginDevotion,devotion,groupConfessionAvailable,clearQueuedConfession,endDevotion,preserveMembers};
 })(window);

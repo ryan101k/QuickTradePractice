@@ -541,6 +541,19 @@ function monthly(life,context){
 
   return null;
 }
+function releaseReservation(life,payload){
+  if(!payload||!payload.businessRomanceEvent)return ensure(life);
+  const state=ensure(life),staff=payload.staffId&&state.staff[payload.staffId];
+  if(payload.kind==='market-retaliation')state.retaliationSeen=false;
+  if(payload.kind==='chaerin-board')state.chaerinBoardSeen=false;
+  if(payload.kind==='management-collapse')state.managementCollapseSeen=false;
+  if(payload.kind==='temptation'&&staff){
+    staff.temptationSeen=false;
+    if(staff.lastContactDay===payload.day)staff.lastContactDay=0;
+  }
+  if(state.lastEventDay===payload.day)state.lastEventDay=Math.max(0,(payload.day||1)-1);
+  return state;
+}
 function view(life,payload,capital){
   if(!payload||!payload.businessRomanceEvent)return null;
   const state=ensure(life);
@@ -851,5 +864,5 @@ function confessionReady(life){
     ['quartet_only','disclosure'].includes(state.quartet.route)&&(!routes||routes.romanceAvailable(life,'business'));
 }
 
-root.QT_BUSINESS_ROMANCE={PROFILES,ROMANCE_ENDINGS,romanceEnding,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,ownedIds,chaerinAccess,introduce,recruit,canRomance,applyDecision,monthly,view,resolve,endingSummary,progressSummary,storyComplete,resolveUnavailable,confessionReady,activePartnerNames};
+root.QT_BUSINESS_ROMANCE={PROFILES,ROMANCE_ENDINGS,romanceEnding,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,ownedIds,chaerinAccess,introduce,recruit,canRomance,applyDecision,monthly,releaseReservation,view,resolve,endingSummary,progressSummary,storyComplete,resolveUnavailable,confessionReady,activePartnerNames};
 })(window);

@@ -2456,7 +2456,8 @@ function importantEventRouteGroup(event){
   if(!event)return null;
   if(event.childhoodCircleEvent)return'childhood';
   if(event.dangerousTrioPrelude||event.dangerousTrioStart||event.dangerousTrioChapter)return'dangerous';
-  if(event.freedomTrioStart||event.freedomTrioChapter)return'freedom';
+  if(event.freedomTrioStart||event.freedomTrioChapter||event.freedomFirstOuting||event.freedomGuildEvent==='offline_table')return'freedom';
+  if(event.groupConfession)return event.groupId||null;
   if(event.businessRomanceEvent&&['quartet-story','quartet-ending'].includes(event.kind))return'business';
   return null;
 }
@@ -2471,15 +2472,51 @@ function routeEventAllowed(event){
   ))return false;
   return true;
 }
+function releaseImportantEventReservation(event){
+  if(!event||!S.life)return;
+  if(event.dangerousTrioPrelude&&DANGEROUS_TRIO)DANGEROUS_TRIO.deferPrelude(S.life,0);
+  if(event.dangerousTrioStart&&DANGEROUS_TRIO&&DANGEROUS_TRIO.cancelQueue)DANGEROUS_TRIO.cancelQueue(S.life);
+  if(event.freedomTrioStart&&FREEDOM_TRIO&&FREEDOM_TRIO.cancelQueue)FREEDOM_TRIO.cancelQueue(S.life);
+  if(event.freedomFirstOuting&&FREEDOM_TRIO&&FREEDOM_TRIO.deferFirstOuting)FREEDOM_TRIO.deferFirstOuting(S.life);
+  if(event.groupChatEvent&&GROUP_CHAT&&GROUP_CHAT.cancelQueued)GROUP_CHAT.cancelQueued(S.life,event.eventId);
+  if(event.groupConfession&&ROMANCE_ROUTES&&ROMANCE_ROUTES.clearQueuedConfession)ROMANCE_ROUTES.clearQueuedConfession(S.life,event.groupId);
+  if(event.businessRomanceEvent&&BUSINESS_ROMANCE&&BUSINESS_ROMANCE.releaseReservation)BUSINESS_ROMANCE.releaseReservation(S.life,event);
+  if(event.dangerousHeroineEvent){
+    const meta=DANGEROUS_AFFECTION_EVENTS&&DANGEROUS_AFFECTION_EVENTS[event.dangerousHeroineEvent];
+    const person=meta&&metRecord(S.life,meta.name);
+    if(person&&person.dangerEvents&&person.dangerEvents[event.dangerousHeroineEvent]==='queued')delete person.dangerEvents[event.dangerousHeroineEvent];
+  }
+  if(event.freedomCounselingEvent&&FREEDOM_TRIO){
+    const state=FREEDOM_TRIO.ensure(S.life);
+    if(state.counseling&&state.counseling[event.eventId]==='queued')delete state.counseling[event.eventId];
+  }
+  if(event.freedomPersonalEvent&&FREEDOM_TRIO){
+    const state=FREEDOM_TRIO.ensure(S.life);
+    if(state.personal&&state.personal[event.eventId]==='queued')delete state.personal[event.eventId];
+  }
+  if(event.dangerousTrioChapter&&DANGEROUS_TRIO)DANGEROUS_TRIO.ensure(S.life).lastChapterDay=null;
+  if(event.freedomTrioChapter&&FREEDOM_TRIO)FREEDOM_TRIO.ensure(S.life).lastChapterDay=null;
+  if(event.dangerousTrioAftermath&&S.life.dangerousTrioBond)S.life.dangerousTrioBond.lastAftermathDay=null;
+  if(event.freedomTrioAftermath&&S.life.freedomTrioBond)S.life.freedomTrioBond.lastAftermathDay=null;
+  if(event.story&&STORIES){
+    const person=metRecord(S.life,event.personName);
+    const state=person&&STORIES.ensure(person);
+    if(state&&state.offeredChapter===state.chapter)state.offeredChapter=Math.max(-1,state.chapter-1);
+  }
+}
 function queueImportantEvent(event) {
   S._importantEvents = S._importantEvents || [];
-  if(!routeEventAllowed(event))return;
+  if(!routeEventAllowed(event)){releaseImportantEventReservation(event);return false;}
   const key=importantEventKey(event);
-  if(key&&S._importantEvents.some(item=>importantEventKey(item)===key))return;
+  if(key&&S._importantEvents.some(item=>importantEventKey(item)===key))return true;
   event._priority=importantEventPriority(event);
   const insertAt=S._importantEvents.findIndex(item=>(item._priority||importantEventPriority(item))<event._priority);
   if(insertAt<0)S._importantEvents.push(event);else S._importantEvents.splice(insertAt,0,event);
-  if(S._importantEvents.length>12)S._importantEvents.length=12;
+  if(S._importantEvents.length>12){
+    const dropped=S._importantEvents.splice(12);
+    dropped.forEach(releaseImportantEventReservation);
+  }
+  return S._importantEvents.includes(event);
 }
 function closeLifeWorkspaceLayers() {
   document.body.querySelectorAll(':scope > .life-workspace-layer').forEach(layer=>{
@@ -2502,11 +2539,19 @@ function showNextImportantEvent(resumeCurrent = false) {
     ? S.monthCloseContext : null;
   let event = null;
   if (resumeCurrent && ctx && ctx.currentImportantEvent) {
-    event = ctx.currentImportantEvent;
-  } else {
+    if(routeEventAllowed(ctx.currentImportantEvent))event=ctx.currentImportantEvent;
+    else{
+      releaseImportantEventReservation(ctx.currentImportantEvent);
+      ctx.currentImportantEvent=null;
+    }
+  }
+  if(!event){
     if (ctx) ctx.currentImportantEvent = null;
     event = queue.shift();
-    while(event&&!routeEventAllowed(event))event=queue.shift();
+    while(event&&!routeEventAllowed(event)){
+      releaseImportantEventReservation(event);
+      event=queue.shift();
+    }
     if (ctx && event) {
       ctx.currentImportantEvent = event;
       autoSave();
@@ -3561,13 +3606,16 @@ function closeLifeEvent() {
     S._forcedImportantLifeEvent=false;
     if(S.monthCloseContext)S.monthCloseContext.currentImportantEvent=null;
     autoSave();
-    showNextImportantEvent();
+    const hasQueuedImportant=(S._importantEvents||[]).length>0;
+    const continuingMonthClose=!!(S._monthCloseEventPhase&&S.monthCloseContext&&S.monthCloseContext.active);
+    if(hasQueuedImportant||continuingMonthClose)showNextImportantEvent();
     return;
   }
   if (S._monthCloseRandomEvent) {
     S._monthCloseRandomEvent = false;
     if (S.monthCloseContext) S.monthCloseContext.currentRandomEvent = null;
-    advanceMonthCloseFlow();
+    if((S._importantEvents||[]).length)showNextImportantEvent();
+    else advanceMonthCloseFlow();
   } else if (S.phase === 'closed' && S.monthCloseContext && S.monthCloseContext.active) {
     renderCurrentMonthCloseStep();
   } else if (S.phase === 'closed' && $('market-close') && $('market-close').style.display === 'block') {
@@ -4765,11 +4813,11 @@ function queueAvailableStories(L){
     const chapter=STORIES.next(m);if(!chapter)return;              // 호감도 조건 충족 & 미완결
     const state=STORIES.ensure(m);
     if((state.offeredChapter==null?-1:state.offeredChapter)>=state.chapter)return;  // 이번 챕터는 이미 자동 제시함
-    state.offeredChapter=state.chapter;
-    queueImportantEvent({type:'love',story:true,personName:m.name,scene:chapter.scene?`./assets/${chapter.scene}`:characterEventScene(m.name,chapter.index),icon:'📖',
+    const queued=queueImportantEvent({type:'love',story:true,personName:m.name,scene:chapter.scene?`./assets/${chapter.scene}`:characterEventScene(m.name,chapter.index),icon:'📖',
       title:`${m.name}와의 이야기 · ${chapter.title}`,
       desc:`${m.name}와(과)의 사이가 깊어지자, 지금까지 보이지 않던 사정이 드러나기 시작했습니다.`,
       detail:`평소와 다른 연락이 왔습니다. ${m.name}에게는 아직 끝내지 못한 이야기가 있는 것 같습니다.`,tone:'neutral'});
+    if(queued)state.offeredChapter=state.chapter;
   });
 }
 function resolveCharacterStory(choice){
@@ -4966,16 +5014,18 @@ function queueGroupConfession(L){
   for(const id of ['dangerous','freedom','business']){
     if(!groupConfessionReady(id,L))continue;
     const confession=ROMANCE_ROUTES.confession(L,id);
-    if(confession&&['queued','accepted','rejected'].includes(confession.status))continue;
-    ROMANCE_ROUTES.setConfession(L,id,'queued');
-    queueImportantEvent({groupConfession:true,groupId:id});
-    return true;
+    if(confession&&['accepted','rejected'].includes(confession.status))continue;
+    if(!confession||confession.status!=='queued')ROMANCE_ROUTES.setConfession(L,id,'queued');
+    if(queueImportantEvent({groupConfession:true,groupId:id}))return true;
   }
   return false;
 }
 function showGroupConfession(event){
   const id=event.groupId,meta=GROUP_CONFESSION_SCENES[id],host=$('life-event');
-  if(!meta||!host||!groupConfessionReady(id)){showNextImportantEvent();return;}
+  if(!meta||!host||!groupConfessionReady(id)){
+    if(ROMANCE_ROUTES&&ROMANCE_ROUTES.clearQueuedConfession)ROMANCE_ROUTES.clearQueuedConfession(S.life,id);
+    showNextImportantEvent();return;
+  }
   const proposal=id==='freedom'?'공동 관계':id==='business'?'최종 공개 관계':'공동생활';
   host.style.display='block';
   host.innerHTML=`<div class="window event-window trio-route-window group-confession-window"><div class="title-bar event-bar"><div class="title-bar-text">${meta.icon} ${meta.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${meta.scene}" alt="${meta.title}"><div class="event-desc">${meta.desc}</div><div class="story-dialogue"><b>${ROMANCE_ROUTES.META[id].members.join(' · ')}</b> ${meta.line}</div><div class="event-options"><button class="event-opt opening" data-group-confession="accept"><b>${meta.accept}</b></button><button class="event-opt hot" data-group-confession="reject"><b>${meta.reject}</b><span>${proposal} 직전의 거절은 이 그룹 고유 배드엔딩으로 이어집니다.</span></button></div><div class="event-outcome" id="group-confession-outcome"></div></div></div>`;
@@ -5025,7 +5075,7 @@ function queueNaturalDangerousEvents(L){
     if(prelude)queueImportantEvent({dangerousTrioPrelude:prelude.id});
     else if(DANGEROUS_TRIO.queue(L))queueImportantEvent({dangerousTrioStart:true});
     else if(state.active&&state.encountered&&state.lastChapterDay!==S.day){
-      state.lastChapterDay=S.day;queueImportantEvent({dangerousTrioChapter:true});
+      if(queueImportantEvent({dangerousTrioChapter:true}))state.lastChapterDay=S.day;
     }
   }
   Object.entries(DANGEROUS_AFFECTION_EVENTS).forEach(([id,event])=>{
@@ -5036,7 +5086,8 @@ function queueNaturalDangerousEvents(L){
       : dangerousRomanceActive(L,r);
     const prerequisite=!event.after||r.dangerEvents[event.after]==='seen';
     if(eligible&&prerequisite&&(r.affection||0)>=event.min&&!r.dangerEvents[id]){
-      r.dangerEvents[id]='queued';queueImportantEvent({dangerousHeroineEvent:id});
+      r.dangerEvents[id]='queued';
+      queueImportantEvent({dangerousHeroineEvent:id});
     }
   });
 }
@@ -5047,7 +5098,7 @@ function queueNaturalFreedomEvents(L){
   const state=FREEDOM_TRIO.ensure(L);
   if(FREEDOM_TRIO.queue(L))queueImportantEvent({freedomTrioStart:true});
   else if(state.active&&state.encountered&&state.lastChapterDay!==S.day){
-    state.lastChapterDay=S.day;queueImportantEvent({freedomTrioChapter:true});
+    if(queueImportantEvent({freedomTrioChapter:true}))state.lastChapterDay=S.day;
   }
   const businessState=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.ensure(L);
   if(businessState&&businessState.chaerinReferralPending&&!businessState.chaerinReferralGiven&&BUSINESS_ROMANCE.chaerinAccess(L)){
@@ -5075,7 +5126,8 @@ function monthlyFreedomTrioAftermath(L){
     bond.totalStressRecovered=(bond.totalStressRecovered||0)+Math.max(0,-(recovery.stress||0));
   }
   if(event&&bond.lastAftermathDay!==S.day){
-    bond.lastAftermathDay=S.day;queueImportantEvent({freedomTrioAftermath:true});return;
+    if(queueImportantEvent({freedomTrioAftermath:true}))bond.lastAftermathDay=S.day;
+    return;
   }
 }
 function monthlyDangerousTrioAftermath(L){
@@ -5083,8 +5135,7 @@ function monthlyDangerousTrioAftermath(L){
   enlistDangerousTrioFaction(L);
   const aftermath=DANGEROUS_TRIO&&DANGEROUS_TRIO.nextAftermath(L);
   if(aftermath&&bond.lastAftermathDay!==S.day){
-    bond.lastAftermathDay=S.day;
-    queueImportantEvent({dangerousTrioAftermath:true});
+    if(queueImportantEvent({dangerousTrioAftermath:true}))bond.lastAftermathDay=S.day;
     return;
   }
   const threats=[
@@ -5340,7 +5391,6 @@ function monthlyChildhoodForeshadow(L){
 function updateRelationships(L) {
   if(GROUP_CHAT)GROUP_CHAT.sync(L,S.day);
   const met = ensureMet(L).filter(person=>!FREEDOM_TRIO||FREEDOM_TRIO.canContact(L,person.name));
-  if (!met.length) return;
   const partnerNames = new Set(RELATIONSHIPS.names(L));
   const faded = [];
   met.forEach(m => {
@@ -6881,7 +6931,10 @@ function dangerousTrioSpeaker(s,witness){
 function showDangerousTrioPrelude(eventId){
   if(!DANGEROUS_TRIO)return;
   const host=$('life-event'),event=DANGEROUS_TRIO.nextPrelude(S.life);
-  if(!host||!event||event.id!==eventId){closeLifeEvent();showNextImportantEvent();return;}
+  if(!host||!event||event.id!==eventId){
+    DANGEROUS_TRIO.deferPrelude(S.life,0);
+    closeLifeEvent();showNextImportantEvent();return;
+  }
   const state=DANGEROUS_TRIO.ensure(S.life),witness=firstSubordinateWitness();
   const phase=['서로 경계함','서로의 결핍을 알아챔','싸우면서 편들기 시작함'][state.preludeStage]||'악우가 됨';
   const speakers=event.speakers.map(s=>{
@@ -6918,7 +6971,10 @@ function showDangerousTrioRoute(){
   const start=$('trio-start');if(start)start.addEventListener('click',startDangerousTrioRoute);
 }
 function startDangerousTrioRoute(auto){
-  const result=DANGEROUS_TRIO.start(S.life);if(!result.ok){if(auto)showNextImportantEvent();else flashToast('세 사람은 아직 같은 자리에 오래 머물 생각이 없습니다','neutral');return;}
+  const result=DANGEROUS_TRIO.start(S.life);if(!result.ok){
+    if(DANGEROUS_TRIO.cancelQueue)DANGEROUS_TRIO.cancelQueue(S.life);
+    if(auto)showNextImportantEvent();else flashToast('세 사람은 아직 같은 자리에 오래 머물 생각이 없습니다','neutral');return;
+  }
   addNews('🦂 서로의 잘잘못과 취향까지 알아버린 강유진·한채린·윤세라가 처음으로 같은 편을 자처했습니다','bad');
   autoSave();showDangerousTrioStory();
 }
@@ -6987,7 +7043,10 @@ function freedomTrioCast(){
 function startFreedomTrioRoute(auto){
   if(!FREEDOM_TRIO){if(auto)showNextImportantEvent();return;}
   const result=FREEDOM_TRIO.start(S.life);
-  if(!result.ok){if(auto)showNextImportantEvent();else flashToast('세 사람은 아직 함께 귀가할 만큼 가까운 사이가 아닙니다','neutral');return;}
+  if(!result.ok){
+    if(FREEDOM_TRIO.cancelQueue)FREEDOM_TRIO.cancelQueue(S.life);
+    if(auto)showNextImportantEvent();else flashToast('세 사람은 아직 함께 귀가할 만큼 가까운 사이가 아닙니다','neutral');return;
+  }
   addNews('📱 유나가 첫 정모 뒤 ‘다음 접속’ 현실 단체방을 만들었습니다','good');
   autoSave();showFreedomTrioStory();
 }
@@ -7444,8 +7503,7 @@ function queueSeraFirstAttackEncounter(attacker,loss=0){
   });
   const prologue=L.prologue||(L.prologue={});
   prologue.firstAttackSequence='sera';
-  queueImportantEvent({seraFirstAttackEncounter:true,type:'life',scene:'./assets/event-sera-1.png'});
-  return true;
+  return queueImportantEvent({seraFirstAttackEncounter:true,type:'life',scene:'./assets/event-sera-1.png'});
 }
 
 function queueFactionMentorAfterSera(){
@@ -7454,7 +7512,31 @@ function queueFactionMentorAfterSera(){
   if(faction.storyStage!=='attacked')return false;
   const prologue=L.prologue||(L.prologue={});
   prologue.firstAttackSequence='taesik';
-  queueImportantEvent({factionStory:'first_attack',type:'faction',scene:lifeSceneImage('faction')});
+  return queueImportantEvent({factionStory:'first_attack',type:'faction',scene:lifeSceneImage('faction')});
+}
+
+function repairOpeningStoryQueue(){
+  const L=S.life;
+  if(!L||!FACTION_CAMPAIGN||seraOpeningResolved(L))return false;
+  const faction=FACTION_CAMPAIGN.ensure(L),origin=L.seraRescueOrigin||{};
+  const attacker=origin.attacker||faction.firstAttacker||faction.lastAttacker;
+  const attackKnown=!!(origin.ready||attacker||L.yujinInvestigationSeen||(L._attackedRecently||0)>0);
+  if(!attackKnown)return false;
+  const ctx=S.monthCloseContext;
+  if(ctx&&ctx.currentImportantEvent&&ctx.currentImportantEvent.factionStory==='first_attack'){
+    const displaced=ctx.currentImportantEvent;
+    ctx.currentImportantEvent=null;
+    queueImportantEvent(displaced);
+  }
+  const queued=queueSeraFirstAttackEncounter(attacker||'경쟁 세력',origin.loss||0);
+  if(!queued)return false;
+  if(ctx&&ctx.active&&Array.isArray(ctx.steps)){
+    const eventIndex=ctx.steps.findIndex(step=>step&&step.name==='important-events');
+    if(eventIndex>=0&&ctx.currentIndex>eventIndex){
+      ctx.currentIndex=eventIndex;
+      ctx.completedSteps=(ctx.completedSteps||[]).filter(name=>name!=='important-events');
+    }
+  }
   return true;
 }
 
@@ -7494,6 +7576,7 @@ function registerFactionAttack(attacker) {
 
 function queueFactionStoryProgress() {
   if (!FACTION_CAMPAIGN || !S.life) return;
+  if(repairOpeningStoryQueue())return;
   const faction=FACTION_CAMPAIGN.ensure(S.life);
   if(faction.storyStage==='attacked'){
     if(!seraOpeningResolved(S.life))queueSeraFirstAttackEncounter(faction.firstAttacker);
@@ -10212,6 +10295,7 @@ function boot() {
   LOAN.ensure(S.life); HEALTH.ensure(S.life); FAMILY.ensure(S.life);
   if (BUSINESS) BUSINESS.ensure(S.life);
   if (BUSINESS_ROMANCE) BUSINESS_ROMANCE.ensure(S.life);
+  const openingStoryRecovered=loaded&&repairOpeningStoryQueue();
   if (NEWS_ANCHOR) NEWS_ANCHOR.mount();
   if (APTITUDE) APTITUDE.ensure(S.life);
   if (seraLoopActive()) ensureSeraLoopPartner();
@@ -10231,6 +10315,10 @@ function boot() {
   toggleChartBtn();
   restoreBGMPref();
   renderMarketPhase();
+  if(openingStoryRecovered){
+    autoSave();
+    if(S.phase==='closed'&&!(S.monthCloseContext&&S.monthCloseContext.active))showNextImportantEvent();
+  }
   if (S.phase === 'open') {
     S.paused = true;
     pauseUISync();
