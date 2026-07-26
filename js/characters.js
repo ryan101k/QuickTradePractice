@@ -27,10 +27,10 @@ const PERSONALITIES = {
 const CHARACTERS = [
   { name: '서연', gender: 'f', emoji: '👩', job: '디자이너', income: 8000000, personality: 'caring', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.30, portrait: 'seoyeon-v2-neutral.webp' },
   { name: '예린', gender: 'f', emoji: '👩', job: '공무원', income: 7000000, personality: 'homebody', moneyStyle:'separate', datingMoneyRate:0, marriedShareRate:.34, portrait: 'yerin-v2-neutral.webp' },
-  { name: '채원', gender: 'f', emoji: '👩', job: '승무원', income: 10000000, personality: 'lavish', moneyStyle:'dependent', datingMoneyRate:-.08, marriedShareRate:.20, portrait: 'chaewon-v2-neutral.webp' },
-  { name: '유나', gender: 'f', emoji: '👩', job: '모델', income: 11000000, personality: 'free', moneyStyle:'dependent', datingMoneyRate:-.12, marriedShareRate:.15, portrait: 'yuna-v2-neutral.webp' },
+  { name: '채원', gender: 'f', emoji: '👩', job: '승무원', income: 10000000, personality: 'lavish', moneyStyle:'dependent', datingMoneyRate:-.08, marriedShareRate:.20, portrait: 'chaewon-v3-neutral.png' },
+  { name: '유나', gender: 'f', emoji: '👩', job: '모델', income: 11000000, personality: 'free', moneyStyle:'dependent', datingMoneyRate:-.12, marriedShareRate:.15, portrait: 'yuna-v3-neutral.png' },
   { name: '보라', gender: 'f', emoji: '👩', job: '약사', income: 13000000, personality: 'homebody', moneyStyle:'support', datingMoneyRate:.05, marriedShareRate:.40, portrait: 'bora-v2-neutral.webp' },
-  { name:'소희', gender:'f', emoji:'🎻', job:'연주자', income:8500000, personality:'free', moneyStyle:'dependent', datingMoneyRate:-.05, marriedShareRate:.20, portrait:'sohee-portrait.png' },
+  { name:'소희', gender:'f', emoji:'🎤', job:'싱어송라이터', income:8500000, personality:'free', moneyStyle:'dependent', datingMoneyRate:-.05, marriedShareRate:.20, portrait:'sohee-portrait-neutral.png' },
   { name:'나영', gender:'f', emoji:'🏋️‍♀️', job:'트레이너', income:10000000, personality:'ambitious', moneyStyle:'support', datingMoneyRate:.03, marriedShareRate:.36, portrait:'nayoung-v2-portrait.png' },
   { name:'미래', gender:'f', emoji:'🎮', job:'게임 기획자', income:11000000, personality:'frugal', moneyStyle:'support', datingMoneyRate:.03, marriedShareRate:.37, portrait:'mirae-portrait.png' },
 ];
