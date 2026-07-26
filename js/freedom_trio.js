@@ -372,6 +372,7 @@ function applyFirstOuting(life){
     life.freedomRescueComplete=true;
     life.outsideFearResolved=true;
   }
+  if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.engage(life,'freedom',mode==='rescue'?'shut_in_rescue':'first_outing');
   NAMES.forEach(name=>{const person=rec(life,name);if(person){person.affection=clamp((person.affection||0)+4,0,100);person.trust=clamp((person.trust||0)+6,0,100);}});
   return{state,mode,event:FIRST_OUTING};
 }

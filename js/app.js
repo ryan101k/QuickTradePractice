@@ -3309,9 +3309,11 @@ function applyEventEffects(eff) {
     L.seraHousing=eff.seraHousing;
     if(trio)trio.lockedOut=eff.seraHousing!=='cohabit';
     if(eff.seraHousing==='cohabit'){
+      if(window.QT_ROMANCE_ROUTES)QT_ROMANCE_ROUTES.engage(L,'dangerous','sera_cohabit');
       L.seraCohabitingSince=S.day;
       changes.push('🏠 <b>윤세라와 한집에서 살기 시작함</b>');
     }else{
+      if(window.QT_ROMANCE_ROUTES)QT_ROMANCE_ROUTES.decline(L,'dangerous',`sera_${eff.seraHousing}`);
       L.seraCohabitingSince=null;
       if(eff.seraHousing==='reject'&&L.seraRescueOrigin)L.seraRescueOrigin.ready=false;
       changes.push('🚪 <b>윤세라에게 따로 지낼 곳을 마련해 줌</b>');
@@ -4905,6 +4907,16 @@ function monthlyChildhoodCircleBond(L){
   }
 }
 
+function monthlyChildhoodForeshadow(L){
+  if(!CHILDHOOD_CIRCLE||!CHILDHOOD_CIRCLE.foreshadow)return;
+  const hint=CHILDHOOD_CIRCLE.foreshadow(L,S.day);if(!hint)return;
+  if(hint.direct){
+    const contact=(SOCIAL.ensure(L).contacts||[]).find(person=>['father','guardian','mother'].includes(person.role));
+    if(contact)pushPersonMessage(L,contact,hint.text.replace(/^“|”$/g,''),false);
+  }
+  addNews(`${hint.icon} ${hint.title} · ${hint.text}`,'neutral');
+}
+
 function updateRelationships(L) {
   const met = ensureMet(L).filter(person=>!FREEDOM_TRIO||FREEDOM_TRIO.canContact(L,person.name));
   if (!met.length) return;
@@ -4946,6 +4958,7 @@ function updateRelationships(L) {
   monthlyRelationshipMessages(L);
   queueBondEncounter(L);
   updateCharacterSignatureSystems(L);
+  monthlyChildhoodForeshadow(L);
   const childhoodEvent=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.monthly(L);
   if(childhoodEvent)queueImportantEvent({childhoodCircleEvent:childhoodEvent});
   const crossEvent = CROSS_EVENTS && CROSS_EVENTS.monthly(L);

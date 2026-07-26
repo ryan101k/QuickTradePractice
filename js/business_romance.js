@@ -623,6 +623,7 @@ function resolve(life,payload,choiceId,capital){
     if(choiceId==='meet'){
       s.bond=clamp(s.bond+12,0,100);s.trust=clamp(s.trust+8,0,100);s.romanticRival=true;s.supportOnly=false;
       s.revealed=true;s.revealDay=payload.day||1;
+      if(root.QT_ROMANCE_ROUTES&&IDS.every(id=>state.staff[id].revealed))root.QT_ROMANCE_ROUTES.engage(life,'business','four_managers_revealed');
       state.managementRisk=clamp(state.managementRisk+18,0,100);
       return{ok:true,done:true,businessSuitor:true,revealed:true,staffId:p.id,currentPartner:payload.currentPartner,
         character:asCharacter(p.id),affection:36,trust:Math.max(18,s.trust),title:'대표실 밖의 경쟁 후보',
@@ -633,6 +634,7 @@ function resolve(life,payload,choiceId,capital){
   if(payload.kind==='reveal'){
     if(choiceId==='meet'){
       s.revealed=true;s.revealDay=payload.day||1;s.bond=clamp(s.bond+12,0,100);s.trust=clamp(s.trust+10,0,100);
+      if(root.QT_ROMANCE_ROUTES&&IDS.every(id=>state.staff[id].revealed))root.QT_ROMANCE_ROUTES.engage(life,'business','four_managers_revealed');
       return{ok:true,done:true,revealed:true,character:asCharacter(p.id),affection:Math.max(10,Math.round(s.bond*.28)),trust:Math.max(12,Math.round(s.trust)),text:`${p.name}의 개인 연락처가 저장됐습니다. 당분간은 친구로 만나며 세 번의 개인 업무 이야기를 거쳐야 연애 가능성이 열립니다.`,tone:'good'};
     }
     state.profitableStreak=Math.max(0,state.profitableStreak-2);
