@@ -194,6 +194,12 @@
     // 구버전 세이브의 적자형 급여·수입도 최신 밸런스로 즉시 교체한다.
     const catalog=MOB_RECRUITS.concat(namedRecruits());
     life.faction.members.forEach(member=>{
+      // 위험 3인조 회의의 “월급 두 배”는 부하의 농담이다. 잠시 실제 급여로 저장됐던 값은 원래대로 복구한다.
+      if(Number.isFinite(member.trioBaseUpkeep)){
+        member.upkeep=member.trioBaseUpkeep;
+        delete member.trioBaseUpkeep;
+        delete member.trioHazardPayRate;
+      }
       const base=catalog.find(item=>item.id===member.sourceId);if(!base)return;
       member.upkeep=base.upkeep||0;
       member.stats={...(member.stats||{}),...(base.stats||{})};

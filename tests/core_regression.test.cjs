@@ -165,10 +165,41 @@ for (const file of [
   routes.preserveMembers(life,[{name:'채원'},{name:'유나'},{name:'소희'}]);
   assert.deepEqual(Array.from(life.polycule.members,x=>x.name).sort(),['소희','윤세라','유나','채원','한채린'].sort(),'후속 그룹이 성립해도 기존 그룹 구성원을 덮어쓰면 안 된다');
   const crossSource=fs.readFileSync(path.join(root,'js/character_cross_events.js'),'utf8');
-  for(const id of ['group_dangerous_freedom_table','group_freedom_business_contract','group_business_childhood_audit','group_childhood_dangerous_truth']){
+  for(const id of ['group_dangerous_freedom_first_table','group_dangerous_freedom_table','group_freedom_business_contract','group_business_childhood_audit','group_childhood_dangerous_truth']){
     assert.match(crossSource,new RegExp(id),`${id} 그룹 대치 사건이 있어야 한다`);
   }
+  const cross=context.QT_CHARACTER_CROSS_EVENTS;
+  const dangerousNames=['강유진','한채린','윤세라'],freedomNames=['채원','유나','소희'];
+  const friendLife={
+    day:12,dangerousTrio:{badFriendsFormed:true},freedomTrio:{guildStage:3,gameSessions:6,guildWarmth:55},
+    met:[...dangerousNames,...freedomNames].map(name=>({name,status:'friend',affection:45,trust:35})),
+  };
+  const friendIntro=cross.get('group_dangerous_freedom_first_table',friendLife);
+  assert.equal(friendIntro.condition(friendLife),true,'위험 3인조가 친구로 남아도 자유인 3인조 첫 식탁 사건이 열려야 한다');
+  assert.match(friendIntro.title,/친구라기엔 너무 많이 아는/,'친구 루트에서는 연인이 아니라 지나치게 가까운 악우로 반응해야 한다');
+  assert.equal(cross.monthly(friendLife).id,'group_dangerous_freedom_first_table','후속 그룹 첫 대면은 일반 무작위 교차 사건보다 먼저 예약돼야 한다');
+  cross.resolved(friendLife,'group_dangerous_freedom_first_table','테스트');
+  friendLife.freedomTrioBond={active:true};
+  assert.equal(cross.get('group_dangerous_freedom_table',friendLife).condition(friendLife),true,'친구 악우도 자유인 공동생활의 귀가 경계 사건에 참여해야 한다');
+  assert.match(cross.get('group_dangerous_freedom_table',friendLife).desc,/친구라는 이름으로 귀가 보고서/,'친구 루트 후속 대치는 연인용 대사를 재사용하면 안 된다');
+  const haremLife={
+    day:12,dangerousTrio:{badFriendsFormed:true},dangerousTrioBond:{active:true},
+    freedomTrio:{guildStage:3,gameSessions:6,guildWarmth:55},
+    met:[...dangerousNames,...freedomNames].map(name=>({name,status:'friend',affection:45,trust:35})),
+  };
+  assert.match(cross.get('group_dangerous_freedom_first_table',haremLife).title,/여섯 개의 신발/,'공동연애 루트에서는 동거 중인 위험 3인조의 경계가 첫 만남에 드러나야 한다');
+  const legacyPayLife={faction:{level:1,members:[{uid:'mentor-intel-1',sourceId:'mentor-intel',name:'강도윤',upkeep:280000,trioBaseUpkeep:140000,trioHazardPayRate:2,stats:{income:550000}}],assets:[],diplomacy:[],fund:0}};
+  context.QT_RIVALS.ensureFaction(legacyPayLife);
+  assert.equal(legacyPayLife.faction.members[0].upkeep,140000,'이전 버전에서 실제 반영된 위험수당은 원래 급여로 복구돼야 한다');
+  assert.equal('trioBaseUpkeep' in legacyPayLife.faction.members[0],false,'복구 뒤 임시 급여 표식도 제거해야 한다');
   const appSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  assert.match(appSource,/CROSS_EVENTS\.get\(eventId,S\.life\)/,'교차 사건은 현재 친구·연인 상태에 맞춘 변형을 렌더링해야 한다');
+  assert.match(appSource,/게임은 내 취향이 아니라서 따라가진 않을게요/,'자유인 첫 오프라인 모임에는 윤세라가 플레이어를 혼자 보내주는 장면이 있어야 한다');
+  assert.match(appSource,/세라 씨에게 들었어요\. 게임 모임 상대가 여자 세 명이었다면서요/,'위험 3인조 공동연애 중에는 자유인 정체 공개 뒤 강유진의 알림이 와야 한다');
+  assert.match(appSource,/RELATIONSHIPS\.isPartner\(S\.life,person\.name\)/,'자유인 모임 귀가 반응은 하룻밤 상대가 아니라 현재 위험한 연인에게만 떠야 한다');
+  assert.match(appSource,/function showFreedomRevealHomecoming\(\)/,'위험한 인연과 연애 중이면 자유인 첫 모임 뒤 귀가 반응이 이어져야 한다');
+  assert.match(appSource,/function resolveFreedomRevealHomecoming\(choiceId,cast\)/,'귀가 뒤 설명·질투·경계 선택이 실제 관계에 반영돼야 한다');
+  assert.match(appSource,/if\(event\.storyBridge\)return 78/,'후속 그룹 첫 대면은 정식 그룹 루트 시작보다 먼저 보여야 한다');
   assert.match(appSource,/while\(event&&!routeEventAllowed\(event\)\)event=queue\.shift\(\)/,'조건이 사라진 그룹 사건은 중요 사건 큐에서 건너뛰어야 한다');
   assert.doesNotMatch(appSource,/data-act="character-story"/,'행동창에 개인 스토리 직접 실행 버튼을 다시 만들면 안 된다');
   assert.doesNotMatch(appSource,/장 진행 가능/,'개인 스토리는 진행 버튼 대신 다음 중요 사건 대기로 안내해야 한다');
@@ -1238,12 +1269,13 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/data-sera-response="reverse"/,'윤세라에게 역으로 집착하는 대응이 있어야 한다');
   assert.match(appSource,/차라리 조직 생활할 때가 더 좋았습니다/,'첫 부하는 위험 관계 사이의 정상인 반응을 해야 한다');
   assert.match(appSource,/function firstSubordinateWitness\(\)/,'위험 3인조 사건은 임의 목격자가 아니라 실제 첫 부하를 찾아야 한다');
-  assert.match(appSource,/function applyDangerousTrioHazardPay\(rate\)/,'첫 부하의 위험수당 요구는 실제 세력 급여에 연결돼야 한다');
-  assert.match(appSource,/member\.upkeep=Math\.round\(base\*rate\)/,'월급 두 배 선택은 첫 부하의 월 유지비를 실제로 바꿔야 한다');
+  assert.doesNotMatch(appSource,/applyDangerousTrioHazardPay/,'첫 부하의 월급 두 배 요구는 농담이므로 실제 급여 처리 함수가 있으면 안 된다');
   const trioSource=fs.readFileSync(path.join(root,'js/dangerous_trio.js'),'utf8');
   assert.match(trioSource,/가짜 불화와 진짜 공조/,'위험 3인조는 겉으로만 사이 나쁜 악우여야 한다');
   assert.match(trioSource,/진짜 미친년들 같습니다/,'악우 형성 사건에는 첫 부하의 솔직한 상황 보고가 있어야 한다');
   assert.match(trioSource,/월급 두 배는 받아야겠습니다/,'잘잘못 재판 뒤 첫 부하가 위험수당을 요구해야 한다');
+  assert.match(trioSource,/두 배로 되겠냐\. 세 배는 받아야지/,'플레이어도 월급 요구를 농담으로 받아칠 수 있어야 한다');
+  assert.doesNotMatch(trioSource,/payRate/,'월급 농담 선택이 실제 급여 배율을 저장하면 안 된다');
   assert.match(trioSource,/id:'preference_audit'/,'세 사람은 정식 공생 전에 서로의 취향을 폭로하는 사건을 겪어야 한다');
   assert.match(trioSource,/life\.seraHousing==='cohabit'/,'위험 3인조는 윤세라와 실제 동거 중일 때만 열려야 한다');
   const lifeEventsSource=fs.readFileSync(path.join(root,'js/events_life.js'),'utf8');

@@ -12,6 +12,17 @@ const active = (life, name) => {
   return !!person && (ACTIVE.has(person.status) || (life.partner && life.partner.name === name));
 };
 const knows = (life, names) => names.every(name => active(life, name));
+const DANGEROUS_NAMES=['강유진','한채린','윤세라'];
+const FREEDOM_NAMES=['채원','유나','소희'];
+function dangerousRelationshipMode(life){
+  if(life.dangerousTrioBond&&life.dangerousTrioBond.active)return'harem';
+  const state=life.dangerousTrio;
+  return state&&state.badFriendsFormed&&knows(life,DANGEROUS_NAMES)?'friends':null;
+}
+function freedomRevealed(life){
+  const freedom=root.QT_FREEDOM_TRIO;
+  return !!(freedom&&freedom.revealed(life)&&knows(life,FREEDOM_NAMES));
+}
 
 const EVENTS = [
   {
@@ -150,11 +161,50 @@ const EVENTS = [
 
 EVENTS.push(
   {
-    id:'group_dangerous_freedom_table',people:['윤세라','채원','유나','소희'],icon:'🍲',title:'잠그는 사람과 기다리는 사람',
+    id:'group_dangerous_freedom_first_table',people:[...DANGEROUS_NAMES,...FREEDOM_NAMES],icon:'🥣',title:'두 번째 게임 모임 · 처음 마주친 여섯',
+    storyBridge:true,
     scene:'./assets/event-freedom-trio-home.png',
-    condition:life=>!!(life.dangerousTrioBond&&life.dangerousTrioBond.active)&&!!(life.freedomTrioBond&&life.freedomTrioBond.active),
+    condition:life=>!!dangerousRelationshipMode(life)&&freedomRevealed(life)&&!(life.freedomTrioBond&&life.freedomTrioBond.active),
+    variant:life=>dangerousRelationshipMode(life)==='harem'?{
+      title:'다음 저녁, 여섯 개의 신발',
+      desc:'첫 오프라인 모임 날 세라는 약속대로 따라오지 않았고 유진과 채린도 자리를 막지 않았습니다. 대신 귀가 뒤 세 사람은 게임 친구들을 직접 만나겠다고 했습니다. 다음 저녁, 정식으로 초대받은 여섯 사람의 신발이 작은 집 현관에 나란히 놓입니다.',
+      lines:{
+        '강유진':'이번에는 초대받고 왔어요. 신원 조회도 안 했고요. 연인으로서 궁금한 것만 직접 물어볼게요.',
+        '한채린':'유명인이 셋이나 아무 대가 없이 저녁을 차렸다고요? 선의가 제일 비싼 계약일 때가 있죠.',
+        '윤세라':'그날은 안 따라왔어요. 잘했죠? 그래서 오늘은 옆에 앉아도 되는 거예요.',
+        '채원':'오늘은 막차요정으로 초대한 거예요. 연인이 몇 명인지 검사받으려고 부른 건 아니고요.',
+        '유나':'걱정되면 같이 먹어요. 대신 누가 더 가까운지 재는 순간 식사는 끝이에요.',
+        '소희':'국은 여섯 사람 몫도 있어요. 질문은 한 사람씩, 대답하고 싶지 않은 건 넘기기.'
+      }
+    }:{
+      title:'친구라기엔 너무 많이 아는 초대 손님',
+      desc:'게임 친구들의 정체가 공개된 첫 저녁은 아무 방해 없이 끝났습니다. 며칠 뒤 유진·채린·세라는 친구로서 새 인연에게 인사만 하겠다며 다음 식사에 초대해 달라고 했습니다. 셋은 당신과 친구일 뿐이라고 강조하면서도 귀가 시각과 앉았던 자리까지 이미 전부 알고 있습니다.',
+      lines:{
+        '강유진':'친구가 새 친구를 궁금해할 수도 있죠. 오늘은 정식 초대도 받았습니다. 세라 씨가 지난번 주소를 알아낸 과정은 따로 조사하고 있고요.',
+        '한채린':'저 둘만 보내면 회의가 아니라 사건이 돼요. 나는 감독하러 온 겁니다. 당신 사생활에는 관심 없고.',
+        '윤세라':'지난번에는 안 따라갔어요. 친구니까 다음 저녁에는 같이 먹을 수 있잖아요.',
+        '채원':'친구 셋이 전부 귀가 시간과 주소를 아는 건 조금 화려한 우정이네요.',
+        '유나':'우리도 아직 현실에서는 처음이에요. 누가 더 오래 알았는지로 자리를 정하진 않을게요.',
+        '소희':'일단 들어와요. 문 앞에서 정상인 척 경쟁하면 이웃이 더 무서워해요.'
+      }
+    },
+    choices:[
+      {text:'아무도 누구의 자리를 정하러 온 게 아니라고 말하고 모두 식탁에 앉힌다',outcome:'유진은 출입구가 보이는 자리를, 채린은 계산서를 확인할 수 있는 자리를, 세라는 당신 옆을 골랐습니다. 자유인 셋은 그 선택을 평가하지 않고 식은 국부터 나눴습니다.',people:{'강유진':{trust:5},'한채린':{trust:5},'윤세라':{trust:5,obsession:-2},'채원':{trust:7},'유나':{trust:7},'소희':{trust:7}},life:{stress:-6},flags:{dangerousFreedomIntroduced:true}},
+      {text:'게임에서 지킨 익명과 거절 규칙을 위험한 세 사람에게도 지켜 달라고 한다',outcome:'질문은 세 개에서 멈췄고 답하고 싶지 않은 내용은 넘어갔습니다. 위험한 세 사람은 불만을 삼켰지만, 자유인 셋은 당신이 관계마다 같은 경계를 세우는 사람이라는 것을 기억했습니다.',people:{'강유진':{trust:6},'한채린':{affection:3},'윤세라':{trust:4,obsession:-5},'채원':{trust:8},'유나':{trust:8},'소희':{trust:8}},life:{happy:4},flags:{dangerousFreedomBoundary:true}},
+      {text:'여섯 사람에게 누가 가장 정상인지 직접 정해 보라고 한다',outcome:'자유인 셋은 동시에 당신을 가리켰다가 고개를 저었습니다. 위험한 셋은 서로를 가리키며 언성을 높였고, 첫 저녁은 관계 회의 대신 여섯 사람이 당신을 놀리는 자리로 끝났습니다.',people:{'강유진':{affection:3},'한채린':{affection:3},'윤세라':{obsession:3},'채원':{affection:2},'유나':{affection:2},'소희':{affection:2}},life:{happy:6,stress:3}}
+    ]
+  },
+  {
+    id:'group_dangerous_freedom_table',people:[...DANGEROUS_NAMES,...FREEDOM_NAMES],icon:'🍲',title:'잠그는 사람과 기다리는 사람',
+    scene:'./assets/event-freedom-trio-home.png',
+    condition:life=>!!dangerousRelationshipMode(life)&&!!(life.freedomTrioBond&&life.freedomTrioBond.active),
+    variant:life=>dangerousRelationshipMode(life)==='harem'?null:{
+      title:'친구가 정한 귀가 시각',
+      desc:'자유인 세 사람과 함께 지내기 시작한 뒤에도 유진·채린·세라는 친구라는 이름으로 귀가 보고서를 보내 옵니다. 따뜻한 국이 놓인 식탁에서, 걱정하는 친구가 어디까지 기다리고 어디서부터 추적을 멈춰야 하는지 처음 따집니다.',
+      lines:{'강유진':'신고할 수 있는 시각과 친구가 불안해하는 시각은 다르죠. 그래서 기준이 필요해요.','한채린':'친구라고 경호를 못 붙일 이유는 없어요. 다만 본인이 싫다고 하면 철수시키죠.','윤세라':'연인은 아니어도 연락이 끊기면 찾을 수 있잖아요. 친구가 사라졌는데 기다리기만 해요?','채원':'친구라면 더더욱 돌아온 뒤 설명할 기회를 먼저 줘야죠.','유나':'걱정과 소유를 구분 못 하면 이름만 친구인 거야.','소희':'약속한 시간까지는 우리랑 기다려요. 그 뒤에는 함께 찾으면 돼요.'}
+    },
     desc:'윤세라는 귀가 시각을 묻고, 자유인 세 사람은 식지만 않는 국 한 그릇만 남겨 둡니다. 위험한 세 사람이 만든 안전망과 자유인 세 사람이 만든 귀가할 곳이 처음으로 같은 식탁에서 충돌합니다.',
-    lines:{'윤세라':'기다리기만 하다 안 돌아오면 어떡해요?','채원':'그래도 돌아올 이유와 돌아오지 못할 이유는 본인이 말해야죠.','유나':'문을 잠그면 귀가는 하지만 집은 아니게 돼.','소희':'정 걱정되면 우리랑 같이 기다려요. 찾으러 가는 건 약속한 시간이 지난 뒤에.'},
+    lines:{'강유진':'연락 두절과 단순한 늦은 귀가는 구분해야 해요. 기준 없이 찾기 시작하면 보호도 침입이 됩니다.','한채린':'기다리다 사고가 나면 누가 책임지죠? 최소한 차량과 사람은 준비해 둬야 해요.','윤세라':'기다리기만 하다 안 돌아오면 어떡해요?','채원':'그래도 돌아올 이유와 돌아오지 못할 이유는 본인이 말해야죠.','유나':'문을 잠그면 귀가는 하지만 집은 아니게 돼.','소희':'정 걱정되면 우리랑 같이 기다려요. 찾으러 가는 건 약속한 시간이 지난 뒤에.'},
     choices:[
       {text:'연락 없는 추적 금지 시각을 함께 정한다',outcome:'세라는 불만스럽게 타이머를 켰고, 세 사람은 기다리는 동안 국을 다시 데웠습니다.',people:{'윤세라':{trust:7,obsession:-6},'채원':{trust:6},'유나':{trust:6},'소희':{trust:6}},life:{stress:-8},flags:{groupBoundaryClock:true}},
       {text:'세라가 불안하면 자유인 셋에게 먼저 연락하게 한다',outcome:'세라의 추적은 세 사람의 확인 전화로 바뀌었습니다. 감시는 줄고 서로의 역할은 선명해졌습니다.',people:{'윤세라':{affection:5,obsession:-3},'채원':{trust:5},'유나':{trust:5},'소희':{trust:5}},life:{happy:4},flags:{groupMediation:true}},
@@ -206,22 +256,34 @@ function ensure(life) {
   if (!Number.isFinite(life.crossEvents.cooldown)) life.crossEvents.cooldown = 0;
   return life.crossEvents;
 }
-function get(id) { return EVENTS.find(event => event.id === id&&!event.people.some(name=>RETIRED_HEROINES.has(name))) || null; }
+function materialize(life,event){
+  if(!event||!life||typeof event.variant!=='function')return event;
+  const variant=event.variant(life);
+  return variant?{...event,...variant}:event;
+}
+function get(id,life) {
+  const event=EVENTS.find(item => item.id === id&&!item.people.some(name=>RETIRED_HEROINES.has(name))) || null;
+  return materialize(life,event);
+}
 function monthly(life) {
   const state = ensure(life);
-  if (state.pending) return get(state.pending);
+  if (state.pending) return get(state.pending,life);
+  const available=event=>!event.people.some(name=>RETIRED_HEROINES.has(name))&&
+    (!root.QT_FREEDOM_TRIO||!event.people.some(name=>FREEDOM_NAMES.includes(name))||root.QT_FREEDOM_TRIO.revealed(life))&&
+    !state.seen[event.id]&&event.condition(life);
+  const bridge=EVENTS.find(event=>event.storyBridge&&available(event));
+  if(bridge){
+    state.pending=bridge.id;
+    state.cooldown=1;
+    return materialize(life,bridge);
+  }
   if (state.cooldown > 0) { state.cooldown--; return null; }
-  const freedom=root.QT_FREEDOM_TRIO;
-  const eligible = EVENTS.filter(event =>
-    !event.people.some(name=>RETIRED_HEROINES.has(name))&&
-    (!freedom||!event.people.some(name=>freedom.NAMES.includes(name))||freedom.revealed(life))&&
-    !state.seen[event.id]&&event.condition(life)
-  );
+  const eligible=EVENTS.filter(available);
   if (!eligible.length || Math.random() > .42) return null;
   const event = eligible[Math.floor(Math.random() * eligible.length)];
   state.pending = event.id;
   state.cooldown = 2;
-  return event;
+  return materialize(life,event);
 }
 function resolved(life, eventId, choiceText) {
   const state = ensure(life);
@@ -231,5 +293,5 @@ function resolved(life, eventId, choiceText) {
   state.history = state.history.slice(0, 20);
 }
 
-root.QT_CHARACTER_CROSS_EVENTS = { EVENTS, ensure, get, monthly, resolved };
+root.QT_CHARACTER_CROSS_EVENTS = { EVENTS, ensure, get, monthly, resolved, dangerousRelationshipMode };
 })(window);
