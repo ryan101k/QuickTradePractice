@@ -41,6 +41,12 @@ const STRATEGIES={
 
 const TYPES=[
   {
+    id:'vending',name:'무인 판매망',icon:'🥤',managerId:'office',specialManagerEligible:false,
+    cost:25000000,resaleRate:.79,baseSales:3600000,fixedCost:1250000,variance:.22,
+    desc:'자판기 위치와 상품 구성을 직접 관리하는 소형 사업입니다. 직원·확장·운영 방침에 따라 수익이 달라지며 특별 책임자 계약 대상에서는 제외됩니다.',
+    phase:{boom:1.14,overheating:1.09,recovery:1.05,tightening:.94,recession:.86,crisis:.76,stimulus:1.07},
+  },
+  {
     id:'commerce',name:'온라인 유통사',icon:'📦',managerId:'office',
     cost:18000000,resaleRate:.58,baseSales:4100000,fixedCost:2600000,variance:.22,
     desc:'재고를 들여 온라인으로 판매합니다. 호황에는 강하지만 재고와 공급가 변동을 감당해야 합니다.',
@@ -301,7 +307,7 @@ function staffEffect(item){
 }
 function compatibleManager(item,staffId){
   const type=item&&typeOf(item.typeId);
-  return !!(type&&STAFF[staffId]&&staffId!=='internal'&&type.managerId===staffId);
+  return !!(type&&type.specialManagerEligible!==false&&STAFF[staffId]&&staffId!=='internal'&&type.managerId===staffId);
 }
 function assignSpecialManager(life,id,staffId){
   const state=ensure(life),item=state.owned.find(entry=>entry.id===id||entry.typeId===id);
@@ -360,6 +366,25 @@ function close(life,id){
 }
 function assetValue(life){
   return ensure(life).owned.reduce((sum,item)=>sum+resaleValue(life,item.id),0);
+}
+function migrateLegacyPassive(life,day){
+  const assets=Array.isArray(life.passiveAssets)?life.passiveAssets:[];
+  const legacy=assets.filter(item=>item&&item.id==='vending');
+  if(!legacy.length)return{converted:0,refunded:0,refund:0};
+  life.passiveAssets=assets.filter(item=>!item||item.id!=='vending');
+  let converted=0;
+  if(!owned(life,'vending')){
+    const result=start(life,'vending',day);
+    if(result.ok)converted=1;
+  }
+  const refunded=Math.max(0,legacy.length-converted);
+  const refund=refunded*18000000;
+  const state=ensure(life);
+  state.legacyPassiveMigration={
+    vendingConverted:(state.legacyPassiveMigration&&state.legacyPassiveMigration.vendingConverted||0)+converted,
+    vendingRefunded:(state.legacyPassiveMigration&&state.legacyPassiveMigration.vendingRefunded||0)+refunded,
+  };
+  return{converted,refunded,refund};
 }
 function projected(item,phaseId,life){
   const type=typeOf(item.typeId);if(!type)return{sales:0,cost:0,net:0};
@@ -456,7 +481,7 @@ function resolveEvent(life,payload,choiceId){
 
 root.QT_BUSINESS={
   STAFF,STRATEGIES,TYPES,EVENTS,MANAGER_EVENTS,ensure,typeOf,staffOf,strategyOf,portraitPath,owned,start,expand,expansionCost,
-  resaleValue,close,assetValue,projected,monthly,eventView,resolveEvent,
+  resaleValue,close,assetValue,migrateLegacyPassive,projected,monthly,eventView,resolveEvent,
   staffCapacity,hireCost,staffProfile,staffEffect,hire,setStrategy,
   compatibleManager,assignSpecialManager,
 };

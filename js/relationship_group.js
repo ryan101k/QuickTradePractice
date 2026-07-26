@@ -70,8 +70,7 @@
         agreement:{
           publicity:target.relationship === 'married' ? 'public' : 'private',
           cohabiting:target.relationship === 'married'
-            || !!(target.dangerousTrioBond && target.dangerousTrioBond.active)
-            || !!(target.freedomTrioBond && target.freedomTrioBond.active),
+            || !!(target.dangerousTrioBond && target.dangerousTrioBond.active),
           sharedBudget:true,
           newMembers:'consensus',
         },
@@ -87,6 +86,9 @@
     group.agreement.publicity = ['private','public','exposed'].includes(group.agreement.publicity)
       ? group.agreement.publicity : 'private';
     if (group.agreement.cohabiting == null) group.agreement.cohabiting = group.status === 'committed';
+    if (target.freedomTrioBond && target.freedomTrioBond.active && !(target.dangerousTrioBond && target.dangerousTrioBond.active)) {
+      group.agreement.cohabiting = false;
+    }
     if (group.agreement.sharedBudget == null) group.agreement.sharedBudget = true;
     if (!group.agreement.newMembers) group.agreement.newMembers = 'consensus';
     group.stability = clamp(Number(group.stability) || 55, 0, 100);

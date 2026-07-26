@@ -11,11 +11,10 @@ function breakdown(parts){
     passive:asset(source.passive),
     business:asset(source.business),
     housing:asset(source.housing),
-    pension:asset(source.pension),
     personalDebt:asset(source.personalDebt),
   };
   result.physical=result.property+result.passive+result.business+result.housing;
-  result.total=result.liquid+result.physical+result.pension-result.personalDebt;
+  result.total=result.liquid+result.physical-result.personalDebt;
   return result;
 }
 

@@ -29,6 +29,11 @@ function ensure(life){
   state.crossSeen=state.crossSeen||{};
   if(!Array.isArray(state.history))state.history=[];
   if(!Array.isArray(state.centerHistory))state.centerHistory=[];
+  const freedomFriendEnding=!!(life.freedomTrio&&life.freedomTrio.onlineOnlyComplete);
+  if(freedomFriendEnding){
+    if(state.active==='freedom')state.active=null;
+    if(state.center==='freedom'){state.center=null;state.centerSince=null;}
+  }
   if(previousVersion<4){
     Object.entries(state.romanceLocked).forEach(([id,row])=>{
       if(row&&row.reason==='player_confessed_before_group_story_complete'){
@@ -79,6 +84,7 @@ function decline(life,id,reason){
 function engaged(life,id){
   const state=ensure(life);
   if(state.declined[id])return false;
+  if(id==='freedom'&&life.freedomTrio&&life.freedomTrio.onlineOnlyComplete)return false;
   if(state.center===id||state.active===id||state.completed[id]||bondActive(life,id))return true;
   if(id==='dangerous'){
     const trio=life.dangerousTrio||{};

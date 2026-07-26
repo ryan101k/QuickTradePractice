@@ -87,7 +87,7 @@ const EVENTS = [
   },
   {
     id:'chaewon_yuna_photo', people:['채원','유나'], icon:'📸', title:'도착 게이트의 사진 한 장',
-    scene:'./assets/event-yuna-backstage.png',
+    scene:'./assets/event-yuna-3.png',
     condition:life=>knows(life,['채원','유나']),
     desc:'채원이 귀국한 날 유나와 함께 있던 사진이 찍혔습니다. 유나는 선제 공개를, 채원은 회사와 동료를 위해 침묵을 원합니다.',
     lines:{'채원':'내가 설명하면 끝나는 일이 아니야. 같이 비행한 사람들까지 불려가.','유나':'숨으면 남들이 이야기를 완성해. 그게 더 잔인해.'},
@@ -163,8 +163,8 @@ EVENTS.push(
   {
     id:'group_dangerous_freedom_first_table',people:[...DANGEROUS_NAMES,...FREEDOM_NAMES],icon:'🥣',title:'두 번째 게임 모임 · 처음 마주친 여섯',
     storyBridge:true,
-    scene:'./assets/event-freedom-trio-home.png',
-    condition:life=>!!dangerousRelationshipMode(life)&&freedomRevealed(life)&&!(life.freedomTrioBond&&life.freedomTrioBond.active),
+    scene:'./assets/event-freedom-tro-meeting.png',
+    condition:life=>!!dangerousRelationshipMode(life)&&freedomRevealed(life)&&!!(life.freedomTrio&&life.freedomTrio.dangerousDisclosureComplete)&&!(life.freedomTrioBond&&life.freedomTrioBond.active),
     variant:life=>dangerousRelationshipMode(life)==='harem'?{
       title:'다음 저녁, 여섯 개의 신발',
       desc:'첫 오프라인 모임 날 세라는 약속대로 따라오지 않았고 유진과 채린도 자리를 막지 않았습니다. 대신 귀가 뒤 세 사람은 게임 친구들을 직접 만나겠다고 했습니다. 다음 저녁, 정식으로 초대받은 여섯 사람의 신발이 작은 집 현관에 나란히 놓입니다.',
@@ -196,7 +196,7 @@ EVENTS.push(
   },
   {
     id:'group_dangerous_freedom_table',people:[...DANGEROUS_NAMES,...FREEDOM_NAMES],icon:'🍲',title:'잠그는 사람과 기다리는 사람',
-    scene:'./assets/event-freedom-trio-home.png',
+    scene:'./assets/event-yuna-5.png',
     condition:life=>!!dangerousRelationshipMode(life)&&!!(life.freedomTrioBond&&life.freedomTrioBond.active),
     variant:life=>dangerousRelationshipMode(life)==='harem'?null:{
       title:'친구가 정한 귀가 시각',
@@ -213,7 +213,7 @@ EVENTS.push(
   },
   {
     id:'group_freedom_business_contract',people:['유나','차서윤','박지수'],icon:'📋',title:'집에는 직함을 들이지 않는다',
-    scene:'./assets/event-freedom-trio-homecoming.png',
+    scene:'./assets/event-freedom-tro-meeting.png',
     condition:life=>!!(life.freedomTrioBond&&life.freedomTrioBond.active)&&!!(life.businessQuartetBond&&life.businessQuartetBond.active),
     desc:'사업 4인조가 공동생활의 일정과 비용을 최적화하려 하자 자유인 세 사람은 집까지 성과표가 들어오면 쉴 곳이 사라진다고 막습니다.',
     lines:{'차서윤':'공동생활도 운영입니다. 책임 소재가 없으면 결국 누군가 손해를 봐요.','박지수':'적어도 고장 난 보일러와 장보기 담당은 정해야죠.','유나':'분담은 좋아. 그런데 퇴근한 사람한테 업무 평가표를 붙이지는 마.'},

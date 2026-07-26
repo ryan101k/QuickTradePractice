@@ -46,7 +46,7 @@
 ### 인생 시뮬레이션
 
 - 사업·세력 운영 역량, 관리 교육과 실제 수익·방어 보정
-- 아버지 생활비, 사업·자산 수입, 세금, 보험, 연금, 신용등급과 대출
+- 아버지 생활비, 사업·자산 수입, 세금, 보험, 신용등급과 대출
 - 주거와 투자용 부동산
 - 건강, 행복, 스트레스, 체력, 노화와 상속
 - 취미와 월별 행동력
@@ -143,7 +143,7 @@ js/faction_campaign.js      첫 피습·세력 창설·라이벌 제압·세력 
 js/campaign_endings.js      승패·연인·자녀·자산별 메인 엔딩 조합
 js/justice.js              수사와 재판
 js/housing.js              주거와 부동산
-js/life_finance.js         세금·보험·연금
+js/life_finance.js         세금·보험
 js/health.js               건강과 노화
 js/family.js               공동생활 서약·자녀 공동양육·가족
 js/social_network.js       인맥과 평판

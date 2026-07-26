@@ -45,7 +45,6 @@
               <h3>🧾 지출·부채</h3>
               ${row('세금', r.tax)}
               ${row('보험료', r.insurance)}
-              ${row('연금 적립', r.pension)}
               ${row('대출·신용이자', r.loanInterest)}
               ${row('주거·생활비', r.livingCost)}
               ${row('직업 사고비', r.incidentCost)}

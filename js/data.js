@@ -293,18 +293,8 @@ const PROPERTIES = [
 const PASSIVE_ASSETS = [
   { id:'deposit', emoji:'🏦', name:'정기예금', price:10000000, monthlyIncome:70000, variance:0, maintenance:0, resaleRate:1, desc:'원금 보전형 · 기준금리에 따라 이자 변동' },
   { id:'bond', emoji:'📜', name:'우량 회사채 묶음', price:30000000, monthlyIncome:240000, variance:.12, maintenance:0, resaleRate:.97, desc:'안정적인 이자 · 경기 침체 때 소폭 감액 가능' },
-  { id:'vending', emoji:'🥤', name:'무인 자판기 운영권', price:25000000, monthlyIncome:650000, variance:.35, maintenance:80000, resaleRate:.72, desc:'매출 변동 큼 · 매달 관리비 발생' },
   { id:'solar', emoji:'☀️', name:'소형 태양광 지분', price:70000000, monthlyIncome:1400000, variance:.18, maintenance:100000, resaleRate:.82, desc:'발전 수익 · 날씨와 정비 상태 영향' },
   { id:'royalty', emoji:'🎼', name:'콘텐츠 저작권 지분', price:150000000, monthlyIncome:3500000, variance:.55, maintenance:100000, resaleRate:.65, desc:'흥행하면 크지만 수입 편차와 원금 손실 위험' },
-];
-
-// 생활공간에 표시되는 과시·취향 자산. 월 유지비 없이 돈을 번 결과를 눈에 남긴다.
-const LUXURY_GOODS = [
-  {id:'gaming',emoji:'🖥️',name:'최상급 게임·작업 환경',price:8000000,prestige:4,room:'desk',desc:'집에서 보내는 시간이 확실히 편해진다'},
-  {id:'watch',emoji:'⌚',name:'명품 시계',price:18000000,prestige:8,room:'display',desc:'격식 있는 자리에서 먼저 알아보는 사람이 생긴다'},
-  {id:'car',emoji:'🏎️',name:'스포츠카',price:120000000,prestige:18,room:'garage',desc:'외출 장소와 첫인상의 선택지가 넓어진다'},
-  {id:'art',emoji:'🖼️',name:'컬렉터 미술품',price:250000000,prestige:25,room:'gallery',desc:'상류층 모임에서 취향과 재력을 증명한다'},
-  {id:'yacht',emoji:'🛥️',name:'소형 요트',price:900000000,prestige:38,room:'marina',desc:'평범한 약속으로는 갈 수 없는 장소가 열린다'},
 ];
 
 // 개인 대출: 프리셋 금액 (매달 이자 LIFE_LOAN_INTEREST 만큼 빚 증가)
@@ -336,7 +326,7 @@ window.QT_DATA = {
   EVENTS_COMPANY_GOOD, EVENTS_COMPANY_BAD, EVENTS_SECTOR,
   EVENTS_MARKET, EVENTS_NONE, ACHIEVEMENTS,
   EXPERTS, EXPERT_BULL, EXPERT_BEAR,
-  JOBS, HOBBIES, PROPERTIES, PASSIVE_ASSETS, LUXURY_GOODS, LOAN_OPTIONS, RELATIONSHIP, LIFE_ACHIEVEMENTS,
+  JOBS, HOBBIES, PROPERTIES, PASSIVE_ASSETS, LOAN_OPTIONS, RELATIONSHIP, LIFE_ACHIEVEMENTS,
   CHARACTERS, WORLD_MALE_NPCS, WORLD_FACTION_NPCS, FACTION_SUPPORT_NPCS, SPECIAL_CHARACTERS, PERSONALITIES, DATE_APPROACHES, DATE_ROUTES,   // js/characters.js
   CHARACTER_NAME_MIGRATIONS, GENDER_LABEL,
   // 장면 묘사·호감도 단계는 js/character_voices.js 에서 (없으면 구버전 DATE_LINES 로 폴백)
