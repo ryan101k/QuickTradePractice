@@ -3463,7 +3463,7 @@ function maybeLifeEvent() {
     if (childEvent) { showLifeEvent(childEvent); return true; }
   }
   const eventPartner=pick(RELATIONSHIPS.consensualMembers(L));
-  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,stress:L.stress||0,charm:L.charm,affection:L.affection||0,pers:eventPartner&&eventPartner.personality,partnerJob:eventPartner&&eventPartner.job,partnerName:eventPartner&&eventPartner.name,partnerNames:RELATIONSHIPS.names(L),hasLovers:!!(L.lovers&&L.lovers.length),familyPlan:!!L.familyPlan,dangerousTrioLiving:!!(L.dangerousTrioBond&&L.dangerousTrioBond.active),morality:L.morality==null?60:L.morality,guilt:L.guilt||0,makjang:!!L.makjang,hasShark:(L.loans||[]).some(x=>x.illegal),naraeKnown:!!L.tutorialMet,seraKnown:!!metRecord(L,'윤세라'),seraRescueReady:!!(L.seraRescueOrigin&&L.seraRescueOrigin.ready),day:S.day,lastBurnoutEventDay:L.lastBurnoutEventDay };
+  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,stress:L.stress||0,charm:L.charm,affection:L.affection||0,pers:eventPartner&&eventPartner.personality,partnerJob:eventPartner&&eventPartner.job,partnerName:eventPartner&&eventPartner.name,partnerNames:RELATIONSHIPS.names(L),hasLovers:!!(L.lovers&&L.lovers.length),familyPlan:!!L.familyPlan,dangerousTrioLiving:!!(L.dangerousTrioBond&&L.dangerousTrioBond.active),morality:L.morality==null?60:L.morality,guilt:L.guilt||0,makjang:!!L.makjang,hasShark:(L.loans||[]).some(x=>x.illegal),naraeKnown:!!L.tutorialMet,seraKnown:!!metRecord(L,'윤세라'),seraRescueReady:!!(L.seraRescueOrigin&&L.seraRescueOrigin.ready),day:S.day,trades:S.trades||0,hasLongPosition:Object.values(S.owned||{}).some(position=>(position.qty||0)>0),lastBurnoutEventDay:L.lastBurnoutEventDay };
   const seraIntro = (D.LIFE_EVENTS || []).find(e => e.id === 'life_rainy_canvas');
   if (!ctx.seraKnown && seraIntro && (!seraIntro.cond||seraIntro.cond(ctx)) && Math.random() < 0.32) {
     showLifeEvent(seraIntro);
@@ -5298,7 +5298,7 @@ function monthlyRivalMessages(L){
     ranked.sort((a,b)=>entry.bot.style==='value'?a.change-b.change:entry.bot.style==='momentum'?Math.abs(b.change)-Math.abs(a.change):Math.random()-.5);
     stock=ranked[0];
   }
-  const message=RIVALS.contactMessage(entry.bot,{day:S.day,contactReason:entry.bot.contactReason,lastAttacker:faction.lastAttacker,stock:{name:stock&&stock.item.name,change:stock&&stock.change}});
+  const message=RIVALS.contactMessage(entry.bot,{day:S.day,trades:S.trades||0,contactReason:entry.bot.contactReason,lastAttacker:faction.lastAttacker,stock:{name:stock&&stock.item.name,change:stock&&stock.change}});
   L.lastRivalMessageDay=S.day;
   pushPersonMessage(L,entry.bot,message.text,false);
   queueImportantEvent({monthlyMessage:true,targetType:'rival',targetId:entry.index,text:message.text,rivalMessage:message});
@@ -8141,7 +8141,7 @@ function resolveFactionTradeCall(choice) {
 }
 
 const MONTHLY_ACTION_GROUPS = {
-  date:'데이트', hobby:'취미', rest:'휴식', decompress:'휴식', 'sera-home':'휴식',
+  'home-life':'휴식', date:'데이트', hobby:'취미', rest:'휴식', decompress:'휴식', 'sera-home':'휴식',
   'income-work':'수입',
   cert:'경력', 'investment-consult':'경력',
   'contact-meet':'인맥', 'contact-nurture':'인맥', 'contact-ask':'인맥', 'meet-special':'인맥', 'person-request':'인맥',
@@ -8352,7 +8352,8 @@ function storyProgressHTML(L) {
   });
   const circle=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.ensure(L);
   const circleMood=childhoodCircleNarrative(circle);
-  const circleRow=circle&&circle.anchor?`<div class="story-progress-card childhood-circle-progress"><strong>🎓 한 번씩 헤어진 다섯</strong><div><small class="${circleMood.tone}"><b>${circleMood.title}</b> · ${circleMood.detail}</small></div></div>`:'';
+  const circleVisible=!!(circle&&circle.anchor&&L.devChildhoodFinale===true);
+  const circleRow=circleVisible?`<div class="story-progress-card childhood-circle-progress"><strong>🎓 한 번씩 헤어진 다섯</strong><div><small class="${circleMood.tone}"><b>${circleMood.title}</b> · ${circleMood.detail}</small></div></div>`:'';
   return rows.length||circleRow?`<div class="story-progress-list"><div class="hub-title">📖 이어지는 인물 이야기</div>${circleRow}${rows.slice(0,5).join('')}</div>`:'';
 }
 
@@ -8557,7 +8558,7 @@ function lifeHubHTML() {
       <div class="life-time-progress" aria-label="이번 달 자유시간 사용 현황">${Array.from({length:LIFE_ACTIONS_PER_MONTH},(_,i)=>`<span class="${i<actionUsed?'used':i===actionUsed?'available current':'available'}">${i<actionUsed?'✓':i+1+'주차'}</span>`).join('')}</div>
       <div class="hub-quick">${quickBtns}</div>
       ${workspaceLaunchers}
-      ${mainUnlocked?'':`<div class="important-event-detail">아직 가진 것은 작은 계좌와 원본 장부뿐입니다. 사업·운영·세력 메뉴는 지금의 생활에서 보이지 않습니다. 시장에 복귀한 주문 기록이 충분히 쌓이면, 장부를 찾는 쪽이 먼저 움직이면서 본편이 시작됩니다.</div>`}
+      ${mainUnlocked?'':`<div class="important-event-detail">아직 가진 것은 작은 계좌와 원본 장부뿐입니다. 사업·운영·세력 메뉴는 지금의 생활에서 보이지 않습니다. 시장 복귀 기록이 충분히 쌓이면, 장부를 찾는 쪽이 먼저 움직이면서 본편이 시작됩니다.</div>`}
       <div class="hub-note">한 달에 자유시간 4회를 사용하며 같은 행동도 다시 선택할 수 있습니다. 돈이 부족하면 시장 조사·단기 의뢰·현장 일당으로 현금을 먼저 만들 수 있고, 같은 수입 행동을 반복하면 피로 때문에 보수가 조금씩 줄어듭니다.</div>
       ${storyProgressHTML(L)}
       ${mainUnlocked?assetPortfolioStrip:''}

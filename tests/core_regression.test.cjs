@@ -1181,6 +1181,10 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   const message=context.QT_RIVALS.contactMessage(rival,{stock:{name:'노바플레이',change:6.6}});
   assert.match(message.text,/노바플레이 수급/,'적대 세력 연락은 실제 종목을 언급해야 한다');
   assert.doesNotMatch(message.text,/어떻게 봅니까|생각입니다|살 생각/,'적대 세력이 처음 보는 플레이어에게 친구처럼 투자 의견을 구하면 안 된다');
+  const noTradeWarning=context.QT_RIVALS.contactMessage(rival,{contactReason:'rival_attack',trades:0,stock:{name:'노바플레이',change:6.6}});
+  assert.match(noTradeWarning.text,/시장에 다시 접속한 시간대/,'무매매 플레이의 첫 공격 경고는 존재하지 않는 호가 주문을 언급하면 안 된다');
+  const tradedWarning=context.QT_RIVALS.contactMessage(rival,{contactReason:'rival_attack',trades:2,stock:{name:'노바플레이',change:6.6}});
+  assert.match(tradedWarning.text,/노바플레이 호가에도 당신 계좌 흔적/,'실제 거래가 있으면 호가 추적 경고를 사용할 수 있어야 한다');
   const choices=context.QT_RIVALS.contactReplyOptions(rival,message);
   assert.match(choices[0].text,/노바플레이를 통해 내 계좌를 추적한 경로/,'적대 세력 답장은 종목 추천이 아니라 추적 경로를 역으로 캐야 한다');
   const relationBefore=rival.playerRelation||0;
@@ -1728,8 +1732,8 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   const tracedOrder = context.QT_CAMPAIGN.attackStatus({
     month:4, totalWealth:5000000, monthlyProfit:-1000000, rank:8,
   });
-  assert.equal(tracedOrder.unlocked,true,'4개월차에는 수익이 낮아도 과거 장부와 같은 주문 습관 때문에 첫 공격이 시작돼야 한다');
-  assert.match(tracedOrder.reason,/원본 장부/);
+  assert.equal(tracedOrder.unlocked,true,'4개월차에는 수익이 낮아도 과거 장부와 연결된 시장 복귀 기록 때문에 첫 공격이 시작돼야 한다');
+  assert.match(tracedOrder.reason,/시장 재접속.*원본 장부/);
 }
 
 {
@@ -1910,6 +1914,13 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(triggerAppSource,/origin\.ready\|\|attacker\|\|L\.yujinInvestigationSeen\|\|\(L\._attackedRecently\|\|0\)>0/,'opening repair must use persisted attack evidence instead of one transient faction stage');
   assert.match(triggerAppSource,/if\(repairOpeningStoryQueue\(\)\)return/,'faction progression must yield to the repaired Sera encounter');
   assert.match(triggerAppSource,/if\(hasQueuedImportant\|\|continuingMonthClose\)showNextImportantEvent\(\)/,'closing a recovered encounter must not leak into a random life event');
+  assert.match(triggerAppSource,/trades:S\.trades\|\|0,hasLongPosition:Object\.values\(S\.owned\|\|\{\}\)\.some/,'life events must know whether the player actually traded and still owns stock');
+  assert.match(triggerAppSource,/contactMessage\(entry\.bot,\{day:S\.day,trades:S\.trades\|\|0/,'rival warnings must know whether the player actually traded');
+  assert.match(triggerAppSource,/'home-life':'휴식'/,'the home launcher must lock after all four monthly actions are spent');
+  assert.match(triggerAppSource,/circle&&circle\.anchor&&L\.devChildhoodFinale===true/,'the postponed childhood finale must not be exposed in the normal early-game story list');
+  const lifeEventSource=fs.readFileSync(path.join(root,'js/events_life.js'),'utf8');
+  assert.match(lifeEventSource,/id: 'inv_windfall'[\s\S]{0,300}c\.day >= 3 && c\.trades > 0 && c\.hasLongPosition/,'the stock windfall must require an established real holding');
+  assert.match(lifeEventSource,/id: 'job_coin'[\s\S]{0,240}cond: c => c\.job !== 'none'/,'the coworker coin event must not appear while unemployed');
   const businessLife={};
   const businessState=context.QT_BUSINESS_ROMANCE.ensure(businessLife);
   businessState.retaliationSeen=true;

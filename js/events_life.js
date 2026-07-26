@@ -45,6 +45,7 @@ const LIFE_EVENTS = [
   {
     id: 'job_coin', cat: 'job', emoji: '🪙', title: '동료의 "확실한" 코인',
     desc: '동료가 무조건 오른다며 코인을 추천합니다.',
+    cond: c => c.job !== 'none',
     options: [
       { text: '크게 넣는다 (복불복)', effects: { cash: [-6000000, 20000000] }, outcome: '결과는 하늘에 맡겼다...' },
       { text: '무시한다', effects: {}, outcome: '평정심을 지켰다.' },
@@ -206,8 +207,8 @@ LIFE_EVENTS.push(
   },
   {
     id: 'inv_windfall', cat: 'life', emoji: '🎯', title: '뜻밖의 수익',
-    desc: '오래전 잊고 있던 종목이 급등해 계좌에 큰 수익이 찍혔습니다. 손이 떨립니다.',
-    cond: c => c.happy >= 40,
+    desc: '한동안 보유하던 종목이 급등해 계좌에 큰 수익이 찍혔습니다. 손이 떨립니다.',
+    cond: c => c.happy >= 40 && c.day >= 3 && c.trades > 0 && c.hasLongPosition,
     options: [
       { text: '절반만 익절하고 나머지는 둔다', effects: { cash: [3000000, 9000000], happy: 8 }, outcome: '욕심과 두려움을 반반씩 인정한 선택이었다.' },
       { text: '전부 팔고 한동안 쉰다', effects: { cash: [5000000, 12000000], happy: 5 }, outcome: '계좌를 닫고 오랜만에 푹 잤다.' },

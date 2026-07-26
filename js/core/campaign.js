@@ -29,7 +29,7 @@
       || rank <= RULES.attackTopRank;
     let reason = '아직 실전 주문 기록이 충분히 쌓이지 않았습니다.';
     if (!oldEnough) reason = `${RULES.attackMinMonth}개월차부터 경쟁 세력이 움직입니다.`;
-    else if (!notable) reason = '반복된 주문 습관이 과거 모의투자 대회의 원본 장부와 연결됐습니다.';
+    else if (!notable) reason = '시장 재접속과 시세 확인 패턴이 과거 모의투자 대회의 원본 장부와 연결됐습니다.';
     else reason = wealth >= RULES.attackWealth ? '큰 자산이 시장에 알려졌습니다.'
       : monthlyProfit >= RULES.attackMonthlyProfit ? '한 달의 큰 수익으로 주목받았습니다.'
       : '상위권 진입으로 경쟁 세력의 표적이 됐습니다.';
