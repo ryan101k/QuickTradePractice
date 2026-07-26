@@ -4884,21 +4884,31 @@ const GROUP_CONFESSION_SCENES={
     icon:'🦂',title:'제1장 마지막 · 네 번째 열쇠를 받을 사람',scene:'./assets/event-trio-secure-home-ending.png',
     desc:'세 사람의 개인사와 악우 사건이 모두 끝난 뒤에야 같은 메시지가 도착했습니다. 유진은 보호를, 채린은 권력을, 세라는 집을 핑계로 쓰지 않고 처음으로 네 사람이 함께 사는 관계를 묻습니다.',
     line:'“이번에는 구해 주거나 사 주거나 따라온다는 말 말고 물을게요. 우리 셋과 같이 살래요?”',
-    accept:'네 번째 열쇠를 받아 공동생활을 시작한다',reject:'열쇠를 돌려주고 악우로만 남는다',
+    accept:'네 번째 열쇠를 받아 공동생활을 시작한다',reject:'세 사람의 열쇠를 전부 돌려준다',
   },
   freedom:{
     icon:'🏠',title:'제2장 마지막 · 말없이 늘어난 슬리퍼',scene:'./assets/event-freedom-trio-homecoming.png',
     desc:'게임에서 시작한 고민 상담과 각자의 개인사, 네 사람의 귀가 이야기가 모두 끝났습니다. 채원·유나·소희는 누구 한 명을 고르라는 대신 현관에 놓인 네 번째 슬리퍼를 가리킵니다.',
     line:'“우리 셋 다 같은 마음이에요. 싫으면 오늘 치울게요. 좋으면 그냥 여기 두고요.”',
-    accept:'네 번째 슬리퍼를 신고 작은 집에 남는다',reject:'슬리퍼를 치우고 세 사람의 친구로 남는다',
+    accept:'네 번째 슬리퍼를 신고 작은 집에 남는다',reject:'슬리퍼를 치우고 혼자 돌아간다',
   },
   business:{
     icon:'🏢',title:'제3장 마지막 · 결재가 끝난 뒤의 네 이름',scene:'./assets/event-business-quartet-afterhours.png',
     desc:'자유인 3인조의 이야기를 지나 사업이 안정된 뒤, 네 책임자의 개인사와 다섯 번의 공동 이사회까지 모두 끝났습니다. 아무도 고용과 사랑을 거래하지 않는다는 규칙 아래 네 사람이 마지막 안건을 올립니다.',
     line:'“이 안건은 부결돼도 인사평가에 남지 않습니다. 그래도 네 사람 모두 같은 답을 기다리고 있어요.”',
-    accept:'업무 밖에서 네 사람의 고백을 받아들인다',reject:'공동 경영진과 친구로만 남는다',
+    accept:'업무 밖에서 네 사람의 고백을 받아들인다',reject:'마지막 사적 안건을 부결한다',
   },
 };
+function groupRomanceModule(id){
+  if(id==='dangerous')return DANGEROUS_TRIO;
+  if(id==='freedom')return FREEDOM_TRIO;
+  if(id==='business')return BUSINESS_ROMANCE;
+  return null;
+}
+function groupRomanceEnding(id,kind){
+  const module=groupRomanceModule(id);
+  return module&&typeof module.romanceEnding==='function'?module.romanceEnding(kind):null;
+}
 function groupStoryComplete(id,L=S.life){
   if(id==='dangerous')return !!(DANGEROUS_TRIO&&DANGEROUS_TRIO.storyComplete(L));
   if(id==='freedom')return !!(FREEDOM_TRIO&&FREEDOM_TRIO.storyComplete(L));
@@ -4910,7 +4920,7 @@ function groupStoryComplete(id,L=S.life){
   return false;
 }
 function groupConfessionReady(id,L=S.life){
-  if(!ROMANCE_ROUTES||!ROMANCE_ROUTES.romanceAvailable(L,id))return false;
+  if(!ROMANCE_ROUTES||!ROMANCE_ROUTES.groupConfessionAvailable(L,id))return false;
   if(id==='dangerous')return !!(DANGEROUS_TRIO&&DANGEROUS_TRIO.confessionReady(L));
   if(id==='freedom')return !!(FREEDOM_TRIO&&FREEDOM_TRIO.confessionReady(L));
   if(id==='business')return !!(BUSINESS_ROMANCE&&BUSINESS_ROMANCE.confessionReady(L));
@@ -4942,18 +4952,35 @@ function showGroupConfession(event){
   const id=event.groupId,meta=GROUP_CONFESSION_SCENES[id],host=$('life-event');
   if(!meta||!host||!groupConfessionReady(id)){showNextImportantEvent();return;}
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window trio-route-window group-confession-window"><div class="title-bar event-bar"><div class="title-bar-text">${meta.icon} ${meta.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${meta.scene}" alt="${meta.title}"><div class="event-desc">${meta.desc}</div><div class="story-dialogue"><b>${ROMANCE_ROUTES.META[id].members.join(' · ')}</b> ${meta.line}</div><div class="event-options"><button class="event-opt opening" data-group-confession="accept"><b>${meta.accept}</b></button><button class="event-opt" data-group-confession="reject"><b>${meta.reject}</b><span>이 선택 뒤에는 이 그룹과 다시 연인이 될 수 없습니다.</span></button></div><div class="event-outcome" id="group-confession-outcome"></div></div></div>`;
+  host.innerHTML=`<div class="window event-window trio-route-window group-confession-window"><div class="title-bar event-bar"><div class="title-bar-text">${meta.icon} ${meta.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${meta.scene}" alt="${meta.title}"><div class="event-desc">${meta.desc}</div><div class="story-dialogue"><b>${ROMANCE_ROUTES.META[id].members.join(' · ')}</b> ${meta.line}</div><div class="event-options"><button class="event-opt opening" data-group-confession="accept"><b>${meta.accept}</b></button><button class="event-opt hot" data-group-confession="reject"><b>${meta.reject}</b><span>공동생활 직전의 거절은 이 그룹 고유 배드엔딩으로 이어집니다.</span></button></div><div class="event-outcome" id="group-confession-outcome"></div></div></div>`;
   S._groupConfession=id;
   host.querySelectorAll('[data-group-confession]').forEach(button=>button.addEventListener('click',()=>resolveGroupConfession(button.dataset.groupConfession)));
+}
+function showGroupRouteBadEnding(id,kind,context={}){
+  const ending=groupRomanceEnding(id,kind),host=$('life-modal');
+  if(!ending||!host)return false;
+  S.paused=true;
+  S.life.groupRouteBadEnding={groupId:id,kind,day:S.day,partner:context.partner||null,target:context.target||null};
+  host.style.display='flex';host.className='life-modal-host group-route-ending-host';
+  const names=ROMANCE_ROUTES.META[id].members.join(' · ');
+  host.innerHTML=`<div class="window event-window captivity-ending-window"><div class="title-bar"><div class="title-bar-text">${ending.icon} ${ending.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${ending.scene}" alt="${ending.title}"><div class="event-title">${ending.quote}</div><div class="event-desc">${ending.text}</div><div class="story-dialogue"><b>${names}</b>${context.partner?` · ${context.partner}의 순애 약속`:''}${context.target?` · ${context.target}에게 향한 두 번째 선택`:''}</div><div class="important-event-detail down">${ending.detail}</div><button id="group-ending-rewind" class="session-btn opening">↩️ 이 선택을 하기 전으로 돌아간다</button><button id="group-ending-restart" class="hot">🔁 완전히 새 인생 시작</button></div></div>`;
+  $('group-ending-rewind').addEventListener('click',()=>{
+    S.life.groupRouteBadEnding=null;S.paused=false;host.style.display='none';host.innerHTML='';host.className='life-modal-host';
+    if(kind==='cohabitation_refusal')showGroupConfession({groupId:id});
+    else closeDateModal();
+    pauseUISync();renderLifePanel();autoSave();
+  });
+  $('group-ending-restart').addEventListener('click',()=>{localStorage.removeItem(LS_KEY);location.reload();});
+  addNews(`${ending.icon} BAD END · ${ending.title}`,'bad');playSound('crash');autoSave();
+  return true;
 }
 function resolveGroupConfession(choice){
   const id=S._groupConfession,host=$('life-event'),meta=GROUP_CONFESSION_SCENES[id];
   if(!id||!host||!meta)return;
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
   if(choice==='reject'){
-    lockGroupRomance(id,'incoming_group_confession_rejected');
-    $('group-confession-outcome').innerHTML=`<div class="oc-text">고백은 거절됐지만 지금까지 끝낸 개인사와 우정은 사라지지 않습니다. 세트 연애만 다시 열리지 않습니다.</div><button id="group-confession-confirm" class="session-btn opening">다음 장으로 넘어간다</button>`;
-    addNews(`${meta.icon} ${ROMANCE_ROUTES.META[id].name}의 고백을 거절했습니다 · 연애 루트 영구 마감`,'neutral');
+    showGroupRouteBadEnding(id,'cohabitation_refusal');
+    return;
   }else{
     ROMANCE_ROUTES.setConfession(S.life,id,'accepted');
     if(id==='dangerous')activateDangerousTrioBond();
@@ -6223,7 +6250,7 @@ function resolveDate(i) {
       extra+=`<br>🤝 <span class="muted">${c.name}님과는 이미 연애가 아닌 관계로 결론을 냈습니다. 오늘도 그 선을 바꾸지 않습니다.</span>`;
       S._romance={name:c.name,forward:false,groupId:routeGroup,html:'<div class="romance-choice"><button id="romance-friend" class="life-btn">🤝 친구로 지낸다</button><button id="romance-skip" class="life-btn">⏳ 오늘은 돌아간다</button></div>'};
     }else if(eligible&&routeGroup&&!groupStoryDone){
-      extra+=`<br>💗 <b>${c.name}님은 아직 자기 이야기를 끝내지 못한 채, 당신이 무슨 말을 할지 기다리고 있습니다.</b>`;
+      extra+=`<br>💗 <b>${c.name}님은 아직 자기 이야기를 끝내지 못한 채, 당신이 무슨 말을 할지 기다리고 있습니다.</b><br><span class="muted">지금 먼저 고백하면 이 사람 한 명을 택하는 순애 루트가 되며, 그룹 쪽 공동 고백은 오지 않습니다.</span>`;
       S._romance={name:c.name,forward:false,groupId:routeGroup,premature:true,chance:0,html:
         '<div class="romance-choice"><button id="romance-confess" class="life-btn hot">💌 지금 고백한다</button><button id="romance-friend" class="life-btn">🤝 지금 관계를 지킨다</button><button id="romance-skip" class="life-btn">⏳ 이야기가 끝날 때까지 기다린다</button></div>'};
     }else if (eligible) {
@@ -6249,6 +6276,11 @@ function resolveDate(i) {
     const alreadyPoly=poly.active&&poly.members.some(x=>x.name===c.name);
     const alreadyLover = L.lovers.some(x => x.name === c.name);
     const proposal = proposalResult(c, rec, tier);
+    const devotion=activePureDevotion(L);
+    if(devotion&&c.name!==devotion.name&&proposal.attempted){
+      showPureRouteAffairEnding(c);
+      return;
+    }
     if(c.special==='business'&&rec.businessSuitor&&proposal.attempted){
       rec.status='friend';
       rec.businessHaremProgress=(rec.businessHaremProgress||0)+(proposal.accepted?1:0);
@@ -6406,10 +6438,27 @@ function showChildhoodRelapseEnding(triggerName,triggerType){
   playSound('crash');autoSave();return true;
 }
 
+function activePureDevotion(L=S.life){
+  if(!ROMANCE_ROUTES)return null;
+  const row=ROMANCE_ROUTES.devotion(L);
+  return row&&row.active&&RELATIONSHIPS.isPartner(L,row.name)?row:null;
+}
+function beginPureRomance(c,groupId,source){
+  startDating(c);
+  if(ROMANCE_ROUTES&&groupId)ROMANCE_ROUTES.beginDevotion(S.life,groupId,c.name,source||'player_confession');
+  addNews(`💍 ${c.name} 한 사람을 택한 순애 루트가 시작됐습니다 · ${ROMANCE_ROUTES.META[groupId].name} 공동 고백 차단`,'good');
+}
+function showPureRouteAffairEnding(target){
+  const devotion=activePureDevotion();
+  if(!devotion||!target||target.name===devotion.name)return false;
+  return showGroupRouteBadEnding(devotion.groupId,'pure_affair',{partner:devotion.name,target:target.name});
+}
+
 function romanceResolve(kind, confirmed) {
   const c = S._dateCandidate; if (!c) return;
   if(confirmed&&S.life.dangerousTrioBond&&S.life.dangerousTrioBond.active&&!isDangerousHeroine(c)&&['accept','confess','casual'].includes(kind)){showTrioBlocksAffair(c);return;}
   if(!confirmed){previewRomanceChoice(kind);return;}
+  if(['accept','confess','casual'].includes(kind)&&showPureRouteAffairEnding(c))return;
   const rec = rememberPerson(c);
   const preview=$('date-outcome')&&$('date-outcome').querySelector('.relation-preview');if(preview)preview.remove();
   if(kind==='casual'&&CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.MEMBERS.includes(c.name)){
@@ -6445,19 +6494,23 @@ function romanceResolve(kind, confirmed) {
   const rejectedIncoming=routeGroup&&romanceState.forward&&['decline','friend'].includes(kind);
   let resultHTML = '';
   if(prematureConfession){
-    lockGroupRomance(routeGroup,'player_confessed_before_group_story_complete');
-    rec.status='friend';rec.affection=Math.max(0,(rec.affection||0)-6);rec.trust=Math.max(0,(rec.trust||0)-4);
-    resultHTML=`🕰️ <b class="down">${c.name}님은 끝내지 못한 이야기를 남겨 둔 채 고백부터 받은 사실을 잊지 못했습니다.</b><br><span class="muted">${ROMANCE_ROUTES.META[routeGroup].name}은 친구로 남을 수 있지만, 연애로 이어지는 선택은 다시 열리지 않습니다.</span>`;
+    beginPureRomance(c,routeGroup,'player_confession_before_group_story_complete');
+    resultHTML=`💍 <b class="up">${c.name}님에게 먼저 고백해 두 사람의 순애를 시작했습니다.</b><br><span class="muted">남은 그룹 사건은 이어지지만 ${ROMANCE_ROUTES.META[routeGroup].name}의 공동 고백은 오지 않습니다. 이 약속을 둔 채 다른 사람을 유혹하면 불륜 배드엔딩으로 이어집니다.</span>`;
   } else if (kind === 'accept') {
-    startDating(c);
+    if(routeGroup)beginPureRomance(c,routeGroup,'accepted_individual_confession');
+    else startDating(c);
     resultHTML = `💕 <b class="up">${c.name}님의 고백을 받아 연애를 시작했어요!</b>`;
   } else if (kind === 'decline') {
     if(rejectedIncoming)lockGroupRomance(routeGroup,'incoming_individual_confession_rejected');
     rec.affection = Math.max(0, (rec.affection || 0) - 15);
     resultHTML = `🙅 <span class="muted">${c.name}님의 고백을 정중히 거절했다. 사이가 조금 어색해졌다.</span>`;
   } else if (kind === 'confess') {
-    const ok = Math.random() < ((S._romance && S._romance.chance) || 0.5);
-    if (ok) { startDating(c); resultHTML = `💕 <b class="up">고백 성공! ${c.name}님과 연애를 시작했어요!</b>`; }
+    const ok = routeGroup||Math.random() < ((S._romance && S._romance.chance) || 0.5);
+    if (ok) {
+      if(routeGroup)beginPureRomance(c,routeGroup,'player_confession');
+      else startDating(c);
+      resultHTML = `💕 <b class="up">고백 성공! ${c.name}님과 연애를 시작했어요!</b>${routeGroup?`<br><span class="muted">${c.name} 한 사람을 고른 순애 루트로 고정됐습니다.</span>`:''}`;
+    }
     else { rec.affection = Math.max(0, (rec.affection || 0) - 8); resultHTML = `🫸 <b class="down">${c.name}님이 "아직 그런 사이는 아닌 것 같아요"라며 거절했다.</b>`; playSound('error'); }
   } else if (kind === 'friend') {
     if(rejectedIncoming)lockGroupRomance(routeGroup,'incoming_individual_confession_rejected_as_friend');
@@ -6524,6 +6577,8 @@ function startDating(partnerObj) {
 function breakUp(charmPenalty, happyPenalty) {
   const L = S.life;
   const name = L.partner ? L.partner.name : '연인';
+  const devotion=ROMANCE_ROUTES&&ROMANCE_ROUTES.devotion(L);
+  if(devotion&&devotion.active)ROMANCE_ROUTES.endDevotion(L,devotion.groupId,'breakup');
   if (L.partner) {
     const rec = rememberPerson(L.partner, 'ex');
     rec.affection = Math.max(0, Math.round((L.affection || 0) * 0.5));   // 미련은 절반쯤 남는다

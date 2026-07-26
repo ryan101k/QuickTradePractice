@@ -2,6 +2,21 @@
 (function(root){
 'use strict';
 const NAMES=['강유진','한채린','윤세라'];
+const ROMANCE_ENDINGS={
+ cohabitation_refusal:{
+  icon:'🔒',title:'공동생활 배드엔딩 · 세 개의 열쇠와 닫힌 문',scene:'./assets/event-trio-bed-ending.png',
+  quote:'“같이 살 수 없다는 대답도 셋이서 들었으니, 해결도 셋이서 할게요.”',
+  text:'네 번째 열쇠를 돌려준 순간 유진의 보호 절차, 채린의 계약, 세라의 복사 열쇠가 한꺼번에 움직였습니다. 서로를 가장 불신하던 세 사람은 당신을 놓아주는 일만큼은 누구에게도 맡기지 않았습니다.',
+  detail:'위험한 3인조 공동생활 제안 거절 · 세 사람 공동 감금 배드엔딩'
+ },
+ pure_affair:{
+  icon:'🦂',title:'순애 배드엔딩 · 한 사람을 고른 대가',scene:'./assets/event-trio-emergency.png',
+  quote:'“우리 셋을 거절한 건 괜찮아요. 그런데 그 사람까지 속인 건 다른 문제죠.”',
+  text:'한 사람에게 먼저 고백해 순애를 약속한 뒤 다른 관계를 시작하려 한 기록이 세 사람의 수사망·계약망·정보망에 동시에 남았습니다. 선택받지 못한 둘까지 그 약속의 증인이 되어 도망칠 틈을 지웠습니다.',
+  detail:'개인 순애 약속 위반 · 불륜 시도 발각'
+ }
+};
+function romanceEnding(kind){return ROMANCE_ENDINGS[kind]||null;}
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const rec=(life,name)=>(life.met||[]).find(person=>person.name===name);
 
@@ -320,5 +335,5 @@ function applyAftermath(life,choiceId){
 }
 function compatibleCandidate(){return false;}
 
-root.QT_DANGEROUS_TRIO={NAMES,PRELUDES,CHAPTERS,AFTERMATH,ensure,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,storyComplete,resolveUnavailable,confessionReady,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
+root.QT_DANGEROUS_TRIO={NAMES,ROMANCE_ENDINGS,romanceEnding,PRELUDES,CHAPTERS,AFTERMATH,ensure,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,storyComplete,resolveUnavailable,confessionReady,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
 })(window);

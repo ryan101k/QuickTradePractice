@@ -175,6 +175,14 @@ for (const file of [
   assert.equal(routes.romanceAvailable(life,'freedom'),false,'그룹 고백 거절은 해당 그룹의 연애만 영구 닫아야 한다');
   assert.equal(!!routes.ensure(life).completed.freedom,true,'연애를 닫아도 이미 끝낸 그룹 이야기는 지워지면 안 된다');
   assert.equal(!!routes.ensure(life).declined.freedom,false,'연애 거절을 그룹 자체 삭제와 같은 상태로 취급하면 안 된다');
+  const pureLife={day:8,met:[],polycule:{active:false,members:[]}};
+  assert.equal(routes.beginDevotion(pureLife,'dangerous','강유진','test_player_confession').ok,true,'플레이어의 개인 고백은 그룹 거절이 아니라 개인 순애 약속으로 기록돼야 한다');
+  assert.equal(routes.devotion(pureLife,'dangerous').name,'강유진','순애 루트의 상대를 그룹 진행 장부에서 찾을 수 있어야 한다');
+  assert.equal(routes.groupConfessionAvailable(pureLife,'dangerous'),false,'개인 순애를 고르면 상대 측 공동 고백만 막혀야 한다');
+  assert.equal(routes.romanceAvailable(pureLife,'dangerous'),true,'개인 순애는 그룹 전체의 인물 관계를 삭제하는 영구 연애 잠금과 달라야 한다');
+  const legacyEarlyLock={day:9,romanceRoutes:{version:3,romanceLocked:{dangerous:{reason:'player_confessed_before_group_story_complete'}},confessions:{dangerous:{status:'rejected',reason:'player_confessed_before_group_story_complete'}}}};
+  routes.ensure(legacyEarlyLock);
+  assert.equal(routes.romanceAvailable(legacyEarlyLock,'dangerous'),true,'이전 버전의 성급한 고백 잠금은 새 순애 규칙에 맞게 자동 해제돼야 한다');
   life.partner={name:'강유진'};life.polycule.members=[{name:'한채린'},{name:'윤세라'}];
   routes.preserveMembers(life,[{name:'채원'},{name:'유나'},{name:'소희'}]);
   assert.deepEqual(Array.from(life.polycule.members,x=>x.name).sort(),['소희','윤세라','유나','채원','한채린'].sort(),'후속 그룹이 성립해도 기존 그룹 구성원을 덮어쓰면 안 된다');
@@ -234,8 +242,9 @@ for (const file of [
   assert.match(appSource,/if\(event\.storyBridge\)return 78/,'후속 그룹 첫 대면은 정식 그룹 루트 시작보다 먼저 보여야 한다');
   assert.match(appSource,/while\(event&&!routeEventAllowed\(event\)\)event=queue\.shift\(\)/,'조건이 사라진 그룹 사건은 중요 사건 큐에서 건너뛰어야 한다');
   assert.match(appSource,/function showGroupConfession\(event\)/,'그룹의 모든 이야기가 끝난 뒤 별도 선고백 알림을 보여줘야 한다');
-  assert.match(appSource,/player_confessed_before_group_story_complete/,'그룹 사건 도중 성급한 개인 고백은 해당 그룹 연애를 영구 마감해야 한다');
-  assert.match(appSource,/incoming_group_confession_rejected/,'그룹 쪽 고백 거절은 다시 열리지 않는 선택으로 기록돼야 한다');
+  assert.match(appSource,/player_confession_before_group_story_complete/,'그룹 사건 도중 플레이어가 먼저 고백하면 개인 순애 루트로 기록돼야 한다');
+  assert.match(appSource,/showGroupRouteBadEnding\(id,'cohabitation_refusal'\)/,'공동생활 제안을 거절하면 그룹별 배드엔딩으로 직행해야 한다');
+  assert.match(appSource,/showPureRouteAffairEnding\(c\)/,'개인 순애 뒤 다른 사람을 유혹하면 불륜 배드엔딩 판정을 거쳐야 한다');
   assert.match(appSource,/t:'freedom-rumor'/,'장중 인물발 주식 소문은 자유인 3인조에게 모아야 한다');
   assert.doesNotMatch(appSource,/t: 'acq'/,'일반 지인이 무작위 종목 팁을 주는 기존 경로를 다시 열면 안 된다');
   assert.doesNotMatch(appSource,/data-act="character-story"/,'행동창에 개인 스토리 직접 실행 버튼을 다시 만들면 안 된다');
@@ -284,6 +293,8 @@ for (const file of [
 
 {
   const trio=context.QT_DANGEROUS_TRIO;
+  assert.match(trio.romanceEnding('cohabitation_refusal').title,/공동생활 배드엔딩/,'위험한 3인조가 공동생활 거절 엔딩을 직접 소유해야 한다');
+  assert.match(trio.romanceEnding('pure_affair').detail,/불륜 시도/,'위험한 3인조가 순애 위반 엔딩을 직접 소유해야 한다');
   const endings={강유진:'dangerous_dependence',한채린:'private_submission',윤세라:'anchored'};
   const life={
     day:9,seraHousing:'cohabit',partner:{name:'강유진'},polycule:{active:false,members:[]},
@@ -322,6 +333,8 @@ for (const file of [
   life.dangerousTrioBond={active:true,members:trio.NAMES.slice()};
   life.polycule={active:true,members:[{name:'한채린'},{name:'윤세라'}]};
   const freedom=context.QT_FREEDOM_TRIO;
+  assert.match(freedom.romanceEnding('cohabitation_refusal').title,/공동생활 배드엔딩/,'자유인 3인조가 공동생활 거절 엔딩을 직접 소유해야 한다');
+  assert.match(freedom.romanceEnding('pure_affair').detail,/순애 약속 위반/,'자유인 3인조가 순애 위반 엔딩을 직접 소유해야 한다');
   freedom.NAMES.forEach(name=>life.met.push({name,status:'friend',affection:80,trust:60}));
   const freedomState=freedom.ensure(life);
   freedomState.guildStage=freedom.GUILD_EVENTS.length;
@@ -548,6 +561,8 @@ for (const file of [
   assert.equal(romance.canRomance(life,'한이슬'),true,'경쟁 후보가 된 담당자는 기존 연인이 있어도 연애 진행이 가능해야 한다');
   Object.assign(state.staff.corporate,{introduced:true,hired:true,bond:35,temptationSeen:false});
   const pureLife={met:[{name:'나래',status:'partner'}]},pureState=romance.ensure(pureLife);
+  assert.match(romance.romanceEnding('cohabitation_refusal').detail,/경영권 상실/,'사업 4인조가 공동 관계 거절 엔딩을 직접 소유해야 한다');
+  assert.match(romance.romanceEnding('pure_affair').detail,/대표 해임/,'사업 4인조가 순애 위반 엔딩을 직접 소유해야 한다');
   Object.assign(pureState.staff.corporate,{introduced:true,hired:true,bond:35});
   const pureBusiness={owned:[{id:'advisory',typeId:'advisory',managerId:'corporate',specialManagerId:'corporate',months:6,lastNet:1000000,reputation:70,morale:70}]};
   const loyalty=romance.monthly(pureLife,{day:1,businessState:pureBusiness,partnerNames:['나래'],met:pureLife.met});
