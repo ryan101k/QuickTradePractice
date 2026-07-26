@@ -3131,7 +3131,7 @@ function resolveDangerousHeroineEvent(choiceIndex){
   if(choice.cash)S.capital=Math.max(0,S.capital+choice.cash);
   if(choice.happy)S.life.happy=clamp(S.life.happy+choice.happy,0,100);
   r.dangerEvents=r.dangerEvents||{};r.dangerEvents[pending.id]='seen';
-  const refusalIds=new Set(['chaerin_warning','chaerin_control','chaerin_daily1','chaerin_romance','chaerin_romance2','chaerin_romance3']);
+  const refusalIds=new Set(['chaerin_warning']);
   const referral=r.name==='한채린'&&choiceIndex===0&&refusalIds.has(pending.id)
     ?noteChaerinSupportRefusal(S.life,`chaerin-event:${pending.id}`):null;
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
@@ -4649,10 +4649,15 @@ function resolveCharacterStory(choice){
   const authored=window.QT_CHARACTER_DIALOGUE&&QT_CHARACTER_DIALOGUE.line(r,storyScene);
   const reaction=result.choice.reaction||authored||(result.choice.tone==='good'?'당신이 자기 편이라는 사실을 오래 기억하겠다고 했습니다.':result.choice.tone==='bad'?'필요할 때 외면당한 일을 쉽게 잊지 못할 것 같습니다.':'당신의 방식에 동의하진 않지만 결과를 지켜보기로 했습니다.');
   const lifeChanges=result.choice.effects?applyEventEffects(result.choice.effects):[];
+  const chaerinReferral=r.name==='한채린'
+    &&['command','equal'].includes(result.choice.trait)
+    &&[0,1,4].includes(result.chapter.index)
+    ?noteChaerinSupportRefusal(S.life,`chaerin-story:${result.chapter.index}`)
+    :null;
   const endingScene=result.completed&&result.ending?characterStoryEndingScene(r,result.ending):null;
   const ending=result.completed&&result.ending?`<div class="story-ending">${endingScene?`<img class="relationship-scene" src="${endingScene}" alt="${result.ending.title} 엔딩 컷신">`:''}<b>📕 ${result.ending.title}</b><br>${result.ending.text}</div>`:'';
   const risk=dangerousRiskMeta(r);
-  out.innerHTML=`<div class="oc-text"><b class="${result.choice.tone==='good'?'up':result.choice.tone==='bad'?'down':''}">${r.name}의 반응:</b> “${reaction}”${result.completed?'<br><b>개인 스토리 완결</b>':''}</div><div class="oc-changes">호감 ${result.choice.affection>=0?'+':''}${result.choice.affection} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust}${risk?` · ${risk.label} ${result.choice.obsession>=0?'+':''}${result.choice.obsession}`:''}${lifeChanges.length?` · ${lifeChanges.join(' · ')}`:''}</div>${ending}<button id="story-confirm" class="session-btn opening">확인</button>`;
+  out.innerHTML=`<div class="oc-text"><b class="${result.choice.tone==='good'?'up':result.choice.tone==='bad'?'down':''}">${r.name}의 반응:</b> “${reaction}”${result.completed?'<br><b>개인 스토리 완결</b>':''}</div>${chaerinReferral?`<div class="important-event-detail ${chaerinReferral.given?'up':'neutral'}">${chaerinReferral.text}</div>`:''}<div class="oc-changes">호감 ${result.choice.affection>=0?'+':''}${result.choice.affection} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust}${risk?` · ${risk.label} ${result.choice.obsession>=0?'+':''}${result.choice.obsession}`:''}${lifeChanges.length?` · ${lifeChanges.join(' · ')}`:''}</div>${ending}<button id="story-confirm" class="session-btn opening">확인</button>`;
   pushPersonMessage(S.life,r,reaction,false);addNews(`📖 ${r.name} 개인 스토리 · ${result.chapter.title}`,result.choice.tone);$('story-confirm').addEventListener('click',closeCharacterStory);renderLifePanel();autoSave();
 }
 function characterStoryEndingScene(r,ending){
@@ -4738,89 +4743,12 @@ const DANGEROUS_AFFECTION_EVENTS={
     {text:'사진을 지우고 우연을 가장하지 말라고 한다',result:'세라는 울먹이면서도 사진을 지웠습니다. “다음에는… 그냥 보고 싶었다고 말할게요.”',affection:1,trust:8,danger:-6},
     {text:'나만 볼 거라면 괜찮다고 한다',result:'세라는 웃으며 앨범을 잠갔습니다. 허락받았다는 사실이 새로운 기준이 되어버렸습니다.',affection:9,trust:1,danger:12}
   ]},
-  yujin_control:{name:'강유진',kind:'friend',min:50,after:'yujin_warning',scene:'./assets/event-yujin-safehouse-ending.png',icon:'🚨',title:'강유진 · 비상 연락망의 빈칸',desc:'유진이 병원·직장·가족 연락처가 적힌 비상 계획을 내밀었습니다. 마지막 칸에는 이미 자신의 이름이 최우선 보호자로 적혀 있습니다.',choices:[
-    {text:'비상시에만 쓰도록 범위를 함께 고친다',result:'유진은 몇 번이나 반박했지만 결국 권한과 상황을 구체적으로 제한했습니다.',affection:4,trust:10,danger:-7},
-    {text:'유진이 전부 관리하게 둔다',result:'유진이 처음으로 긴장을 풀었습니다. 대신 당신의 일상에는 빠져나가기 어려운 보호망이 생겼습니다.',affection:10,trust:2,danger:14}
-  ]},
-  chaerin_control:{name:'한채린',kind:'friend',min:50,after:'chaerin_warning',scene:'./assets/event-chaerin-golden-cage-ending.png',icon:'👑',title:'한채린 · 이름이 올라간 생활비 장부',desc:'채린이 만든 월별 지원 장부에는 집과 취미와 식사뿐 아니라 당신이 만난 사람들의 이름까지 비용으로 분류돼 있습니다.',choices:[
-    {text:'장부를 찢고 사람에게 가격 매기는 버릇부터 고치라고 명령한다',result:'채린은 화를 내면서도 찢어진 종이를 한 장 챙겼습니다. 새 장부 첫 줄에는 “본인 동의”, 둘째 줄에는 “싫다고 말할 권리”가 추가됐습니다.',affection:11,trust:9,danger:-4},
-    {text:'채린이 정한 생활을 받아들이고 지원에 감사한다',result:'모든 비용이 사라진 대신 당신의 일정도 줄었습니다. 채린은 만족하기보다 “이렇게 쉽게 받으면 재미없는데”라며 먼저 자리를 떴습니다.',affection:-5,trust:1,danger:9}
-  ]},
-  sera_control:{name:'윤세라',kind:'friend',min:50,after:'sera_warning',scene:'./assets/event-sera-doorstep.png',icon:'🖤',title:'윤세라 · 우연이 너무 많은 한 달',desc:'회사 앞, 취미 장소, 자주 가는 편의점에서 세라를 계속 마주쳤습니다. 마지막에는 세라도 “이제 우연이라고 하면 화낼 거죠?”라고 묻습니다.',choices:[
-    {text:'따라오지 말고 보고 싶으면 먼저 연락하라고 한다',result:'세라는 불안해했지만 그날 밤 처음으로 위치 대신 약속 시간을 물었습니다.',affection:4,trust:10,danger:-8},
-    {text:'어디든 따라와도 된다고 한다',result:'세라는 조용히 웃었습니다. 다음 날부터 당신이 혼자 있는 시간이 눈에 띄게 줄었습니다.',affection:12,trust:1,danger:16}
-  ]},
-  yujin_romance:{name:'강유진',kind:'romance',min:55,scene:'./assets/event-yujin-night-call.png',icon:'🚨',title:'강유진 · 비상 연락망의 첫 번째 이름',desc:'연애나 하룻밤 이후, 유진의 보호는 업무 범위를 벗어났습니다. 당신의 위기 가능성을 없애기 위해 일상 전체를 사건 기록처럼 정리하려 합니다.',choices:[
-    {text:'도움은 받되 내 선택은 내가 한다고 선을 긋는다',result:'유진은 불안해하면서도 선을 기록했습니다. 통제 수위가 내려갑니다.',trust:8,danger:-12},
-    {text:'유진이 전부 판단해달라고 매달린다',result:'유진의 표정이 너무 빠르게 편안해졌습니다. “그럼 내가 절대 놓치지 않을게요.”',affection:10,danger:18}
-  ]},
-  chaerin_romance:{name:'한채린',kind:'romance',min:55,scene:'./assets/event-chaerin-thrown-contract.png',icon:'👑',title:'한채린 · 서명하지 않은 소유권',desc:'연애나 하룻밤 이후, 채린은 계약서 없이도 당신의 시간과 빚과 집을 자기 자산처럼 정리하기 시작했습니다.',choices:[
-    {text:'계약서를 채린 쪽으로 던지고 내 생활에서 당장 손 떼라고 명령한다',result:'채린은 찢어진 계약서를 바라보다 웃었습니다. “그래, 그 말 들으려고 어디까지 허락하나 봤어.” 거친 거절이 오히려 관계의 선이 됐습니다.',affection:12,trust:9,danger:-7},
-    {text:'내 생활을 전부 채린에게 맡기고 시키는 대로 하겠다고 한다',result:'다음 날 계좌와 집과 일정에 채린의 사람이 붙었습니다. 그러나 채린은 원하는 것을 얻은 사람보다 시험이 너무 쉽게 끝난 사람처럼 냉담해졌습니다.',affection:-6,danger:12}
-  ]},
-  sera_romance:{name:'윤세라',kind:'romance',min:55,scene:'./assets/event-sera-doorstep.png',icon:'🖤',title:'윤세라 · 우연을 그만둔 밤',desc:'연애나 하룻밤 이후, 세라는 더 이상 우연인 척하지 않습니다. 당신이 어디에 있는지 알고 싶은 마음을 사랑의 권리라고 부르기 시작했습니다.',choices:[
-    {text:'연락 시간과 방문 규칙을 분명히 정한다',result:'세라는 싫어했지만 규칙을 메시지 상단에 고정했습니다. 아직은 약속이 집착보다 강합니다.',trust:7,danger:-10},
-    {text:'불안하지 않게 항상 위치를 공유한다',result:'세라는 안심했습니다. 그리고 그 안심을 잃지 않기 위해 더 많은 것을 요구하기 시작했습니다.',affection:10,danger:18}
-  ]},
-  sera_reverse_outing:{name:'윤세라',kind:'romance',min:60,after:'sera_romance',scene:'./assets/event-sera-8.png',icon:'☔',title:'윤세라 · 너무 풀어준 외출',desc:'함께 걷는 내내 세라는 쇼윈도 반사로 뒤를 확인하고, 횡단보도마다 당신 소매를 붙들었습니다. 결국 “이런 건 잘못된 집착인 거 알아요. 오늘은 많이 참았어요”라고 사과하려는데, 당신의 대답이 예상과 달랐습니다.',choices:[
+  sera_reverse_outing:{name:'윤세라',kind:'romance',min:60,scene:'./assets/event-sera-8.png',icon:'☔',title:'윤세라 · 너무 풀어준 외출',desc:'개인 관계가 시작된 뒤 함께 걷는 내내 세라는 쇼윈도 반사로 뒤를 확인하고, 횡단보도마다 당신 소매를 붙들었습니다. 결국 “이런 건 잘못된 집착인 거 알아요. 오늘은 많이 참았어요”라고 사과하려는데, 당신의 대답이 예상과 달랐습니다.',choices:[
     {text:'“이 정도면 너무 풀어준 거 아니야? 아까 세 번이나 날 놓쳤잖아.”',result:'세라는 두 손을 모은 채 정말로 말문이 막혔습니다. “제가… 사과할 차례 아니었어요? 왜 당신이 더 이상한 말을 해요.” 처음으로 세라 쪽이 관계의 속도를 무서워했습니다.',affection:12,trust:4,danger:10,mutualObsession:1,flags:{seraReverseCourtship:true}},
     {text:'집착인 건 맞지만 오늘은 숨기지 말고 내 옆에서 걷자고 한다',result:'세라는 부끄러워하면서도 더는 우연을 연기하지 않았습니다. 손을 잡기 전에는 먼저 물었고, 놓쳐도 뛰어오지 않고 이름을 불렀습니다.',affection:8,trust:11,danger:-7,flags:{seraOutingBoundary:true}},
     {text:'잘못인 걸 알면 다음부터 따라오기 전에 먼저 연락하라고 한다',result:'세라는 당황한 얼굴로 고개를 끄덕였습니다. 그날 밤 위치 사진 대신 “같이 나가도 돼요?”라는 짧은 메시지가 왔습니다.',affection:5,trust:13,danger:-10,flags:{seraOutingBoundary:true}}
   ]},
 
-  /* ── 강유진 · 일상/연애 외출 진행 ── (단정한 존댓말, 확인 질문, 보호가 통제로) */
-  yujin_daily1:{name:'강유진',kind:'friend',min:27,after:'yujin_friend',scene:'./assets/event-yujin-riverside-date.png',icon:'🛒',title:'강유진 · 비번 날의 장보기',desc:'유진이 사복 차림으로 마트 앞에 서 있었습니다. “오늘은 근무 아니에요. 그냥… 혼자 장 보기 싫어서요.” 카트를 미는 내내 당신 냉장고 사정까지 확인 질문이 이어집니다.',choices:[
-    {text:'같이 저녁 재료만 고르고 각자 계산한다',result:'유진은 “이게 친구 사이 적정 거리죠”라며 자기 몫을 따로 계산했습니다. 확인 질문은 많았지만 선은 지켰습니다.',affection:6,trust:9,happy:3,cash:-40000},
-    {text:'유진이 당신 반찬까지 다 챙기게 둔다',result:'유진은 당신 일주일 식단을 통째로 계획했습니다. “끼니는 안전의 기본이에요.” 편했지만 냉장고 안까지 유진이 관리하게 됐습니다.',affection:9,trust:3,danger:8,cash:-70000}
-  ]},
-  yujin_daily2:{name:'강유진',kind:'friend',min:43,after:'yujin_warning',scene:'./assets/event-yujin-night-call.png',icon:'🌃',title:'강유진 · 야간근무 끝의 새벽 산책',desc:'교대를 마친 유진이 “집에 바로 가면 잠이 안 와서요”라며 새벽 강변을 함께 걷자고 합니다. 늘 남을 지키던 사람이 처음으로 자기 얘기를 꺼낼 듯 말 듯 합니다.',choices:[
-    {text:'오늘은 경찰 말고 그냥 유진 얘기를 듣는다',result:'유진은 한참 망설이다 “구하지 못한 사람 꿈을 자주 꿔요”라고 털어놨습니다. 보호자 역할을 잠깐 내려놓은 밤이었습니다.',affection:7,trust:12,happy:2},
-    {text:'피곤할 텐데 데려다주겠다며 동선을 챙긴다',result:'유진은 웃으며 “보호받는 것도 나쁘지 않네요”라고 했지만, 다음 날부터 당신의 새벽 귀가를 자기 일정에 넣었습니다.',affection:6,trust:4,danger:9}
-  ]},
-  yujin_romance2:{name:'강유진',kind:'romance',min:62,after:'yujin_romance',scene:'./assets/event-yujin-rain-rescue.png',icon:'🧳',title:'강유진 · 연인의 첫 여행, 실시간 위치',desc:'첫 커플 여행 첫날, 유진이 “위험한 동네도 있으니까 서로 위치 공유만 켜 둬요”라고 제안합니다. 걱정과 통제의 경계에 선 제안입니다.',choices:[
-    {text:'여행 중엔 정해진 시간에만 연락하자고 정한다',result:'유진은 아쉬워하면서도 “불안은 제 몫이니 제가 관리할게요”라고 했습니다. 여행 내내 위치 대신 사진을 주고받았습니다.',trust:11,danger:-12,happy:4,cash:-300000},
-    {text:'서로 안심되게 위치를 계속 공유한다',result:'유진은 눈에 띄게 편안해졌습니다. 다만 당신이 잠깐 신호가 끊긴 30분 동안, 유진은 이미 근처 지구대 번호를 찾고 있었습니다.',affection:9,danger:14,cash:-300000}
-  ]},
-  yujin_romance3:{name:'강유진',kind:'romance',min:72,after:'yujin_romance2',scene:'./assets/event-yujin-safehouse-ending.png',icon:'🔑',title:'강유진 · 열쇠와 비상 계획',desc:'유진이 당신 집 여벌 열쇠와 함께 “당신에게 무슨 일이 생기면 제가 1순위로 움직이게 해줘요”라는 비상 위임장을 내밉니다. 사랑인지 관제인지 구분이 흐려집니다.',choices:[
-    {text:'열쇠는 받되 위임 범위는 응급 상황으로 못 박는다',result:'유진은 조항을 하나하나 줄이면서도 끝내 웃었습니다. “딱 여기까지. 대신 이 선은 제가 목숨 걸고 지킬게요.”',trust:13,danger:-14},
-    {text:'전부 유진이 판단하도록 맡긴다',result:'유진은 처음으로 완전히 안도했습니다. 그날부터 당신의 병원·직장·가족 연락은 모두 유진을 거치게 됐습니다.',affection:12,danger:20}
-  ]},
-
-  /* ── 한채린 · 일상/연애 외출 진행 ── (격식 있는 반말·명령형, 관계를 가치·계약으로) */
-  chaerin_daily1:{name:'한채린',kind:'friend',min:27,after:'chaerin_friend',scene:'./assets/event-chaerin-private-dinner.png',icon:'🛍️',title:'한채린 · 스타일링이라는 이름의 외출',desc:'채린이 폐점 후 백화점을 통째로 열어 두고 불렀습니다. “네 옷차림이 내 옆에 어울릴 수준은 돼야지. 착각하지 말고, 이건 투자야.”',choices:[
-    {text:'“네 취향부터 별로야”라고 잘라 말하고 내 옷을 직접 고른다',result:'채린은 수행원들 앞에서 처음으로 면박을 듣고도 웃음을 참지 못했습니다. “그래, 그 말투 유지해. 옷은 네가 골라.”',affection:11,trust:8},
-    {text:'채린이 골라 주는 대로 전부 받고 잘 어울리냐고 묻는다',result:'채린은 거울보다 휴대전화를 먼저 봤습니다. “시키는 대로 할 거면 굳이 내가 올 필요 없었네.” 선물은 남았지만 관심은 줄었습니다.',affection:-4,trust:1,danger:5}
-  ]},
-  chaerin_daily2:{name:'한채린',kind:'friend',min:43,after:'chaerin_warning',scene:'./assets/event-chaerin-thrown-contract.png',icon:'⛵',title:'한채린 · 주말 별장 초대',desc:'채린이 “주말 비워 뒀어. 이유는 도착해서 말해”라며 별장으로 불렀습니다. 수행원을 모두 물린 이상한 주말, 채린은 평소보다 말이 적습니다.',choices:[
-    {text:'“외롭다고 말도 못 해서 사람을 납치하냐”고 면박을 준다',result:'채린은 화를 내다가 결국 “그래, 외로워서 불렀어. 됐어?”라고 처음으로 목적 없는 부탁을 인정했습니다.',affection:12,trust:10,danger:3},
-    {text:'채린이 편할 때까지 아무것도 묻지 않고 시중을 든다',result:'채린은 편안해하기보다 점점 말이 없어졌습니다. 돌아가는 차 안에서 “다음에는 내가 하라는 것부터 거절해”라고 통보했습니다.',affection:-3,trust:2,danger:5}
-  ]},
-  chaerin_romance2:{name:'한채린',kind:'romance',min:62,after:'chaerin_romance',scene:'./assets/event-chaerin-contract.png',icon:'🥂',title:'한채린 · 재벌가 행사의 파트너',desc:'채린이 그룹 행사에 “내 파트너”로 당신을 세웁니다. 카메라와 임원들 앞에서, 채린은 당신을 소개하는 방식으로 관계의 지분을 정하려 합니다.',choices:[
-    {text:'대본을 접어 채린에게 돌려주고 내 소개는 내가 한다고 선언한다',result:'임원들 앞에서 계획이 틀어졌는데도 채린은 숨기지 못하고 웃었습니다. “그래, 저 사람은 내 말 안 들어. 그래서 내 옆에 세웠어.”',affection:12,trust:11},
-    {text:'채린이 짜 준 대본대로 완벽하게 연기한다',result:'행사는 완벽했고 기사도 좋았습니다. 하지만 채린은 당신을 연인보다 관리 가능한 자산처럼 대했고, 축하 연락도 비서에게 맡겼습니다.',affection:-5,danger:9,cash:2000000}
-  ]},
-  chaerin_romance3:{name:'한채린',kind:'romance',min:72,after:'chaerin_romance2',scene:'./assets/event-chaerin-golden-cage-ending.png',icon:'📜',title:'한채린 · 서명 앞의 두 사람',desc:'채린이 혼전 계약서와 후계 구도 편입 서류를 나란히 내밉니다. “네 인생을 내 장부에 넣어 줄게. 대신 이제 네 결정은 내 결재를 거쳐.”',choices:[
-    {text:'소유 조항을 찢고 “네가 내 허락부터 받아”라고 명령한다',result:'채린은 망가진 계약서 위에 휴대전화를 내려놓고 웃었습니다. “이제야 청혼 같네. 밖에서는 내가, 여기서는 네가 결정해.”',affection:14,trust:12,danger:5},
-    {text:'전부 채린의 설계대로 서명하고 고맙다고 한다',result:'부족할 것 없는 삶과 함께 모든 결재권이 채린에게 넘어갔습니다. 그런데 채린의 방문은 줄었습니다. 이미 완전히 굽힌 사람에게 확인받을 것은 남지 않았기 때문입니다.',affection:-8,danger:14,cash:5000000}
-  ]},
-
-  /* ── 윤세라 · 일상/연애 외출 진행 ── (조심스러운 존댓말, 말줄임·반복, 불안한 집착) */
-  sera_daily1:{name:'윤세라',kind:'friend',min:27,after:'sera_friend',scene:'./assets/event-sera-three-chairs.png',icon:'🎨',title:'윤세라 · 작업실에 초대한 오후',desc:'세라가 처음으로 자기 작업실 문을 열었습니다. “여기… 아무도 안 들여요. 당신이 처음이에요.” 벽 한쪽엔 당신을 닮은 스케치가 몇 장 보입니다.',choices:[
-    {text:'그림은 예쁘지만 나 몰래 그리진 말라고 부드럽게 말한다',result:'세라는 얼굴이 빨개져 “다음엔… 앞에서 그릴게요. 도망 안 가면요”라며 스케치를 상자에 넣었습니다.',affection:5,trust:11,danger:-4},
-    {text:'모델이 되어 주겠다며 오래 앉아 준다',result:'세라는 몇 시간이고 붓을 놓지 않았습니다. “이 시간이 안 끝났으면… 아, 이상한 말 했죠?” 행복해 보였지만 눈이 자꾸 문을 확인했습니다.',affection:9,trust:4,danger:7,happy:4}
-  ]},
-  sera_daily2:{name:'윤세라',kind:'friend',min:43,after:'sera_warning',scene:'./assets/event-sera-convenience-date.png',icon:'🌌',title:'윤세라 · 목적지 없는 새벽 드라이브',desc:'세라가 “어디든 좋아요. 그냥… 지금 당신이랑만 있고 싶어서”라며 새벽 드라이브를 청합니다. 라디오도 끄고, 세라는 몇 번이나 당신 표정을 살핍니다.',choices:[
-    {text:'좋았던 밤이라고 말해 주되 집 앞에서 인사한다',result:'세라는 “오늘은 여기까지… 맞죠? 그래도 괜찮아요”라며 스스로 문을 닫았습니다. 헤어짐을 견디는 연습을 조금 한 밤이었습니다.',affection:6,trust:10,danger:-5,cash:-50000},
-    {text:'날이 밝을 때까지 계속 달린다',result:'세라는 처음으로 크게 웃었습니다. 다만 해가 뜨자 “이 밤이 끝나면 또 혼자죠?”라며 당신 소매를 오래 놓지 못했습니다.',affection:10,danger:10,happy:3,cash:-50000}
-  ]},
-  sera_romance2:{name:'윤세라',kind:'romance',min:66,after:'sera_reverse_outing',scene:'./assets/event-sera-7.png',icon:'📷',title:'윤세라 · 우리라는 증거',desc:'세라가 같은 방에서 찍은 셀카와 커플 계정을 보여 줍니다. “우리가 진짜라는 걸… 남들도 알면 제가 덜 불안할 것 같아서요. 이상한가요?” 사진 속 세라는 행복하지만, 게시 시각은 당신 일정표와 정확히 맞아 있습니다.',choices:[
-    {text:'우리 관계는 남에게 증명할 필요 없다고 안심시킨다',result:'세라는 울먹이며 “그 말… 저장해도 돼요? 불안할 때 볼게요”라고 했습니다. 증거 대신 약속을 믿어 보기로 했습니다.',trust:10,danger:-10,flags:{seraProofBoundary:true}},
-    {text:'세라가 안심하게 커플 공개와 실시간 기록을 전부 받아들인다',result:'세라는 환하게 웃으며 프로필을 바꿨습니다. 그날부터 사진이 없는 시간은 “왜 안 올렸어요?”라는 질문으로 돌아왔고, 다른 연락처는 사진 밖으로 밀려나기 시작했습니다.',affection:10,danger:16,flags:{seraPublicProof:true}}
-  ]},
-  sera_romance3:{name:'윤세라',kind:'romance',min:74,after:'sera_romance2',scene:'./assets/event-sera-mutual-captivity.png',icon:'🔑',title:'윤세라 · 복사한 열쇠 두 개',desc:'세라가 손바닥 위에 똑같은 열쇠 두 개를 올려놓습니다. “하나는 당신 것, 하나는 제 것. 언제든 들어오는 권리 말고… 언제든 돌아올 수 있다는 뜻이면 안 돼요?”',choices:[
-    {text:'열쇠는 돌려주고 올 때는 꼭 먼저 연락하자고 정한다',result:'세라는 한참 손을 떨다 열쇠를 내려놓았습니다. “먼저 연락하는 것도… 사랑이라고 생각할게요.” 집착보다 약속을 택한 밤입니다.',trust:12,danger:-13},
-    {text:'서로 언제든 들어올 수 있게 열쇠를 하나씩 나눠 갖는다',result:'세라는 열쇠 하나를 당신 손에 직접 쥐여 줬습니다. 다음 날부터 누가 누구를 기다리는지 구분하기 어려운 생활이 시작됐습니다.',affection:12,danger:20,mutualObsession:1,flags:{hasHomeKey:true}}
-  ]}
 };
 function isDangerousHeroine(person){return!!person&&DANGEROUS_HEROINE_NAMES.includes(person.name);}
 function dangerousRomanceActive(L,r){
@@ -6811,12 +6739,13 @@ function startDangerousTrioRoute(auto){
 function showDangerousTrioStory(){
   const chapter=DANGEROUS_TRIO.next(S.life),host=$('life-event');if(!chapter||!host){closeLifeEvent();showNextImportantEvent();return;}
   const state=DANGEROUS_TRIO.ensure(S.life),witness=trioWitness();
+  const carry=chapter.focus&&DANGEROUS_TRIO.personalCarry?DANGEROUS_TRIO.personalCarry(S.life,chapter.focus):null;
   const speakers=chapter.speakers.map(s=>{
     const row=dangerousTrioSpeaker(s,witness);
     return`<div class="trio-dialogue"><img src="${row.portrait}" alt="${row.name}"><div><b>${row.name}</b><p>“${row.line}”</p></div></div>`;
   }).join('');
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">${chapter.icon} ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="trio-story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${chapter.scene}" alt="${chapter.title} 이벤트 컷신"><div class="trio-meter"><span>세 사람의 분위기</span><b class="${state.stability<30?'down':'up'}">${state.stability<30?'금방이라도 깨질 듯함':'묘하게 맞물림'}</b></div><div class="event-desc">${chapter.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${chapter.choices.map(choice=>`<button class="event-opt" data-trio-choice="${choice.id}">${choice.text}</button>`).join('')}<button class="event-opt" id="trio-story-later">지금은 셋을 돌려보낸다</button></div><div class="event-outcome" id="trio-outcome"></div></div></div>`;
+  host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">${chapter.icon} ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="trio-story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${chapter.scene}" alt="${chapter.title} 이벤트 컷신"><div class="trio-meter"><span>세 사람의 분위기</span><b class="${state.stability<30?'down':'up'}">${state.stability<30?'금방이라도 깨질 듯함':'묘하게 맞물림'}</b></div>${carry?`<div class="story-continuity"><b>📕 ${carry.name} 개인 아크 · ${carry.title}</b><br>${carry.text}<br><span class="muted">개인 결말은 지워지지 않습니다. 이번 장에서는 그 결론을 세 사람이 함께 있는 관계에서도 지킬 수 있는지 확인합니다.</span></div>`:''}<div class="event-desc">${chapter.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${chapter.choices.map(choice=>`<button class="event-opt" data-trio-choice="${choice.id}">${choice.text}</button>`).join('')}<button class="event-opt" id="trio-story-later">지금은 셋을 돌려보낸다</button></div><div class="event-outcome" id="trio-outcome"></div></div></div>`;
   host.querySelectorAll('[data-trio-choice]').forEach(button=>button.addEventListener('click',()=>resolveDangerousTrioStory(button.dataset.trioChoice)));
   [$('trio-story-x'),$('trio-story-later')].forEach(button=>button.addEventListener('click',closeLifeEvent));
 }
@@ -6853,7 +6782,10 @@ function activateDangerousTrioBond(){
   main.status='partner';awakenDangerousHeroine(main,'relationship');
   poly.active=true;poly.mode='dangerous_trio_success';poly.tone='dangerous_balance';poly.trust=Math.round(DANGEROUS_TRIO.ensure(L).stability);
   poly.members=people.slice(1).map(r=>{r.status='polycule';awakenDangerousHeroine(r,'relationship');return{name:r.name,job:r.job,personality:r.personality,age:r.age,emoji:r.emoji,gender:r.gender,portrait:r.portrait,special:r.special};});
-  L.dangerousTrioBond={active:true,since:S.day,members:DANGEROUS_HEROINE_NAMES.slice(),clubEscapeAttempts:0,chaerinSupportRefusals:0,chaerinCashAccepted:false};
+  const trioState=DANGEROUS_TRIO.ensure(L);
+  L.dangerousTrioBond={active:true,since:S.day,members:DANGEROUS_HEROINE_NAMES.slice(),clubEscapeAttempts:0,chaerinSupportRefusals:0,chaerinCashAccepted:false,
+    personalRoutes:Object.assign({},trioState.individualRoutes||{}),personalConcessions:JSON.parse(JSON.stringify(trioState.personalConcessions||{}))};
+  people.forEach(person=>{person.groupRoute='dangerous_bad_friends';person.individualEndingRetained=!!(person.story&&person.story.ending);});
   people.forEach(person=>RELATIONSHIPS.addMember(L,person,S.day));const group=RELATIONSHIPS.ensure(L).relationshipGroup;group.agreement.cohabiting=true;group.agreement.publicity='public';
   FAMILY.syncCaregivers(L,RELATIONSHIPS.caregiverNames(L));
   lockDangerousTrioHome(L);

@@ -297,6 +297,10 @@ for (const file of [
   assert.equal(finish('강유진','boundary').yujinEndingRoute,'equal','강유진과 경계를 지키면 대등한 순애 엔딩이어야 한다');
   assert.equal(finish('한채린','command').chaerinEndingRoute,'private_submission','한채린의 사적 명령 선택은 왕관을 내려놓는 엔딩으로 이어져야 한다');
   assert.equal(finish('한채린','equal').chaerinEndingRoute,'equal','한채린과 같은 자리를 고르면 대등한 순애 엔딩이어야 한다');
+  const gated={name:'강유진',status:'friend',affection:100,trust:50,dangerEvents:{}};
+  assert.equal(stories.next(gated),null,'광기 3인 개인 아크는 친구 호감 컷씬과 첫 위험 신호를 건너뛰고 시작하면 안 된다');
+  gated.dangerEvents.yujin_warning='seen';
+  assert.ok(stories.next(gated),'첫 위험 신호를 확인한 뒤에는 중복 컷씬 대신 정식 개인 아크가 이어져야 한다');
 }
 
 {
@@ -310,7 +314,17 @@ for (const file of [
     faction:{level:1,members:[{uid:'mentor-intel-1',sourceId:'mentor-intel',name:'강도윤',upkeep:140000,loyalty:78}]},
     met:trio.NAMES.map(name=>({name,status:'friend',affection:85,trust:70,story:{chapter:5,completed:true,history:[],traits:{},variant:'adult',ending:{route:endings[name],title:name}}}))
   };
-  assert.equal(trio.PRELUDES.length,3,'위험 3인조는 정식 공생 전에 첫 대면·취향 폭로·잘잘못 재판을 거쳐야 한다');
+  assert.equal(trio.PRELUDES.length,2,'위험 3인조의 취향 폭로와 잘잘못 재판은 중복 없이 한 악우 사건으로 합쳐져야 한다');
+  assert.equal(trio.CHAPTERS.length,6,'위험 3인조 그룹 본편은 공조·개인 결말 양보 3장·위기·공동생활 합의의 6장이어야 한다');
+  assert.deepEqual(trio.CHAPTERS.filter(chapter=>chapter.focus).map(chapter=>chapter.focus),trio.NAMES,'각 개인 아크의 결론이 그룹 안의 인물별 양보 장면으로 한 번씩 이어져야 한다');
+  assert.equal(trio.AFTERMATH.length,5,'공동생활 후일담은 규칙뿐 아니라 돌봄과 자발적 귀가까지 5개월을 다뤄야 한다');
+  const legacyActive={dangerousTrio:{active:true,encountered:true,stage:3,stability:82,axes:{balance:3,containment:0,fracture:0},history:[
+    {stage:0,choice:'roles',tag:'balance'},{stage:1,choice:'same',tag:'balance'},{stage:2,choice:'thank',tag:'balance'}
+  ]}};
+  const migrated=trio.ensure(legacyActive);
+  assert.equal(migrated.version,trio.VERSION,'구버전 4장 진행 저장은 새 광기 3인조 스키마로 한 번만 이관돼야 한다');
+  assert.equal(migrated.stage,1,'구버전 진행 저장은 이미 본 공조 장 뒤의 새 개인 결말 양보 장부터 이어져야 한다');
+  assert.equal(migrated.history.length,1,'구버전의 중복 정상 논쟁과 후반 장 선택을 새 그룹 축에 이중 반영하면 안 된다');
   assert.equal(trio.eligibility(life).ok,false,'세 사람이 악우가 되기 전에 정식 공동 루트가 먼저 열리면 안 된다');
   trio.PRELUDES.forEach((event,index)=>{
     life.day=9+index;
@@ -322,6 +336,7 @@ for (const file of [
   assert.equal(trio.start(life).ok,true);
   while(trio.next(life))trio.apply(life,trio.next(life).choices.find(choice=>choice.tag==='balance').id);
   assert.equal(trio.ensure(life).ending.id,'bad_friends','균형 선택은 위험 3인조 악우 공동생활 결말이어야 한다');
+  assert.equal(Object.keys(trio.ensure(life).personalConcessions).sort().join('|'),Array.from(trio.NAMES).sort().join('|'),'세 사람 모두 개인 결말을 그룹 관계 안에서 다시 선택한 기록이 남아야 한다');
   assert.ok(context.QT_ROMANCE_ROUTES.ensure(life).completed.dangerous,'그룹 엔딩은 공통 진행 장부에 완료로 기록돼야 한다');
 
   const failedLife={
@@ -1734,6 +1749,13 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(trioSource,/두 배로 되겠냐\. 세 배는 받아야지/,'플레이어도 월급 요구를 농담으로 받아칠 수 있어야 한다');
   assert.doesNotMatch(trioSource,/payRate/,'월급 농담 선택이 실제 급여 배율을 저장하면 안 된다');
   assert.match(trioSource,/id:'preference_audit'/,'세 사람은 정식 공생 전에 서로의 취향을 폭로하는 사건을 겪어야 한다');
+  assert.doesNotMatch(trioSource,/id:'fault_tribunal'/,'취향 폭로와 잘잘못 재판을 별도 사건으로 반복하면 안 된다');
+  for(const removed of ['yujin_control','chaerin_control','sera_control','yujin_daily1','chaerin_daily1','sera_daily1','yujin_romance3','chaerin_romance3','sera_romance3']){
+    assert.doesNotMatch(appSource,new RegExp(`${removed}:\\{`),`${removed} 중복 호감 컷씬은 정식 개인 아크와 병렬로 남으면 안 된다`);
+  }
+  assert.match(appSource,/개인 아크 ·/,'그룹 본편은 개인 결말을 단순 완료 조건이 아니라 현재 장의 감정 전제로 보여줘야 한다');
+  assert.match(trioSource,/quiet_sickday/,'공동생활 후일담에는 감시가 돌봄으로 바뀌는 정서 장면이 있어야 한다');
+  assert.match(trioSource,/separate_returns/,'공동생활 후일담에는 각자가 자발적으로 돌아오는 생활 장면이 있어야 한다');
   assert.match(trioSource,/life\.seraHousing==='cohabit'/,'위험 3인조는 윤세라와 실제 동거 중일 때만 열려야 한다');
   const lifeEventsSource=fs.readFileSync(path.join(root,'js/events_life.js'),'utf8');
   assert.match(lifeEventsSource,/seraHousing:'separate'/,'윤세라를 집에서 내보내는 선택지가 있어야 한다');
