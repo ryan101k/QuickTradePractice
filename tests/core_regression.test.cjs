@@ -245,11 +245,15 @@ for (const file of [
   const stories=context.QT_CHARACTER_STORIES;
   const yujinStory=stories.get('강유진'),chaerinStory=stories.get('한채린');
   assert.equal(yujinStory.chapters.length,9,'강유진 개인 스토리는 추가 일러를 쓰는 9장 분량이어야 한다');
-  assert.equal(chaerinStory.chapters.length,8,'한채린 개인 스토리는 8장 분량이어야 한다');
+  assert.equal(chaerinStory.chapters.length,10,'한채린 개인 스토리는 첫 계약부터 왕관을 내려놓는 밤까지 10장 분량이어야 한다');
   assert.ok([...yujinStory.chapters,...chaerinStory.chapters].every(chapter=>Number.isFinite(chapter.min)&&chapter.scene),'강유진·한채린의 모든 장에는 조건과 컷신 자리가 있어야 한다');
   for(const scene of ['event-yujin-1.png','event-yujin-2.png','event-yujin-night-3.png','event-yujin-5135.png','event-yujin-14.png']){
     assert.ok(yujinStory.chapters.some(chapter=>chapter.scene===scene),`강유진 추가 일러 ${scene}가 개인 스토리에 배치돼야 한다`);
     assert.ok(fs.existsSync(path.join(root,'assets',scene)),`강유진 추가 일러 ${scene} 파일이 있어야 한다`);
+  }
+  for(const scene of ['event-chaerin-1.png','event-chaerin-2.png','event-chaerin-4.png','event-chaerin-5.png','event-chaerin-8.png','event-chaerin-9.png','event-chaerin-10.png']){
+    assert.ok(chaerinStory.chapters.some(chapter=>chapter.scene===scene),`한채린 추가 일러 ${scene}가 개인 스토리에 배치돼야 한다`);
+    assert.ok(fs.existsSync(path.join(root,'assets',scene)),`한채린 추가 일러 ${scene} 파일이 있어야 한다`);
   }
   const storyAppSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
   assert.match(storyAppSource,/dangerous_dependence:'\.\/assets\/event-yujin-1111\.png'/,'강유진 위험한 의존 완결에는 전용 내면 독백 컷신을 써야 한다');
@@ -435,7 +439,7 @@ for (const file of [
   const chaerinLife={met:[]},chaerinState=romance.ensure(chaerinLife);
   ['office','creative'].forEach(id=>Object.assign(chaerinState.staff[id],{introduced:true,hired:true,revealed:true}));
   const chaerinEvent=romance.monthly(chaerinLife,{day:1,businessState:{owned:[]},partnerNames:[],met:chaerinLife.met});
-  assert.equal(chaerinEvent.kind,'chaerin-board','한채린을 모르더라도 얼굴을 공개한 책임자가 둘 이상이면 대체 첫 조우가 열려야 한다');
+  assert.equal(chaerinEvent.kind,'chaerin-board','한채린을 모르더라도 책임자가 둘 이상이면 이름과 스카우트 방식만 먼저 드러나야 한다');
 }
 
 {
@@ -935,19 +939,23 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.doesNotMatch(socialNetworkSource, /예린이네하고 다시 연락/, '아버지가 차단한 전 연인과 다시 연락하라고 말하면 안 된다');
   assert.match(lifeEventsSource, /새 연락처는 생기지 않았지만/, '일반 외출 사건이 자동으로 히로인 연락처를 만들면 안 된다');
   assert.match(appSource, /r\.name==='윤세라'\?\.72:earlyContact\?\.10:\.16/, '위험 히로인 중 윤세라만 초반 고빈도 연락 예외여야 한다');
-  assert.match(appSource,/function showSpecialFollowupMeet\(id,c,rec\)/,'강유진·한채린은 첫 조우 뒤 별도의 후속 만남을 가져야 한다');
+  assert.match(appSource,/function showSpecialFollowupMeet\(id,c,rec\)/,'강유진은 첫 조우 뒤 별도의 후속 수사를 가져야 한다');
   assert.match(appSource,/canSpecialFollowup\(yujinRecord\)/,'강유진은 첫 사건 조건이 사라져도 후속 약속이 다시 떠야 한다');
-  assert.match(appSource,/canSpecialFollowup\(chaerinRecord\)/,'한채린은 최초 세력 조건과 무관하게 후속 회동이 다시 떠야 한다');
-  assert.match(appSource,/gathering\.tier>=2&&!metRecord\(S\.life,'한채린'\)/,'한채린은 별도 비밀모임이 아니라 기존 비공개 포럼 이상 사교모임에서 만나야 한다');
+  assert.doesNotMatch(appSource,/한채린의 비서실 약속에 응한다/,'한채린 후속 이야기를 행동창의 전용 버튼으로 진행하면 안 된다');
+  assert.match(appSource,/function showNaraeChaerinLead\(gathering,introducedId\)/,'나래가 사교모임 인맥 수업 뒤 한채린이 있는 자리로 안내해야 한다');
+  assert.match(appSource,/gathering\.tier>=1&&SOCIAL\.ensure\(S\.life\)\.industry\.meetings>=3/,'한채린은 첫 사교모임이 아니라 세 차례 이상 참석한 뒤 나래의 안내로 만나야 한다');
   assert.match(appSource,/function showChaerinIndustryEncounter\(gathering,introducedId\)/,'사교모임 안에 한채린 첫 조우 장면이 있어야 한다');
-  assert.match(appSource,/“사람 부를 때는 용건부터 말해\. 의자 장난할 거면 간다\.”/,'한채린 첫 조우에는 비위를 맞추지 않고 거칠게 거절하는 선택지가 있어야 한다');
-  assert.match(appSource,/flatter:\{affection:-4/,'한채린에게 아첨하면 첫 조우 호감이 내려가야 한다');
+  assert.match(appSource,/data-chaerin-first="tear"/,'한채린의 계약서를 직접 찢는 선택지가 있어야 한다');
+  assert.match(appSource,/if\(choice==='tear'\)\{\s*rec=rememberPerson/,'계약서를 찢은 경우에만 한채린을 실제 인연으로 기록해야 한다');
+  assert.match(appSource,/function showChaerinGatheringFollowup\(c,rec,gathering\)/,'계약 파기 뒤 후속 동행은 다시 사교모임 안에서 이어져야 한다');
+  assert.match(appSource,/손목을 뿌리치다 실수로 뺨을 때린다/,'세 번째 동행에는 떠나기·참기와 구분된 위험한 실수 분기가 있어야 한다');
+  assert.match(appSource,/function showChaerinAwakening\(rec\)/,'뺨 사건 뒤 한채린의 독백과 위험한 각성 장면이 별도로 이어져야 한다');
   assert.doesNotMatch(appSource,/한채린의 비공개 회동 제안을 받는다/,'한채린 전용 비공개 회동 버튼이 다시 생기면 안 된다');
   assert.doesNotMatch(charactersSource,/key:'chaerin_scene'/,'데이트 경로에 중복 한채린 비공개 회동이 남으면 안 된다');
   assert.match(fs.readFileSync(path.join(root,'js/character_traits.js'),'utf8'),/name:'굴복 욕구'/,'한채린 고유 수치는 아첨이 아니라 사적인 굴복 성향을 표현해야 한다');
   const chaerinStorySource=fs.readFileSync(path.join(root,'js/character_stories.js'),'utf8');
   assert.match(chaerinStorySource,/계열사 이름이 적힌 계좌/,'한채린 개인 스토리는 강유진 수사와 윤세라 원본 장부에 연결돼야 한다');
-  assert.match(chaerinStorySource,/C\('command','“변명 말고 네 이름으로 공개하고 피해자부터 갚아”라고 명령한다'/,'한채린은 명령과 거절에 가장 크게 반응해야 한다');
+  assert.match(chaerinStorySource,/C\('command','변명 말고 네 이름으로 공개하고 피해자부터 갚으라고 명령한다'/,'한채린은 명령과 거절에 가장 크게 반응해야 한다');
   assert.match(appSource,/S\.life\.seraHousing==='cohabit'/,'윤세라 동거 중 후속 만남에는 위험 3인조 악우 변형이 있어야 한다');
   assert.match(appSource,/dangerousBadFriendsEncounters/,'동거 중 강유진·한채린 후속 만남은 악우 관계 기록을 쌓아야 한다');
   assert.match(appSource,/function queueYujinInvestigation\(housing,attacker\)/,'첫 경쟁 세력 피해 뒤 강유진의 담당 수사를 자동 예약해야 한다');
