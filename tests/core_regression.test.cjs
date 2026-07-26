@@ -815,6 +815,12 @@ for (const file of [
   assert.equal(freedom.playGuild(guildLife),'quiet_guild');
   freedom.resolveGuild(guildLife,'quiet_guild','soup');
   freedom.playGuild(guildLife);
+  assert.equal(freedom.playGuild(guildLife),null,'첫 공격과 광기 3인조 진입 판단 전에는 게임을 반복해도 현실 정모가 열리면 안 된다');
+  assert.equal(freedom.ensure(guildLife).meetupDeferred,true,'막힌 정모는 사라지지 않고 2장 대기 상태로 남아야 한다');
+  guildLife.faction={level:1};
+  guildLife.seraHousing='reject';
+  guildLife.outsideFearResolved=true;
+  assert.equal(freedom.chapterTwoUnlocked(guildLife),true,'윤세라를 만난 뒤 광기 3인조를 명시적으로 거절하고 세력 설명을 마치면 2장이 열려야 한다');
   assert.equal(freedom.playGuild(guildLife),'offline_table');
   const meetupInvite=freedom.resolveGuild(guildLife,'offline_table','meetup');
   assert.equal(meetupInvite.reveal,false,'정모 약속만으로 실명과 초상화가 공개되면 안 된다');
@@ -822,9 +828,9 @@ for (const file of [
   assert.equal(freedom.nextCounselingEvent(guildLife),null,'첫 정모 전에 현실 고민 상담이 먼저 열리면 안 된다');
   assert.equal(freedom.queueFirstOuting(guildLife),true);
   const rescueResult=freedom.applyFirstOuting(guildLife);
-  assert.equal(rescueResult.mode,'rescue','윤세라 없이 은둔 중 만난 자유인 3인조는 후순위 구원 역할을 해야 한다');
+  assert.equal(rescueResult.mode,'social','자유인 첫 정모는 1장 진입 판단이 끝난 뒤 2장 현실 친구 이야기로 시작해야 한다');
   assert.equal(rescueResult.reveal,true,'실명과 현실 초상화는 첫 정모를 실제로 마친 뒤에만 공개돼야 한다');
-  assert.equal(guildLife.freedomRescueComplete,true,'자유인 첫 정모는 은둔 생활의 자발적 외출 관문을 해결해야 한다');
+  assert.notEqual(guildLife.freedomRescueComplete,true,'자유인 정모가 윤세라 필수 조우를 건너뛰는 초반 탈출구가 되면 안 된다');
   freedom.NAMES.forEach(name=>guildLife.met.push({name,status:'friend',affection:80,trust:60,guildFriend:true}));
   assert.equal(freedom.canContact(guildLife,'채원'),true,'첫 정모 뒤에는 현실 연락처가 열려야 한다');
   assert.equal(freedom.canMeetOffline(guildLife,'채원'),true,'첫 정모 뒤에는 현실 친구로 만날 수 있어야 한다');
@@ -832,6 +838,12 @@ for (const file of [
   assert.equal(freedom.nextPersonalEvent(guildLife),null,'공항·촬영·공연 중심 구버전 개인 사건이 새 단체 줄기보다 먼저 열리면 안 된다');
   assert.equal(freedom.counselingComplete(guildLife),true,'새 그룹 본편은 단체방 장면 자체가 일상 연락을 포함해야 한다');
   assert.deepEqual(Array.from(freedom.GUILD_MEMBERS.map(member=>member.nickname)),['막차요정','무보정','쉼표']);
+  const cohabitChapterLife={met:[],faction:{level:1},seraHousing:'cohabit'};
+  const cohabitState=freedom.ensure(cohabitChapterLife);
+  Object.assign(cohabitState,{guildStage:2,gameSessions:6,guildJoined:true});
+  assert.equal(freedom.playGuild(cohabitChapterLife),null,'윤세라 동거를 택했다면 광기 3인조 본편 결말 전 정모를 앞질러 갈 수 없어야 한다');
+  cohabitChapterLife.dangerousTrio={ending:{id:'friends'}};
+  assert.equal(freedom.playGuild(cohabitChapterLife),'offline_table','광기 3인조 본편 결말 뒤에는 자유인 정모가 2장으로 이어져야 한다');
   const groupChat=context.QT_GROUP_CHAT;
   const hiddenChatLife={met:[],freedomTrio:{guildJoined:true,guildStage:1,identityState:'hidden',firstOuting:'locked'}};
   groupChat.sync(hiddenChatLife,3);
@@ -858,7 +870,7 @@ for (const file of [
   assert.ok(takeoverResult.room.messages.some(message=>/세라니/.test(message.text)),'유나는 세라가 대신 친 문장을 알아채고 역으로 물어야 한다');
   assert.equal(storyChatLife.freedomTrio.phoneBoundarySet,true,'플레이어가 휴대폰을 되찾으면 이후 직접 답장 경계를 저장해야 한다');
 
-  const onlineLife={met:[{name:'나래',status:'partner',affection:80,trust:70}],partner:{name:'나래'}};
+  const onlineLife={met:[{name:'나래',status:'partner',affection:80,trust:70}],partner:{name:'나래'},faction:{level:1},seraHousing:'reject',outsideFearResolved:true};
   const onlineState=freedom.ensure(onlineLife);
   onlineState.guildStage=2;onlineState.gameSessions=6;onlineState.guildJoined=true;
   const onlineResult=freedom.resolveGuild(onlineLife,'offline_table','meetup');
@@ -871,7 +883,7 @@ for (const file of [
   assert.equal(freedom.marketRumorAvailable(onlineLife),false,'정체를 모르는 온라인 친구가 현실 주식 소문 조력자로 바뀌면 안 된다');
   assert.equal(context.QT_ROMANCE_ROUTES.engaged(onlineLife,'freedom'),false,'온라인 친구 결말이 후속 그룹의 중심축을 계속 점유하면 안 된다');
 
-  const changedLife={met:[]};
+  const changedLife={met:[],faction:{level:1},seraHousing:'reject',outsideFearResolved:true};
   const changedState=freedom.ensure(changedLife);
   changedState.guildStage=2;changedState.gameSessions=6;changedState.guildJoined=true;
   freedom.resolveGuild(changedLife,'offline_table','meetup');
@@ -882,7 +894,7 @@ for (const file of [
   assert.equal(changedState.identityState,'hidden');
   assert.equal(changedState.onlineOnlyComplete,true,'관계가 바뀐 경우에도 온라인 친구 정상 결말로 수렴해야 한다');
 
-  const sharedLife={met:[],dangerousTrioBond:{active:true}};
+  const sharedLife={met:[],dangerousTrioBond:{active:true},faction:{level:1},seraHousing:'cohabit',outsideFearResolved:true};
   const sharedState=freedom.ensure(sharedLife);
   sharedState.guildStage=2;sharedState.gameSessions=6;sharedState.guildJoined=true;
   const sharedInvite=freedom.resolveGuild(sharedLife,'offline_table','meetup');
@@ -1277,6 +1289,9 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /내가 왜 여기까지 왔지\?/, '클럽 입구에서는 플레이어도 자신의 행동을 이해하지 못하는 망설임이 보여야 한다');
   assert.doesNotMatch(appSource, /히로인이 아닌 처음 보는 여성과 가볍게 어울립니다/, '클럽 카드가 결과를 시스템 설명처럼 미리 적어두면 안 된다');
   assert.match(appSource, /function showFactionMentorPhoneStory/, '첫 세력 공격은 장태식의 스마트폰 연락으로 이어져야 한다');
+  assert.match(appSource, /seraFirstAttackEncounter:true/, '첫 공격은 랜덤 일상 사건이 아니라 윤세라 폐작업실 조우를 필수 사건으로 예약해야 한다');
+  assert.match(appSource, /function queueFactionMentorAfterSera/, '윤세라 거처 선택을 끝낸 뒤에만 장태식의 세력 설명이 이어져야 한다');
+  assert.match(appSource, /prologue\.firstAttackSequence='complete'/, '장태식에게 첫 부하를 받은 뒤 프롤로그 공격 연쇄 완료를 기록해야 한다');
   assert.match(appSource, /function showFactionMentorFall/, '세력 창설 직후 장태식 사망과 태식 사채라인 해산 화면이 이어져야 한다');
   assert.match(appSource, /RIVALS\.collapseFaction\(/, '장태식 세력 해산은 일반 경쟁 세력 파산과 같은 상태 변경을 사용해야 한다');
   assert.match(appSource, /function showFactionResume/, '세력 지원자는 즉시 영입되지 않고 이력서를 먼저 보여줘야 한다');
@@ -1298,7 +1313,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.doesNotMatch(appSource, /function makeCandidate/, '외출 화면이 전체 히로인 명부에서 새 사람을 추첨하면 안 된다');
   assert.match(appSource, /이번 주에는 누구를 만나기보다, 내가 갈 곳부터 정해 보기로 했습니다/, '외출 화면은 시스템 설명 대신 플레이어의 시점으로 말해야 한다');
   assert.match(appSource, /if\(!freeOutingUnlocked\(S\.life\)\)\{showOutsideFearModal\(\)/, '윤세라 작업실 사건 전 자발적 외출은 현관 공포 장면으로 막혀야 한다');
-  assert.match(appSource, /L\.outsideFearResolved\|\|L\.freedomRescueComplete/, '윤세라 없이도 자유인 3인조의 상담·첫 외출을 통해 은둔 외출 관문을 해결할 수 있어야 한다');
+  assert.match(appSource, /L\.outsideFearResolved\|\|L\.freedomRescueComplete/, '구버전 저장의 자유인 구원 완료 기록도 외출 해금 호환값으로 인정해야 한다');
   assert.doesNotMatch(appSource, /L\.seraHousing==='reject'\|\|metRecord\(L,'윤세라'\)/, '윤세라를 거절했거나 얼굴만 본 사실만으로 자발적 외출이 즉시 열리면 안 된다');
   assert.match(appSource, /!\['game','study'\]\.includes\(id\)&&!freeOutingUnlocked\(S\.life\)/, '외부 취미로 초반 은둔 외출 관문을 우회하면 안 된다');
   assert.match(appSource, /아직은 밖에 나가기가 무섭다/, '초반 외출 팝업은 플레이어의 은둔 상태를 직접 보여줘야 한다');
@@ -1392,10 +1407,12 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/S\.life\.seraHousing==='cohabit'/,'윤세라 동거 중 후속 만남에는 위험 3인조 악우 변형이 있어야 한다');
   assert.match(appSource,/dangerousBadFriendsEncounters/,'동거 중 강유진·한채린 후속 만남은 악우 관계 기록을 쌓아야 한다');
   assert.match(appSource,/function queueYujinInvestigation\(housing,attacker\)/,'첫 경쟁 세력 피해 뒤 강유진의 담당 수사를 자동 예약해야 한다');
+  assert.match(appSource,/if\(!L\|\|!sera\|\|!\['cohabit','separate','reject'\]\.includes/,'윤세라를 실제로 만나고 거처 선택을 끝내기 전에는 강유진 수사가 예약되면 안 된다');
   assert.match(appSource,/queueImportantEvent\(\{yujinInvestigation:true/,'강유진 첫 조우는 플레이어가 숨은 버튼을 찾는 대신 주요 사건으로 떠야 한다');
   assert.match(appSource,/eff\.seraHousing==='reject'&&L\.seraRescueOrigin\)L\.seraRescueOrigin\.ready=false/,'윤세라를 떠나보낸 뒤 같은 폐작업실 구조 사건이 반복되면 안 된다');
   assert.match(appSource,/if \(event\.yujinInvestigation\) \{ showYujinInvestigation\(false\)/,'월말 주요 사건 큐가 강유진 방문 조사 화면으로 이어져야 한다');
   const yujinInvestigationSource=appSource.slice(appSource.indexOf('function showYujinInvestigation'),appSource.indexOf('function meetSpecialPerson'));
+  assert.match(yujinInvestigationSource,/if\(!sera\)\{/,'구버전 큐가 남아 있어도 윤세라를 모르는 상태에서 강유진이 이름을 언급하면 안 된다');
   assert.match(yujinInvestigationSource,/동거인입니까\? 아니면… 애인입니까\?/,'윤세라 동거 중 강유진은 관계를 자연스럽게 확인해야 한다');
   assert.match(yujinInvestigationSource,/rec\.officialContact=true/,'첫 조사에서는 강유진의 업무용 연락만 열려야 한다');
   assert.doesNotMatch(yujinInvestigationSource,/unlockPersonalContact\(rec\)/,'강유진 첫 조사에서 개인 연락처를 바로 주면 안 된다');
@@ -1823,7 +1840,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
     assert.equal(fs.existsSync(path.join(root,'assets',file)),false,`${file} 구버전 컷신은 새 외형 전환 뒤 남아 있으면 안 된다`);
   }
   assert.match(appSource,/개인적인 전쟁/,'세력 창에서 개인적인 공격 동기를 보여줘야 한다');
-  assert.match(appSource,/L\.seraRescueOrigin=\{ready:true/,'윤세라 조우는 첫 경쟁 세력 피해에서 시작해야 한다');
+  assert.match(appSource,/L\.seraRescueOrigin=Object\.assign\(\{\},previous,\{[\s\S]{0,180}ready:true/,'윤세라 조우는 첫 경쟁 세력 피해에서 필수 사건 상태로 시작해야 한다');
   assert.match(appSource,/L\.seraIntelHelper=true/,'구조된 윤세라는 세력 정보 조력자가 되어야 한다');
   assert.match(appSource,/L\.seraHousing=eff\.seraHousing/,'윤세라 구조 선택은 동거 여부를 저장해야 한다');
   assert.match(appSource,/bond\.clubEscapeAttempts=Math\.max\(0,bond\.clubEscapeAttempts\|\|0\)\+1/,'공동생활 중 클럽 시도는 경고 횟수를 누적해야 한다');
