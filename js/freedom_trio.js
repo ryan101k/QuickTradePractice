@@ -257,13 +257,13 @@ const STORY_CHAPTERS=[
   },
   {
     id:'ordinary_photos',title:'2장 · 사진이 쌓이는 밤',icon:'🌙',
-    scene:'./assets/event-yuna-2.png',
+    scene:'./assets/event-freedom-chat-yuna.png',
     scenes:[
-      {name:'채원',src:'./assets/event-chaewon-2.png',caption:'채원은 마지막 비행이 끝난 빈 대기실을 보냈다.'},
-      {name:'유나',src:'./assets/event-yuna-2.png',caption:'유나는 촬영 뒤 차 안에서 먹는 컵라면을 자랑했다.'},
-      {name:'소희',src:'./assets/sohee-evnet-3.png',caption:'소희는 아무도 없는 작업실과 끝나지 않은 세션을 보냈다.'},
+      {name:'채원',src:'./assets/event-freedom-chat-chaewon.png',caption:'채원은 유니폼을 벗고 창가에 앉은, 밖에는 올리지 못할 퇴근 사진을 보냈다.'},
+      {name:'유나',src:'./assets/event-freedom-chat-yuna.png',caption:'유나는 촬영용 표정을 지운 채 진짜 무보정 사진을 올렸다.'},
+      {name:'소희',src:'./assets/event-freedom-chat-sohee.png',caption:'소희는 연습이 끝난 작업실에서 가장 사적인 얼굴을 남겼다.'},
     ],
-    desc:'단체방에는 화보보다 식은 컵라면, 무대보다 케이블이 엉킨 작업실, 여행지보다 빈 공항 대기실 사진이 더 많이 쌓였습니다. 세 사람은 서로의 화려한 직업보다 퇴근 뒤의 조용한 얼굴을 먼저 알게 됩니다.',
+    desc:'단체방에는 밖에서는 보여 주지 못할 편한 차림과 흐트러진 퇴근 사진이 쌓였습니다. 셋은 플레이어를 놀리며 대담하게 사진을 올렸지만, 잠시 뒤 개인 DM에서는 지워 달라거나 방금 말을 잊어 달라고 부탁했습니다. 공개된 장난과 혼자 남았을 때의 불안이 처음으로 갈라집니다.',
     speakers:[
       {name:'채원',line:'바쁜가 보네요. 나중에 봐요. 답장은 안 해도 괜찮아요. 내일 또 보내면 되니까.'},
       {name:'소희',line:'방해한 것 같아서요. 사진은 지웠어요. 다음 게임에서는 평소처럼 할게요.'},
