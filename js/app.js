@@ -2485,6 +2485,7 @@ function importantEventPriority(event) {
   if(event.factionVictory||event.captivity||event.type==='ending')return 95;
   if(event.type==='debt'||event.type==='incident'||event.dangerousHeroineEvent)return 85;
   if(event.yujinInvestigation)return 80;
+  if(event.storyBridge)return 78;
   if(event.childhoodCircleEvent||event.dangerousTrioPrelude||event.dangerousTrioStart||event.freedomTrioStart||event.freedomGuildEvent)return 75;
   if(event.crossEventId||event.story||event.bondEncounter)return 55;
   if(event.businessRomanceEvent)return 45;
@@ -2496,6 +2497,7 @@ function importantEventKey(event) {
   if(event.factionStory)return`faction:${event.factionStory}`;
   if(event.yujinInvestigation)return'yujin:first-investigation';
   if(event.dangerousTrioPrelude)return`dangerous:prelude:${event.dangerousTrioPrelude}`;
+  if(event.crossEventId)return`cross:${event.crossEventId}`;
   if(event.monthlyMessage)return`message:${event.targetType}:${event.targetId!=null?event.targetId:event.personName||''}`;
   if(event.businessEvent)return`business:${event.businessId}:${event.eventId}`;
   if(event.story)return`story:${event.personName}`;
@@ -2974,7 +2976,7 @@ function resolveBondEncounter(kind){
 }
 
 function showCrossCharacterEvent(eventId) {
-  const event = CROSS_EVENTS && CROSS_EVENTS.get(eventId);
+  const event = CROSS_EVENTS && CROSS_EVENTS.get(eventId,S.life);
   const host = $('life-event');
   if (!event || !host) { showNextImportantEvent(); return; }
   const people = event.people.map(name => metRecord(S.life, name)).filter(Boolean);
@@ -4678,11 +4680,15 @@ function showFreedomGuildEvent(eventId){
   const event=FREEDOM_TRIO&&FREEDOM_TRIO.guildEvent(eventId),host=$('life-event');if(!event||!host)return;
   S._freedomGuildEvent=eventId;host.style.display='block';
   const members=FREEDOM_TRIO.GUILD_MEMBERS.map(member=>`<div class="trio-dialogue"><span class="pixel-news-avatar">${member.avatar}</span><div><b>${member.nickname}</b><p>“${member.line}”</p></div></div>`).join('');
-  host.innerHTML=`<div class="window event-window freedom-trio-window"><div class="title-bar event-bar"><div class="title-bar-text">🎮 온라인 길드 · ${event.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${event.scene}" alt="${event.title}"><div class="trio-dialogues">${members}</div><div class="event-desc">${event.desc}</div><div class="important-event-detail">현실 이름·직업 비공개 · 게임한 밤 ${FREEDOM_TRIO.ensure(S.life).gameSessions}회 · 파티의 온기 ${Math.round(FREEDOM_TRIO.ensure(S.life).guildWarmth)}</div><div class="event-options">${event.choices.map(choice=>`<button class="event-opt" data-guild-choice="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="freedom-guild-outcome"></div></div></div>`;
+  const sera=metRecord(S.life,'윤세라'),seraSendoff=event.id==='offline_table'&&sera&&S.life.seraHousing==='cohabit'
+    ?`<div class="trio-dialogue freedom-sendoff"><img src="${characterPortrait(sera)}" alt="윤세라"><div><b>윤세라 · 현관</b><p>“게임은 내 취향이 아니라서 따라가진 않을게요. 그래도 당신이 약속 때문에라도 스스로 밖에 나가겠다고 하니까… 다행이에요. 늦으면 연락만 해요.”</p></div></div>`
+    :'';
+  host.innerHTML=`<div class="window event-window freedom-trio-window"><div class="title-bar event-bar"><div class="title-bar-text">🎮 온라인 길드 · ${event.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${event.scene}" alt="${event.title}"><div class="trio-dialogues">${seraSendoff}${members}</div><div class="event-desc">${event.desc}</div><div class="important-event-detail">현실 이름·직업 비공개 · 게임한 밤 ${FREEDOM_TRIO.ensure(S.life).gameSessions}회 · 파티의 온기 ${Math.round(FREEDOM_TRIO.ensure(S.life).guildWarmth)}</div><div class="event-options">${event.choices.map(choice=>`<button class="event-opt" data-guild-choice="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="freedom-guild-outcome"></div></div></div>`;
   host.querySelectorAll('[data-guild-choice]').forEach(button=>button.addEventListener('click',()=>resolveFreedomGuildEvent(button.dataset.guildChoice)));
 }
 function resolveFreedomGuildEvent(choiceId){
   const eventId=S._freedomGuildEvent,result=FREEDOM_TRIO&&FREEDOM_TRIO.resolveGuild(S.life,eventId,choiceId),host=$('life-event');if(!result||!host)return;
+  let yujinNotice='';
   if(result.reveal){
     FREEDOM_TRIO.NAMES.forEach(name=>{
       const character=D.CHARACTERS.find(person=>person.name===name);if(!character)return;
@@ -4691,10 +4697,61 @@ function resolveFreedomGuildEvent(choiceId){
       pushPersonMessage(S.life,rec,`${guild.nickname} 말고 ${name}(이)라고 불러도 돼요. 그래도 게임에서는 원래대로 불러줘요.`,false);
     });
     addNews('🎮 막차요정·무보정·쉼표의 정체가 채원·유나·소희로 공개됐습니다','good');
+    const dangerousPartners=DANGEROUS_HEROINE_NAMES.map(name=>metRecord(S.life,name)).filter(person=>person&&RELATIONSHIPS.isPartner(S.life,person.name));
+    const yujin=metRecord(S.life,'강유진');
+    if(dangerousPartners.length){
+      S._freedomRevealReturn={partnerNames:dangerousPartners.map(person=>person.name),trio:!!(S.life.dangerousTrioBond&&S.life.dangerousTrioBond.active)};
+      if(yujin){
+        yujinNotice=S._freedomRevealReturn.trio
+          ?'세라 씨에게 들었어요. 게임 모임 상대가 여자 세 명이었다면서요. 모임을 방해하진 않을 테니 끝나면 귀가 연락은 해요.'
+          :dangerousPartners.some(person=>person.name==='강유진')
+            ?'게임 친구가 여자 세 명인 건 방금 알았네요. 경찰로 묻는 건 아니에요. 다만 집에 돌아오면… 연인으로서 이야기는 듣고 싶어요.'
+            :'세라 씨에게 연락받았어요. 모임 상대가 여자 세 명이어도 사건은 아니죠. 그래도 돌아가는 길은 확인해서 연락해요.';
+        pushPersonMessage(S.life,yujin,yujinNotice,false);
+      }
+    }else S._freedomRevealReturn=null;
   }
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
-  $('freedom-guild-outcome').innerHTML=`<div class="oc-text ${result.choice.warmth<0?'down':'up'}">${result.choice.result}</div><div class="oc-changes">파티의 온기 ${result.choice.warmth>=0?'+':''}${result.choice.warmth}</div><button id="freedom-guild-confirm" class="session-btn opening">${result.reveal?'세 사람의 연락처를 확인한다':'게임을 종료한다'}</button>`;
-  $('freedom-guild-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._freedomGuildEvent=null;renderLifePanel();autoSave();});
+  $('freedom-guild-outcome').innerHTML=`<div class="oc-text ${result.choice.warmth<0?'down':'up'}">${result.choice.result}</div><div class="oc-changes">파티의 온기 ${result.choice.warmth>=0?'+':''}${result.choice.warmth}</div>${yujinNotice?`<div class="phone-bubble incoming followup"><b>📱 강유진</b><br>${yujinNotice}</div>`:''}<button id="freedom-guild-confirm" class="session-btn opening">${result.reveal&&S._freedomRevealReturn?'모임을 마치고 집으로 돌아간다':result.reveal?'세 사람의 연락처를 확인한다':'게임을 종료한다'}</button>`;
+  $('freedom-guild-confirm').addEventListener('click',()=>{
+    S._freedomGuildEvent=null;
+    if(result.reveal&&S._freedomRevealReturn){showFreedomRevealHomecoming();return;}
+    host.style.display='none';host.innerHTML='';renderLifePanel();autoSave();
+  });
+  renderLifePanel();autoSave();
+}
+function showFreedomRevealHomecoming(){
+  const pending=S._freedomRevealReturn,host=$('life-event');if(!pending||!host)return;
+  const romantic=DANGEROUS_HEROINE_NAMES.map(name=>metRecord(S.life,name)).filter(person=>person&&RELATIONSHIPS.isPartner(S.life,person.name));
+  const cast=pending.trio?DANGEROUS_HEROINE_NAMES.map(name=>metRecord(S.life,name)).filter(Boolean):romantic;
+  if(!cast.length){S._freedomRevealReturn=null;host.style.display='none';host.innerHTML='';return;}
+  const reactions={
+    '강유진':'게임 친구의 성별을 보고할 의무는 없어요. 나도 알아요. 그래도 여자 셋이었다는 말을 남한테 먼저 들으니까 기분이 좋지는 않네요.',
+    '한채린':'막차요정, 무보정, 쉼표. 별명부터 너무 안심시켰네. 그래서 셋 중 누구 옆에 앉았죠? 대답을 강요하는 건 아니고, 틀리면 기분 나쁠 뿐이야.',
+    '윤세라':'밖에 나갈 수 있어서 다행이라고 생각했어요. 정말로요. 그런데 여자 세 명이라고는 안 했잖아요. 다음에도 보내줄 수 있게, 오늘 이야기는 전부 해줘요.'
+  };
+  const rows=cast.map(person=>`<div class="trio-dialogue"><img src="${characterPortrait(person)}" alt="${person.name}"><div><b>${person.name}</b><p>“${reactions[person.name]}”</p></div></div>`).join('');
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">🏠 게임 모임 뒤, 불 켜진 집</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-sera-three-chairs.png" alt="게임 모임 뒤 집에서 기다리던 위험한 인연"><div class="event-desc">세 사람은 모임을 방해하지 않았습니다. 대신 현관문이 닫히자, 보내줄 때 삼킨 불안과 알림으로 먼저 들은 사실을 각자의 방식으로 꺼냅니다.</div><div class="trio-dialogues">${rows}</div><div class="event-options"><button class="event-opt" data-freedom-return="honest">현장에서 처음 알았고 게임 친구로 저녁만 먹었다고 차분히 설명한다</button><button class="event-opt" data-freedom-return="tease">“질투했어?”라고 웃으며 먼저 묻는다</button><button class="event-opt" data-freedom-return="boundary">게임 친구의 성별까지 사전 보고하지는 않겠다고 선을 긋는다</button></div><div class="event-outcome" id="freedom-return-outcome"></div></div></div>`;
+  host.querySelectorAll('[data-freedom-return]').forEach(button=>button.addEventListener('click',()=>resolveFreedomRevealHomecoming(button.dataset.freedomReturn,cast)));
+}
+function resolveFreedomRevealHomecoming(choiceId,cast){
+  const effects={
+    honest:{affection:2,trust:5,obsession:-2,happy:3,text:'당신이 처음부터 끝까지 숨기지 않고 말하자 질문은 심문이 아니라 대화가 됐습니다. 세라는 다음 외출도 보내주겠다고 했고, 유진과 채린은 각자의 확인 수단을 한 걸음 물렸습니다.'},
+    tease:{affection:5,trust:1,obsession:4,happy:5,text:'부정하는 목소리가 세 방향에서 겹쳤습니다. 아무도 질투라는 말을 인정하지 않았지만, 그날 밤 세 사람의 연락은 평소보다 오래 이어졌습니다.'},
+    boundary:{affection:-1,trust:4,obsession:-5,happy:1,text:'분위기는 잠시 차가워졌지만 누구도 모임을 취소하라고 말하지 못했습니다. 당신이 다시 밖으로 나갈 수 있게 된 일을 지키는 것이 관계를 안심시키는 것보다 먼저라는 경계가 남았습니다.'}
+  };
+  const effect=effects[choiceId]||effects.honest;
+  cast.forEach(person=>{
+    person.affection=clamp((person.affection||0)+effect.affection,0,100);
+    person.trust=clamp((person.trust||0)+effect.trust,0,100);
+    if(person.name==='윤세라')person.obsession=clamp((person.obsession||0)+effect.obsession,0,100);
+  });
+  S.life.happy=clamp((S.life.happy||0)+effect.happy,0,100);
+  const options=$('life-event').querySelector('.event-options');if(options)options.innerHTML='';
+  $('freedom-return-outcome').innerHTML=`<div class="oc-text">${effect.text}</div><div class="oc-changes">위험한 인연 호감 ${effect.affection>=0?'+':''}${effect.affection} · 신뢰 +${effect.trust}${cast.some(person=>person.name==='윤세라')?` · 윤세라 집착 ${effect.obsession>=0?'+':''}${effect.obsession}`:''}</div><button id="freedom-return-confirm" class="session-btn opening">오늘 이야기를 마친다</button>`;
+  addNews('🏠 자유인 3인조 첫 모임 뒤 · 위험한 인연에게 숨기지 않은 귀가','neutral');
+  $('freedom-return-confirm').addEventListener('click',()=>{S._freedomRevealReturn=null;closeLifeEvent();renderLifePanel();autoSave();showNextImportantEvent();});
   renderLifePanel();autoSave();
 }
 function monthlyRivalMessages(L){
@@ -4835,7 +4892,7 @@ function updateRelationships(L) {
   const childhoodEvent=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.monthly(L);
   if(childhoodEvent)queueImportantEvent({childhoodCircleEvent:childhoodEvent});
   const crossEvent = CROSS_EVENTS && CROSS_EVENTS.monthly(L);
-  if (crossEvent) queueImportantEvent({ crossEventId:crossEvent.id });
+  if (crossEvent) queueImportantEvent({ crossEventId:crossEvent.id, storyBridge:!!crossEvent.storyBridge });
   queueNaturalDangerousEvents(L);
   queueNaturalFreedomEvents(L);
   monthlyDangerousTrioAftermath(L);
@@ -6251,36 +6308,6 @@ function dangerousTrioSpeaker(s,witness){
     portrait:subordinate?witness.portrait:characterPortrait(person)
   };
 }
-function applyDangerousTrioHazardPay(rate){
-  const witness=firstSubordinateWitness(),member=witness.member,contact=witness.contact;
-  if(!member)return'세력원이 아직 없어 급여 조정은 기록만 남았습니다.';
-  const base=Number.isFinite(member.trioBaseUpkeep)?member.trioBaseUpkeep:Math.max(120000,Number(member.upkeep)||0);
-  member.trioBaseUpkeep=base;
-  member.trioHazardPayRate=rate;
-  member.upkeep=Math.round(base*rate);
-  if(rate>=2){
-    member.loyalty=clamp((member.loyalty||50)+10,0,100);
-    if(contact)contact.trust=clamp((contact.trust||0)+8,0,100);
-  }else if(rate>1){
-    member.loyalty=clamp((member.loyalty||50)+4,0,100);
-    if(contact)contact.trust=clamp((contact.trust||0)+3,0,100);
-  }else{
-    member.loyalty=clamp((member.loyalty||50)-6,0,100);
-    if(contact)contact.trust=clamp((contact.trust||0)-5,0,100);
-  }
-  const faction=S.life.faction;
-  faction.projectedUpkeep=(faction.members||[]).reduce((sum,item)=>sum+(item.upkeep||0),0);
-  if(Number.isFinite(faction.projectedGross))faction.projectedNet=faction.projectedGross-faction.projectedUpkeep;
-  if(contact){
-    const line=rate>=2
-      ?'형님, 농담 반으로 말씀드린 건데 진짜 올려주실 줄은 몰랐습니다. 그럼 저 세 분 회의는 제가 끝까지 지키겠습니다.'
-      :rate>1
-        ?'위험수당 확인했습니다. 다음 보고서에는 표현을 조금 순화해 보겠습니다. 사실관계까지 순화할 수 있을지는 모르겠습니다.'
-        :'급여는 확인했습니다. 대신 다음 회의에는 방탄조끼 입고 들어가겠습니다.';
-    pushPersonMessage(S.life,contact,line,false);
-  }
-  return`${witness.name} 월 급여 ${base.toLocaleString('ko-KR')}원 → ${member.upkeep.toLocaleString('ko-KR')}원`;
-}
 function showDangerousTrioPrelude(eventId){
   if(!DANGEROUS_TRIO)return;
   const host=$('life-event'),event=DANGEROUS_TRIO.nextPrelude(S.life);
@@ -6299,9 +6326,8 @@ function showDangerousTrioPrelude(eventId){
 function resolveDangerousTrioPrelude(choiceId){
   const result=DANGEROUS_TRIO.applyPrelude(S.life,choiceId);if(!result)return;
   result.state.lastPreludeDay=S.day;
-  const payText=Number.isFinite(result.choice.payRate)?applyDangerousTrioHazardPay(result.choice.payRate):'';
   const host=$('life-event'),options=host&&host.querySelector('.event-options');if(options)options.innerHTML='';
-  $('trio-prelude-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">세 사람의 공조 ${result.choice.stability>=0?'+':''}${result.choice.stability} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust}${payText?`<br>🛡️ ${payText}`:''}</div>${result.complete?'<div class="important-event-detail up">셋은 끝내 친해졌다는 말을 하지 않았습니다. 대신 서로의 잘못을 가장 먼저 지적하고, 외부가 한 사람을 건드리면 나머지 둘이 먼저 움직이는 악우가 됐습니다.</div>':''}<button id="trio-prelude-confirm" class="session-btn opening">회의를 마친다</button>`;
+  $('trio-prelude-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">세 사람의 공조 ${result.choice.stability>=0?'+':''}${result.choice.stability} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust}</div>${result.complete?'<div class="important-event-detail up">셋은 끝내 친해졌다는 말을 하지 않았습니다. 대신 서로의 잘못을 가장 먼저 지적하고, 외부가 한 사람을 건드리면 나머지 둘이 먼저 움직이는 악우가 됐습니다.</div>':''}<button id="trio-prelude-confirm" class="session-btn opening">회의를 마친다</button>`;
   addNews(`${result.event.icon} 강유진·한채린·윤세라 · ${result.event.title}`,result.choice.stability<0?'bad':'neutral');
   $('trio-prelude-confirm').addEventListener('click',()=>{closeLifeEvent();renderLifePanel();showNextImportantEvent();});
   renderLifePanel();autoSave();

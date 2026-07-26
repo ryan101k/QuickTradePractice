@@ -47,9 +47,9 @@ const PRELUDES=[
    {name:'첫 부하',line:'대장님, 이런 말씀 드리긴 죄송하지만 진짜 미친년들 같습니다. 저 회의를 계속 경호하라면 월급 두 배는 받아야겠습니다.'}
   ],
   choices:[
-   {id:'double_pay',text:'“맞는 말이다. 이번 달부터 두 배로 받아.”',stability:10,trust:5,payRate:2,result:'첫 부하는 잠시 말을 잃었다가 보고서를 다시 집어 들었습니다. 셋은 자신들이 위험물 취급을 받았다는 데 화를 냈지만, 누구도 위험수당 자체에는 이의를 제기하지 못했습니다.'},
-   {id:'hazard_bonus',text:'문구는 고치고 위험수당 50%만 더 주겠다고 한다',stability:6,trust:2,payRate:1.5,result:'보고서의 “미친”에는 취소선이 그어지고 “통제 난이도 최상”이라는 표현이 들어갔습니다. 세 사람은 더 모욕적이라며 처음으로 한목소리를 냈습니다.'},
-   {id:'make_apologize',text:'급여는 그대로 두고 셋에게 부하에게 사과하라고 한다',stability:3,trust:-2,payRate:1,result:'유진은 정식으로 사과했고, 채린은 다음 회의 차량을 내줬고, 세라는 부하의 집 앞에 아무도 모르게 간식을 두고 왔습니다. 부하는 마지막 행동이 가장 무섭다고 보고했습니다.'}
+   {id:'triple_joke',text:'“두 배로 되겠냐. 세 배는 받아야지.”라고 받아친다',stability:10,trust:5,result:'첫 부하는 진담인지 확인하듯 당신을 보다가 웃었습니다. 채린이 급여명세서를 달라고 손을 내밀자 당신과 부하는 동시에 농담이라고 정정했습니다.'},
+   {id:'keep_wording',text:'월급 이야기는 넘기고 보고서 문구는 그대로 두라고 한다',stability:6,trust:2,result:'보고서에는 “통제 난이도 최상”이라는 정식 표현 아래 작은 글씨로 원래 문장이 그대로 남았습니다. 세 사람은 각자 나머지 둘을 가리키며 자신은 제외해 달라고 항의했습니다.'},
+   {id:'tell_them',text:'그 요구를 셋 앞에서 직접 다시 말해보라고 한다',stability:3,trust:-2,result:'첫 부하는 곧바로 농담이었다고 철회했습니다. 유진은 웃지 않았고, 채린은 계산기를 켰으며, 세라는 부하의 집 주소를 어떻게 알았는지 묻지 않은 사실만으로도 회의가 종료됐습니다.'}
   ]
  }
 ];
@@ -198,7 +198,7 @@ function applyPrelude(life,choiceId){
  const choice=event.choices.find(item=>item.id===choiceId);if(!choice)return null;
  state.preludeQueued=false;
  state.stability=clamp((state.stability||50)+(choice.stability||0),0,100);
- state.preludeHistory.push({eventId:event.id,choiceId:choice.id,payRate:choice.payRate||null});
+ state.preludeHistory.push({eventId:event.id,choiceId:choice.id});
  NAMES.forEach(name=>{
   const person=rec(life,name);if(!person)return;
   person.trust=clamp((person.trust||0)+(choice.trust||0),0,100);
