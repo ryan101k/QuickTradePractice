@@ -241,7 +241,14 @@ function get(personOrName){
  }),variant:personOrName&&personOrName.childhoodFriend?'childhood':'adult'};
 }
 function ensure(rec){if(!rec.story)rec.story={chapter:0,completed:false,history:[],traits:{}};if(!Array.isArray(rec.story.history))rec.story.history=[];if(!rec.story.traits||typeof rec.story.traits!=='object')rec.story.traits={};const variant=rec.childhoodFriend?'childhood':'adult';if(rec.story.variant&&rec.story.variant!==variant&&(rec.story.chapter||0)===0){rec.story.history=[];rec.story.traits={};rec.story.completed=false;rec.story.ending=null;}rec.story.variant=variant;const expanded=(authoredFor(rec)||[]).length;if(rec.story.completed&&expanded>(rec.story.chapter||0)){rec.story.completed=false;rec.story.ending=null;rec.story.offeredChapter=Math.min(rec.story.offeredChapter==null?-1:rec.story.offeredChapter,(rec.story.chapter||0)-1);}return rec.story;}
-function next(rec){const s=get(rec),state=ensure(rec);if(!s||state.completed)return null;const ch=s.chapters[state.chapter];return ch&&(rec.affection||0)>=ch.min?ch:null;}
+const DANGEROUS_ENTRY_EVENTS={'강유진':'yujin_warning','한채린':'chaerin_warning','윤세라':'sera_warning'};
+function dangerousEntryReady(rec){
+ const eventId=DANGEROUS_ENTRY_EVENTS[rec&&rec.name];if(!eventId)return true;
+ const state=ensure(rec);if((state.chapter||0)>0||state.completed)return true;
+ if(rec.dangerEvents&&rec.dangerEvents[eventId]==='seen')return true;
+ return !!(rec.dangerAwakened||rec.spentNight||['casual','partner','lover','polycule'].includes(rec.status));
+}
+function next(rec){const s=get(rec),state=ensure(rec);if(!s||state.completed||!dangerousEntryReady(rec))return null;const ch=s.chapters[state.chapter];return ch&&(rec.affection||0)>=ch.min?ch:null;}
 function context(rec,ch){const state=ensure(rec),prev=state.history[state.history.length-1];if(!prev)return'이번 장면이 두 사람의 첫 번째 갈림길입니다.';const labels={support:'그때 당신은 곁에 남아 함께 결정했습니다.',lead:'그때 당신은 문제를 대신 결정했습니다.',avoid:'그때 당신은 관계에서 한걸음 물러났습니다.',depend:'그때 당신은 혼자 버티지 않고 상대에게 매달렸습니다.',boundary:'그때 당신은 도움과 통제의 선을 분명히 했습니다.',complicity:'그때 당신은 원칙보다 서로를 먼저 택했습니다.',command:'그때 당신은 상대의 권력 앞에서도 거칠게 명령했습니다.',equal:'그때 당신은 힘겨루기 대신 같은 자리를 골랐습니다.',conspire:'그때 당신은 상대의 어두운 권력과 손을 잡았습니다.',anchor:'그때 당신은 기다림에 끝이 있는 약속을 만들었습니다.',fuse:'그때 당신은 여러 사람의 감시와 보호를 하나로 묶었습니다.',sever:'그때 당신은 관계를 끊어 불안을 끝내려 했습니다.'};return`${labels[prev.choice]||'이전 선택의 결과가 아직 두 사람 사이에 남아 있습니다.'} ${ch.index+1}장은 그 기억에서 이어집니다.`;}
 function withJosa(name,batchim,plain){const code=(name.charCodeAt(name.length-1)||0)-0xac00;return`${name}${code>=0&&code<=11171&&code%28?batchim:plain}`;}
 function endingFor(name,state){
@@ -274,5 +281,5 @@ function endingFor(name,state){
  return{route:'distance',title:`${withJosa(name,'과','와')} 남은 거리`,text:'중요한 순간마다 거리를 두었습니다. 서로를 미워하지는 않지만, 깊어질 수 있었던 관계는 조심스러운 기억으로 남습니다.'};
 }
 function apply(rec,choiceId){const s=get(rec),state=ensure(rec),ch=s&&s.chapters[state.chapter];if(!ch)return null;const c=ch.choices.find(x=>x.id===choiceId);if(!c)return null;rec.affection=Math.max(0,Math.min(100,(rec.affection||0)+c.affection));rec.trust=Math.max(0,Math.min(100,(rec.trust||0)+c.trust));if(rec.name==='윤세라'){rec.obsession=Math.max(0,Math.min(100,(rec.obsession||0)+c.obsession));if(c.trait==='anchor')rec.mutualSalvation=(rec.mutualSalvation||0)+1;if(c.trait==='fuse')rec.mutualObsession=(rec.mutualObsession||0)+1;if(c.trait==='sever')rec.seraRupture=(rec.seraRupture||0)+1;}else if(['강유진','한채린'].includes(rec.name))rec.dangerLevel=Math.max(0,Math.min(100,(rec.dangerLevel||0)+c.obsession));else{rec.obsession=0;rec.obsessionGrowth=0;}if(c.trait)state.traits[c.trait]=(state.traits[c.trait]||0)+1;state.history.push({chapter:state.chapter,title:ch.title,choice:choiceId,trait:c.trait||null});state.chapter++;state.completed=state.chapter>=s.chapters.length;if(state.completed){state.ending=endingFor(rec.name,state);if(rec.name==='윤세라'){rec.seraEndingRoute=state.ending.route;if(state.ending.route==='mutual_captivity'){rec.mutualCaptivityReady=true;rec.hasHomeKey=true;}}else if(rec.name==='강유진')rec.yujinEndingRoute=state.ending.route;else if(rec.name==='한채린')rec.chaerinEndingRoute=state.ending.route;}return{story:s,chapter:ch,choice:c,completed:state.completed,ending:state.ending||null};}
-root.QT_CHARACTER_STORIES={ARCS,WORLD_ARCS,SPECIAL,get,ensure,next,context,apply};
+root.QT_CHARACTER_STORIES={ARCS,WORLD_ARCS,SPECIAL,DANGEROUS_ENTRY_EVENTS,get,ensure,dangerousEntryReady,next,context,apply};
 })(window);
