@@ -121,6 +121,7 @@ for (const file of [
   'js/business_romance.js',
   'js/relationship_social.js',
   'js/freedom_trio.js',
+  'js/group_chat.js',
   'js/services/save.js',
   'js/ui/page-lifecycle.js',
   'js/ui/market-workspace.js',
@@ -762,6 +763,31 @@ for (const file of [
   assert.equal(freedom.nextPersonalEvent(guildLife),null,'공항·촬영·공연 중심 구버전 개인 사건이 새 단체 줄기보다 먼저 열리면 안 된다');
   assert.equal(freedom.counselingComplete(guildLife),true,'새 그룹 본편은 단체방 장면 자체가 일상 연락을 포함해야 한다');
   assert.deepEqual(Array.from(freedom.GUILD_MEMBERS.map(member=>member.nickname)),['막차요정','무보정','쉼표']);
+  const groupChat=context.QT_GROUP_CHAT;
+  const hiddenChatLife={met:[],freedomTrio:{guildJoined:true,guildStage:1,identityState:'hidden',firstOuting:'locked'}};
+  groupChat.sync(hiddenChatLife,3);
+  assert.equal(groupChat.room(hiddenChatLife,'freedom').unlocked,true,'길드 가입과 동시에 다음 접속 단체방이 연락처에 생겨야 한다');
+  assert.ok(groupChat.room(hiddenChatLife,'freedom').messages.some(message=>message.sender==='막차요정'),'정모 전 단체방에는 실명 대신 게임 닉네임만 보여야 한다');
+  assert.equal(groupChat.list(hiddenChatLife,3).some(room=>room.id==='dangerous'),false,'광기 3인 공동생활 전에는 위험 단체방이 먼저 생기면 안 된다');
+
+  const storyChatLife={
+    met:freedom.NAMES.map(name=>({name,status:'friend',affection:35,trust:30})),
+    freedomTrio:{guildJoined:true,guildStage:3,identityState:'revealed',firstOuting:'seen',guildWarmth:45},
+  };
+  const photoChapter=freedom.CHAPTERS.find(chapter=>chapter.id==='ordinary_photos');
+  groupChat.sync(storyChatLife,7);
+  groupChat.presentFreedomChapter(storyChatLife,photoChapter,7);
+  const photoRoom=groupChat.room(storyChatLife,'freedom');
+  assert.equal(photoRoom.messages.filter(message=>message.kind==='photo').length,3,'본편 사진 장은 채원·유나·소희의 새 사진 세 장을 지속형 단체방에 남겨야 한다');
+  groupChat.recordFreedomChoice(storyChatLife,photoChapter,photoChapter.choices[0],7);
+  assert.equal(groupChat.privateLeaksForChapter(storyChatLife,'ordinary_photos').length,3,'공개 사진 뒤에는 세 사람 모두 서로 다른 개인 DM으로 본심을 흘려야 한다');
+  assert.equal(groupChat.privateLeaksForChapter(storyChatLife,'ordinary_photos').length,0,'개인 DM 후속은 새로 열 때마다 중복 생성되면 안 된다');
+  storyChatLife.dangerousTrioBond={active:true};
+  const takeover=groupChat.queueNext(storyChatLife,8);
+  assert.equal(takeover.id,'dangerous_phone_takeover','공동생활 중 자유인 사진 장을 마치면 휴대폰 대리 답장 사건이 열려야 한다');
+  const takeoverResult=groupChat.resolveEvent(storyChatLife,takeover.id,'take_back',8);
+  assert.ok(takeoverResult.room.messages.some(message=>/세라니/.test(message.text)),'유나는 세라가 대신 친 문장을 알아채고 역으로 물어야 한다');
+  assert.equal(storyChatLife.freedomTrio.phoneBoundarySet,true,'플레이어가 휴대폰을 되찾으면 이후 직접 답장 경계를 저장해야 한다');
 
   const onlineLife={met:[{name:'나래',status:'partner',affection:80,trust:70}],partner:{name:'나래'}};
   const onlineState=freedom.ensure(onlineLife);
@@ -1719,6 +1745,11 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   for(const file of ['event-yuna-3.png','event-yuna-4.png','event-yuna-5.png','event-chaewon-7.png','event-chaewon-9.png','event-freedom-bad-octopus.png','event-freedom-bad-repeat.png']){
     assert.equal(fs.existsSync(path.join(root,'assets',file)),true,`${file} 자유인 3인 신규 컷신이 누락되면 안 된다`);
   }
+  for(const file of ['event-freedom-chat-chaewon.png','event-freedom-chat-yuna.png','event-freedom-chat-sohee.png']){
+    assert.equal(fs.existsSync(path.join(root,'assets',file)),true,`${file} 자유인 단체방 일상 사진이 누락되면 안 된다`);
+  }
+  assert.match(fs.readFileSync(path.join(root,'index.html'),'utf8'),/js\/group_chat\.js/,'지속형 단체방 모듈이 앱보다 먼저 로드돼야 한다');
+  assert.match(appSource,/presentFreedomChapter\(S\.life,chapter,S\.day\)/,'자유인 본편은 별도 일회성 창이 아니라 지속형 단체방 기록에 통합돼야 한다');
   for(const file of ['event-freedom-trio-airport.png','event-freedom-trio-scandal.png','event-freedom-trio-departures.png','event-freedom-trio-home.png','event-freedom-trio-homecoming.png','event-freedom-trio-empty-gate-ending.png','event-freedom-trio-world-tour-ending.png','event-chaewon-airport.png','event-chaewon-transfer-offer.png','event-yuna-backstage.png','event-yuna-dating-contract.png','event-sohee-backstage.png','event-sohee-overseas-audition.png']){
     assert.equal(fs.existsSync(path.join(root,'assets',file)),false,`${file} 구버전 컷신은 새 외형 전환 뒤 남아 있으면 안 된다`);
   }

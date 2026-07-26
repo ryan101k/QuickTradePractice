@@ -24,6 +24,7 @@ const CROSS_EVENTS = window.QT_CHARACTER_CROSS_EVENTS;
 const ROMANCE_ROUTES = window.QT_ROMANCE_ROUTES;
 const DANGEROUS_TRIO = window.QT_DANGEROUS_TRIO;
 const FREEDOM_TRIO = window.QT_FREEDOM_TRIO;
+const GROUP_CHAT = window.QT_GROUP_CHAT;
 const CHILDHOOD_CIRCLE = window.QT_CHILDHOOD_CIRCLE;
 const ORIGIN = window.QT_ORIGIN;
 const HEALTH = window.QT_HEALTH;
@@ -2412,6 +2413,7 @@ function importantEventPriority(event) {
   if(event.yujinInvestigation)return 80;
   if(event.storyBridge)return 78;
   if(event.groupConfession)return 76;
+  if(event.groupChatEvent)return 72;
   if(event.relationshipSocialEvent)return 74;
   if(event.childhoodCircleEvent||event.dangerousTrioPrelude||event.dangerousTrioStart||event.freedomTrioStart||event.freedomGuildEvent||event.freedomCounselingEvent||event.freedomFirstOuting||event.freedomDangerousDisclosure)return 75;
   if(event.crossEventId||event.story||event.bondEncounter)return 55;
@@ -2429,6 +2431,7 @@ function importantEventKey(event) {
   if(event.freedomFirstOuting)return'freedom:first-outing';
   if(event.freedomDangerousDisclosure)return'freedom:dangerous-disclosure';
   if(event.groupConfession)return`group-confession:${event.groupId}`;
+  if(event.groupChatEvent)return`group-chat:${event.eventId}`;
   if(event.crossEventId)return`cross:${event.crossEventId}`;
   if(event.monthlyMessage)return`message:${event.targetType}:${event.targetId!=null?event.targetId:event.personName||''}`;
   if(event.businessEvent)return`business:${event.businessId}:${event.eventId}`;
@@ -2525,6 +2528,7 @@ function showNextImportantEvent(resumeCurrent = false) {
   if (event.freedomFirstOuting) { showFreedomFirstOuting(); return; }
   if (event.freedomDangerousDisclosure) { showFreedomDangerousDisclosure(); return; }
   if (event.freedomPersonalEvent) { showFreedomPersonalEvent(event.eventId); return; }
+  if (event.groupChatEvent) { showGroupChatEvent(event.eventId); return; }
   if (event.groupConfession) { showGroupConfession(event); return; }
   if (event.yujinInvestigation) { showYujinInvestigation(false); return; }
   if (event.factionStory) { showFactionMentorPhoneStory(event.factionStory); return; }
@@ -2945,6 +2949,44 @@ function resolveMonthlyMessage(kind){
   const unlock=!pending.isContact&&!pending.isRival&&courtshipReadiness(pending.target).ready?`<div class="oc-changes">💘 ${pending.target.name}님이 다음에는 미리 약속을 잡아 만나자고 말했습니다.</div>`:'';
   $('message-event-outcome').innerHTML=`<div class="phone-bubble mine">${result.text}</div>${result.answer?`<div class="phone-bubble incoming followup">${result.answer}</div>`:''}${result.meta?`<div class="oc-changes">${result.meta}</div>`:''}${unlock}<button id="message-event-confirm" class="phone-chat-confirm">대화 닫기 · 다음 알림</button>`;
   $('message-event-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._monthlyMessage=null;renderLifePanel();renderChatPanel();autoSave();showNextImportantEvent();});
+}
+
+function showGroupChatEvent(eventId){
+  const host=$('life-event'),event=GROUP_CHAT&&GROUP_CHAT.EVENTS[eventId];
+  if(!host||!event){showNextImportantEvent();return;}
+  const room=GROUP_CHAT.room(S.life,event.roomId),now=dateInfo(S.day);
+  if(!room){showNextImportantEvent();return;}
+  S._groupChatEvent=eventId;
+  prepareLifeEventOverlay(true);
+  host.style.display='block';
+  const preview=(event.group&&event.group[0]&&event.group[0][1])||event.title;
+  const messages=(event.group||[]).map(([sender,text],index)=>{
+    const scene=index===0&&event.scene?`<img class="group-chat-photo" src="${event.scene}" alt="${sender}이 올린 장면">`:'';
+    return`<div class="phone-bubble ${sender==='나'?'mine':'incoming'}"><b>${sender}</b>${scene}<span>${text}</span></div>`;
+  }).join('');
+  host.innerHTML=`<div class="phone-notification-stage group-chat-event-stage"><div class="phone-shell"><div class="phone-status"><span>${now.month}월 장 마감</span><span>●●● 100%</span></div><div class="phone-lock-time"><b>${String(now.month).padStart(2,'0')}:00</b><small>${now.year}년 ${now.month}월 · 단체방 알림</small></div><button type="button" class="phone-notification-card" id="group-chat-message-open" aria-controls="group-chat-message-screen" aria-expanded="false"><span class="phone-app-icon">${room.icon}</span><span><small>QuickTalk · 지금</small><b>${room.name}</b><em>${preview}</em></span><i>›</i></button><div class="phone-chat-screen" id="group-chat-message-screen" hidden><header><span class="phone-app-icon">${room.icon}</span><span><b>${event.title}</b><small>${room.name} · ${room.members.join(' · ')}</small></span></header><div class="phone-chat-log"><div class="phone-date-chip">휴대폰을 누가 들고 있는지 알 수 없는 밤</div>${messages}<div class="phone-typing"><i></i><i></i><i></i></div><div class="phone-reply-label">이번에는 플레이어가 직접 답해야 합니다.</div><div class="phone-reply-options">${event.choices.map(choice=>`<button type="button" data-group-chat-reply="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="group-chat-event-outcome"></div></div></div></div></div>`;
+  host.onclick=click=>{
+    const opener=click.target.closest('#group-chat-message-open');
+    if(opener&&host.contains(opener)){openMonthlyMessageScreen(host);return;}
+    const reply=click.target.closest('[data-group-chat-reply]');
+    if(reply&&host.contains(reply))resolveGroupChatEvent(reply.dataset.groupChatReply);
+  };
+}
+function resolveGroupChatEvent(choiceId){
+  const eventId=S._groupChatEvent,host=$('life-event'),result=GROUP_CHAT&&GROUP_CHAT.resolveEvent(S.life,eventId,choiceId,S.day);
+  if(!host||!result)return;
+  if(result.privateMessage){
+    const person=metRecord(S.life,result.privateMessage.name);
+    if(person)pushPersonMessage(S.life,person,result.privateMessage.text,false);
+  }
+  const options=host.querySelector('.phone-reply-options');if(options)options.innerHTML='';
+  $('group-chat-event-outcome').innerHTML=`<div class="phone-bubble mine">${result.choice.text}</div><div class="phone-bubble incoming followup">${result.choice.reply}</div><div class="oc-changes">다음 접속의 온기 ${result.choice.warmth>=0?'+':''}${result.choice.warmth||0} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}</div><button id="group-chat-event-confirm" class="phone-chat-confirm">단체방을 닫는다</button>`;
+  addNews(`💬 ${result.event.title} · 휴대폰의 답을 다시 플레이어가 직접 고쳤습니다`,result.choice.control?'bad':'neutral');
+  $('group-chat-event-confirm').addEventListener('click',()=>{
+    host.style.display='none';host.innerHTML='';S._groupChatEvent=null;
+    renderLifePanel();renderChatPanel();autoSave();showNextImportantEvent();
+  });
+  renderLifePanel();autoSave();
 }
 
 const BOND_ENCOUNTER_SCENES=[
@@ -4914,6 +4956,12 @@ function queueNaturalFreedomEvents(L){
     if(referral)addNews(`👑 한채린의 업계 소개 · ${referral.text}`,referral.given?'good':'neutral');
   }
 }
+function queueNaturalGroupChatEvent(L){
+  if(!GROUP_CHAT)return;
+  GROUP_CHAT.sync(L,S.day);
+  const event=GROUP_CHAT.queueNext(L,S.day);
+  if(event)queueImportantEvent({groupChatEvent:true,eventId:event.id,roomId:event.roomId});
+}
 function monthlyFreedomTrioAftermath(L){
   const bond=L.freedomTrioBond;if(!bond||!bond.active||!FREEDOM_TRIO)return;
   const state=FREEDOM_TRIO.ensure(L),event=FREEDOM_TRIO.nextAftermath(L);
@@ -5185,6 +5233,7 @@ function monthlyChildhoodForeshadow(L){
 }
 
 function updateRelationships(L) {
+  if(GROUP_CHAT)GROUP_CHAT.sync(L,S.day);
   const met = ensureMet(L).filter(person=>!FREEDOM_TRIO||FREEDOM_TRIO.canContact(L,person.name));
   if (!met.length) return;
   const partnerNames = new Set(RELATIONSHIPS.names(L));
@@ -5230,6 +5279,7 @@ function updateRelationships(L) {
   if (crossEvent) queueImportantEvent({ crossEventId:crossEvent.id, storyBridge:!!crossEvent.storyBridge });
   queueNaturalDangerousEvents(L);
   queueNaturalFreedomEvents(L);
+  queueNaturalGroupChatEvent(L);
   queueGroupConfession(L);
   monthlyDangerousTrioAftermath(L);
   monthlyFreedomTrioAftermath(L);
@@ -5544,8 +5594,18 @@ function relationshipImage(L,name){
   return'./assets/relationship-friend.png';
 }
 
+function groupChatMessageHTML(message){
+  const when=dateInfo(message.day||S.day);
+  const scene=message.scene?`<img class="group-chat-photo" src="${message.scene}" alt="${message.sender}이 올린 사진">`:'';
+  if(message.kind==='system'||message.kind==='result'){
+    return`<div class="group-chat-system ${message.kind==='result'?'result':''}">${scene}${message.text}</div>`;
+  }
+  return`<div class="chat-bubble group-chat-bubble ${message.mine?'mine':''}"><small>${message.mine?'나':message.sender} · ${when.year}년 ${when.month}월</small>${scene}<span>${message.text}</span></div>`;
+}
+
 function renderChatPanel(){
   const host=$('chat-panel');if(!host||!S.life)return;const L=S.life;
+  const groupRooms=GROUP_CHAT?GROUP_CHAT.list(L,S.day):[];
   const knownPeople=ensureMet(L).filter(r=>!FREEDOM_TRIO||FREEDOM_TRIO.canContact(L,r.name));
   const blockedPeople=knownPeople.filter(r=>r.status==='ex').map(r=>{ensureCourtship(r);return r;});
   const people=knownPeople.filter(r=>r.status!=='ex'&&hasPersonalContact(r));
@@ -5558,6 +5618,19 @@ function renderChatPanel(){
   const rivals=(S.bots||[]).map((bot,index)=>({bot,index})).filter(({bot})=>
     bot.contactUnlocked||((((L.chats||{})[bot.name]||{}).messages||[]).length>0)
   );
+  if(S._chatGroup){
+    const room=groupRooms.find(item=>item.id===S._chatGroup);
+    if(!room){S._chatGroup=null;return renderChatPanel();}
+    GROUP_CHAT.markRead(L,room.id,S.day);
+    const def=GROUP_CHAT.ROOMS[room.id],hidden=room.id==='freedom'&&!FREEDOM_TRIO.revealed(L);
+    const members=room.members.length
+      ?room.members.map(name=>hidden?(def.nicknames[name]||name):name).join(' · ')
+      :def.description;
+    host.innerHTML=`<div class="chat-room group-chat-room group-chat-${room.id}"><button id="chat-back">↩ 연락처</button><div class="group-chat-head"><span>${room.icon}</span><div><b>${room.name}</b><small>${members}</small></div></div><div class="chat-log group-chat-log">${room.messages.length?room.messages.map(groupChatMessageHTML).join(''):'<span class="muted">아직 올라온 메시지가 없습니다.</span>'}</div><div class="chat-readonly-note">${room.id==='freedom'?'🎮 이 방의 대화와 사진은 자유인 3인 본편에 그대로 누적됩니다. 개인적으로 지운 말은 각자의 DM에 남습니다.':room.id==='dangerous'?'🏠 세 사람의 중요한 이야기는 같은 자취방에서 직접 진행됩니다. 이 방은 집 밖의 확인과 견제를 보조합니다.':def.description}</div></div>`;
+    $('chat-back').addEventListener('click',()=>{S._chatGroup=null;renderChatPanel();autoSave();});
+    const log=host.querySelector('.chat-log');if(log)log.scrollTop=log.scrollHeight;
+    autoSave();return;
+  }
   if(S._chatRival!=null){
     const entry=rivals.find(item=>item.index===Number(S._chatRival));
     if(!entry){S._chatRival=null;return renderChatPanel();}
@@ -5591,21 +5664,27 @@ function renderChatPanel(){
   const romanceRows=people.map(r=>{const room=personChat(L,r.name),last=room.messages[room.messages.length-1];return`<button class="chat-contact" data-chat-person="${r.name}"><img src="${characterPortrait(r)}" alt="${r.name}"><span><b>${r.name}</b> · ${relationTag(L,r.name)}<br><span class="chat-preview">${last?last.text:'대화를 시작해보세요.'}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;}).join('');
   const blockedRows=blockedPeople.map(r=>`<button class="chat-contact blocked-chat-contact" disabled><img src="${characterPortrait(r,'sad')}" alt="${r.name}"><span><b>${r.name}</b> · 전 연인<br><span class="chat-preview">내가 차단한 연락처 · 메시지 수신 안 함</span></span><span class="blocked-contact-mark">🚫</span></button>`).join('');
   const rivalRows=rivals.map(({bot,index})=>{const room=personChat(L,bot.name),last=room.messages[room.messages.length-1],avatar=bot.portrait?`<img src="./assets/characters/${bot.portrait}" alt="${bot.leader}">`:`<span class="contact-avatar">📈</span>`;return`<button class="chat-contact rival-chat-contact" data-chat-rival="${index}">${avatar}<span><b>${bot.name}</b> · ${bot.bankrupt?'파산·해산':bot.faction}<br><span class="chat-preview">${last?last.text:'아직 직접 연락은 없습니다.'}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;}).join('');
-  host.innerHTML=`<div class="chat-list"><div class="hub-note">연락처는 적대 세력, 내 부하, 사적인 인맥과 연애 관계로 나뉩니다. 서로 다른 관계의 말투와 답장 선택지는 섞이지 않습니다.</div>${rivalRows?`<div class="chat-group-title">⚔️ 적대 세력</div>${rivalRows}`:''}${subordinateRows?`<div class="chat-group-title">🛡️ 내 세력·부하 보고</div>${subordinateRows}`:''}${contactRows?`<div class="chat-group-title">🏠 가족·친구·인맥</div>${contactRows}`:''}${romanceRows?`<div class="chat-group-title">💕 친구·연애 관계</div>${romanceRows}`:''}${blockedRows?`<div class="chat-group-title blocked-group-title">🚫 내가 차단한 연락처</div>${blockedRows}`:''}${!rivalRows&&!subordinateRows&&!contactRows&&!romanceRows&&!blockedRows?'<span class="muted">아직 저장된 연락처가 없습니다.</span>':''}</div>`;
+  const groupRows=groupRooms.map(room=>{const last=room.messages[room.messages.length-1],def=GROUP_CHAT.ROOMS[room.id];return`<button class="chat-contact group-chat-contact group-chat-contact-${room.id}" data-chat-group="${room.id}"><span class="contact-avatar">${room.icon}</span><span><b>${room.name}</b> · 단체방<br><span class="chat-preview">${last?`${last.sender}: ${last.text}`:def.description}</span></span>${room.unread?`<span class="chat-unread">${room.unread}</span>`:''}</button>`;}).join('');
+  host.innerHTML=`<div class="chat-list"><div class="hub-note">연락처는 단체방, 적대 세력, 내 부하, 사적인 인맥과 연애 관계로 나뉩니다. 공개 대화와 개인 DM의 말투도 서로 섞이지 않습니다.</div>${groupRows?`<div class="chat-group-title">💬 단체방</div>${groupRows}`:''}${rivalRows?`<div class="chat-group-title">⚔️ 적대 세력</div>${rivalRows}`:''}${subordinateRows?`<div class="chat-group-title">🛡️ 내 세력·부하 보고</div>${subordinateRows}`:''}${contactRows?`<div class="chat-group-title">🏠 가족·친구·인맥</div>${contactRows}`:''}${romanceRows?`<div class="chat-group-title">💕 친구·연애 관계</div>${romanceRows}`:''}${blockedRows?`<div class="chat-group-title blocked-group-title">🚫 내가 차단한 연락처</div>${blockedRows}`:''}${!groupRows&&!rivalRows&&!subordinateRows&&!contactRows&&!romanceRows&&!blockedRows?'<span class="muted">아직 저장된 연락처가 없습니다.</span>':''}</div>`;
   host.onclick=click=>{
+    const group=click.target.closest('[data-chat-group]');
+    if(group&&host.contains(group)){
+      S._chatPerson=null;S._chatContact=null;S._chatRival=null;S._chatGroup=group.dataset.chatGroup;
+      renderChatPanel();return;
+    }
     const rival=click.target.closest('[data-chat-rival]');
     if(rival&&host.contains(rival)){
-      S._chatPerson=null;S._chatContact=null;S._chatRival=Number(rival.dataset.chatRival);
+      S._chatGroup=null;S._chatPerson=null;S._chatContact=null;S._chatRival=Number(rival.dataset.chatRival);
       renderChatPanel();autoSave();return;
     }
     const contact=click.target.closest('[data-chat-contact]');
     if(contact&&host.contains(contact)){
-      S._chatPerson=null;S._chatRival=null;S._chatContact=contact.dataset.chatContact;
+      S._chatGroup=null;S._chatPerson=null;S._chatRival=null;S._chatContact=contact.dataset.chatContact;
       renderChatPanel();autoSave();return;
     }
     const person=click.target.closest('[data-chat-person]');
     if(person&&host.contains(person)){
-      S._chatContact=null;S._chatRival=null;S._chatPerson=person.dataset.chatPerson;
+      S._chatGroup=null;S._chatContact=null;S._chatRival=null;S._chatPerson=person.dataset.chatPerson;
       renderChatPanel();autoSave();
       // 방을 열면 상대의 최근 메시지를 그 인물 목소리로 읽어준다(사람이 부르듯)
       const rr=metRecord(L,person.dataset.chatPerson),rm=rr&&personChat(L,rr.name);
@@ -6809,12 +6888,25 @@ function showFreedomTrioStory(){
   const chapter=FREEDOM_TRIO&&FREEDOM_TRIO.next(S.life),host=$('life-event');
   if(!chapter||!host){closeLifeEvent();showNextImportantEvent();return;}
   const state=FREEDOM_TRIO.ensure(S.life);
+  const chatChapter=!!(GROUP_CHAT&&!state.extensionActive);
+  const choiceButtons=chapter.choices.map(choice=>{const poor=choice.cash<0&&S.capital<Math.abs(choice.cash),blocked=poor||choice.disabled,cost=choice.cash?`<span class="opt-sub">현금 -${won(Math.abs(choice.cash))}${poor?' · 현금 부족':''}</span>`:'';return`<button class="event-opt" data-freedom-choice="${choice.id}" ${blocked?'disabled':''}>${choice.text}${choice.disabled?'<span class="opt-sub">관계를 먼저 공개해야 합니다</span>':''}${cost}</button>`;}).join('');
+  if(chatChapter){
+    const room=GROUP_CHAT.presentFreedomChapter(S.life,chapter,S.day);
+    GROUP_CHAT.markRead(S.life,'freedom',S.day);
+    host.className='event-host phone-event-host';
+    host.style.display='block';
+    host.innerHTML=`<div class="phone-notification-stage freedom-main-chat-stage"><div class="phone-shell freedom-main-chat-shell"><div class="phone-status"><span>QuickTalk · ${room.name}</span><span>●●●</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">🎮</span><span><b>${chapter.title}</b><small>채원 · 유나 · 소희 · 플레이어</small></span><button type="button" id="freedom-story-x" class="phone-header-close" aria-label="닫기">×</button></header><div class="phone-chat-log freedom-story-chat-log"><div class="phone-date-chip">${chapter.icon} 자유인 3인 본편 · 단체방 기록</div>${room.messages.slice(-24).map(groupChatMessageHTML).join('')}<div class="phone-reply-label">어떻게 답할까요?</div><div class="phone-reply-options">${choiceButtons}<button class="event-opt" id="freedom-story-later">오늘은 답을 미루고 다음 접속 때 이야기한다</button></div>${chapter.afterText?`<div class="important-event-detail freedom-shadow-note">${chapter.afterText}</div>`:''}<div class="event-outcome" id="freedom-outcome"></div></div></div></div></div>`;
+    host.querySelectorAll('[data-freedom-choice]').forEach(button=>button.addEventListener('click',()=>resolveFreedomTrioStory(button.dataset.freedomChoice)));
+    [$('freedom-story-x'),$('freedom-story-later')].forEach(button=>button.addEventListener('click',closeLifeEvent));
+    const log=host.querySelector('.phone-chat-log');if(log)log.scrollTop=log.scrollHeight;
+    autoSave();return;
+  }
   const speakers=chapter.speakers.map(s=>{const person=metRecord(S.life,s.name);return`<div class="trio-dialogue"><img src="${characterPortrait(person)}" alt="${s.name}"><div><b>${s.name}</b><p>“${s.line}”</p></div></div>`;}).join('');
   const sceneGallery=chapter.scenes&&chapter.scenes.length
     ?`<div class="freedom-scene-gallery">${chapter.scenes.map(scene=>`<figure><img src="${scene.src}" alt="${scene.name} 장면"><figcaption><b>${scene.name}</b>${scene.caption}</figcaption></figure>`).join('')}</div>`
     :`<img class="life-scene-banner" src="${chapter.scene}" alt="${chapter.title} 이벤트 컷신">`;
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window trio-route-window freedom-trio-window"><div class="title-bar event-bar"><div class="title-bar-text">${chapter.icon} ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="freedom-story-x"></button></div></div><div class="window-body">${sceneGallery}<div class="trio-meter"><span>다음 접속의 온기</span><b class="${state.harmony<30?'down':'up'}">${state.harmony<30?'대화가 끊길 듯함':'답장을 기다릴 수 있음'}</b></div><div class="event-desc">${chapter.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${chapter.choices.map(choice=>{const poor=choice.cash<0&&S.capital<Math.abs(choice.cash),blocked=poor||choice.disabled,cost=choice.cash?`<span class="opt-sub">현금 -${won(Math.abs(choice.cash))}${poor?' · 현금 부족':''}</span>`:'';return`<button class="event-opt" data-freedom-choice="${choice.id}" ${blocked?'disabled':''}>${choice.text}${choice.disabled?'<span class="opt-sub">관계를 먼저 공개해야 합니다</span>':''}${cost}</button>`;}).join('')}<button class="event-opt" id="freedom-story-later">오늘은 답을 미루고 다음 접속 때 이야기한다</button></div>${chapter.afterText?`<div class="important-event-detail freedom-shadow-note">${chapter.afterText}</div>`:''}<div class="event-outcome" id="freedom-outcome"></div></div></div>`;
+  host.innerHTML=`<div class="window event-window trio-route-window freedom-trio-window"><div class="title-bar event-bar"><div class="title-bar-text">${chapter.icon} ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="freedom-story-x"></button></div></div><div class="window-body">${sceneGallery}<div class="trio-meter"><span>다음 접속의 온기</span><b class="${state.harmony<30?'down':'up'}">${state.harmony<30?'대화가 끊길 듯함':'답장을 기다릴 수 있음'}</b></div><div class="event-desc">${chapter.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${choiceButtons}<button class="event-opt" id="freedom-story-later">오늘은 답을 미루고 다음 접속 때 이야기한다</button></div>${chapter.afterText?`<div class="important-event-detail freedom-shadow-note">${chapter.afterText}</div>`:''}<div class="event-outcome" id="freedom-outcome"></div></div></div>`;
   host.querySelectorAll('[data-freedom-choice]').forEach(button=>button.addEventListener('click',()=>resolveFreedomTrioStory(button.dataset.freedomChoice)));
   [$('freedom-story-x'),$('freedom-story-later')].forEach(button=>button.addEventListener('click',closeLifeEvent));
 }
@@ -6826,6 +6918,7 @@ function freedomTrioCheckpoint(){
     relationshipGroup:L.relationshipGroup?JSON.parse(JSON.stringify(L.relationshipGroup)):null,
     polycule:JSON.parse(JSON.stringify(ensurePolycule(L))),
     bond:L.freedomTrioBond?JSON.parse(JSON.stringify(L.freedomTrioBond)):null,
+    groupChats:L.groupChats?JSON.parse(JSON.stringify(L.groupChats)):null,
     people:FREEDOM_TRIO.NAMES.map(name=>{const r=metRecord(L,name);return r&&{name,status:r.status,affection:r.affection,trust:r.trust};}).filter(Boolean)
   };
 }
@@ -6844,8 +6937,15 @@ function resolveFreedomTrioStory(choiceId){
   const chapter=FREEDOM_TRIO.next(S.life),choice=chapter&&chapter.choices.find(item=>item.id===choiceId);if(!choice)return;
   if(choice.cash<0&&S.capital<Math.abs(choice.cash)){flashToast('💸 이 선택에 필요한 현금이 부족합니다','bad');return;}
   const chapterIndex=FREEDOM_TRIO.ensure(S.life).stage;
+  const wasExtension=!!FREEDOM_TRIO.ensure(S.life).extensionActive;
   S._freedomRetry=freedomTrioCheckpoint();
   const result=FREEDOM_TRIO.apply(S.life,choiceId);if(!result)return;
+  if(GROUP_CHAT&&!wasExtension){
+    GROUP_CHAT.recordFreedomChoice(S.life,result.chapter,result.choice,S.day);
+    GROUP_CHAT.privateLeaksForChapter(S.life,result.chapter.id).forEach(message=>{
+      const person=metRecord(S.life,message.name);if(person)pushPersonMessage(S.life,person,message.text,false);
+    });
+  }
   if(result.choice.montage){
     S.day+=1;
     addNews(`🗓️ ${result.choice.montage==='dangerous'?'광기 3인의 시험 생활':'자유인 3인의 시험 생활'} 한 달이 짧은 몽타주로 지나갔습니다`,'neutral');
@@ -6886,6 +6986,7 @@ function retryFreedomTrioChoice(){
   L.partner=checkpoint.partner?JSON.parse(JSON.stringify(checkpoint.partner)):null;L.affection=checkpoint.affection;
   L.relationshipGroup=checkpoint.relationshipGroup?JSON.parse(JSON.stringify(checkpoint.relationshipGroup)):null;
   L.polycule=JSON.parse(JSON.stringify(checkpoint.polycule));L.freedomTrioBond=checkpoint.bond?JSON.parse(JSON.stringify(checkpoint.bond)):null;
+  L.groupChats=checkpoint.groupChats?JSON.parse(JSON.stringify(checkpoint.groupChats)):null;
   checkpoint.people.forEach(saved=>{const r=metRecord(L,saved.name);if(r){r.status=saved.status;r.affection=saved.affection;r.trust=saved.trust;}});
   showFreedomTrioStory();renderCapital();renderLifePanel();autoSave();
 }
