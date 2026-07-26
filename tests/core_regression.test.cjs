@@ -191,6 +191,12 @@ for (const file of [
   assert.equal(routes.devotion(pureLife,'dangerous').name,'강유진','순애 루트의 상대를 그룹 진행 장부에서 찾을 수 있어야 한다');
   assert.equal(routes.groupConfessionAvailable(pureLife,'dangerous'),false,'개인 순애를 고르면 상대 측 공동 고백만 막혀야 한다');
   assert.equal(routes.romanceAvailable(pureLife,'dangerous'),true,'개인 순애는 그룹 전체의 인물 관계를 삭제하는 영구 연애 잠금과 달라야 한다');
+  const activeRouteLife={day:8,met:[]};
+  routes.begin(activeRouteLife,'freedom');
+  assert.equal(routes.groupConfessionAvailable(activeRouteLife,'dangerous'),false,'another active group must block an earlier group confession');
+  routes.setConfession(activeRouteLife,'dangerous','queued');
+  routes.clearQueuedConfession(activeRouteLife,'dangerous');
+  assert.equal(routes.confession(activeRouteLife,'dangerous'),null,'a lost confession reservation must be recoverable');
   const legacyEarlyLock={day:9,romanceRoutes:{version:3,romanceLocked:{dangerous:{reason:'player_confessed_before_group_story_complete'}},confessions:{dangerous:{status:'rejected',reason:'player_confessed_before_group_story_complete'}}}};
   routes.ensure(legacyEarlyLock);
   assert.equal(routes.romanceAvailable(legacyEarlyLock,'dangerous'),true,'이전 버전의 성급한 고백 잠금은 새 순애 규칙에 맞게 자동 해제돼야 한다');
@@ -250,7 +256,7 @@ for (const file of [
   assert.match(appSource,/dangerousDisclosurePending/,'광기 3인 공동생활 사실은 첫 정모 직후가 아니라 중반 공개 대기로 기록돼야 한다');
   assert.match(crossSource,/dangerousDisclosureComplete/,'광기 3인과 자유인 3인의 첫 대면은 중반 관계 공개를 마쳐야 열려야 한다');
   assert.match(appSource,/if\(event\.storyBridge\)return 78/,'후속 그룹 첫 대면은 정식 그룹 루트 시작보다 먼저 보여야 한다');
-  assert.match(appSource,/while\(event&&!routeEventAllowed\(event\)\)event=queue\.shift\(\)/,'조건이 사라진 그룹 사건은 중요 사건 큐에서 건너뛰어야 한다');
+  assert.match(appSource,/while\(event&&!routeEventAllowed\(event\)\)\{[\s\S]{0,120}releaseImportantEventReservation\(event\);[\s\S]{0,80}event=queue\.shift\(\);/,'조건이 사라진 그룹 사건은 예약 상태를 해제하고 중요 사건 큐에서 건너뛰어야 한다');
   assert.match(appSource,/function showGroupConfession\(event\)/,'그룹의 모든 이야기가 끝난 뒤 별도 선고백 알림을 보여줘야 한다');
   assert.match(appSource,/CHEMISTRY\.monthly\(L,S\.day\)/,'캐릭터 캐미 사건은 월말 중요 사건 큐에서 별도 쿨다운으로 검사해야 한다');
   assert.match(appSource,/CHEMISTRY\.applyActionFatigue\(L,group,S\.day\)/,'다중 관계의 생활 피로는 광기 3인뿐 아니라 성립한 모든 그룹 행동에 적용돼야 한다');
@@ -388,6 +394,13 @@ for (const file of [
   assert.equal(trio.CHAPTERS.length,6,'위험 3인조 그룹 본편은 공조·개인 결말 양보 3장·위기·공동생활 합의의 6장이어야 한다');
   assert.deepEqual(trio.CHAPTERS.filter(chapter=>chapter.focus).map(chapter=>chapter.focus),trio.NAMES,'각 개인 아크의 결론이 그룹 안의 인물별 양보 장면으로 한 번씩 이어져야 한다');
   assert.equal(trio.AFTERMATH.length,5,'공동생활 후일담은 규칙뿐 아니라 돌봄과 자발적 귀가까지 5개월을 다뤄야 한다');
+  const blockedPreludeLife=JSON.parse(JSON.stringify(life));
+  context.QT_ROMANCE_ROUTES.begin(blockedPreludeLife,'freedom');
+  assert.equal(trio.preludeEligibility(blockedPreludeLife).ok,false,'another group route must block the dangerous trio prelude');
+  assert.equal(trio.preludeEligibility(blockedPreludeLife).guard.reason,'another_route');
+  trio.ensure(blockedPreludeLife).queued=true;
+  trio.cancelQueue(blockedPreludeLife);
+  assert.equal(trio.ensure(blockedPreludeLife).queued,false,'a lost dangerous trio start must be retryable');
   const legacyActive={dangerousTrio:{active:true,encountered:true,stage:3,stability:82,axes:{balance:3,containment:0,fracture:0},history:[
     {stage:0,choice:'roles',tag:'balance'},{stage:1,choice:'same',tag:'balance'},{stage:2,choice:'thank',tag:'balance'}
   ]}};
@@ -827,6 +840,9 @@ for (const file of [
   assert.equal(meetupInvite.meetupQueued,true,'연인이 없으면 네 사람 정모가 예약돼야 한다');
   assert.equal(freedom.nextCounselingEvent(guildLife),null,'첫 정모 전에 현실 고민 상담이 먼저 열리면 안 된다');
   assert.equal(freedom.queueFirstOuting(guildLife),true);
+  freedom.deferFirstOuting(guildLife);
+  assert.equal(freedom.ensure(guildLife).firstOuting,'pending','a dropped meetup must return to a retryable state');
+  assert.equal(freedom.queueFirstOuting(guildLife),true,'a dropped first meetup must be queued again');
   const rescueResult=freedom.applyFirstOuting(guildLife);
   assert.equal(rescueResult.mode,'social','자유인 첫 정모는 1장 진입 판단이 끝난 뒤 2장 현실 친구 이야기로 시작해야 한다');
   assert.equal(rescueResult.reveal,true,'실명과 현실 초상화는 첫 정모를 실제로 마친 뒤에만 공개돼야 한다');
@@ -864,6 +880,8 @@ for (const file of [
   assert.equal(groupChat.privateLeaksForChapter(storyChatLife,'ordinary_photos').length,3,'공개 사진 뒤에는 세 사람 모두 서로 다른 개인 DM으로 본심을 흘려야 한다');
   assert.equal(groupChat.privateLeaksForChapter(storyChatLife,'ordinary_photos').length,0,'개인 DM 후속은 새로 열 때마다 중복 생성되면 안 된다');
   storyChatLife.dangerousTrioBond={active:true};
+  const firstTakeover=groupChat.queueNext(storyChatLife,8);
+  groupChat.cancelQueued(storyChatLife,firstTakeover.id);
   const takeover=groupChat.queueNext(storyChatLife,8);
   assert.equal(takeover.id,'dangerous_phone_takeover','공동생활 중 자유인 사진 장을 마치면 휴대폰 대리 답장 사건이 열려야 한다');
   const takeoverResult=groupChat.resolveEvent(storyChatLife,takeover.id,'take_back',8);
@@ -1880,6 +1898,25 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/downsideCircuitDay === S\.day/,'개별 종목 -10% 서킷은 남은 장을 정지해야 한다');
   assert.match(appSource,/importantEventPriority\(event\)/,'월말 주요 사건은 중요도 순서로 정렬돼야 한다');
   assert.match(appSource,/prepareLifeEventOverlay\(true\)/,'휴대폰 알림은 전용 최상위 레이어로 열려야 한다');
+}
+
+{
+  const triggerAppSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  assert.match(triggerAppSource,/function releaseImportantEventReservation\(event\)/,'dropped events must release their module reservation');
+  assert.match(triggerAppSource,/return S\._importantEvents\.includes\(event\)/,'event queue callers must receive the actual insertion result');
+  assert.doesNotMatch(triggerAppSource,/if\s*\(\s*!met\.length\s*\)\s*return/,'online and route triggers must run before any real-world contact exists');
+  assert.match(triggerAppSource,/if\(event\.groupConfession\)return event\.groupId\|\|null/,'group confessions must obey their route lock');
+  assert.match(triggerAppSource,/function repairOpeningStoryQueue\(\)/,'legacy saves must repair the missing Sera opening encounter');
+  assert.match(triggerAppSource,/origin\.ready\|\|attacker\|\|L\.yujinInvestigationSeen\|\|\(L\._attackedRecently\|\|0\)>0/,'opening repair must use persisted attack evidence instead of one transient faction stage');
+  assert.match(triggerAppSource,/if\(repairOpeningStoryQueue\(\)\)return/,'faction progression must yield to the repaired Sera encounter');
+  assert.match(triggerAppSource,/if\(hasQueuedImportant\|\|continuingMonthClose\)showNextImportantEvent\(\)/,'closing a recovered encounter must not leak into a random life event');
+  const businessLife={};
+  const businessState=context.QT_BUSINESS_ROMANCE.ensure(businessLife);
+  businessState.retaliationSeen=true;
+  businessState.lastEventDay=14;
+  context.QT_BUSINESS_ROMANCE.releaseReservation(businessLife,{businessRomanceEvent:true,kind:'market-retaliation',day:14});
+  assert.equal(businessState.retaliationSeen,false,'a dropped one-time business story must become eligible again');
+  assert.equal(businessState.lastEventDay,13,'a dropped business story must not consume the monthly story slot');
 }
 
 console.log('core regression tests: ok');

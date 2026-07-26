@@ -491,7 +491,7 @@ function ensure(life){
   if(!Array.isArray(state.history))state.history=[];
   if(!state.personal||typeof state.personal!=='object')state.personal={};
   if(!state.counseling||typeof state.counseling!=='object')state.counseling={};
-  if(!['locked','queued','seen','blocked'].includes(state.firstOuting))state.firstOuting='locked';
+  if(!['locked','pending','queued','seen','blocked'].includes(state.firstOuting))state.firstOuting='locked';
   state.guildName=GUILD_NAME;
   state.guildJoined=!!state.guildJoined;
   if(!['hidden','revealed'].includes(state.identityState))state.identityState=state.firstOuting==='seen'?'revealed':'hidden';
@@ -713,6 +713,11 @@ function queueFirstOuting(life){
   state.firstOuting='queued';
   return true;
 }
+function deferFirstOuting(life){
+  const state=ensure(life);
+  if(state.firstOuting==='queued')state.firstOuting='pending';
+  return state;
+}
 function applyFirstOuting(life){
   const state=ensure(life);
   if(state.entryOutcome!=='offline'||state.firstOuting!=='queued')return null;
@@ -844,6 +849,11 @@ function queue(life){
   const check=eligibility(life),state=ensure(life);
   if(!check.ok||state.queued)return false;
   state.queued=true;return true;
+}
+function cancelQueue(life){
+  const state=ensure(life);
+  state.queued=false;
+  return state;
 }
 function start(life){
   const check=eligibility(life);if(!check.ok)return{ok:false,check};
@@ -1023,7 +1033,7 @@ function compatibleCandidate(name){return NAMES.includes(name);}
 
 root.QT_FREEDOM_TRIO={
   NAMES,GUILD_NAME,ROMANCE_ENDINGS,romanceEnding,GUILD_MEMBERS,GUILD_EVENTS,COUNSELING_EVENTS,FIRST_OUTING,DANGEROUS_DISCLOSURE,PERSONAL_EVENTS,CHAPTERS:STORY_CHAPTERS,AFTERMATH,ensure,playGuild,guildEvent,resolveGuild,
-  chapterTwoUnlocked,revealed,canContact,canMeetOffline,relationshipMode,storyMode,nextCounselingEvent,queueCounseling,counselingEvent,applyCounseling,counselingComplete,queueFirstOuting,applyFirstOuting,dangerousDisclosureReady,applyDangerousDisclosure,
-  nextPersonalEvent,queuePersonal,personalEvent,applyPersonal,progress,individualStoriesComplete,storyComplete,resolveUnavailable,confessionReady,marketRumorAvailable,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,recovery,compatibleCandidate,
+  chapterTwoUnlocked,revealed,canContact,canMeetOffline,relationshipMode,storyMode,nextCounselingEvent,queueCounseling,counselingEvent,applyCounseling,counselingComplete,queueFirstOuting,deferFirstOuting,applyFirstOuting,dangerousDisclosureReady,applyDangerousDisclosure,
+  nextPersonalEvent,queuePersonal,personalEvent,applyPersonal,progress,individualStoriesComplete,storyComplete,resolveUnavailable,confessionReady,marketRumorAvailable,eligibility,queue,cancelQueue,start,next,apply,monthly,nextAftermath,applyAftermath,recovery,compatibleCandidate,
 };
 })(window);

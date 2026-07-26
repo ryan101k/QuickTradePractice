@@ -274,7 +274,8 @@ function preludeEligibility(life){
  const seraHome=(life.seraHousing==='cohabit'||legacyHome)&&!state.lockedOut;
  const faction=life.faction||{},subordinateReady=(faction.level||0)>0&&Array.isArray(faction.members)&&faction.members.length>0;
  const caseLinked=!!life.yujinInvestigationSeen||!!(rec(life,'강유진')||{}).officialContact;
- return{ok:!state.active&&!state.encountered&&!state.ending&&!state.badFriendsFormed&&allKnown&&seraHome&&subordinateReady&&caseLinked,allKnown,seraHome,subordinateReady,caseLinked};
+ const guard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'dangerous');
+ return{ok:(!guard||guard.ok)&&!state.active&&!state.encountered&&!state.ending&&!state.badFriendsFormed&&allKnown&&seraHome&&subordinateReady&&caseLinked,allKnown,seraHome,subordinateReady,caseLinked,guard};
 }
 function nextPrelude(life){
  const state=ensure(life);
@@ -366,6 +367,11 @@ function queue(life){
  state.queued=true;
  return true;
 }
+function cancelQueue(life){
+ const state=ensure(life);
+ state.queued=false;
+ return state;
+}
 function start(life){
  const check=eligibility(life);if(!check.ok)return{ok:false,check};
  if(root.QT_ROMANCE_ROUTES&&!root.QT_ROMANCE_ROUTES.begin(life,'dangerous').ok)return{ok:false,check:eligibility(life)};
@@ -422,5 +428,5 @@ function applyAftermath(life,choiceId){
 }
 function compatibleCandidate(){return false;}
 
-root.QT_DANGEROUS_TRIO={VERSION,NAMES,ROMANCE_ENDINGS,romanceEnding,PRELUDES,CHAPTERS,AFTERMATH,PERSONAL_ARC_LESSONS,personalCarry,ensure,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,storyComplete,resolveUnavailable,confessionReady,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
+root.QT_DANGEROUS_TRIO={VERSION,NAMES,ROMANCE_ENDINGS,romanceEnding,PRELUDES,CHAPTERS,AFTERMATH,PERSONAL_ARC_LESSONS,personalCarry,ensure,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,storyComplete,resolveUnavailable,confessionReady,eligibility,queue,cancelQueue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
 })(window);

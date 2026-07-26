@@ -219,6 +219,11 @@ function queueNext(life,day=0){
   state.queued[event.id]=day||true;
   return event;
 }
+function cancelQueued(life,eventId){
+  const state=ensure(life);
+  if(eventId)delete state.queued[eventId];
+  return state;
+}
 function recordEventMessages(life,event,day){
   const target=room(life,event.roomId);
   (event.group||[]).forEach(([sender,text],index)=>post(life,event.roomId,sender,text,{day,scene:index===0?event.scene:'',kind:index===0&&event.scene?'photo':'text'}));
@@ -293,7 +298,7 @@ function privateLeaksForChapter(life,chapterId){
 }
 
 root.QT_GROUP_CHAT={
-  VERSION,ROOMS,EVENTS,ensure,sync,list,room,post,nextEvent,queueNext,resolveEvent,markRead,senderLabel,
+  VERSION,ROOMS,EVENTS,ensure,sync,list,room,post,nextEvent,queueNext,cancelQueued,resolveEvent,markRead,senderLabel,
   presentFreedomChapter,recordFreedomChoice,privateLeaksForChapter,
 };
 })(window);
