@@ -2818,18 +2818,21 @@ function resolveBusinessRomanceEvent(choiceId){
   }
   if(result.chaerinCross){
     const known=metRecord(S.life,'한채린');
-    const chaerin=known||rememberPerson(D.SPECIAL_CHARACTERS.chaerin,'acquaintance');
-    chaerin.affection=clamp((chaerin.affection||0)+(choiceId==='refuse'?11:4),0,100);
-    chaerin.trust=clamp((chaerin.trust||0)+(choiceId==='seat'?7:3),0,100);
-    chaerin.businessQuartetRivalry=(chaerin.businessQuartetRivalry||0)+1;
-    chaerin.secretaryContact=true;chaerin.contactChannel='비서실 명함';chaerin.specialFollowupInterest='open';
-    chaerin.lastSpecialFollowupDay=S.day;chaerin.chaerinFirstOrigin=chaerin.chaerinFirstOrigin||(known?'known':'business-board');
-    chaerin.chaerinDefiance=(chaerin.chaerinDefiance||0)+(choiceId==='refuse'?2:1);
-    addBondInteraction(chaerin,'business-board');
-    if(CHAR_TRAITS)CHAR_TRAITS.change(chaerin,choiceId==='refuse'?12:5);
-    chaerin.secretaryNote=choiceId==='refuse'?'내 계약서를 면전에서 돌려준 사람은 처음이네. 다음에도 비위 맞추면 오늘 한 말 전부 취소한 걸로 알겠어.':'투자자 자리만 주고 사람은 못 건드리게 한다? 적어도 아첨은 아니네. 다음에는 네 말로 직접 조건을 정해.';
-    addNews(`📇 한채린 비서실 전달: “${chaerin.secretaryNote}”`,'neutral');
-    if(!known)addNews('👑 사업 책임자 스카우트 이사회에서 한채린을 처음 만났습니다 · 비서실 연락만 가능','neutral');
+    if(!known){
+      S.life.chaerinBoardGlimpse=true;
+      S.life.chaerinBoardGlimpseChoice=choiceId;
+      addNews('👑 네 책임자를 노린 거액의 스카우트 제안 뒤에 한채린이라는 이름이 남았습니다 · 나래가 사교모임에서 직접 확인하자고 했습니다','neutral');
+    }else{
+      known.affection=clamp((known.affection||0)+(choiceId==='refuse'?11:4),0,100);
+      known.trust=clamp((known.trust||0)+(choiceId==='seat'?7:3),0,100);
+      known.businessQuartetRivalry=(known.businessQuartetRivalry||0)+1;
+      known.lastSpecialFollowupDay=S.day;
+      known.chaerinDefiance=(known.chaerinDefiance||0)+(choiceId==='refuse'?2:1);
+      addBondInteraction(known,'business-board');
+      if(CHAR_TRAITS)CHAR_TRAITS.change(known,choiceId==='refuse'?12:5);
+      known.secretaryNote=choiceId==='refuse'?'내 계약서를 면전에서 돌려준 사람은 처음이네. 다음에도 비위 맞추면 오늘 한 말 전부 취소한 걸로 알겠어.':'투자자 자리만 주고 사람은 못 건드리게 한다? 적어도 아첨은 아니네. 다음에는 네 말로 직접 조건을 정해.';
+      addNews(`📇 한채린 비서실 전달: “${known.secretaryNote}”`,'neutral');
+    }
   }
   if(result.soloEnding){
     LEGACY.push(S.life,dateInfo(S.day).age,'💍',`${result.title} · 사업 담당자 순애엔딩`,'love');
@@ -3706,8 +3709,15 @@ function meetContact() {
 function showIndustryGatherings(){
   const host=$('life-event');if(!host||!SOCIAL)return;
   const social=SOCIAL.ensure(S.life),introduced=BUSINESS_ROMANCE?BUSINESS_ROMANCE.ensure(S.life).staff:{};
+  const naraeGuide=social.industry.meetings===0
+    ?'“사교모임은 비싼 사람을 바로 만나는 곳이 아니에요. 처음 두어 번은 누가 누구에게 먼저 인사하고, 어떤 명함을 끝까지 남기는지만 보세요.”'
+    :social.industry.meetings===1
+      ?'“오늘은 이름을 팔려고 하지 말고 지난번에 본 얼굴 하나만 기억해 보세요. 인맥은 명함 수보다 다시 알아보는 데서 시작해요.”'
+      :social.industry.meetings===2
+        ?'“이제 분위기는 알겠죠? 다음부터는 모임이 끝나도 바로 가지 마세요. 제가 따로 부르면 이유 묻지 말고 따라와요.”'
+        :'“아는 얼굴이 생겼으면 이제 누가 자리를 만들고 누가 사람을 시험하는지도 보일 거예요. 끝난 뒤 제 신호도 놓치지 말고요.”';
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">🥂 사교 모임 · 업계 소개</div><div class="title-bar-controls"><button aria-label="Close" id="industry-gathering-x"></button></div></div><div class="window-body"><div class="event-desc">호텔 로비와 비공개 라운지에는 평소 명함만 오가던 업계 인물들이 직접 나와 있습니다. 누구와 마주칠지는 그동안 쌓인 평판과 참석자들의 판단에 달렸습니다.</div><div class="date-glance"><span>사회 평판 ${Math.round(social.reputation)}</span><span>사교 실적 ${social.industry.standing}</span><span>아는 얼굴 ${Object.values(introduced).filter(item=>item.introduced).length}/4명</span></div><div class="resume-grid">${SOCIAL.INDUSTRY_GATHERINGS.map(g=>{const status=SOCIAL.gatheringStatus(S.life,g.id),remaining=g.candidates.filter(id=>!introduced[id]||!introduced[id].introduced),hints=remaining.map(id=>{const p=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.profile(id);return p?`${p.rivalFirm} ${p.role}`:'업계 인물';}).join(' · ');return`<button class="resume-card" data-industry-gathering="${g.id}" ${status.available&&S.capital>=g.cost?'':'disabled'}><span>${g.icon}</span><b>${g.name} · ${g.tier}등급</b><small>${g.desc}</small><em>${hints?`참석 예정: ${hints}`:'익숙한 얼굴들이 모이는 자리'}</em><strong>${won(g.cost)}${!status.available?` · ${status.reason}`:S.capital<g.cost?' · 현금 부족':''}</strong></button>`;}).join('')}</div><button id="industry-gathering-close" class="session-btn">이번 달은 참가하지 않는다</button></div></div>`;
+  host.innerHTML=`<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">🥂 사교 모임 · 업계 소개</div><div class="title-bar-controls"><button aria-label="Close" id="industry-gathering-x"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래 · 인맥 수업</strong><br><span class="muted">${naraeGuide}</span></div></div><div class="event-desc">처음에는 공개 네트워킹에서 얼굴과 분위기를 익히고, 다시 불리는 횟수가 늘수록 더 안쪽의 자리가 열립니다.</div><div class="date-glance"><span>사회 평판 ${Math.round(social.reputation)}</span><span>사교 실적 ${social.industry.standing}</span><span>참석 ${social.industry.meetings}회</span><span>아는 얼굴 ${Object.values(introduced).filter(item=>item.introduced).length}/4명</span></div><div class="resume-grid">${SOCIAL.INDUSTRY_GATHERINGS.map(g=>{const status=SOCIAL.gatheringStatus(S.life,g.id),remaining=g.candidates.filter(id=>!introduced[id]||!introduced[id].introduced),hints=remaining.map(id=>{const p=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.profile(id);return p?`${p.rivalFirm} ${p.role}`:'업계 인물';}).join(' · ');return`<button class="resume-card" data-industry-gathering="${g.id}" ${status.available&&S.capital>=g.cost?'':'disabled'}><span>${g.icon}</span><b>${g.name} · ${g.tier}등급</b><small>${g.desc}</small><em>${hints?`참석 예정: ${hints}`:'익숙한 얼굴들이 모이는 자리'}</em><strong>${won(g.cost)}${!status.available?` · ${status.reason}`:S.capital<g.cost?' · 현금 부족':''}</strong></button>`;}).join('')}</div><button id="industry-gathering-close" class="session-btn">이번 달은 참가하지 않는다</button></div></div>`;
   const close=()=>{host.style.display='none';host.innerHTML='';};
   host.querySelectorAll('[data-industry-gathering]').forEach(button=>button.addEventListener('click',()=>attendIndustryGathering(button.dataset.industryGathering)));
   $('industry-gathering-x').addEventListener('click',close);$('industry-gathering-close').addEventListener('click',close);
@@ -3726,11 +3736,28 @@ function attendIndustryGathering(id){
   }else addNews(message,'good');
   flashToast(result.introduced?`새 업계 인물을 소개받았습니다: ${BUSINESS_ROMANCE.identity(S.life,result.introduced).displayName}`:message,'good');
   const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
-  if(gathering.tier>=2&&!metRecord(S.life,'한채린')){
-    showChaerinIndustryEncounter(gathering,result.introduced);
+  const chaerin=metRecord(S.life,'한채린');
+  if(!chaerin&&gathering.tier>=1&&SOCIAL.ensure(S.life).industry.meetings>=3&&S.life.chaerinLeadLastDay!==S.day){
+    showNaraeChaerinLead(gathering,result.introduced);
+    return;
+  }
+  if(chaerin&&chaerin.chaerinContractTorn&&!hasPersonalContact(chaerin)&&!chaerin.chaerinRouteClosed&&chaerin.lastSpecialFollowupDay!==S.day){
+    showChaerinGatheringFollowup(D.SPECIAL_CHARACTERS.chaerin,chaerin,gathering);
     return;
   }
   afterLifeAction('인맥');
+}
+
+function showNaraeChaerinLead(gathering,introducedId){
+  const host=$('life-event');if(!host)return;
+  S.life.chaerinLeadLastDay=S.day;
+  S._chaerinLead={gathering,introducedId};
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">📘 나래의 인맥 수업 · 끝난 뒤의 초대</div><div class="title-bar-controls"><button aria-label="Close" id="chaerin-lead-x"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래</strong><br><span class="muted">“오늘은 명함보다 사람 보는 법을 배울 차례예요.”</span></div></div><div class="event-desc">모임이 끝나자 나래는 로비가 아니라 전용 엘리베이터 쪽으로 걷습니다. 방금까지 당신을 없는 사람 취급하던 참석자 몇 명이 그쪽을 보고 먼저 길을 비킵니다.</div><div class="story-dialogue"><b>나래</b> “위층에 업계에서 유명한 ‘신입 털이’가 있어요. 말려들지 말고 구경만 하려면 지금 따라와요. 싫으면 오늘 배운 것만 챙겨서 돌아가도 되고요.”</div><div class="event-options"><button class="event-opt opening" id="chaerin-lead-follow"><b>나래를 따라 전용 엘리베이터에 탄다</b><span>이름이 공개되지 않은 후원자의 자리를 구경합니다.</span></button><button class="event-opt" id="chaerin-lead-leave"><b>오늘은 여기까지 하고 돌아간다</b><span>다음 사교모임에서 다시 기회를 기다립니다.</span></button></div></div></div>`;
+  const leave=()=>{host.style.display='none';host.innerHTML='';S._chaerinLead=null;afterLifeAction('인맥');};
+  $('chaerin-lead-follow').addEventListener('click',()=>showChaerinIndustryEncounter(gathering,introducedId));
+  [$('chaerin-lead-x'),$('chaerin-lead-leave')].forEach(button=>button.addEventListener('click',leave));
+  autoSave();
 }
 
 function showChaerinIndustryEncounter(gathering,introducedId){
@@ -3745,32 +3772,45 @@ function showChaerinIndustryEncounter(gathering,introducedId){
         ?'<div class="hub-note bad-friends-note"><b>강유진의 수사 메모</b><br>유진의 차명계좌 수사 메모에서 본 계열사 이름이 행사 후원사 명단에도 적혀 있습니다. 채린은 당신이 그 이름을 알아봤다는 사실부터 눈치챘습니다.</div>'
         :'';
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">👑 ${gathering.name} · 초대장에 없던 자리</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-chaerin-contract.png" alt="사교모임의 후원자로 나타난 한채린"><div class="event-title">모임이 끝났는데 후원자 한 사람만 자리를 뜨지 않았습니다.</div><div class="event-desc">한채린은 참석자 전원이 자기 앞에서 고개를 숙이는 동안, 행사 운영 명단에는 있지만 자기가 직접 고른 초청자 명단에는 없던 당신만 오래 바라봤습니다. 수행원이 가져온 의자는 채린의 것보다 노골적으로 낮습니다. 소개도 악수도 없이 채린이 먼저 앉으라고 손짓합니다.</div>${caseLink}<div class="story-dialogue"><b>한채린</b> “내 행사에서 내 계열사 이름을 그렇게 오래 본 사람은 처음이네. 일단 앉아. 네가 어떤 값으로 여기까지 들어왔는지 들어볼 테니까.”</div><div class="event-options"><button class="event-opt" data-chaerin-first="dismiss"><b>“사람 부를 때는 용건부터 말해. 의자 장난할 거면 간다.”</b><span>채린의 말을 끊고 낮은 의자를 수행원 쪽으로 밀어냅니다.</span></button><button class="event-opt" data-chaerin-first="take"><b>채린의 상석을 당겨 앉고 보고 싶으면 서서 말하라고 한다</b><span>행사장 전체가 얼어붙지만 채린만 경호원을 멈춥니다.</span></button><button class="event-opt" data-chaerin-first="flatter"><b>후원자를 만나 영광이라며 낮은 의자에 앉는다</b><span>모두가 내놓았던 가장 안전하고 가장 익숙한 대답입니다.</span></button></div><div id="chaerin-industry-outcome" class="event-outcome"></div></div></div>`;
+  host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">👑 ${gathering.name} · 신입을 구경하는 사람</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-chaerin-contract.png" alt="사교모임의 후원자로 나타난 한채린"><div class="event-title">위층에서 당신은 순식간에 모임의 구경거리가 됐습니다.</div><div class="event-desc">나래가 잠시 자리를 비운 사이, 업계에서 신입을 골라내기로 유명한 참석자들이 실적과 집안과 자산을 번갈아 묻습니다. 제대로 답할 틈도 없이 웃음이 번집니다. 그때 한채린이 잔을 든 채 다가와 그들을 먼저 비웃습니다.</div>${caseLink}<div class="story-dialogue"><b>한채린</b> “그 질문에 답한다고 여기 사람이 되는 줄 알았어? 정말 순진하네. 그래도 저 사람들보다 네 표정이 더 재미있으니까, 잠깐 빌려갈게.”</div><div class="event-desc">채린은 당신을 구해준 사람처럼 보이지만, 호의가 아니라 새 장난감을 발견한 얼굴입니다. 인사도 받지 않은 채 전용 엘리베이터를 가리킵니다.</div><div class="event-options"><button class="event-opt opening" id="chaerin-elevator-next">한채린을 따라 엘리베이터에 탄다</button><button class="event-opt" id="chaerin-elevator-leave">나래를 기다리겠다며 돌아선다</button></div></div></div>`;
+  $('chaerin-elevator-next').addEventListener('click',showChaerinElevatorProposal);
+  $('chaerin-elevator-leave').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._chaerinIndustry=null;S._chaerinLead=null;afterLifeAction('인맥');});
+}
+
+function showChaerinElevatorProposal(){
+  const pending=S._chaerinIndustry,host=$('life-event');if(!pending||!host)return;
+  host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">👑 한채린 · 내려가는 엘리베이터</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-chaerin-2.png" alt="엘리베이터 문 사이로 제안을 건네는 한채린"><div class="event-title">문이 닫히기 직전, 채린이 계약서 한 장을 내밉니다.</div><div class="event-desc">내용은 후원처럼 보이지만 당신의 투자 계좌와 일정, 만나는 사람까지 비서실에 보고하는 조건입니다. 채린은 펜을 건네면서 이미 대답을 알고 있다는 듯 웃습니다.</div><div class="story-dialogue"><b>한채린</b> “서명하면 방금 너를 웃음거리로 만든 사람들은 다시는 네 이름도 못 불러. 이런 기회는 두 번 설명 안 해.”</div><div class="event-options"><button class="event-opt" data-chaerin-first="accept"><b>계약을 받아들인다</b><span>지금의 모욕을 끝내기 위해 채린의 보호를 택합니다.</span></button><button class="event-opt" data-chaerin-first="polite"><b>고맙지만 어렵다며 정중하게 돌려준다</b><span>예의를 지킨 채 조건을 거절합니다.</span></button><button class="event-opt opening" data-chaerin-first="tear"><b>계약서를 읽은 자리에서 찢는다</b><span>보호도 평가도 필요 없다고 말합니다.</span></button></div><div id="chaerin-industry-outcome" class="event-outcome"></div></div></div>`;
   host.querySelectorAll('[data-chaerin-first]').forEach(button=>button.addEventListener('click',()=>resolveChaerinIndustryEncounter(button.dataset.chaerinFirst)));
 }
 
 function resolveChaerinIndustryEncounter(choice){
   const pending=S._chaerinIndustry,host=$('life-event');if(!pending||!host)return;
-  const rec=rememberPerson(pending.c,'acquaintance');
-  const effects={
-    dismiss:{affection:11,trust:5,danger:5,signature:13,line:'내 말을 중간에 끊고 그냥 가겠다는 사람도 처음이네. 좋아, 오늘은 내가 용건을 준비하지. 다음 모임에는 네가 먼저 자리를 골라.'},
-    take:{affection:9,trust:2,danger:8,signature:11,line:'그건 내 자리야. …경호원은 물러나. 어디까지 무례할 수 있는지 내가 직접 봐야겠으니까.'},
-    flatter:{affection:-4,trust:1,danger:-2,signature:-5,line:'그 표정은 오늘만 열두 번 봤어. 비서실 명함은 줄 테니, 다음에는 적어도 네 말로 대답해.'},
+  const outcomes={
+    accept:{line:'정말 서명하네. 미안하지만 이제 재미없어졌어. 그 계약은 효력 없으니까 들고 꺼져.',text:'채린은 서명한 종이를 돌려주고 엘리베이터의 닫힘 버튼을 누릅니다. 이름도 연락처도 남지 않았습니다.',tone:'neutral'},
+    polite:{line:'거절까지 남이 가르쳐준 말처럼 하네. 그 정도 예의는 아래층에서 실컷 봤어.',text:'채린은 계약서를 받자마자 코웃음을 칩니다. 엘리베이터 문이 닫히고, 둘 사이에는 아무 인연도 생기지 않았습니다.',tone:'neutral'},
+    tear:{line:'…그걸 찢어? 내 앞에서? 좋아. 화가 풀릴 때까지 몇 번은 데리고 다녀야겠네.',text:'채린은 처음으로 웃음을 거두고 찢어진 조각을 직접 주워 담습니다. 수행원이 아니라 자기 번호가 없는 비서실 카드 한 장만 바닥에 내려놓습니다.',tone:'good'},
   };
-  const effect=effects[choice]||effects.flatter;
-  rec.affection=clamp((rec.affection||0)+effect.affection,0,100);
-  rec.trust=clamp((rec.trust||0)+effect.trust,0,100);
-  rec.dangerLevel=clamp((rec.dangerLevel||0)+effect.danger,0,100);
-  rec.secretaryContact=true;rec.contactChannel='비서실 명함';rec.specialFollowupInterest=choice==='flatter'?'formal':'open';
-  rec.lastSpecialFollowupDay=S.day;rec.chaerinFirstOrigin='industry';rec.chaerinFirstAnswer=choice;
-  rec.chaerinDefiance=(rec.chaerinDefiance||0)+(choice==='dismiss'?2:choice==='take'?3:0);
-  addBondInteraction(rec,'industry-first-meeting');
-  if(CHAR_TRAITS)CHAR_TRAITS.change(rec,effect.signature);
-  addNews(`👑 한채린을 ${pending.gathering.name} 후원자 자리에서 처음 만났습니다 · 비서실 연락만 가능`,choice==='flatter'?'neutral':'good');
+  const outcome=outcomes[choice]||outcomes.polite;
+  let rec=null;
+  S.life.chaerinEncounterAttempts=(S.life.chaerinEncounterAttempts||0)+1;
+  if(choice==='tear'){
+    rec=rememberPerson(pending.c,'acquaintance');
+    rec.affection=Math.max(rec.affection||0,12);rec.trust=Math.max(rec.trust||0,4);
+    rec.dangerLevel=clamp((rec.dangerLevel||0)+8,0,100);
+    rec.secretaryContact=true;rec.contactChannel='비서실 카드';rec.specialFollowupInterest='open';
+    rec.lastSpecialFollowupDay=S.day;rec.chaerinFirstOrigin='narae-industry-tutorial';rec.chaerinFirstAnswer=choice;
+    rec.chaerinContractTorn=true;rec.chaerinDefiance=(rec.chaerinDefiance||0)+3;
+    addBondInteraction(rec,'torn-contract');
+    if(CHAR_TRAITS)CHAR_TRAITS.change(rec,14);
+    addNews(`👑 한채린의 계약서를 찢었습니다 · 다음 사교모임에 비서실 카드가 다시 도착합니다`,'good');
+  }else{
+    S.life.chaerinLastRejectedProposal=choice;
+    addNews(`🥂 한채린의 이름도 듣지 못한 채 엘리베이터에서 헤어졌습니다`,'neutral');
+  }
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
-  $('chaerin-industry-outcome').innerHTML=`<div class="story-dialogue"><b>한채린</b> “${effect.line}”</div><div class="oc-changes">한채린 · 호감 ${effect.affection>=0?'+':''}${effect.affection} · 신뢰 +${effect.trust} · 비서실 명함만 받음<br>아첨은 채린의 기억에서 당신을 지우고, 거절과 무례는 채린이 다시 찾아올 이유가 됩니다.</div><button id="chaerin-industry-confirm" class="session-btn opening">명함을 주머니에 구겨 넣는다</button>`;
+  $('chaerin-industry-outcome').innerHTML=`${choice==='tear'?'<img class="life-scene-banner" src="./assets/event-chaerin-1.png" alt="찢어진 계약서를 사이에 둔 한채린">':''}<div class="story-dialogue"><b>한채린</b> “${outcome.line}”</div><div class="event-desc">${outcome.text}</div><button id="chaerin-industry-confirm" class="session-btn opening">${choice==='tear'?'찢어진 조각을 남겨두고 나온다':'다음 층에서 내린다'}</button>`;
   $('chaerin-industry-confirm').addEventListener('click',()=>{
-    host.style.display='none';host.innerHTML='';S._chaerinIndustry=null;
+    host.style.display='none';host.innerHTML='';S._chaerinIndustry=null;S._chaerinLead=null;
     afterLifeAction('인맥');
   });
   autoSave();
@@ -4081,7 +4121,7 @@ function meetSpecialPerson(id) {
   if (!c) return;
   const known=metRecord(S.life,c.name);
   if(id==='yujin'&&!known){showYujinInvestigation(true);return;}
-  if(id==='chaerin'&&!known){flashToast('🥂 한채린은 비공개 포럼 이상의 사교모임이나 책임자 스카우트 이사회에서 만날 수 있습니다','neutral');return;}
+  if(id==='chaerin'&&!known){flashToast('📘 나래의 인맥 수업을 따라 사교모임에 몇 차례 나가면 더 안쪽의 자리를 볼 수 있습니다','neutral');return;}
   if(known&&!hasPersonalContact(known)){
     showSpecialFollowupMeet(id,c,known);
     return;
@@ -4118,6 +4158,116 @@ function resolveSpecialMeet(status) {
     flashToast('명함 뒷면에 다음 약속의 날짜를 받아냈습니다','neutral');
   }
   const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}S._specialMeet=null;afterLifeAction('인맥');
+}
+
+function showChaerinGatheringFollowup(c,rec,gathering){
+  const host=$('life-event');if(!host||!c||!rec)return;
+  const count=(rec.specialFollowupCount||0)+1;
+  S._chaerinGatheringFollowup={c,rec,gathering,count};
+  const scenes={
+    1:{
+      image:'./assets/event-chaerin-9.png',
+      title:'빌린 장난감',
+      desc:'다음 모임의 입구에서 채린은 인사 대신 자기 재킷을 당신 어깨에 걸칩니다. 사람들은 당신을 새 투자자가 아니라 채린이 데려온 장식품처럼 봅니다.',
+      line:'“계약서는 찢었어도 내가 부르면 왔네. 오늘은 말하지 말고 옆에 있어. 네 표정이 저 사람들보다 볼 만하니까.”',
+      choices:[
+        ['defy','재킷을 벗어 돌려주고 소개할 거면 이름부터 제대로 부르라고 한다'],
+        ['endure','사람들 앞에서는 참되 돌아가는 차 안에서 사과를 요구한다'],
+        ['scheme','장식품인 척하며 참석자들의 거래 이야기를 전부 기억한다'],
+      ],
+    },
+    2:{
+      image:'./assets/event-chaerin-contract.png',
+      title:'두 번째 신입 털이',
+      desc:'채린은 당신을 데리고 다니며 만나는 사람마다 “계약서를 읽기는 하는데 처세는 모르는 신입”이라고 소개합니다. 웃음이 터질 때마다 당신 쪽을 보며 얼마나 참는지 확인합니다.',
+      line:'“화났어? 여기서 따지면 네 평판이 망가지고, 참으면 내가 재미없어져. 이번에는 뭘 고를 건데?”',
+      choices:[
+        ['defy','채린의 말을 끊고 이 자리에서 제일 처세를 모르는 건 사람을 장난감처럼 쓰는 후원자라고 한다'],
+        ['endure','모임이 끝날 때까지 기다린 뒤 다시는 이런 소개를 하지 말라고 선을 긋는다'],
+        ['scheme','채린보다 먼저 웃고 신입 털이들의 허점을 거래 조건으로 바꾼다'],
+      ],
+    },
+  };
+  if(count>=3){
+    host.style.display='block';
+    host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">👑 한채린 · 세 번째 모임의 끝</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-chaerin-4.png" alt="처음으로 표정을 잃은 한채린"><div class="event-title">이번에는 웃음이 먼저 멈췄습니다.</div><div class="event-desc">모임이 끝난 뒤에도 채린은 사람들 앞에서 당신의 실패를 하나씩 늘어놓습니다. 돌아서려는 손목까지 붙잡고 “계약을 찢을 때는 멋있더니 이 정도도 못 버티냐”고 낮게 웃습니다. 억눌렀던 화가 올라오지만, 아직 멈출 수 있습니다.</div><div class="event-options"><button class="event-opt" data-chaerin-break="leave"><b>아무 말 없이 손을 빼고 떠난다</b><span>다시는 비서실의 초대에 응하지 않습니다.</span></button><button class="event-opt" data-chaerin-break="endure"><b>끝까지 손을 내리고 다시는 사람들 앞에서 시험하지 말라고 한다</b><span>분노는 참되 관계의 선을 직접 정합니다.</span></button><button class="event-opt bad" data-chaerin-break="strike"><b>손목을 뿌리치다 실수로 뺨을 때린다</b><span>둘 다 넘지 말았어야 할 선을 넘습니다.</span></button></div><div id="chaerin-break-outcome" class="event-outcome"></div></div></div>`;
+    host.querySelectorAll('[data-chaerin-break]').forEach(button=>button.addEventListener('click',()=>resolveChaerinGatheringBreak(button.dataset.chaerinBreak)));
+    return;
+  }
+  const scene=scenes[count]||scenes[2];
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">👑 한채린 · ${count}번째 동행</div></div><div class="window-body"><img class="life-scene-banner" src="${scene.image}" alt="${scene.title}"><div class="event-title">${scene.title}</div><div class="event-desc">${scene.desc}</div><div class="story-dialogue"><b>한채린</b> ${scene.line}</div><div class="event-options">${scene.choices.map(choice=>`<button class="event-opt" data-chaerin-followup="${choice[0]}">${choice[1]}</button>`).join('')}</div></div></div>`;
+  host.querySelectorAll('[data-chaerin-followup]').forEach(button=>button.addEventListener('click',()=>resolveChaerinGatheringFollowup(button.dataset.chaerinFollowup)));
+}
+
+function resolveChaerinGatheringFollowup(kind){
+  const pending=S._chaerinGatheringFollowup,host=$('life-event');if(!pending||!host)return;
+  const {rec,count}=pending;
+  const gains={
+    defy:{affection:8,trust:4,danger:8,signature:10,defiance:2,line:'사람들 앞에서 내 말을 끊어? …좋아. 다음에는 더 참기 어려운 자리를 골라줄게.'},
+    endure:{affection:4,trust:8,danger:2,signature:2,defiance:1,line:'참는 건 재미없는데, 끝나고 나서도 내 눈 보고 따지는 건 조금 낫네.'},
+    scheme:{affection:6,trust:5,danger:6,signature:7,defiance:1,line:'장난감인 척하면서 남의 패를 외웠네. 생각보다 오래 데리고 다녀도 되겠어.'},
+  };
+  const gain=gains[kind]||gains.endure;
+  rec.affection=clamp((rec.affection||0)+gain.affection,0,100);
+  rec.trust=clamp((rec.trust||0)+gain.trust,0,100);
+  rec.dangerLevel=clamp((rec.dangerLevel||0)+gain.danger,0,100);
+  rec.chaerinDefiance=(rec.chaerinDefiance||0)+gain.defiance;
+  rec.specialFollowupCount=count;rec.lastSpecialFollowupDay=S.day;
+  addBondInteraction(rec,`chaerin-gathering-${kind}`);
+  if(CHAR_TRAITS)CHAR_TRAITS.change(rec,gain.signature);
+  addNews(`👑 한채린이 당신을 ${count}번째 사교모임 동행으로 데리고 다녔습니다`,'neutral');
+  host.querySelector('.event-options').innerHTML='';
+  host.querySelector('.window-body').insertAdjacentHTML('beforeend',`<div class="event-outcome"><div class="story-dialogue"><b>한채린</b> “${gain.line}”</div><button id="chaerin-followup-confirm" class="session-btn opening">모임을 빠져나온다</button></div>`);
+  $('chaerin-followup-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._chaerinGatheringFollowup=null;afterLifeAction('인맥');});
+  autoSave();
+}
+
+function resolveChaerinGatheringBreak(kind){
+  const pending=S._chaerinGatheringFollowup,host=$('life-event');if(!pending||!host)return;
+  const rec=pending.rec;
+  rec.specialFollowupCount=Math.max(3,rec.specialFollowupCount||0);rec.lastSpecialFollowupDay=S.day;
+  addBondInteraction(rec,`chaerin-breaking-point-${kind}`);
+  let result='',tone='neutral';
+  if(kind==='leave'){
+    rec.chaerinRouteClosed=true;rec.secretaryContact=false;rec.contactUnlocked=false;rec.contactChannel='차단한 비서실 번호';
+    rec.affection=clamp((rec.affection||0)-10,0,100);rec.trust=clamp((rec.trust||0)+3,0,100);
+    result='<div class="story-dialogue"><b>한채린</b> “그래. 이게 정상이지. …그런데 왜 이번에는 내가 버려진 것 같지?”</div><div class="event-desc">채린은 따라오지 않습니다. 다음 날 비서실 번호도 더는 연결되지 않고, 사교모임에서 마주쳐도 서로 모르는 사람처럼 지나칩니다.</div>';
+    addNews('🚪 한채린의 반복된 시험에서 떠났습니다 · 개인 관계 종료','neutral');
+  }else if(kind==='endure'){
+    rec.chaerinBreakChoice='boundary';rec.affection=clamp((rec.affection||0)+6,0,100);rec.trust=clamp((rec.trust||0)+12,0,100);
+    rec.dangerLevel=clamp((rec.dangerLevel||0)+4,0,100);unlockPersonalContact(rec);
+    result='<div class="story-dialogue"><b>한채린</b> “끝까지 안 때리네. 재미없어야 하는데… 네가 정한 선을 내가 지키는 건 처음이라 더 짜증 나.”</div><div class="event-desc">채린은 비서실 카드를 찢고 자기 휴대폰에 직접 번호를 입력합니다. 공개적인 시험은 끝났지만, 대등한 관계를 견디는 법은 이제부터 배워야 합니다.</div>';
+    pushPersonMessage(S.life,rec,'오늘 일은 내가 잘못했어. 사과는 만나서 할게. 대신 답장은 네가 직접 해.',false);
+    addNews('📱 한채린과 공개적인 시험을 끝내고 개인 연락처를 교환했습니다','good');tone='good';
+  }else{
+    rec.chaerinBreakChoice='accidental-slap';rec.chaerinSubmissionAwakened=true;
+    rec.affection=clamp((rec.affection||0)+2,0,100);rec.trust=clamp((rec.trust||0)-4,0,100);
+    rec.dangerLevel=clamp((rec.dangerLevel||0)+22,0,100);rec.chaerinDefiance=(rec.chaerinDefiance||0)+4;
+    unlockPersonalContact(rec);if(CHAR_TRAITS)CHAR_TRAITS.change(rec,22);
+    result='<div class="story-dialogue"><b>한채린</b> “……다 나가.”</div><div class="event-desc">실수였다는 말도 사과도 늦었습니다. 채린은 경호원과 수행원을 모두 내보낸 뒤 붉어진 뺨을 감싼 채, 화를 내야 한다는 말을 혼잣말처럼 되풀이합니다. 이 선택은 잘못된 선을 넘었고 둘의 관계에도 위험한 흔적을 남겼습니다.</div>';
+    addNews('⚠️ 한채린과의 세 번째 동행에서 넘지 말아야 할 선을 넘었습니다','bad');tone='bad';
+  }
+  host.querySelector('.event-options').innerHTML='';
+  $('chaerin-break-outcome').innerHTML=`${result}<button id="chaerin-break-confirm" class="session-btn opening">${kind==='strike'?'그 자리를 떠나려 한다':'대화를 끝낸다'}</button>`;
+  $('chaerin-break-confirm').addEventListener('click',()=>kind==='strike'?showChaerinAwakening(rec):finishChaerinGatheringBreak());
+  autoSave();
+}
+
+function showChaerinAwakening(rec){
+  const host=$('life-event');if(!host)return;
+  host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">👑 한채린 · 화가 나야 하는데</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-chaerin-5.png" alt="처음 느낀 감정에 혼란스러운 한채린"><div class="event-title">엘리베이터 문이 열리기 전에 채린이 다시 당신을 부릅니다.</div><div class="story-dialogue"><b>한채린</b> “잘못한 건 너야. 당장 내보내야 하는데… 왜 네가 한 말만 계속 남지? 사과는 하지 마. 지금 들으면 진짜 재미없어질 것 같으니까.”</div><div class="event-desc">채린은 계약서 대신 자기 휴대폰을 내밉니다. 굴복하고 싶은 욕구를 애정으로 착각하기 시작한 순간이며, 두 사람 모두 그 위험을 모른 척할 수 없습니다.</div><button id="chaerin-awakening-confirm" class="session-btn opening">개인 번호를 저장한다</button></div></div>`;
+  $('chaerin-awakening-confirm').addEventListener('click',()=>{
+    pushPersonMessage(S.life,rec,'내일 연락해. 오늘 일은 없던 일로 하지 말고, 네가 왜 화났는지 처음부터 전부 말해.',false);
+    addNews('📱 한채린이 비서실을 거치지 않은 개인 번호를 건넸습니다','neutral');
+    finishChaerinGatheringBreak();
+  });
+}
+
+function finishChaerinGatheringBreak(){
+  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
+  S._chaerinGatheringFollowup=null;
+  afterLifeAction('인맥');
 }
 
 function showSpecialFollowupMeet(id,c,rec){
@@ -7677,12 +7827,11 @@ function lifeHubHTML() {
   const specialMet = id => ensureMet(L).some(m => m.special === id);
   const specialRecord=id=>ensureMet(L).find(m=>m.special===id);
   const canSpecialFollowup=rec=>!!(rec&&rec.status==='acquaintance'&&!hasPersonalContact(rec)&&rec.lastSpecialFollowupDay!==S.day);
-  const yujinRecord=specialRecord('police'),chaerinRecord=specialRecord('heiress');
+  const yujinRecord=specialRecord('police');
   const sctx = specialRouteContext(L);
   const specialMeetBtns = [
     (!specialMet('police') && (L.yujinInvestigation&&L.yujinInvestigation.ready||justice.case || L.criminalRecord > 0 || sctx.attacked)) ? '<button class="life-btn hot" data-act="meet-special" data-special="yujin">👮‍♀️ 강유진의 방문 조사에 응한다 <small>경쟁 세력 피해 자금·윤세라 거처 확인</small></button>' :
-      canSpecialFollowup(yujinRecord)?`<button class="life-btn hot" data-act="meet-special" data-special="yujin">👮‍♀️ 강유진의 후속 수사에 응한다 <small>${(yujinRecord.specialFollowupCount||0)+1}번째 대화 · 공식 연락에서 개인 연락으로</small></button>`:'',
-    canSpecialFollowup(chaerinRecord)?`<button class="life-btn hot" data-act="meet-special" data-special="chaerin">👑 한채린의 비서실 약속에 응한다 <small>${(chaerinRecord.specialFollowupCount||0)+1}번째 대화 · 아첨 없이 개인 번호를 받아내기</small></button>`:''
+      canSpecialFollowup(yujinRecord)?`<button class="life-btn hot" data-act="meet-special" data-special="yujin">👮‍♀️ 강유진의 후속 수사에 응한다 <small>${(yujinRecord.specialFollowupCount||0)+1}번째 대화 · 공식 연락에서 개인 연락으로</small></button>`:''
   ].join('');
   const personalBtns = ensureMet(L).filter(m=>(!FREEDOM_TRIO||FREEDOM_TRIO.canContact(L,m.name))&&['friend','casual','partner','polycule','lover'].includes(m.status)).map(m=>{const sig=CHAR_TRAITS&&CHAR_TRAITS.label(m);return`<button class="life-btn" data-act="person-request" data-person="${m.name}">🙏 ${m.name}에게 부탁하기 <small>${relationTag(L,m.name)} · 호감 ${Math.round(m.affection||0)}${m.childhoodFriend?' · 소꿉친구':''}${sig?` · ${sig}`:''}</small></button>`;}).join('');
   const courtBtns=justice.case?`<div class="court-status">⚖️ <b>${justice.case.crime}</b> · <b class="down">${justice.case.phase}</b> 단계 · ${justice.case.months}개월 남음<br><span class="muted">${justice.case.phase==='수사'?'변호사를 미리 선임하면 유리합니다':justice.case.phase==='기소'?'변호사 등급이 불기소 확률에 영향':'⚠️ 재판 전략 3가지 중 하나를 꼭 선택하세요'}</span></div><button class="life-btn" data-act="lawyer" data-tier="public">국선변호인</button><button class="life-btn" data-act="lawyer" data-tier="standard">전문 변호사 <small>5,000,000</small></button><button class="life-btn" data-act="lawyer" data-tier="elite">대형 로펌 <small>20,000,000</small></button>${justice.case.phase==='재판'?'<button class="life-btn" data-act="court" data-strategy="plea">혐의 인정·선처</button><button class="life-btn" data-act="court" data-strategy="contest">무죄 다툼</button><button class="life-btn" data-act="court" data-strategy="cooperate">수사 협조</button>':''}`:'<span class="muted">진행 중인 사건 없음</span>';
