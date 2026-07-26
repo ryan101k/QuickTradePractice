@@ -376,7 +376,7 @@ function monthly(life,context){
     state.retaliationSeen=true;state.lastEventDay=day;
     return{businessRomanceEvent:true,kind:'market-retaliation',rivalName:ctx.rivalName,day};
   }
-  if(revealedCount>=2&&!state.chaerinBoardSeen&&(ctx.met||[]).some(person=>person.name==='한채린'&&!['ex','deceased'].includes(person.status))){
+  if(revealedCount>=2&&!state.chaerinBoardSeen&&!(ctx.partnerNames||[]).length){
     state.chaerinBoardSeen=true;state.lastEventDay=day;
     return{businessRomanceEvent:true,kind:'chaerin-board',day};
   }
@@ -441,7 +441,7 @@ function view(life,payload,capital){
   };
   if(payload.kind==='chaerin-board')return{
     kind:payload.kind,icon:'👑',title:'한채린 · 사람을 사는 방식',
-    desc:'한채린이 네 책임자를 한 명씩 스카우트하려다 전원에게 거절당한 뒤 직접 이사회에 들어왔습니다. 채린은 돈으로 사람을 움직이는 자기 방식과, 권한을 줘서 사람이 남게 만드는 당신의 방식을 비교합니다.',
+    desc:'한채린이 네 책임자를 한 명씩 스카우트하려다 전원에게 거절당한 뒤 직접 이사회에 들어왔습니다. 아직 서로 모르는 사이라면 이것이 첫 대면입니다. 채린은 돈으로 사람을 움직이는 자기 방식과, 권한을 줘서 사람이 남게 만드는 당신의 방식을 비교합니다.',
     line:'“유능한 사람 넷을 고용해 놓고 아무도 소유하지 않았네. 그래서 더 마음에 안 들어. 저 사람들은 돈이 아니라 너 때문에 남았잖아.”',
     portrait:'./assets/event-chaerin-contract.png',
     dialogues:[
@@ -453,7 +453,7 @@ function view(life,payload,capital){
     ],
     choices:[
       {id:'seat',text:'채린에게 투자자 자리는 주되 인사권은 주지 않는다',preview:'자금 협력 · 네 사람의 독립성 보장'},
-      {id:'refuse',text:'사람을 사려는 투자는 받지 않는다',preview:'네 사람의 신뢰 크게 상승 · 채린의 경쟁심 상승'},
+      {id:'refuse',text:'“사람 값도 구분 못 하면 투자하지 마”라며 계약서를 돌려준다',preview:'네 사람의 신뢰 크게 상승 · 채린의 호감과 경쟁심 상승'},
     ],
   };
   if(payload.kind==='quartet-story'){

@@ -103,7 +103,6 @@ const DATE_ROUTES = [
   { key:'culture',emoji:'📚',name:'서점·공연장',desc:'책이나 공연을 혼자 천천히 즐기는 사람',pool:'any',cost:220000,scoreMod:6 },
   { key: 'club',   emoji: '🍸', name: '클럽에서 밤 보내기', desc: '체력은 빠지지만 스트레스를 풀고 처음 보는 여성과 가볍게 어울린다', pool: ['free', 'lavish'], cost: 180000, scoreMod: -4 },
   { key:'police_scene',emoji:'👮‍♀️',name:'경찰서·사건 현장',desc:'공격을 당했거나 사건·전과가 있을 때 강유진과 마주치는 특별 장면',pool:[],fixed:'yujin',cost:0,scoreMod:-5,scene:'./assets/event-yujin-rain-rescue.png',condition:(l,ctx)=>!!((l.justice&&l.justice.case)||l.criminalRecord||(ctx&&ctx.attacked))},
-  { key:'chaerin_scene',emoji:'🥂',name:'세력 대표자 비공개 회동',desc:'내 세력이 2단계·조직원 3명 이상이 되면 한채린 쪽에서 먼저 접촉합니다',pool:[],fixed:'chaerin',cost:250000,scoreMod:-5,scene:'./assets/event-chaerin-contract.png',condition:(l,ctx)=>!!(ctx&&ctx.factionLevel>=2&&ctx.factionMembers>=3)},
 ];
 
 /* 데이트 결과 대사(현실적) — 성공/보통/실패 티어별 랜덤 */
