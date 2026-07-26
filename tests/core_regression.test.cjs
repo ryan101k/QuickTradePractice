@@ -477,17 +477,10 @@ for (const file of [
 
 {
   assert.equal(context.QT_BUSINESS_ROMANCE.introduce({},'office'),null,'한채린과 친구·연인·공동생활 관계가 아니면 사업 4인조 소개를 직접 열 수 없어야 한다');
-  const life={met:[{name:'한채린',status:'friend'},...context.QT_FREEDOM_TRIO.NAMES.map(name=>({name,status:'friend',affection:70,trust:50}))]};
+  const life={met:[{name:'한채린',status:'friend'}]};
   const romance=context.QT_BUSINESS_ROMANCE,state=romance.ensure(life);
-  assert.equal(romance.introduce(life,'office'),null,'자유인 3인조의 장이 끝나기 전에는 한채린과 가까워도 사업 4인조 소개가 열리면 안 된다');
-  const freedomState=context.QT_FREEDOM_TRIO.ensure(life);
-  freedomState.guildStage=context.QT_FREEDOM_TRIO.GUILD_EVENTS.length;
-  freedomState.firstOuting='seen';
-  context.QT_FREEDOM_TRIO.COUNSELING_EVENTS.forEach(event=>freedomState.counseling[event.id]='seen');
-  Object.keys(context.QT_FREEDOM_TRIO.PERSONAL_EVENTS).forEach(id=>freedomState.personal[id]='seen');
-  freedomState.ending={id:'small_days',tone:'good'};
+  assert.ok(romance.introduce(life,'office'),'한채린과 가까워지면 자유인 3인조 진행 여부와 무관하게 사업 책임자 소개가 열려야 한다');
   assert.equal(context.QT_BUSINESS_ROMANCE.identity(life,'office').displayName,'박 매니저','공개 전에는 실명 대신 직함을 보여야 한다');
-  romance.introduce(life,'office');
   assert.equal(romance.identity(life,'office').displayName,'박 매니저','소개 뒤에도 역할 붕괴 사건 전에는 직함과 가린 얼굴을 유지해야 한다');
   assert.equal(romance.recruit(life,'office','commerce').ok,true);
   state.staff.office.bond=30;
@@ -499,6 +492,9 @@ for (const file of [
   const revealed=romance.resolve(life,reveal,'meet',100000000);
   assert.equal(revealed.revealed,true);
   assert.match(revealed.text,/연애 가능성이 열립니다/,'연락처 교환 직후 바로 연애하지 않고 개인 이야기를 요구해야 한다');
+  state.staff.office.storyChapter=3;
+  assert.equal(romance.canRomance(life,'박지수'),false,'연인이 없는 플레이어에게 사업 4인조 연애가 열리면 안 된다');
+  assert.equal(context.QT_ROMANCE_ROUTES.engaged(life,'business'),false,'싱글 플레이어의 특별 책임자 고용·정체 공개는 연애 그룹 진입으로 기록되면 안 된다');
 }
 
 {
@@ -522,15 +518,9 @@ for (const file of [
   const blocked=context.QT_SOCIAL.attendIndustry(socialLife,'lounge',()=>0);
   assert.equal(blocked.introduced,null,'한채린과 친구가 되기 전에는 사업 4인조를 정식 소개받으면 안 된다');
   assert.equal(blocked.chaerinRequired,true,'가려진 책임자를 봐도 한채린의 소개가 필요하다는 상태를 반환해야 한다');
-  socialLife.met=[{name:'한채린',status:'friend'},...context.QT_FREEDOM_TRIO.NAMES.map(name=>({name,status:'friend',affection:70,trust:50}))];
-  const freedomState=context.QT_FREEDOM_TRIO.ensure(socialLife);
-  freedomState.guildStage=context.QT_FREEDOM_TRIO.GUILD_EVENTS.length;
-  freedomState.firstOuting='seen';
-  context.QT_FREEDOM_TRIO.COUNSELING_EVENTS.forEach(event=>freedomState.counseling[event.id]='seen');
-  Object.keys(context.QT_FREEDOM_TRIO.PERSONAL_EVENTS).forEach(id=>freedomState.personal[id]='seen');
-  freedomState.ending={id:'small_days',tone:'good'};
+  socialLife.met=[{name:'한채린',status:'friend'}];
   const lounge=context.QT_SOCIAL.attendIndustry(socialLife,'lounge',()=>0);
-  assert.equal(lounge.introduced,'office','등급을 올린 업계 모임은 특별 책임자를 소개해야 한다');
+  assert.equal(lounge.introduced,'office','한채린과 연결된 상위 업계 모임은 자유인 3인조 완료 없이 특별 책임자를 소개해야 한다');
   assert.equal(context.QT_SOCIAL.ensure(socialLife).industry.standing,5);
 }
 
@@ -562,33 +552,36 @@ for (const file of [
   const life={met:romance.IDS.map(id=>({name:romance.profile(id).name,status:'friend',affection:80,trust:60}))};
   const state=romance.ensure(life);
   romance.IDS.forEach(id=>Object.assign(state.staff[id],{introduced:true,hired:true,revealed:true,storyChapter:3,bond:50}));
-  assert.equal(romance.canRomance(life,'박지수'),true,'사업 4인 밖의 연인이 없으면 네 명 중 누구와도 연애할 수 있어야 한다');
+  assert.equal(romance.canRomance(life,'박지수'),false,'사업 4인조는 연인이 없는 플레이어에게 연애 후보가 되면 안 된다');
   life.met.push({name:'나래',status:'partner'});
-  assert.equal(romance.canRomance(life,'박지수'),false,'사업 4인 밖의 연인이 있으면 이 경쟁 연애 루트가 잠겨야 한다');
-  life.met.pop();life.met.find(person=>person.name==='박지수').status='partner';
+  life.partner={name:'나래'};
+  state.staff.office.temptationSeen=true;
   state.staff.creative.temptationSeen=false;
   const businesses={owned:[
     {id:'commerce',typeId:'commerce',managerId:'office',specialManagerId:'office',months:8,lastNet:1000000},
     {id:'studio',typeId:'studio',managerId:'creative',specialManagerId:'creative',months:8,lastNet:1000000},
   ]};
-  const temptation=romance.monthly(life,{day:1,businessState:businesses,partnerNames:['박지수'],met:life.met});
-  assert.equal(temptation.kind,'temptation','네 명 중 한 명과 사귀면 나머지 책임자가 빼앗으려는 사건을 만들어야 한다');
+  const temptation=romance.monthly(life,{day:1,businessState:businesses,partnerNames:['나래'],met:life.met});
+  assert.equal(temptation.kind,'temptation','기존 연인이 있을 때만 사업 책임자의 실제 비밀 제안이 발생해야 한다');
+  assert.equal(temptation.pureTest,undefined,'한 사람과 사귈 때의 유혹도 충성도 테스트로 위장하면 안 된다');
   const suitor=romance.resolve(life,temptation,'meet',20000000);
-  assert.equal(suitor.businessSuitor,true,'유혹 수락은 기존 연인을 내보내지 않고 사업 하렘 후보를 등록해야 한다');
+  assert.equal(suitor.businessSuitor,true,'유혹 수락은 기존 연인을 내보내지 않고 비밀 관계를 시작해야 한다');
+  assert.equal(state.staff.creative.secretAffair,true);
   assert.equal(suitor.rivalTakeover,undefined,'사업 담당자가 기존 연인의 자리를 강제로 빼앗으면 안 된다');
-  assert.equal(romance.canRomance(life,'한이슬'),true,'경쟁 후보가 된 담당자는 기존 연인이 있어도 연애 진행이 가능해야 한다');
-  Object.assign(state.staff.corporate,{introduced:true,hired:true,bond:35,temptationSeen:false});
+  assert.equal(romance.canRomance(life,'한이슬'),true,'비밀 관계를 수락한 담당자만 기존 연인이 있을 때 연애 진행이 가능해야 한다');
   const pureLife={met:[{name:'나래',status:'partner'}]},pureState=romance.ensure(pureLife);
-  assert.match(romance.romanceEnding('cohabitation_refusal').detail,/경영권 상실/,'사업 4인조가 공동 관계 거절 엔딩을 직접 소유해야 한다');
+  pureLife.partner={name:'나래'};
+  assert.match(romance.romanceEnding('cohabitation_refusal').detail,/경영권.*상실/,'사업 4인조가 공동 관계 거절 엔딩을 직접 소유해야 한다');
   assert.match(romance.romanceEnding('pure_affair').detail,/대표 해임/,'사업 4인조가 순애 위반 엔딩을 직접 소유해야 한다');
-  Object.assign(pureState.staff.corporate,{introduced:true,hired:true,bond:35});
+  Object.assign(pureState.staff.corporate,{introduced:true,hired:true,revealed:true,storyChapter:1,bond:35});
   const pureBusiness={owned:[{id:'advisory',typeId:'advisory',managerId:'corporate',specialManagerId:'corporate',months:6,lastNet:1000000,reputation:70,morale:70}]};
   const loyalty=romance.monthly(pureLife,{day:1,businessState:pureBusiness,partnerNames:['나래'],met:pureLife.met});
-  assert.equal(loyalty.pureTest,true,'연인이 한 명인 순애 상태의 유혹은 대표 검증 테스트여야 한다');
+  assert.equal(loyalty.kind,'temptation');
   const loyaltyResult=romance.resolve(pureLife,loyalty,'boundary',20000000);
-  assert.equal(loyaltyResult.loyaltyTest,true);
-  assert.equal(pureState.staff.corporate.supportOnly,true,'테스트를 거절하면 얼굴을 가린 조력자로 남아야 한다');
-  state.staff.corporate.romanticRival=true;state.staff.medical.romanticRival=true;state.managementRisk=50;
+  assert.equal(loyaltyResult.loyaltyTest,false);
+  assert.equal(pureState.staff.corporate.supportOnly,true,'유혹을 거절하면 연애 분기만 닫고 공개된 전문 매니저로 남아야 한다');
+  assert.equal(pureState.staff.corporate.revealed,true);
+  state.staff.corporate.secretAffair=true;state.staff.medical.secretAffair=true;state.managementRisk=50;
   const failing={owned:[
     {id:'advisory',typeId:'advisory',managerId:'corporate',specialManagerId:'corporate',months:8,lastNet:-1000000,reputation:25,morale:28},
     {id:'care',typeId:'care',managerId:'medical',specialManagerId:'medical',months:8,lastNet:-2000000,reputation:24,morale:25},
@@ -599,31 +592,74 @@ for (const file of [
   assert.equal(badManagement.managementBadEnding,true,'사업 4인조의 배드엔딩은 불륜 폭로가 아니라 사업관리 실패여야 한다');
 
   const chapterLife={day:20,met:[
-    ...romance.IDS.map(id=>({name:romance.profile(id).name,status:'friend',affection:40,trust:20})),
-    ...context.QT_FREEDOM_TRIO.NAMES.map(name=>({name,status:'friend',affection:70,trust:50})),
+    ...romance.IDS.map(id=>({name:romance.profile(id).name,status:'friend',affection:85,trust:70})),
+    {name:'강유진',status:'partner',affection:80,trust:60},
   ]};
-  const freedomState=context.QT_FREEDOM_TRIO.ensure(chapterLife);
-  freedomState.guildStage=context.QT_FREEDOM_TRIO.GUILD_EVENTS.length;freedomState.firstOuting='seen';freedomState.ending={id:'small_days',tone:'good'};
-  context.QT_FREEDOM_TRIO.COUNSELING_EVENTS.forEach(event=>freedomState.counseling[event.id]='seen');
-  Object.keys(context.QT_FREEDOM_TRIO.PERSONAL_EVENTS).forEach(id=>freedomState.personal[id]='seen');
+  chapterLife.partner={name:'강유진'};
   const chapterState=romance.ensure(chapterLife);chapterState.chaerinBoardSeen=true;
-  romance.IDS.forEach(id=>Object.assign(chapterState.staff[id],{introduced:true,hired:true,revealed:true,storyChapter:1,bond:40,trust:30}));
-  const stableBusinesses={owned:romance.IDS.map((id,index)=>({
-    id:`biz-${id}`,typeId:romance.profile(id).businessId,managerId:id,specialManagerId:id,months:8,level:2,lastNet:1500000,totalProfit:4000000,reputation:70,morale:70,
-  }))};
-  const firstQuartetChapter=romance.monthly(chapterLife,{day:20,businessState:stableBusinesses,partnerNames:[],met:chapterLife.met});
-  assert.equal(firstQuartetChapter.kind,'quartet-story','자유인 장 완료와 안정된 사업 조건 뒤에만 사업 4인조 제1장이 자동 예약돼야 한다');
-
-  const quartetLife={day:12,met:romance.IDS.map(id=>({name:romance.profile(id).name,status:'friend',affection:85,trust:70}))};
-  const quartetState=romance.ensure(quartetLife);
-  romance.IDS.forEach(id=>Object.assign(quartetState.staff[id],{introduced:true,hired:true,revealed:true,storyChapter:3,bond:70,trust:60,romanticRival:true}));
-  quartetState.quartet.chapter=romance.QUARTET_CHAPTERS.length-1;
-  const finalChapter=romance.QUARTET_CHAPTERS[romance.QUARTET_CHAPTERS.length-1];
-  const quartetResult=romance.resolve(quartetLife,{kind:'quartet-story',chapterId:finalChapter.id,day:12},finalChapter.choices[0].id,50000000);
+  chapterState.retaliationSeen=true;
+  romance.IDS.forEach(id=>Object.assign(chapterState.staff[id],{introduced:true,hired:true,revealed:true,storyChapter:3,bond:70,trust:60,secretAffair:true,temptationSeen:true}));
+  const stableBusinesses={owned:[
+    ...romance.IDS.map((id,index)=>({
+    id:`biz-${id}`,typeId:romance.profile(id).businessId,managerId:id,specialManagerId:id,months:8,level:3,lastNet:1500000,totalProfit:10000000,reputation:70,morale:70,
+    })),
+    ...[0,1,2,3].map(index=>({id:`ordinary-${index}`,typeId:'commerce',managerId:'internal',months:8,level:2,lastNet:700000,totalProfit:5000000,reputation:65,morale:65})),
+  ]};
+  const contextFor=day=>({day,businessState:stableBusinesses,partnerNames:['강유진'],met:chapterLife.met});
+  const firstQuartetChapter=romance.monthly(chapterLife,contextFor(20));
+  assert.equal(firstQuartetChapter.kind,'quartet-story','자유인 3인조 완료와 무관하게 기존 연인·네 비밀 관계·안정된 사업을 갖추면 공동 감사가 열려야 한다');
+  romance.resolve(chapterLife,firstQuartetChapter,'open_records',50000000);
+  const disclosure=romance.monthly(chapterLife,contextFor(21));
+  assert.equal(disclosure.chapterId,'disclosure_vote');
+  romance.resolve(chapterLife,disclosure,'disclose_everyone',50000000);
+  for(const [day,choice] of [[22,'work_only'],[23,'public_dates'],[24,'separate_funds']]){
+    const event=romance.monthly(chapterLife,contextFor(day));
+    assert.equal(event.kind,'quartet-story');
+    romance.resolve(chapterLife,event,choice,50000000);
+  }
+  const finalEvent=romance.monthly(chapterLife,contextFor(25));
+  assert.equal(finalEvent.chapterId,'final_audit');
+  const quartetResult=romance.resolve(chapterLife,finalEvent,'sign_final_audit',50000000);
   assert.equal(quartetResult.quartet,true,'사업 4인조 마지막 공동 이야기는 전원 고백 대기 신호를 반환해야 한다');
-  assert.equal(romance.storyComplete(quartetLife),true,'네 개인사와 공동 이사회가 끝나야 사업 4인조 장 완료로 판정해야 한다');
-  assert.equal(romance.confessionReady(quartetLife),true,'사업 4인조 장 완료 뒤에만 네 사람 쪽 고백이 열려야 한다');
-  assert.ok(context.QT_ROMANCE_ROUTES.ensure(quartetLife).completed.business,'사업 4인조 이야기 완성은 공통 그룹 장부에 기록돼야 한다');
+  assert.equal(chapterState.quartet.route,'disclosure');
+  assert.equal(romance.storyComplete(chapterLife),true,'공개와 3개월 보호관찰, 최종 감사를 끝내야 사업 4인조 장 완료로 판정해야 한다');
+  assert.equal(romance.confessionReady(chapterLife),true,'최종 감사 완료 뒤에만 네 사람 쪽 고백이 열려야 한다');
+  assert.ok(context.QT_ROMANCE_ROUTES.ensure(chapterLife).completed.business,'사업 4인조 이야기 완성은 공통 그룹 장부에 기록돼야 한다');
+  romance.QUARTET_CHAPTERS.forEach(chapter=>assert.equal(fs.existsSync(path.join(root,chapter.scene.replace('./',''))),true,`${chapter.scene} 공동 컷씬이 실제로 존재해야 한다`));
+
+  const turncoatLife={day:8,partner:{name:'나래'},met:[
+    {name:'나래',status:'partner',affection:80,trust:70},
+    {name:'박지수',status:'friend',affection:90,trust:70},
+  ]};
+  const turncoatState=romance.ensure(turncoatLife);
+  Object.assign(turncoatState,{retaliationSeen:true,chaerinBoardSeen:true});
+  Object.assign(turncoatState.staff.office,{introduced:true,hired:true,revealed:true,storyChapter:3,bond:75,trust:65,secretAffair:true,temptationSeen:true});
+  const turncoatBusiness={owned:[{id:'commerce',managerId:'office',specialManagerId:'office',months:10,level:3,lastNet:2000000,totalProfit:20000000,reputation:75,morale:75}]};
+  const turncoat=romance.monthly(turncoatLife,{day:8,businessState:turncoatBusiness,partnerNames:['나래'],met:turncoatLife.met});
+  assert.equal(turncoat.kind,'turncoat-offer','한 명과만 비밀 관계가 깊어지면 기존 관계를 직접 정리하는 전향 연애 선택이 열려야 한다');
+  const turncoatResult=romance.resolve(turncoatLife,turncoat,'confess_and_leave',50000000);
+  assert.equal(turncoatResult.turncoat,true);
+  assert.equal(turncoatResult.breakupAll,true);
+
+  const quartetOnlyLife=JSON.parse(JSON.stringify(chapterLife));
+  delete quartetOnlyLife.businessRomance;
+  delete quartetOnlyLife.romanceRoutes;
+  const quartetOnlyState=romance.ensure(quartetOnlyLife);
+  quartetOnlyState.retaliationSeen=true;quartetOnlyState.chaerinBoardSeen=true;
+  romance.IDS.forEach(id=>Object.assign(quartetOnlyState.staff[id],{introduced:true,hired:true,revealed:true,storyChapter:3,bond:70,trust:60,secretAffair:true,temptationSeen:true}));
+  romance.resolve(quartetOnlyLife,{kind:'quartet-story',chapterId:'secret_audit',day:30},'open_records',50000000);
+  romance.resolve(quartetOnlyLife,{kind:'quartet-story',chapterId:'disclosure_vote',day:31},'choose_quartet',50000000);
+  quartetOnlyLife.partner=null;
+  quartetOnlyLife.met.find(person=>person.name==='강유진').status='ex';
+  const quartetOnlyNext=romance.monthly(quartetOnlyLife,{day:32,businessState:stableBusinesses,partnerNames:[],met:quartetOnlyLife.met});
+  assert.equal(quartetOnlyNext.chapterId,'final_audit','기존 관계를 정리하고 네 사람만 선택한 루트는 3개월 확장 검증을 건너뛰고 최종 감사로 가야 한다');
+
+  const badLife=JSON.parse(JSON.stringify(quartetOnlyLife));
+  delete badLife.businessRomance;delete badLife.romanceRoutes;
+  const badState=romance.ensure(badLife);
+  romance.IDS.forEach(id=>Object.assign(badState.staff[id],{introduced:true,hired:true,revealed:true,storyChapter:3,secretAffair:true}));
+  const doubleLedger=romance.resolve(badLife,{kind:'quartet-story',chapterId:'secret_audit',day:40},'deny_records',50000000);
+  assert.equal(doubleLedger.businessRouteBadEnding,true,'공동 감사에서 기록을 부정하면 이중장부 배드엔딩으로 끝나야 한다');
 }
 
 {

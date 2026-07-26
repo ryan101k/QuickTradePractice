@@ -5,16 +5,28 @@ const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 const finite=(value,fallback)=>Number.isFinite(Number(value))?Number(value):fallback;
 const ROMANCE_ENDINGS={
   cohabitation_refusal:{
-    icon:'📑',title:'공동생활 배드엔딩 · 부결된 마지막 안건',scene:'./assets/event-business-quartet-afterhours.png',
-    quote:'“사적인 안건은 부결됐습니다. 이제 공적인 정리만 남았네요.”',
-    text:'네 사람은 감정을 인사평가에 섞지 않았습니다. 대신 공동생활 제안을 거절한 대표가 없어도 회사가 굴러가도록 권한과 거래처를 완벽하게 분리했습니다. 다음 결재일, 대표실만 비어 있었습니다.',
-    detail:'사업 4인조 공동 관계 제안 거절 · 경영권 상실 배드엔딩'
+    icon:'📑',title:'감사의견 거절',scene:'./assets/event-business-quartet-full-disclosure.png',
+    quote:'“사실은 공개했지만, 책임은 아직 누구에게도 도착하지 않았네요.”',
+    text:'플레이어는 모두가 자신을 좋아했으니 어쩔 수 없었다고 답했습니다. 네 사람은 유혹한 책임을 인정했지만 대표의 책임 회피까지 대신 서명하지 않았습니다. 기존 연인들은 떠났고, 마지막 감사보고서에서 대표 권한도 회수됐습니다.',
+    detail:'공개 뒤 책임 인정 거부 · 기존 관계와 경영권 동시 상실'
   },
   pure_affair:{
-    icon:'🏢',title:'순애 배드엔딩 · 네 사람이 검토한 이중장부',scene:'./assets/event-business-quartet-boardroom.png',
-    quote:'“연애는 사생활이지만, 거짓말은 위험 관리 대상입니다.”',
-    text:'한 책임자와 순애를 약속하고 다른 사람을 유혹한 기록은 네 부서의 결재선에서 동시에 발견됐습니다. 네 사람은 감정 대신 증거와 계약으로 움직였고, 당신은 연인과 사업을 같은 날 잃었습니다.',
-    detail:'개인 순애 약속 위반 · 관계 폭로와 대표 해임'
+    icon:'🏢',title:'이중장부',scene:'./assets/event-business-quartet-secret-audit.png',
+    quote:'“같은 날짜에 서로 다른 약속이 네 장입니다. 이제 원장과 사본을 맞춰 보죠.”',
+    text:'한 사람에게는 곧 기존 관계를 끝낸다고 했고, 다른 사람에게는 업무일 뿐이라고 했습니다. 네 책임자는 사적 기록과 회사 일정을 한 장의 감사표로 합쳤고, 모든 관계자에게 같은 원본을 전달했습니다.',
+    detail:'서로 다른 거짓말의 대조 · 관계 폭로와 대표 해임'
+  },
+  secret_consortium:{
+    icon:'🗂️',title:'비공개 컨소시엄',scene:'./assets/event-business-quartet-afterhours.png',
+    quote:'“사랑을 순번표로 만들면, 인사와 예산도 결국 같은 표에 들어갑니다.”',
+    text:'비밀 만남의 순번은 사업 배정과 성과급, 출장 일정에 스며들었습니다. 회사 비용으로 거짓 출장을 만들고 별도 휴대전화를 돌린 끝에 연애와 인사가 동시에 감사 대상이 됐습니다.',
+    detail:'비밀 순환 관계 유지 · 회사와 모든 관계 동시 붕괴'
+  },
+  hostile_buyout:{
+    icon:'💸',title:'적대적 인수',scene:'./assets/event-business-quartet-crisis.png',
+    quote:'“사람을 정리하는 비용까지 사업 혜택으로 계산했군요.”',
+    text:'플레이어는 기존 연인에게 집과 돈을 제시하고 사업 4인조를 선택하려 했습니다. 네 사람조차 관계를 거래 대상으로 본 대표에게 환멸을 느꼈고, 기존 연인과 함께 협상장을 떠났습니다.',
+    detail:'기존 관계를 돈으로 회유 · 전원 이탈과 세력 안정도 붕괴'
   }
 };
 function romanceEnding(kind){return ROMANCE_ENDINGS[kind]||null;}
@@ -176,65 +188,79 @@ const PERSONAL_STORIES={
 };
 
 const QUARTET_CHAPTERS=[
-  {id:'boardroom_pact',title:'제1장 · 네 장의 사직서가 놓인 이사회',icon:'🏢',scene:'./assets/event-business-quartet-boardroom.png',
-    desc:'얼굴과 이름을 모두 공개한 네 사람이 첫 공동 이사회에 각자의 사직서를 가져왔습니다. 대표가 없어도 회사를 굴릴 수 있는 사람들이, 직원으로 붙잡힐지 공동창업자로 남을지 묻습니다.',
+  {id:'secret_audit',title:'제1장 · 네 사람이 발견한 같은 밤',icon:'🗂️',scene:'./assets/event-business-quartet-secret-audit.png',
+    desc:'지수의 야식, 이슬의 촬영 원본, 서윤의 비밀계약, 혜린의 휴식 기록이 같은 날짜의 대표 일정과 겹쳤습니다. 네 사람은 자신만 예외라고 믿었던 흔적을 한 테이블 위에 놓고, 감정보다 먼저 사실관계를 맞추기 시작합니다.',
     dialogues:[
-      ['박지수','대표님 한 사람 일정에 네 부서가 전부 매달리면 오래 못 가요.'],
-      ['한이슬','그럼 재미없게 순번표라도 만들까? 감정도 회의 안건으로 올리고?'],
-      ['차서윤','우리 넷은 오늘 나가도 경쟁사 임원이 됩니다. 남을 이유는 연봉이 아니라 권한이어야 합니다.'],
-      ['오혜린','적어도 누구도 몰래 희생하지 않는 규칙은 있었으면 해요.'],
+      ['차서윤','우선 확인하죠. 대표님이 네 사람에게 같은 약속을 했는지.'],
+      ['한이슬','기분은 최악인데 장면은 웃기네. 다들 자기가 비밀 주인공인 줄 알았잖아.'],
+      ['박지수','웃을 일이 아니에요. 기존 연인들도 모르는 거잖아요.'],
+      ['오혜린','그만해야 해요. 우리 모두요. 적어도 더 숨기기 전에.'],
     ],
     choices:[
-      {id:'equal_board',text:'네 사람을 동등한 공동 경영진으로 세운다',preview:'공동 의사결정·업무 시너지 상승',effects:{synergy:10,governance:14,boundary:5,affectionEach:3,trustEach:6},outcome:'직함은 달라도 발언권은 같아졌습니다. 네 사람은 처음으로 서로를 대표의 사람이 아니라 동료로 바라봤습니다.'},
-      {id:'founder_rule',text:'최종 결정권은 대표가 갖고 각자 영역을 보장한다',preview:'업무 시너지 상승 · 공사 경계 소폭 하락',effects:{synergy:8,governance:5,boundary:-3,affectionEach:5,trustEach:2},outcome:'결정은 빨라졌지만, 네 사람은 대표의 관심이 권한 배분에 영향을 주지 않는지 더 예민하게 지켜보기 시작했습니다.'},
+      {id:'open_records',text:'네 사람에게 했던 말과 일정을 전부 보여준다',preview:'사실 확인 · 책임 협의 시작',effects:{synergy:4,governance:10,boundary:8,affectionEach:-2,trustEach:5,accountability:12},outcome:'좋은 의도로 포장한 말까지 전부 대조됐습니다. 네 사람은 상처받았지만, 최소한 다섯 번째 거짓말은 생기지 않았습니다.'},
+      {id:'deny_records',text:'업무 기록을 오해했다며 각자의 착각으로 돌린다',preview:'이중장부 배드엔딩',badEnding:'double_ledger',outcome:'네 사람은 더 묻지 않고 서버 기록과 출입 내역을 원본 그대로 합쳤습니다.'},
     ]},
-  {id:'hostile_takeover',title:'제2장 · 얼굴을 본 대가',icon:'⚠️',scene:'./assets/event-business-quartet-crisis.png',
-    desc:'네 책임자가 실명과 얼굴을 공개하자 경쟁 세력이 가격 덤핑, 핵심 인재 스카우트, 허위 감사, 거래처 압박을 동시에 시작했습니다. 네 사람은 대표의 지시를 기다리지 않고 각자의 사업을 지키면서 상대 공격의 자금줄까지 역추적합니다.',
+  {id:'disclosure_vote',title:'제2장 · 비밀관계 감사위원회',icon:'📑',scene:'./assets/event-business-quartet-full-disclosure.png',
+    desc:'네 사람은 자신들도 유혹과 은폐의 공범이었다고 인정했습니다. 이제 플레이어에게 기존 관계를 어떻게 처리할지 묻습니다. 문제는 사람 수가 아니라, 당사자들에게 선택권을 주지 않았다는 사실입니다.',
     dialogues:[
-      ['차서윤','계약과 자금줄은 제가 잠급니다. 이슬 씨는 여론을 돌려요.'],
-      ['한이슬','명령은 싫지만 이번 편집은 마음에 드네. 지수 씨, 고객 데이터 부탁해.'],
-      ['박지수','이미 분류했어요. 혜린 씨 쪽 현장 인력부터 보호해 주세요.'],
-      ['오혜린','다치거나 버려지는 사람 없이 끝내요. 그게 우리 쪽 승리예요.'],
+      ['박지수','우리가 먼저 다가간 건 맞아요. 그렇다고 대표님 선택이 사라지는 건 아니에요.'],
+      ['한이슬','비밀이 재미있었던 건 인정할게. 하지만 남의 대답까지 편집한 건 선을 넘었지.'],
+      ['차서윤','사적 관계와 고용은 분리합니다. 누구도 회사 권한으로 회유하지 않겠습니다.'],
+      ['오혜린','기존 연인이 거부하면 받아들여야 해요. 우리도 떠날 가능성까지 포함해서요.'],
     ],
     choices:[
-      {id:'protect_all',text:'수익을 포기하고 직원·거래처를 모두 지킨다',preview:'현금 -500만 · 전 지표 크게 상승',effects:{cash:-5000000,synergy:16,governance:9,boundary:4,affectionEach:5,trustEach:8},outcome:'단기 손실은 컸지만 어느 부서도 버려지지 않았습니다. 네 사람은 당신이 자신들을 소모품으로 쓰지 않는다는 걸 확인했습니다.'},
-      {id:'counterdeal',text:'서윤의 역인수안과 이슬의 여론전을 승인한다',preview:'현금 +300만 · 시너지 상승, 경계 하락',effects:{cash:3000000,synergy:13,governance:6,boundary:-5,affectionEach:6,trustEach:3},outcome:'상대의 계약과 평판을 동시에 무너뜨렸습니다. 완벽한 승리였지만 네 사람과 당신 사이의 결탁은 더 짙어졌습니다.'},
+      {id:'secret_consortium',text:'기존 관계도 네 사람도 모르게 계속 유지하자고 한다',preview:'비공개 컨소시엄 배드엔딩',badEnding:'secret_consortium',outcome:'만남 순번과 사업 일정이 같은 장부에 들어가는 순간, 관계는 비밀 컨소시엄으로 전락했습니다.'},
+      {id:'buyout_old',text:'기존 연인에게 집과 돈을 주고 조용히 정리한다',preview:'적대적 인수 배드엔딩',badEnding:'hostile_buyout',outcome:'사람을 퇴직 보상처럼 정리하려는 제안에 네 사람까지 자리에서 일어났습니다.'},
+      {id:'choose_quartet',text:'외도 사실을 인정하고 기존 관계를 직접 끝낸 뒤 네 사람을 선택한다',preview:'큰 관계 손실 · 사업 4인조 독립 관계 후보',route:'quartet_only',effects:{governance:8,boundary:7,affectionEach:5,trustEach:4,accountability:14},outcome:'플레이어는 기존 관계가 깨지는 손실을 감수하겠다고 밝혔습니다. 네 사람은 승리라고 부르지 않고, 모든 정리가 끝난 뒤 다시 대답하기로 했습니다.'},
+      {id:'disclose_everyone',text:'모든 관계자에게 사실을 공개하고 편입 가능성부터 다시 협의한다',preview:'3개월 보호관찰형 확장 루트',route:'disclosure',effects:{governance:12,boundary:12,affectionEach:2,trustEach:7,accountability:18},outcome:'기존 관계자 전원에게 같은 기록이 전달됐습니다. 누구도 즉시 용서하지 않았고, 네 사람은 업무 관계만 남는 결론까지 받아들이기로 했습니다.'},
     ]},
-  {id:'after_hours_rules',title:'제3장 · 직급이 사라진 뒤의 네 이름',icon:'🌃',scene:'./assets/event-business-quartet-afterhours.png',
-    desc:'위기를 넘긴 밤, 다섯 사람만 남은 사무실에서 업무 보고가 서로의 사적인 경계를 확인하는 대화로 바뀌었습니다. 고백은 모든 개인사와 공동 이사회가 끝난 뒤에만 따로 묻기로 합니다.',
+  {id:'probation_one',title:'제3장 · 보호관찰 첫 달, 업무만 남긴 거리',icon:'📵',scene:'./assets/event-business-quartet-boardroom.png',requiresRoute:'disclosure',
+    desc:'첫 달에는 공식 업무 외 연락과 사적 만남을 중단했습니다. 네 책임자는 대표 없이 사업을 운영했고, 플레이어는 기존 관계에 변명 대신 사실과 일정을 보고했습니다.',
     dialogues:[
-      ['한이슬','회사에서는 대표님. 여기서는 그냥 이름으로 부르면 안 돼?'],
-      ['박지수','좋아요. 대신 서운한 일을 인사평가처럼 쌓아두지는 않기.'],
-      ['오혜린','싫다고 말해도 회사에서 불이익이 없다는 약속도 필요해요.'],
-      ['차서윤','그 조항에는 동의합니다. 사랑을 지분처럼 독점하지 않는다는 조건도 추가하죠.'],
+      ['박지수','챙기는 척하면서 사적으로 붙잡지 않을게요. 이번 달은 보고서로만 봐요.'],
+      ['한이슬','연락 안 하는 것도 선택이네. 도망치려고 끊는 건 아니니까 기다릴 수 있어.'],
+      ['차서윤','대표 부재 운영 기록을 남깁니다. 고용과 감정이 실제로 분리되는지 확인하죠.'],
+      ['오혜린','미안하다는 연락도 상대가 받아줄 준비가 됐을 때만 해야 해요.'],
     ],
     choices:[
-      {id:'clear_rules',text:'업무권한·사적 동의·질투의 선을 명확히 합의한다',preview:'공동 의사결정·공사 경계 크게 상승',effects:{synergy:7,governance:15,boundary:16,affectionEach:6,trustEach:10},outcome:'낭만적이지 않은 규칙들이 오히려 다섯 사람을 안심시켰습니다. 누구도 고용과 사랑을 거래하지 않기로 했습니다.'},
-      {id:'trust_feeling',text:'규칙보다 서로의 마음을 믿고 자연스럽게 둔다',preview:'호감 크게 상승 · 공사 경계 하락',effects:{synergy:5,governance:-3,boundary:-10,affectionEach:11,trustEach:3},outcome:'그날 밤은 따뜻했지만 다음 날부터 사소한 배려와 업무 지시의 뜻을 두 번씩 해석해야 했습니다.'},
+      {id:'work_only',text:'한 달 동안 업무 연락만 지키고 기존 관계의 질문에 답한다',preview:'1개월차 통과 · 신뢰 회복',effects:{governance:10,boundary:14,trustEach:7,accountability:8},outcome:'네 사업은 대표의 사적 관심 없이도 굴러갔고, 기존 연인들은 처음으로 숨겨진 일정이 없는 한 달을 확인했습니다.'},
+      {id:'hidden_ping',text:'업무용 메신저로 네 사람에게 개인 안부를 몰래 보낸다',preview:'비공개 컨소시엄 배드엔딩',badEnding:'secret_consortium',outcome:'짧은 안부 한 줄이었지만 보호관찰의 유일한 조건을 다시 비밀로 바꿨습니다.'},
     ]},
-  {id:'branch_tour',title:'제4장 · 대표가 필요 없었던 하루',icon:'🚌',scene:'./assets/event-business-quartet-branch-tour-pixel-v1.png',
-    desc:'당신이 자리를 비운 날 네 담당자는 여러 사업장을 함께 돌며 문제를 해결했습니다. 돌아온 당신 앞에는 결재 요청이 아니라 이미 끝난 보고서와 네 사람의 단체사진이 놓여 있습니다.',
+  {id:'probation_two',title:'제4장 · 보호관찰 둘째 달, 공개된 단독 약속',icon:'📆',scene:'./assets/event-business-quartet-afterhours.png',requiresRoute:'disclosure',
+    desc:'둘째 달에는 누구와 만나는지 전부 공개한 상태에서만 단독 약속이 허용됐습니다. 기존 그룹은 만남을 금지할 수 없지만, 다시 숨긴 연락이 발견되면 협의는 즉시 끝납니다.',
     dialogues:[
-      ['박지수','지점 세 곳 근무표는 제가 묶었고, 직원들 저녁도 챙겼어요.'],
-      ['한이슬','새 브랜드 간판은 현장에서 바로 고쳤어. 서윤 씨가 비용 승인도 해줬고.'],
-      ['차서윤','대표 부재 시 권한 규칙이 실제로 작동했습니다. 예외는 혜린 씨가 막았고요.'],
-      ['오혜린','아무도 무리하지 않았어요. 대표님이 없어도요. 그러니까 조금은 우리를 믿고 쉬어도 돼요.'],
+      ['한이슬','허락받는 데이트는 아니야. 대신 누구도 없는 사람 취급하지 않는 약속이지.'],
+      ['박지수','집에 돌아갈 시간까지 제가 정하지 않을게요. 다만 늦으면 직접 말해요.'],
+      ['오혜린','죄책감 때문에 누구 한 사람만 몰래 더 챙기는 것도 그만해야 해요.'],
+      ['차서윤','공개된 선택은 통제가 아닙니다. 각 당사자가 거절하거나 남을 수 있는 자료예요.'],
     ],
     choices:[
-      {id:'delegate_board',text:'네 사람의 독립 운영권을 정식 규칙으로 만든다',preview:'공동 의사결정·업무 시너지 크게 상승',effects:{synergy:14,governance:16,boundary:7,affectionEach:5,trustEach:10},outcome:'사업은 대표 한 사람의 체력 대신 네 담당자와 직원들의 판단으로 굴러가기 시작했습니다.'},
-      {id:'review_together',text:'결과를 함께 검토하고 실패도 공동 책임으로 남긴다',preview:'신뢰와 공사 경계 크게 상승',effects:{synergy:9,governance:11,boundary:12,affectionEach:7,trustEach:8},outcome:'잘한 일만 칭찬하지 않고 실수까지 함께 기록하자 네 사람은 권한이 곧 희생이 아니라는 걸 확인했습니다.'},
+      {id:'public_dates',text:'모든 약속을 공개하고 누구도 업무상 우선하지 않는다',preview:'2개월차 통과 · 공사 경계 상승',effects:{synergy:6,governance:8,boundary:14,affectionEach:5,trustEach:8,accountability:8},outcome:'질투는 사라지지 않았지만 예산과 인사로 번지지 않았습니다. 누구도 뒤늦게 자기 관계를 통보받지 않았습니다.'},
+      {id:'performance_priority',text:'실적이 높은 사람에게 더 많은 만남과 사업권을 준다',preview:'비공개 컨소시엄 배드엔딩',badEnding:'secret_consortium',outcome:'애정 보상과 인사평가가 합쳐지자 네 사람은 즉시 모든 사적 약속을 중단했습니다.'},
     ]},
-  {id:'shared_payday',title:'제5장 · 첫 공동 성과급',icon:'💸',scene:'./assets/event-business-quartet-payday-pixel-v1.png',
-    desc:'여덟 곳이 넘는 사업이 안정된 달, 네 담당자는 자신들의 몫보다 전 직원 성과급 안건을 먼저 올렸습니다. 회사가 커진 뒤 무엇을 나눌지 결정할 마지막 이사회입니다.',
+  {id:'third_base_trial',title:'제5장 · 보호관찰 셋째 달, 회사 밖의 제3거점',icon:'🔑',scene:'./assets/event-business-quartet-third-base.png',requiresRoute:'disclosure',
+    desc:'셋째 달에는 회사 자금과 기존 그룹의 집을 쓰지 않는 별도 거점을 시험합니다. 직급·지분과 생활 관계를 분리하고, 기존 그룹도 방문할 수 있으며, 플레이어에게는 혼자 있을 방과 거절권이 보장됩니다.',
     dialogues:[
-      ['차서윤','배당과 유보금 비율은 계산했습니다. 다만 이건 대표의 가치 판단이 필요합니다.'],
-      ['박지수','이번 달을 만든 건 이름도 공개되지 않은 직원들이에요. 먼저 챙겨 주세요.'],
-      ['오혜린','쉬는 날과 안전 인력도 성과예요. 돈만 나누고 다시 지치게 하면 안 돼요.'],
-      ['한이슬','그리고 우리 다섯은 보너스 대신 여행 어때? 회사 얘기 금지로.'],
+      ['차서윤','회사 비용은 0원입니다. 이 공간이 사업 보상으로 보이면 시험은 실패예요.'],
+      ['박지수','누구 집을 빼앗아 만든 곳도 아니고, 매일 와야 하는 곳도 아니에요.'],
+      ['한이슬','비밀 아지트는 졸업. 문 닫고 싶은 날은 그냥 닫는 거야.'],
+      ['오혜린','아픈 사람을 붙잡아 두는 공간이 되면 안 돼요. 돌아갈 곳은 모두 남겨 둬요.'],
     ],
     choices:[
-      {id:'people_dividend',text:'전 직원 성과급과 유급휴가를 우선 지급한다',preview:'현금 -800만 · 전 지표 크게 상승',effects:{cash:-8000000,synergy:15,governance:14,boundary:10,affectionEach:7,trustEach:11},outcome:'성과는 직급이 아니라 함께 버틴 시간에 따라 나뉘었고 회사는 사람을 남기는 조직이 됐습니다.'},
-      {id:'reinvest_and_trip',text:'절반은 재투자하고 네 사람과 짧은 여행을 떠난다',preview:'현금 -400만 · 시너지와 호감 크게 상승',effects:{cash:-4000000,synergy:14,governance:8,boundary:6,affectionEach:11,trustEach:7},outcome:'직원에게 성장의 몫을 남기고 다섯 사람은 처음으로 회사 밖에서 같은 목적지를 골랐습니다.'},
+      {id:'separate_funds',text:'사비로만 거점을 열고 열쇠·방문·혼자 있을 권리를 문서화한다',preview:'3개월차 통과 · 제3거점 후보',effects:{cash:-6000000,governance:12,boundary:16,affectionEach:6,trustEach:9,accountability:10},outcome:'제3거점은 어느 회사와 어느 집에도 속하지 않았습니다. 처음으로 비밀이 아니라 독립공간이라는 설명이 가능해졌습니다.'},
+      {id:'company_house',text:'회사 복지시설로 처리하고 담당자만 상시 거주하게 한다',preview:'적대적 인수 배드엔딩',badEnding:'hostile_buyout',outcome:'관계의 대가를 회사 자산으로 지급하려는 순간, 거점은 또 다른 거래가 됐습니다.'},
+    ]},
+  {id:'final_audit',title:'최종장 · 사랑과 지분을 분리한 다섯 번째 열쇠',icon:'🔐',scene:'./assets/event-business-quartet-third-base.png',
+    desc:'네 사람은 마지막 감사표와 다섯 번째 열쇠를 내놓았습니다. 기존 관계를 정리하고 네 사람만 선택했든, 모든 관계자와 세 달을 다시 협의했든, 이제 누구도 비밀 경쟁 후보로 남지 않습니다.',
+    dialogues:[
+      ['박지수','사랑을 얻었다고 말하기 전에, 누가 무엇을 잃었는지 계속 기억해요.'],
+      ['한이슬','비밀일 때보다 덜 짜릿해도 좋아. 이번엔 장면 밖 사람까지 진짜니까.'],
+      ['차서윤','고용·지분·거주·동의는 별도 조항입니다. 하나를 거절해도 나머지가 불이익이 되지 않습니다.'],
+      ['오혜린','깨끗하게 시작하진 못했어요. 그래서 앞으로는 더 숨기지 않는 쪽을 선택해요.'],
+    ],
+    choices:[
+      {id:'sign_final_audit',text:'과거의 배신을 인정한 채 공개된 관계와 분리된 권한에 서명한다',preview:'사업 4인조 최종 공동 제안 대기',effects:{synergy:10,governance:14,boundary:16,affectionEach:8,trustEach:10,accountability:10},complete:true,outcome:'네 사람은 승리자가 아니라 공범이자 새 관계의 당사자로 남았습니다. 다음 연락에서는 고용이 아닌 관계 자체에 대한 대답을 요구할 것입니다.'},
+      {id:'blame_them',text:'네 사람이 먼저 유혹했으니 책임도 네 사람에게 있다고 말한다',preview:'감사의견 거절 배드엔딩',badEnding:'audit_refusal',outcome:'사실은 모두 공개됐지만 플레이어의 책임만 끝내 장부에 올라오지 않았습니다.'},
     ]},
 ];
 
@@ -242,6 +268,7 @@ function freshStaff(){
   return{bond:0,trust:0,revealed:false,revealDay:0,temptationSeen:false,trapTriggered:false,
     introduced:false,hired:false,assignedBusinessId:null,rival:false,profitStreak:0,
     boundaryKept:false,loyaltyTestPassed:false,supportOnly:false,romanticRival:false,
+    secretAffair:false,affairRefused:false,turncoatResolved:false,
     ending:null,lastContactDay:0,eventsSeen:[],storyChapter:0,humanFirstCount:0};
 }
 function ensure(life){
@@ -267,6 +294,9 @@ function ensure(life){
       loyaltyTestPassed:!!old.loyaltyTestPassed,
       supportOnly:!!old.supportOnly,
       romanticRival:!!old.romanticRival,
+      secretAffair:!!old.secretAffair,
+      affairRefused:!!old.affairRefused,
+      turncoatResolved:!!old.turncoatResolved,
       eventsSeen:Array.isArray(old.eventsSeen)?old.eventsSeen:[],
       storyChapter:clamp(Math.floor(finite(old.storyChapter,0)),0,(PERSONAL_STORIES[id]||[]).length),
       humanFirstCount:Math.max(0,Math.floor(finite(old.humanFirstCount,0))),
@@ -281,10 +311,25 @@ function ensure(life){
   state.managementRisk=clamp(finite(state.managementRisk,0),0,100);
   state.managementCollapseSeen=!!state.managementCollapseSeen;
   if(!state.quartet||typeof state.quartet!=='object')state.quartet={chapter:0,synergy:40,governance:40,boundary:45,lastStoryDay:0};
+  if(state.affairArcVersion!==2){
+    state.affairArcVersion=2;
+    state.quartet.chapter=0;
+    state.quartet.route=null;
+    state.quartet.ending=null;
+    state.quartet.closed=null;
+    state.quartet.accountability=0;
+    IDS.forEach(id=>Object.assign(state.staff[id],{
+      temptationSeen:false,boundaryKept:false,loyaltyTestPassed:false,supportOnly:false,romanticRival:false,
+      secretAffair:false,affairRefused:false,turncoatResolved:false,ending:null,
+    }));
+  }
   state.quartet.chapter=clamp(Math.floor(finite(state.quartet.chapter,0)),0,QUARTET_CHAPTERS.length);
   state.quartet.synergy=clamp(finite(state.quartet.synergy,40),0,100);
   state.quartet.governance=clamp(finite(state.quartet.governance,40),0,100);
   state.quartet.boundary=clamp(finite(state.quartet.boundary,45),0,100);
+  state.quartet.accountability=clamp(finite(state.quartet.accountability,0),0,100);
+  state.quartet.route=['quartet_only','disclosure'].includes(state.quartet.route)?state.quartet.route:null;
+  state.quartet.ending=state.quartet.ending&&typeof state.quartet.ending==='object'?state.quartet.ending:null;
   return state;
 }
 function profile(id){return PROFILES[id]||null;}
@@ -313,8 +358,7 @@ function chaerinAccess(life){
   const close=chaerin&&['friend','casual','partner','lover','polycule'].includes(chaerin.status);
   const shared=!!(life.dangerousTrioBond&&life.dangerousTrioBond.active)
     ||!!(life.relationshipGroup&&Array.isArray(life.relationshipGroup.members)&&life.relationshipGroup.members.some(member=>(typeof member==='string'?member:member&&member.name)==='한채린'));
-  const freedomComplete=!!(root.QT_FREEDOM_TRIO&&root.QT_FREEDOM_TRIO.storyComplete(life));
-  return freedomComplete&&!!(close||shared);
+  return !!(close||shared);
 }
 function introduce(life,id){
   const state=ensure(life),s=state.staff[id],p=profile(id);if(!s||!p)return null;
@@ -330,14 +374,20 @@ function recruit(life,id,businessId){
   s.hired=true;s.assignedBusinessId=businessId||null;s.rival=true;
   return{ok:true,staffId:id,profile:p};
 }
+function activePartnerNames(life){
+  const names=[];
+  const add=name=>{if(name&&!names.includes(name))names.push(name);};
+  if(life.partner)add(life.partner.name);
+  (life.met||[]).filter(rec=>['partner','polycule','lover'].includes(rec.status)).forEach(rec=>add(rec.name));
+  ((life.relationshipGroup&&life.relationshipGroup.members)||[]).forEach(member=>add(typeof member==='string'?member:member&&member.name));
+  return names;
+}
 function canRomance(life,nameOrId){
   const state=ensure(life);
   const id=IDS.includes(nameOrId)?nameOrId:IDS.find(key=>PROFILES[key].name===nameOrId);
-  const activeNames=new Set((life.met||[]).filter(rec=>['partner','polycule','lover'].includes(rec.status)).map(rec=>rec.name));
-  (((life.relationshipGroup||{}).members)||[]).forEach(member=>activeNames.add(typeof member==='string'?member:member&&member.name));
-  const outside=[...activeNames].filter(Boolean).some(name=>!IDS.some(key=>PROFILES[key].name===name));
   const staff=id&&state.staff[id];
-  return !!(staff&&staff.hired&&staff.revealed&&staff.storyChapter>=3&&!staff.supportOnly&&(!outside||staff.romanticRival));
+  const outside=activePartnerNames(life).some(name=>!IDS.some(key=>PROFILES[key].name===name));
+  return !!(outside&&staff&&staff.hired&&staff.revealed&&staff.storyChapter>=3&&staff.secretAffair&&!staff.affairRefused);
 }
 function applyDecision(life,id,effects){
   const s=staffState(life,id);if(!s)return null;
@@ -364,22 +414,48 @@ function nextPersonal(life,ctx){
   }
   return null;
 }
+function relationshipContext(life,partnerNames){
+  const names=(Array.isArray(partnerNames)&&partnerNames.length?partnerNames:activePartnerNames(life)).filter(Boolean);
+  const outsideNames=names.filter(name=>!IDS.some(id=>PROFILES[id].name===name));
+  return{
+    names,
+    outsideNames,
+    hasExisting:outsideNames.length>0,
+    dangerousShared:!!(life.dangerousTrioBond&&life.dangerousTrioBond.active),
+    freedomShared:!!(life.freedomTrioBond&&life.freedomTrioBond.active),
+  };
+}
+function nextTurncoatOffer(life,ctx){
+  const state=ensure(life),relations=relationshipContext(life,ctx.partnerNames);
+  if(!relations.hasExisting)return null;
+  const secret=IDS.filter(id=>state.staff[id].secretAffair&&!state.staff[id].affairRefused&&!state.staff[id].turncoatResolved);
+  if(secret.length!==1)return null;
+  const id=secret[0],staff=state.staff[id],record=(ctx.met||[]).find(person=>person.name===PROFILES[id].name);
+  const item=((ctx.businessState&&ctx.businessState.owned)||[]).find(row=>(row.specialManagerId||row.managerId)===id);
+  if(!record||['ex','deceased'].includes(record.status)||!item||staff.storyChapter<3||item.level<3||
+    (item.totalProfit||0)<15000000||(record.affection||0)<72||(record.trust||0)<42)return null;
+  return{businessRomanceEvent:true,kind:'turncoat-offer',staffId:id,currentPartners:relations.outsideNames,day:ctx.day};
+}
 function nextQuartetChapter(life,ctx,allOwned){
-  const state=ensure(life),index=state.quartet.chapter||0,chapter=QUARTET_CHAPTERS[index];
-  const freedomComplete=!!(root.QT_FREEDOM_TRIO&&root.QT_FREEDOM_TRIO.storyComplete(life));
-  const partnerNames=ctx.partnerNames||[];
-  const sharedLiving=!!((life.dangerousTrioBond&&life.dangerousTrioBond.active)||(life.freedomTrioBond&&life.freedomTrioBond.active)||
-    (life.relationshipGroup&&life.relationshipGroup.agreement&&life.relationshipGroup.agreement.cohabiting&&(life.relationshipGroup.members||[]).length>1));
-  const relationshipOpen=partnerNames.length===0||sharedLiving;
+  const state=ensure(life),q=state.quartet,relations=relationshipContext(life,ctx.partnerNames);
   const owned=(ctx.businessState&&ctx.businessState.owned)||[];
   const totalProfit=owned.reduce((sum,item)=>sum+(item.totalProfit||0),0);
   const profitable=owned.filter(item=>(item.lastNet||0)>0).length;
   const stable=owned.length>=4&&owned.filter(item=>(item.level||1)>=2).length>=3&&profitable>=3&&totalProfit>=15000000;
-  const guard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'business');
-  if(guard&&!guard.ok&&!(root.QT_ROMANCE_ROUTES.ensure(life).active==='business'))return null;
-  if(!chapter||!freedomComplete||!relationshipOpen||!stable||!allOwned||!IDS.every(id=>state.staff[id].revealed&&state.staff[id].storyChapter>=1))return null;
+  if((!relations.hasExisting&&!q.route)||!stable||!allOwned||!IDS.every(id=>{
+    const staff=state.staff[id];
+    return staff.revealed&&staff.storyChapter>=1&&staff.secretAffair&&!staff.affairRefused;
+  }))return null;
   const records=IDS.map(id=>(ctx.met||[]).find(person=>person.name===PROFILES[id].name));
-  if(records.some(rec=>!rec||rec.status==='ex'))return null;
+  if(records.some(rec=>!rec||['ex','deceased'].includes(rec.status)))return null;
+  let index=q.chapter||0;
+  let chapter=QUARTET_CHAPTERS[index];
+  if(q.route==='quartet_only'&&chapter&&chapter.requiresRoute==='disclosure'){
+    index=QUARTET_CHAPTERS.findIndex(item=>item.id==='final_audit');
+    q.chapter=index;
+    chapter=QUARTET_CHAPTERS[index];
+  }
+  if(!chapter||chapter.requiresRoute&&chapter.requiresRoute!==q.route)return null;
   if(index===1&&totalProfit<25000000)return null;
   if(index===2&&records.some(rec=>(rec.affection||0)<42||(rec.trust||0)<20))return null;
   if(index===3&&IDS.some(id=>state.staff[id].storyChapter<2))return null;
@@ -414,23 +490,26 @@ function monthly(life,context){
     return{businessRomanceEvent:true,kind:'chaerin-board',day};
   }
 
-  const partnerNames=ctx.partnerNames||[],businessPartners=partnerNames.filter(name=>IDS.some(id=>PROFILES[id].name===name));
-  const romanticRivals=IDS.filter(id=>state.staff[id].romanticRival).length;
+  const relations=relationshipContext(life,ctx.partnerNames);
+  const partnerNames=relations.names,businessPartners=partnerNames.filter(name=>IDS.some(id=>PROFILES[id].name===name));
+  const romanticRivals=IDS.filter(id=>state.staff[id].secretAffair).length;
   const struggling=((ctx.businessState&&ctx.businessState.owned)||[]).filter(item=>item.lastNet<0||item.reputation<32||item.morale<32);
   if(!state.managementCollapseSeen&&romanticRivals>=2&&(state.managementRisk>=45||struggling.length>=2)){
     state.managementCollapseSeen=true;state.lastEventDay=day;
     return{businessRomanceEvent:true,kind:'management-collapse',day,struggling:struggling.map(item=>item.id)};
   }
-  if(partnerNames.length){
+  if(relations.hasExisting){
     const target=IDS.find(id=>{
       const s=state.staff[id],item=((ctx.businessState&&ctx.businessState.owned)||[]).find(x=>(x.specialManagerId||x.managerId)===id);
-      return !businessPartners.includes(PROFILES[id].name)&&item&&item.months>=4&&s.hired&&s.bond>=20&&!s.temptationSeen;
+      return !businessPartners.includes(PROFILES[id].name)&&item&&item.months>=4&&s.hired&&s.revealed&&
+        s.storyChapter>=1&&s.bond>=20&&!s.temptationSeen&&!s.affairRefused;
     });
     if(target){
       state.staff[target].temptationSeen=true;
       state.staff[target].lastContactDay=day;
       state.lastEventDay=day;
-      return{...event('temptation',target,day),currentPartner:partnerNames[0],pureTest:partnerNames.length===1};
+      return{...event('temptation',target,day),currentPartner:relations.outsideNames[0],currentPartners:relations.outsideNames,
+        existingGroup:relations.outsideNames.length>1||relations.dangerousShared||relations.freedomShared};
     }
   }
 
@@ -446,19 +525,11 @@ function monthly(life,context){
   const personalEvent=nextPersonal(life,{...ctx,day});
   if(personalEvent){state.lastEventDay=day;return personalEvent;}
 
+  const turncoatEvent=nextTurncoatOffer(life,{...ctx,day});
+  if(turncoatEvent){state.lastEventDay=day;return turncoatEvent;}
+
   const quartetEvent=nextQuartetChapter(life,{...ctx,day},IDS.every(id=>owned.has(id)));
   if(quartetEvent){state.lastEventDay=day;return quartetEvent;}
-
-  const solo=IDS.find(id=>{
-    const s=state.staff[id],rec=(ctx.met||[]).find(person=>person.name===PROFILES[id].name);
-    const item=((ctx.businessState&&ctx.businessState.owned)||[]).find(x=>(x.specialManagerId||x.managerId)===id);
-    return s.revealed&&!s.ending&&rec&&['partner','polycule'].includes(rec.status)&&
-      rec.affection>=80&&rec.trust>=45&&item&&item.level>=4&&item.totalProfit>=20000000;
-  });
-  if(solo){
-    state.lastEventDay=day;
-    return event('solo-ending',solo,day);
-  }
 
   return null;
 }
@@ -497,7 +568,7 @@ function view(life,payload,capital){
     if(!chapter)return null;
     return{kind:payload.kind,icon:chapter.icon,title:chapter.title,desc:chapter.desc,line:'네 사람의 이해관계가 하나의 안건 위에서 충돌합니다.',
       portrait:chapter.scene,dialogues:chapter.dialogues,choices:chapter.choices.map(choice=>({id:choice.id,text:choice.text,preview:choice.preview})),
-      meta:`업무 시너지 ${Math.round(state.quartet.synergy)} · 공동 의사결정 ${Math.round(state.quartet.governance)} · 공과 사 경계 ${Math.round(state.quartet.boundary)}`};
+      meta:`업무 시너지 ${Math.round(state.quartet.synergy)} · 공동 의사결정 ${Math.round(state.quartet.governance)} · 공과 사 경계 ${Math.round(state.quartet.boundary)} · 책임 인정 ${Math.round(state.quartet.accountability)}`};
   }
   if(payload.kind==='quartet-ending'){
     return{
@@ -539,16 +610,33 @@ function view(life,payload,capital){
       meta:`개인 업무 이야기 ${(s.storyChapter||0)+1}/${(PERSONAL_STORIES[p.id]||[]).length} · 업무 신뢰 ${Math.round(s.bond)} · 개인 신뢰 ${Math.round(s.trust)}`};
   }
   if(payload.kind==='temptation')return{
-    kind:payload.kind,profile:p,identity:who,icon:'⚔️',title:`${who.displayName}의 대표 검증`,
-    desc:payload.pureTest
-      ?`${payload.currentPartner||'현재 연인'} 한 사람과 진지하게 사귀는 대표에게 일부러 선을 넘는 제안을 건넸습니다. 거절하면 얼굴과 이름을 감춘 유능한 조력자로 남고, 이 제안은 대표의 공사 구분을 확인한 테스트였다고 밝힙니다.`
-      :`${payload.currentPartner||'현재 연인'}이 있다는 사실도, 플레이어의 여성편력도 이미 알고 있습니다. 네 사람은 불륜 폭로로 싸우지 않고 서로보다 먼저 대표의 개인 경쟁 후보가 되려 합니다.`,
-    line:p.temptation,portrait:p.maskedScene,
+    kind:payload.kind,profile:p,identity:who,icon:'🌒',title:`${who.displayName}의 선을 넘는 제안`,
+    desc:`${(payload.currentPartners||[payload.currentPartner]).filter(Boolean).join(' · ')||'현재 연인'}과의 관계를 알면서도, ${who.displayName}은 헤어지라는 말 없이 자기만 아는 시간을 만들자고 합니다. 거절해도 담당 사업과 전문적인 관계는 유지되지만, 받아들이는 순간부터 이것은 검증이 아니라 실제 비밀 관계가 됩니다.`,
+    line:p.temptation,portrait:p.scene,
     choices:[
-      {id:'boundary',text:`🧱 ${payload.currentPartner||'현재 연인'}과의 관계를 지킨다`,preview:payload.pureTest?'충성 테스트 통과 · 익명 조력자로 계속 근무':'현재 관계 유지 · 유혹은 거절하되 업무 관계 유지'},
-      {id:'meet',text:`⚔️ ${who.displayName}의 경쟁을 받아들인다`,preview:'기존 연인을 내보내지 않음 · 얼굴 공개 및 사업 4인 하렘 후보 등록 · 경영 위험 상승'},
+      {id:'boundary',text:'🧱 사적인 제안을 거절하고 업무 관계만 남긴다',preview:'현재 관계 유지 · 이 인물과 연애 분기 종료 · 매니저 역할 유지'},
+      {id:'meet',text:`🌒 ${who.displayName}과 비밀 약속을 잡는다`,preview:'기존 관계에 알리지 않음 · 비밀 관계 시작 · 경영 위험 상승'},
     ],
   };
+  if(payload.kind==='turncoat-offer'){
+    const variants={
+      office:{title:'박지수 · 집으로 돌아가기 전의 고백',line:'“오늘은 여기서 자지 마요. 먼저 돌아가서 전부 말하고, 끝낼 관계를 당신 입으로 끝낸 뒤에 다시 와요.”'},
+      creative:{title:'한이슬 · 도망칠 수 없는 다음 장면',line:'“비밀일 땐 재밌었어. 근데 진짜 나를 고를 거면, 카메라 꺼진 뒤 사람들한테도 같은 말을 해야 해.”'},
+      corporate:{title:'차서윤 · 공개 조항이 붙은 전향 계약',line:'“기존 관계 해소와 외도 사실 고지는 선행 조건입니다. 숨긴 채 저를 선택하는 계약에는 서명하지 않겠습니다.”'},
+      medical:{title:'오혜린 · 죄책감을 돌려주는 밤',line:'“제가 대신 말해 주면 또 누군가를 보호한다는 핑계가 돼요. 직접 사과하고 돌아오면, 그때 제 대답을 드릴게요.”'},
+    };
+    const variant=variants[p.id];
+    return{
+      kind:payload.kind,profile:p,identity:who,icon:'🪪',title:variant.title,
+      desc:`비밀 관계가 깊어지자 ${p.name}은 더는 숨겨진 두 번째 자리를 받아들이지 않겠다고 말합니다. ${payload.currentPartners.join(' · ')}에게 외도 사실을 직접 인정하고 관계를 끝낸 뒤 자신을 공개적으로 선택할지, 비밀을 계속할지, 지금 여기서 관계를 접을지 정해야 합니다.`,
+      line:variant.line,portrait:p.scene,
+      choices:[
+        {id:'confess_and_leave',text:`기존 관계에 전부 고백하고 헤어진 뒤 ${p.name}을 선택한다`,preview:'기존 관계 전원 종료 · 한 사람과 공개 연애 시작'},
+        {id:'keep_secret',text:'아무에게도 말하지 않고 지금처럼 만나자고 한다',preview:'이중장부 배드엔딩'},
+        {id:'end_affair',text:'비밀 관계를 끝내고 다시 업무 동료로 남는다',preview:'현재 관계 유지 · 이 인물의 연애 분기 종료'},
+      ],
+    };
+  }
   if(payload.kind==='reveal')return{
     kind:payload.kind,profile:p,identity:who,icon:'📇',title:`${p.name}의 개인 연락망`,
     desc:'사업 위기에서 당신은 실적보다 책임자와 직원의 안전을 먼저 지켰고, 그 뒤에도 흑자를 이어 냈습니다. 늘 카메라 밖과 가린 얼굴로 보고하던 책임자가 처음으로 직급표를 내려놓고 본명과 얼굴을 보여 줍니다.',
@@ -599,13 +687,27 @@ function resolve(life,payload,choiceId,capital){
     q.synergy=clamp(q.synergy+finite(e.synergy,0),0,100);
     q.governance=clamp(q.governance+finite(e.governance,0),0,100);
     q.boundary=clamp(q.boundary+finite(e.boundary,0),0,100);
-    if(root.QT_ROMANCE_ROUTES&&q.chapter===0)root.QT_ROMANCE_ROUTES.begin(life,'business');
+    q.accountability=clamp(q.accountability+finite(e.accountability,0),0,100);
+    if(choice.badEnding){
+      const endingKey={double_ledger:'pure_affair',secret_consortium:'secret_consortium',hostile_buyout:'hostile_buyout',audit_refusal:'cohabitation_refusal'}[choice.badEnding];
+      const ending=romanceEnding(endingKey);
+      q.ending={id:choice.badEnding,day:payload.day||1,bad:true};
+      if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'business',choice.badEnding,'bad');
+      return{ok:true,done:true,badEnding:true,businessRouteBadEnding:true,businessCollapse:true,title:ending.title,
+        text:`${choice.outcome} ${ending.text}`,tone:'bad',meta:ending.detail};
+    }
+    if(choice.route)q.route=choice.route;
+    if(root.QT_ROMANCE_ROUTES&&q.chapter===0)root.QT_ROMANCE_ROUTES.engage(life,'business','affair_audit_opened');
     q.chapter=Math.max(q.chapter,QUARTET_CHAPTERS.indexOf(chapter)+1);q.lastStoryDay=payload.day||1;
-    const quartetComplete=q.chapter>=QUARTET_CHAPTERS.length;
-    if(root.QT_ROMANCE_ROUTES&&quartetComplete)root.QT_ROMANCE_ROUTES.complete(life,'business','four_business_partners','good');
+    const quartetComplete=!!choice.complete;
+    if(quartetComplete){
+      q.chapter=QUARTET_CHAPTERS.length;
+      q.ending={id:'affair_audit_complete',day:payload.day||1,route:q.route};
+      if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'business','affair_audit_complete','good');
+    }
     return{ok:true,done:true,groupStory:true,quartet:quartetComplete,title:chapter.title,text:choice.outcome,cash:Math.round(finite(e.cash,0)),
-      affectionEach:finite(e.affectionEach,0),trustEach:finite(e.trustEach,0),tone:'good',
-      meta:`업무 시너지 ${Math.round(q.synergy)} · 공동 의사결정 ${Math.round(q.governance)} · 공과 사 경계 ${Math.round(q.boundary)}`};
+      affectionEach:finite(e.affectionEach,0),trustEach:finite(e.trustEach,0),breakupAll:choice.route==='quartet_only',tone:'good',
+      meta:`업무 시너지 ${Math.round(q.synergy)} · 공동 의사결정 ${Math.round(q.governance)} · 공과 사 경계 ${Math.round(q.boundary)} · 책임 인정 ${Math.round(q.accountability)}`};
   }
   if(payload.kind==='quartet-ending'){
     if(choiceId==='accept'){
@@ -648,29 +750,47 @@ function resolve(life,payload,choiceId,capital){
   }
   if(payload.kind==='temptation'){
     if(choiceId==='boundary'){
-      s.boundaryKept=true;s.loyaltyTestPassed=!!payload.pureTest;s.supportOnly=!!payload.pureTest;
+      s.boundaryKept=true;s.loyaltyTestPassed=false;s.supportOnly=true;s.affairRefused=true;s.secretAffair=false;s.romanticRival=false;
       s.bond=clamp(s.bond+10,0,100);s.trust=clamp(s.trust+14,0,100);
       state.managementRisk=clamp(state.managementRisk-6,0,100);
-      return{ok:true,done:true,rivalRefused:true,loyaltyTest:!!payload.pureTest,staffId:p.id,currentPartner:payload.currentPartner,
-        text:payload.pureTest
-          ?`${p.boundary} ${p.alias}는 방금 제안이 대표가 한 사람과 사업을 동시에 지킬 수 있는지 확인한 테스트였다고 밝혔습니다. 실명과 얼굴은 공개하지 않은 채 핵심 조력자로 남습니다.`
-          :`${p.boundary} 연애 경쟁에서는 한발 물러났지만 담당 사업과 대표를 돕는 일은 그대로 이어갑니다.`,tone:'good'};
+      return{ok:true,done:true,rivalRefused:true,loyaltyTest:false,staffId:p.id,currentPartner:payload.currentPartner,
+        text:`${p.boundary} ${p.name}은 거절을 시험으로 포장하지 않았습니다. 사적인 연락은 여기서 끝내고, 담당 사업의 권한과 책임은 그대로 지킵니다.`,tone:'good'};
     }
     if(choiceId==='meet'){
-      s.bond=clamp(s.bond+12,0,100);s.trust=clamp(s.trust+8,0,100);s.romanticRival=true;s.supportOnly=false;
+      s.bond=clamp(s.bond+12,0,100);s.trust=clamp(s.trust+8,0,100);s.romanticRival=true;s.secretAffair=true;s.affairRefused=false;s.supportOnly=false;
       s.revealed=true;s.revealDay=payload.day||1;
-      if(root.QT_ROMANCE_ROUTES&&IDS.every(id=>state.staff[id].revealed))root.QT_ROMANCE_ROUTES.engage(life,'business','four_managers_revealed');
+      if(root.QT_ROMANCE_ROUTES&&IDS.every(id=>state.staff[id].revealed)&&relationshipContext(life).hasExisting)root.QT_ROMANCE_ROUTES.engage(life,'business','affair_candidate_revealed');
       state.managementRisk=clamp(state.managementRisk+18,0,100);
-      return{ok:true,done:true,businessSuitor:true,revealed:true,staffId:p.id,currentPartner:payload.currentPartner,
+      return{ok:true,done:true,businessSuitor:true,secretAffair:true,revealed:true,staffId:p.id,currentPartner:payload.currentPartner,
         character:asCharacter(p.id),affection:36,trust:Math.max(18,s.trust),title:'대표실 밖의 경쟁 후보',
-        text:`${p.name}은 기존 연인과 헤어지라고 요구하지 않았습니다. 대신 당신의 여성편력을 이미 안다며 숨길 생각은 하지 말라고 못 박았습니다. “다른 세 사람한테도 제가 직접 말할게요.”`,tone:'neutral',
-        meta:`경영 위험 ${Math.round(state.managementRisk)}/100 · 기존 관계 유지`};
+        text:`${p.name}은 기존 연인과 헤어지라고 요구하지 않았습니다. 대신 이 약속을 당분간 누구에게도 말하지 말자고 했습니다. 두 사람 모두 이것이 실수나 검증이 아닌 비밀 관계라는 사실을 알고 있습니다.`,tone:'neutral',
+        meta:`경영 위험 ${Math.round(state.managementRisk)}/100 · 비밀 관계 1건`};
+    }
+  }
+  if(payload.kind==='turncoat-offer'){
+    if(choiceId==='confess_and_leave'){
+      s.turncoatResolved=true;s.secretAffair=false;s.romanticRival=false;
+      s.ending={id:`${p.id}_turncoat`,day:payload.day||1};
+      return{ok:true,done:true,turncoat:true,breakupAll:true,staffId:p.id,character:asCharacter(p.id),
+        affection:82,trust:58,title:`${p.name} · 숨기지 않는 두 번째 시작`,
+        text:`플레이어는 ${payload.currentPartners.join(' · ')}에게 외도 사실을 인정하고 관계를 끝냈습니다. ${p.name}은 그 상처를 승리처럼 여기지 않았고, 모든 정리가 끝난 뒤에야 공개된 연인이 되었습니다.`,tone:'neutral'};
+    }
+    if(choiceId==='keep_secret'){
+      const ending=romanceEnding('pure_affair');
+      s.turncoatResolved=true;
+      return{ok:true,done:true,badEnding:true,businessRouteBadEnding:true,businessCollapse:true,title:ending.title,text:ending.text,tone:'bad',meta:ending.detail};
+    }
+    if(choiceId==='end_affair'){
+      s.turncoatResolved=true;s.secretAffair=false;s.romanticRival=false;s.affairRefused=true;s.supportOnly=true;s.boundaryKept=true;
+      state.managementRisk=clamp(state.managementRisk-10,0,100);
+      return{ok:true,done:true,rivalRefused:true,loyaltyTest:false,staffId:p.id,currentPartner:payload.currentPartners[0],
+        text:`${p.name}과의 비밀 관계는 끝났습니다. 두 사람은 감정을 인사평가나 사업권에 섞지 않고 다시 공개된 업무 동료로 남았습니다.`,tone:'neutral'};
     }
   }
   if(payload.kind==='reveal'){
     if(choiceId==='meet'){
       s.revealed=true;s.revealDay=payload.day||1;s.bond=clamp(s.bond+12,0,100);s.trust=clamp(s.trust+10,0,100);
-      if(root.QT_ROMANCE_ROUTES&&IDS.every(id=>state.staff[id].revealed))root.QT_ROMANCE_ROUTES.engage(life,'business','four_managers_revealed');
+      if(root.QT_ROMANCE_ROUTES&&IDS.every(id=>state.staff[id].revealed)&&relationshipContext(life).hasExisting)root.QT_ROMANCE_ROUTES.engage(life,'business','affair_candidate_revealed');
       return{ok:true,done:true,revealed:true,character:asCharacter(p.id),affection:Math.max(10,Math.round(s.bond*.28)),trust:Math.max(12,Math.round(s.trust)),text:`${p.name}의 개인 연락처가 저장됐습니다. 당분간은 친구로 만나며 세 번의 개인 업무 이야기를 거쳐야 연애 가능성이 열립니다.`,tone:'good'};
     }
     state.profitableStreak=Math.max(0,state.profitableStreak-2);
@@ -698,34 +818,30 @@ function progressSummary(life){
 }
 function storyComplete(life){
   const state=ensure(life);
-  return !!state.quartet.closed||(state.quartet.chapter>=QUARTET_CHAPTERS.length&&IDS.every(id=>(state.staff[id].storyChapter||0)>=(PERSONAL_STORIES[id]||[]).length));
+  return !!state.quartet.closed||!!state.quartet.ending;
 }
 function resolveUnavailable(life){
   const state=ensure(life);
-  if(state.quartet.closed||state.quartet.chapter>=QUARTET_CHAPTERS.length)return false;
-  if(!root.QT_FREEDOM_TRIO||!root.QT_FREEDOM_TRIO.storyComplete(life))return false;
+  if(state.quartet.closed||state.quartet.ending)return false;
+  const relations=relationshipContext(life);
   const rows=IDS.map(id=>{
     const staff=state.staff[id],person=(life.met||[]).find(rec=>rec.name===PROFILES[id].name);
     const unavailable=!!staff.supportOnly||!!(person&&['ex','deceased'].includes(person.status));
     const resolved=unavailable||(staff.storyChapter||0)>=(PERSONAL_STORIES[id]||[]).length;
     return{staff,person,unavailable,resolved};
   });
-  if(!rows.every(row=>row.staff.introduced&&row.staff.hired&&row.resolved)||!rows.some(row=>row.unavailable))return false;
+  if(!rows.every(row=>row.staff.introduced&&row.staff.hired&&row.resolved))return false;
+  if(IDS.some(id=>state.staff[id].secretAffair))return false;
+  if(relations.hasExisting&&!IDS.every(id=>state.staff[id].temptationSeen||state.staff[id].affairRefused))return false;
   state.quartet.closed={id:'professional_alliance',day:life.day||0};
-  state.quartet.chapter=QUARTET_CHAPTERS.length;
-  if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'business','professional_alliance','good');
   return true;
 }
 function confessionReady(life){
   const routes=root.QT_ROMANCE_ROUTES;
-  const partnerNames=[];
-  const add=name=>{if(name&&!partnerNames.includes(name))partnerNames.push(name);};
-  if(life.partner)add(life.partner.name);
-  ((life.relationshipGroup&&life.relationshipGroup.members)||[]).forEach(member=>add(typeof member==='string'?member:member&&member.name));
-  const sharedLiving=!!((life.dangerousTrioBond&&life.dangerousTrioBond.active)||(life.freedomTrioBond&&life.freedomTrioBond.active)||
-    (life.relationshipGroup&&life.relationshipGroup.agreement&&life.relationshipGroup.agreement.cohabiting&&(life.relationshipGroup.members||[]).length>1));
-  return (partnerNames.length===0||sharedLiving)&&storyComplete(life)&&(!routes||routes.romanceAvailable(life,'business'));
+  const state=ensure(life);
+  return !!(state.quartet.ending&&state.quartet.ending.id==='affair_audit_complete')&&
+    ['quartet_only','disclosure'].includes(state.quartet.route)&&(!routes||routes.romanceAvailable(life,'business'));
 }
 
-root.QT_BUSINESS_ROMANCE={PROFILES,ROMANCE_ENDINGS,romanceEnding,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,ownedIds,chaerinAccess,introduce,recruit,canRomance,applyDecision,monthly,view,resolve,endingSummary,progressSummary,storyComplete,resolveUnavailable,confessionReady};
+root.QT_BUSINESS_ROMANCE={PROFILES,ROMANCE_ENDINGS,romanceEnding,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,ownedIds,chaerinAccess,introduce,recruit,canRomance,applyDecision,monthly,view,resolve,endingSummary,progressSummary,storyComplete,resolveUnavailable,confessionReady,activePartnerNames};
 })(window);

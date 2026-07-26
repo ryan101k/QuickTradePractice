@@ -2612,7 +2612,7 @@ function showBusinessRomanceEvent(event){
 function resolveBusinessRomanceEvent(choiceId){
   const pending=S._businessRomanceEvent,host=$('life-event');
   if(!pending||!host||!BUSINESS_ROMANCE)return;
-  if(pending.kind==='management-collapse'&&!S._businessBadRetry){
+  if(['management-collapse','quartet-story','turncoat-offer'].includes(pending.kind)&&!S._businessBadRetry){
     S._businessBadRetry={
       capital:S.capital,
       business:JSON.parse(JSON.stringify(BUSINESS.ensure(S.life))),
@@ -2634,6 +2634,16 @@ function resolveBusinessRomanceEvent(choiceId){
     S.life.lovers=[];
     S.life.happy=clamp(S.life.happy-25,0,100);
     S.life.stress=clamp((S.life.stress||0)+25,0,100);
+  }
+  if(result.turncoat&&result.character){
+    const rec=rememberPerson(result.character,'partner');
+    rec.status='partner';rec.mood='happy';rec.businessHeroineId=result.staffId;rec.businessSuitor=false;
+    rec.affection=Math.max(rec.affection||0,result.affection||0);
+    rec.trust=Math.max(rec.trust||0,result.trust||0);
+    RELATIONSHIPS.startRelationship(S.life,rec,S.day);
+    S.life.relationship='dating';
+    S.life.partner=Object.assign({},rec,{mood:'happy'});
+    LEGACY.push(S.life,dateInfo(S.day).age,'🪪',`${result.title} · 전향 연애 시작`,'love');
   }
   if(result.badEnding){
     if(result.managementBadEnding){
@@ -2682,7 +2692,7 @@ function resolveBusinessRomanceEvent(choiceId){
     group.stability=clamp(group.stability+6,0,100);
     if(!result.loyaltyTest)group.tension=clamp(group.tension+4,0,100);
     const rival=BUSINESS_ROMANCE.profile(result.staffId);
-    LEGACY.push(S.life,dateInfo(S.day).age,'🧱',`${result.loyaltyTest?rival.alias:rival.name}의 ${result.loyaltyTest?'대표 검증 통과':'유혹을 거절'} · ${result.currentPartner}과의 관계 유지`,'love');
+    LEGACY.push(S.life,dateInfo(S.day).age,'🧱',`${rival.name}의 사적 제안 거절 · ${result.currentPartner||'기존 관계'} 유지`,'love');
   }
   if(result.groupStory){
     BUSINESS_ROMANCE.IDS.forEach(id=>{
@@ -2730,8 +2740,8 @@ function resolveBusinessRomanceEvent(choiceId){
   const cashText=result.cash<0
     ?`<br><b class="down">합의·수습 비용 ${won(Math.abs(result.cash))}원${S.capital<=0?' · 부족액은 채무 처리':''}</b>`
     :result.cash>0?`<br><b class="up">사업 현금 유입 +${won(result.cash)}원</b>`:'';
-  const retry=result.managementBadEnding?'<button id="business-romance-retry" class="session-btn opening">↩️ 사업을 방치하기 전 선택으로 돌아간다</button>':'';
-  $('business-romance-outcome').innerHTML=`<div class="oc-text ${result.tone==='bad'?'down':result.tone==='good'?'up':''}">${result.badEnding?`<b>BAD END · ${result.title}</b><br>`:''}${result.text}${result.reply?`<div class="story-dialogue"><b>${BUSINESS_ROMANCE.profile(result.staffId).name}</b> “${result.reply}”</div>`:''}${cashText}${result.meta?`<div class="oc-changes">${result.meta}</div>`:''}</div>${retry}<button id="business-romance-confirm" class="session-btn ${result.managementBadEnding?'':'opening'}">기록하고 다음 사건 보기</button>`;
+  const retry=result.managementBadEnding||result.businessRouteBadEnding?'<button id="business-romance-retry" class="session-btn opening">↩️ 이 선택을 하기 전으로 돌아간다</button>':'';
+  $('business-romance-outcome').innerHTML=`<div class="oc-text ${result.tone==='bad'?'down':result.tone==='good'?'up':''}">${result.badEnding?`<b>BAD END · ${result.title}</b><br>`:''}${result.text}${result.reply?`<div class="story-dialogue"><b>${BUSINESS_ROMANCE.profile(result.staffId).name}</b> “${result.reply}”</div>`:''}${cashText}${result.meta?`<div class="oc-changes">${result.meta}</div>`:''}</div>${retry}<button id="business-romance-confirm" class="session-btn ${result.managementBadEnding||result.businessRouteBadEnding?'':'opening'}">기록하고 다음 사건 보기</button>`;
   addNews(`${result.badEnding?'🕳️':result.quartet||result.groupStory?'🏢':result.revealed?'🎭':'💼'} ${result.text}`,result.tone||'neutral');
   $('business-romance-confirm').addEventListener('click',()=>{
     host.style.display='none';host.innerHTML='';S._businessRomanceEvent=null;S._businessBadRetry=null;
@@ -2743,6 +2753,12 @@ function resolveBusinessRomanceEvent(choiceId){
 
 function activateBusinessQuartetBond(){
   if(!BUSINESS_ROMANCE)return;
+  const route=BUSINESS_ROMANCE.ensure(S.life).quartet.route;
+  if(route==='quartet_only'){
+    RELATIONSHIPS.consensualMembers(S.life).slice().forEach(person=>{
+      if(!BUSINESS_ROMANCE.IDS.some(id=>BUSINESS_ROMANCE.profile(id).name===person.name))RELATIONSHIPS.removeMember(S.life,person.name,'ex');
+    });
+  }
   BUSINESS_ROMANCE.IDS.forEach(id=>{
     const rec=rememberPerson(BUSINESS_ROMANCE.asCharacter(id),'polycule');
     rec.affection=Math.max(rec.affection||0,75);rec.trust=Math.max(rec.trust||0,55);
@@ -2750,12 +2766,16 @@ function activateBusinessQuartetBond(){
   });
   const members=BUSINESS_ROMANCE.IDS.map(id=>BUSINESS_ROMANCE.profile(id).name);
   const first=metRecord(S.life,members[0]);
-  if(first){S.life.relationship='dating';S.life.partner=Object.assign({},first,{mood:'happy'});first.status='partner';}
+  if(first&&!S.life.partner){S.life.relationship='dating';S.life.partner=Object.assign({},first,{mood:'happy'});first.status='partner';}
   const group=RELATIONSHIPS.ensure(S.life).relationshipGroup;
   group.agreement.publicity='private';group.agreement.cohabiting=true;
-  S.life.businessQuartetBond={active:true,since:S.day,members};
-  LEGACY.push(S.life,dateInfo(S.day).age,'🏢','네 개의 명함 · 사업 담당자 4인 세트엔딩','love');
-  addNews('🏢 네 책임자의 고백을 받아들였습니다 · 공동 경영과 관계를 분리한 4인 연애 시작','good');
+  if(route==='disclosure')group.agreement.cohabiting=false;
+  S.life.businessQuartetBond={active:true,since:S.day,members,route:route||'quartet_only',
+    thirdBase:route==='disclosure',probationMonths:route==='disclosure'?3:0};
+  LEGACY.push(S.life,dateInfo(S.day).age,'🏢',`${route==='disclosure'?'제3거점 합의':'네 개의 명함'} · 사업 담당자 4인 세트엔딩`,'love');
+  addNews(route==='disclosure'
+    ?'🔑 공개 협의를 마친 네 책임자가 기존 관계와 집을 빼앗지 않는 제3거점 관계로 합류했습니다'
+    :'🏢 기존 관계를 정리한 뒤 네 책임자와 고용·지분을 분리한 4인 연애를 시작했습니다','good');
   celebrate();
 }
 
@@ -4736,10 +4756,10 @@ const GROUP_CONFESSION_SCENES={
     accept:'각자의 집에서 같은 파티를 계속 지킨다',reject:'다음 접속 약속을 끝낸다',
   },
   business:{
-    icon:'🏢',title:'제3장 마지막 · 결재가 끝난 뒤의 네 이름',scene:'./assets/event-business-quartet-afterhours.png',
-    desc:'자유인 3인조의 이야기를 지나 사업이 안정된 뒤, 네 책임자의 개인사와 다섯 번의 공동 이사회까지 모두 끝났습니다. 아무도 고용과 사랑을 거래하지 않는다는 규칙 아래 네 사람이 마지막 안건을 올립니다.',
-    line:'“이 안건은 부결돼도 인사평가에 남지 않습니다. 그래도 네 사람 모두 같은 답을 기다리고 있어요.”',
-    accept:'업무 밖에서 네 사람의 고백을 받아들인다',reject:'마지막 사적 안건을 부결한다',
+    icon:'🔑',title:'후발장 마지막 · 감사를 통과한 다섯 번째 열쇠',scene:'./assets/event-business-quartet-third-base.png',
+    desc:'연인이 있을 때 시작한 비밀 관계와 그 배신을 전부 공개하고, 네 책임자는 고용·지분·거주·동의를 분리하는 마지막 감사까지 마쳤습니다. 기존 관계를 끝내고 네 사람만 선택했다면 독립된 4인 관계로, 모두에게 공개하고 3개월 검증을 거쳤다면 기존 집 밖의 제3거점 관계로 이어집니다.',
+    line:'“깨끗하게 시작하진 못했어요. 그래서 이번 대답은 누구의 인사평가나 집 열쇠도 담보로 잡지 않을게요.”',
+    accept:'감사표에 서명하고 공개된 관계를 시작한다',reject:'책임은 인정하지 않은 채 마지막 관계만 거절한다',
   },
 };
 function groupRomanceModule(id){
@@ -4794,7 +4814,7 @@ function queueGroupConfession(L){
 function showGroupConfession(event){
   const id=event.groupId,meta=GROUP_CONFESSION_SCENES[id],host=$('life-event');
   if(!meta||!host||!groupConfessionReady(id)){showNextImportantEvent();return;}
-  const proposal=id==='freedom'?'공동 관계':'공동생활';
+  const proposal=id==='freedom'?'공동 관계':id==='business'?'최종 공개 관계':'공동생활';
   host.style.display='block';
   host.innerHTML=`<div class="window event-window trio-route-window group-confession-window"><div class="title-bar event-bar"><div class="title-bar-text">${meta.icon} ${meta.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${meta.scene}" alt="${meta.title}"><div class="event-desc">${meta.desc}</div><div class="story-dialogue"><b>${ROMANCE_ROUTES.META[id].members.join(' · ')}</b> ${meta.line}</div><div class="event-options"><button class="event-opt opening" data-group-confession="accept"><b>${meta.accept}</b></button><button class="event-opt hot" data-group-confession="reject"><b>${meta.reject}</b><span>${proposal} 직전의 거절은 이 그룹 고유 배드엔딩으로 이어집니다.</span></button></div><div class="event-outcome" id="group-confession-outcome"></div></div></div>`;
   S._groupConfession=id;
@@ -4868,9 +4888,9 @@ function queueNaturalFreedomEvents(L){
     state.lastChapterDay=S.day;queueImportantEvent({freedomTrioChapter:true});
   }
   const businessState=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.ensure(L);
-  if(FREEDOM_TRIO.storyComplete(L)&&businessState&&businessState.chaerinReferralPending&&!businessState.chaerinReferralGiven){
-    const referral=noteChaerinSupportRefusal(L,'freedom-story-complete');
-    if(referral)addNews(`👑 자유인 3인조의 장이 끝난 뒤 · ${referral.text}`,referral.given?'good':'neutral');
+  if(businessState&&businessState.chaerinReferralPending&&!businessState.chaerinReferralGiven&&BUSINESS_ROMANCE.chaerinAccess(L)){
+    const referral=noteChaerinSupportRefusal(L,'chaerin-access-restored');
+    if(referral)addNews(`👑 한채린의 업계 소개 · ${referral.text}`,referral.given?'good':'neutral');
   }
 }
 function monthlyFreedomTrioAftermath(L){

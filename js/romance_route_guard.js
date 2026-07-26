@@ -96,7 +96,8 @@ function engaged(life,id){
   }
   if(id==='business'){
     const romance=life.businessRomance||{},staff=romance.staff||{},quartet=romance.quartet||{};
-    return (quartet.chapter||0)>0||Object.values(staff).some(person=>person&&(person.hired||person.revealed||person.romanticRival));
+    return (quartet.chapter||0)>0||!!quartet.ending||!!life.businessQuartetBond||
+      Object.values(staff).some(person=>person&&(person.secretAffair||person.turncoatResolved));
   }
   return id==='childhood'&&!!(life.childhoodCircle&&life.childhoodCircle.seen&&life.childhoodCircle.seen.reunion);
 }
