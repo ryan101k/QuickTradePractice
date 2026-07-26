@@ -21,7 +21,7 @@ function dangerousRelationshipMode(life){
 }
 function freedomRevealed(life){
   const freedom=root.QT_FREEDOM_TRIO;
-  return !!(freedom&&freedom.revealed(life)&&knows(life,FREEDOM_NAMES));
+  return !!(freedom&&freedom.revealed(life)&&freedom.canMeetOffline(life,FREEDOM_NAMES[0])&&knows(life,FREEDOM_NAMES));
 }
 
 const EVENTS = [

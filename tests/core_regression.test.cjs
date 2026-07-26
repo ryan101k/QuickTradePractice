@@ -171,10 +171,11 @@ for (const file of [
   const cross=context.QT_CHARACTER_CROSS_EVENTS;
   const dangerousNames=['강유진','한채린','윤세라'],freedomNames=['채원','유나','소희'];
   const friendLife={
-    day:12,dangerousTrio:{badFriendsFormed:true},freedomTrio:{guildStage:3,gameSessions:6,guildWarmth:55},
+    day:12,dangerousTrio:{badFriendsFormed:true},freedomTrio:{guildStage:3,gameSessions:6,guildWarmth:55,firstOuting:'seen'},
     met:[...dangerousNames,...freedomNames].map(name=>({name,status:'friend',affection:45,trust:35})),
   };
   const friendIntro=cross.get('group_dangerous_freedom_first_table',friendLife);
+  assert.equal(context.QT_FREEDOM_TRIO.storyMode(friendLife),'guarded','위험 3인조가 악우로 남아 있어도 자유인 3인조는 후순위 구원자가 아니라 경계 대상이 돼야 한다');
   assert.equal(friendIntro.condition(friendLife),true,'위험 3인조가 친구로 남아도 자유인 3인조 첫 식탁 사건이 열려야 한다');
   assert.match(friendIntro.title,/친구라기엔 너무 많이 아는/,'친구 루트에서는 연인이 아니라 지나치게 가까운 악우로 반응해야 한다');
   assert.equal(cross.monthly(friendLife).id,'group_dangerous_freedom_first_table','후속 그룹 첫 대면은 일반 무작위 교차 사건보다 먼저 예약돼야 한다');
@@ -184,9 +185,10 @@ for (const file of [
   assert.match(cross.get('group_dangerous_freedom_table',friendLife).desc,/친구라는 이름으로 귀가 보고서/,'친구 루트 후속 대치는 연인용 대사를 재사용하면 안 된다');
   const haremLife={
     day:12,dangerousTrio:{badFriendsFormed:true},dangerousTrioBond:{active:true},
-    freedomTrio:{guildStage:3,gameSessions:6,guildWarmth:55},
+    freedomTrio:{guildStage:3,gameSessions:6,guildWarmth:55,firstOuting:'seen'},
     met:[...dangerousNames,...freedomNames].map(name=>({name,status:'friend',affection:45,trust:35})),
   };
+  assert.equal(cross.get('group_dangerous_freedom_first_table',haremLife).condition(haremLife),true,'위험 3인조 공동연애 중에도 자유인 첫 실제 모임 뒤 그룹 대치가 이어져야 한다');
   assert.match(cross.get('group_dangerous_freedom_first_table',haremLife).title,/여섯 개의 신발/,'공동연애 루트에서는 동거 중인 위험 3인조의 경계가 첫 만남에 드러나야 한다');
   const legacyPayLife={faction:{level:1,members:[{uid:'mentor-intel-1',sourceId:'mentor-intel',name:'강도윤',upkeep:280000,trioBaseUpkeep:140000,trioHazardPayRate:2,stats:{income:550000}}],assets:[],diplomacy:[],fund:0}};
   context.QT_RIVALS.ensureFaction(legacyPayLife);
@@ -264,6 +266,8 @@ for (const file of [
   freedom.NAMES.forEach(name=>life.met.push({name,status:'friend',affection:80,trust:60}));
   const freedomState=freedom.ensure(life);
   freedomState.guildStage=freedom.GUILD_EVENTS.length;
+  freedom.COUNSELING_EVENTS.forEach(event=>freedomState.counseling[event.id]='seen');
+  freedomState.firstOuting='seen';
   Object.keys(freedom.PERSONAL_EVENTS).forEach(id=>freedomState.personal[id]='seen');
   assert.equal(freedom.eligibility(life).ok,true,'완료된 위험 3인조 뒤에는 자유인 3인조가 자연스럽게 편입될 수 있어야 한다');
   assert.equal(freedom.start(life).ok,true);
@@ -482,19 +486,37 @@ for (const file of [
   freedom.playGuild(guildLife);
   assert.equal(freedom.playGuild(guildLife),'offline_table');
   assert.equal(freedom.resolveGuild(guildLife,'offline_table','names').reveal,true);
-  assert.equal(freedom.canMeetOffline(guildLife,'채원'),true,'오프라인 모임에서 정체를 공개한 뒤에만 현실 관계가 열려야 한다');
-  assert.ok(freedom.nextPersonalEvent(guildLife),'게임 공개 뒤에는 충족한 개인 이벤트가 정상적으로 열려야 한다');
+  assert.equal(freedom.canContact(guildLife,'채원'),true,'단체 영상통화에서 정체를 공개하면 휴대폰 연락처가 열려야 한다');
+  assert.equal(freedom.canMeetOffline(guildLife,'채원'),false,'정체 공개 직후 실제 외출까지 바로 열리면 안 된다');
+  assert.equal(freedom.nextPersonalEvent(guildLife),null,'각자의 고민 상담 전에 오프라인 개인 이벤트가 먼저 열리면 안 된다');
+  for(const event of freedom.COUNSELING_EVENTS){
+    assert.equal(freedom.queueCounseling(guildLife),event.id,`${event.name}의 휴대폰 고민 상담이 순서대로 예약돼야 한다`);
+    assert.ok(freedom.applyCounseling(guildLife,event.id,event.choices[0].id),`${event.name} 상담 선택이 관계에 반영돼야 한다`);
+  }
+  assert.equal(freedom.counselingComplete(guildLife),true,'세 사람의 서로 다른 고민 상담을 모두 마쳐야 한다');
+  assert.equal(freedom.queueFirstOuting(guildLife),true,'상담을 모두 마치면 첫 실제 외출이 예약돼야 한다');
+  const rescueResult=freedom.applyFirstOuting(guildLife);
+  assert.equal(rescueResult.mode,'rescue','윤세라 없이 은둔 중 만난 자유인 3인조는 후순위 구원 역할을 해야 한다');
+  assert.equal(guildLife.freedomRescueComplete,true,'자유인 첫 외출은 은둔 생활의 자발적 외출 관문을 해결해야 한다');
+  assert.equal(freedom.canMeetOffline(guildLife,'채원'),true,'상담 뒤 첫 식탁까지 마쳐야 현실 외출 관계가 열려야 한다');
+  assert.ok(freedom.nextPersonalEvent(guildLife),'첫 실제 모임 뒤에는 개인 외출 사건이 정상적으로 열려야 한다');
   assert.deepEqual(Array.from(freedom.GUILD_MEMBERS.map(member=>member.nickname)),['막차요정','무보정','쉼표']);
   assert.equal(freedom.AFTERMATH.some(event=>event.id==='open_table'),true,'자유인 3인조는 다른 그룹을 식탁에서 중재하는 후일담이 있어야 한다');
   const life={
     met:freedom.NAMES.map(name=>({name,status:'friend',affection:70,trust:45})),
-    partner:{name:'채원'},
     polycule:{members:[]},
   };
   const state=freedom.ensure(life);
   state.guildStage=freedom.GUILD_EVENTS.length;
+  freedom.COUNSELING_EVENTS.forEach(event=>state.counseling[event.id]='seen');
+  state.firstOuting='seen';
   Object.keys(freedom.PERSONAL_EVENTS).forEach(id=>{state.personal[id]='seen';});
-  assert.equal(freedom.eligibility(life).ok,true,'개인 이벤트와 관계 조건을 채우면 힐링 세트 루트가 열려야 한다');
+  assert.equal(freedom.eligibility(life).ok,true,'연인이 없는 상태에서는 상담과 개인 사건 뒤 힐링 세트 루트가 열려야 한다');
+  const exclusiveLife=JSON.parse(JSON.stringify(life));
+  exclusiveLife.partner={name:'나래'};
+  exclusiveLife.met.push({name:'나래',status:'partner',affection:80,trust:70});
+  assert.equal(freedom.relationshipMode(exclusiveLife).exclusive,true,'단독 연인이 있으면 관계 상태를 독점 연애로 판정해야 한다');
+  assert.equal(freedom.eligibility(exclusiveLife).ok,false,'단독 연인이 있을 때 자유인 3인조는 친구로만 남아야 한다');
   assert.equal(freedom.start(life).ok,true);
   for(const choiceId of ['honest','boundaries','threeletters','home']){
     assert.ok(freedom.apply(life,choiceId),'힐링 루트의 네 장 선택을 모두 처리할 수 있어야 한다');
@@ -803,6 +825,8 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.doesNotMatch(appSource, /function makeCandidate/, '외출 화면이 전체 히로인 명부에서 새 사람을 추첨하면 안 된다');
   assert.match(appSource, /이번 주에는 누구를 만나기보다, 내가 갈 곳부터 정해 보기로 했습니다/, '외출 화면은 시스템 설명 대신 플레이어의 시점으로 말해야 한다');
   assert.match(appSource, /if\(!freeOutingUnlocked\(S\.life\)\)\{showOutsideFearModal\(\)/, '윤세라 작업실 사건 전 자발적 외출은 현관 공포 장면으로 막혀야 한다');
+  assert.match(appSource, /L\.outsideFearResolved\|\|L\.freedomRescueComplete/, '윤세라 없이도 자유인 3인조의 상담·첫 외출을 통해 은둔 외출 관문을 해결할 수 있어야 한다');
+  assert.doesNotMatch(appSource, /L\.seraHousing==='reject'\|\|metRecord\(L,'윤세라'\)/, '윤세라를 거절했거나 얼굴만 본 사실만으로 자발적 외출이 즉시 열리면 안 된다');
   assert.match(appSource, /!\['game','study'\]\.includes\(id\)&&!freeOutingUnlocked\(S\.life\)/, '외부 취미로 초반 은둔 외출 관문을 우회하면 안 된다');
   assert.match(appSource, /아직은 밖에 나가기가 무섭다/, '초반 외출 팝업은 플레이어의 은둔 상태를 직접 보여줘야 한다');
   assert.match(appSource, /제가 1층에서 기다릴게요/, '투자 컨설팅은 집에 틀어박힌 플레이어를 나래가 직접 데리러 나와야 한다');
