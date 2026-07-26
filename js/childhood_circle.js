@@ -335,6 +335,17 @@
     ]
   });
 
+  const FORESHADOWS=[
+    {icon:'📵',title:'차단한 단체방의 잔상',text:'알림창에 오래전에 나간 생활경제연구회 단체방 이름이 한순간 떴다가 사라졌습니다. 차단 목록에는 새 메시지가 없습니다.',direct:false},
+    {icon:'📅',title:'삭제한 일정의 초대',text:'학창 시절 공유 달력에서 “이번에는 늦지 마”라는 일정 초대가 도착했습니다. 보낸 계정은 이미 탈퇴한 계정으로 표시됩니다.',direct:false},
+    {icon:'📦',title:'예전 별명으로 온 택배',text:'주문한 적 없는 상비약과 손목 보호대가 학창 시절 별명 앞으로 도착했습니다. 보내는 사람 칸은 비어 있습니다.',direct:false},
+    {icon:'👁️',title:'길 건너편의 익숙한 우산',text:'현관을 나서는 순간 길 건너편에 익숙한 색의 우산이 보였습니다. 고개를 돌려 다시 봤을 때는 사람도 우산도 없었습니다.',direct:false},
+    {icon:'🔐',title:'오래된 기기의 로그인',text:'폐쇄한 모의투자 계정에 옛 기기 다섯 대가 차례로 접속했다는 보안 알림이 왔습니다. 거래는 없고 현재 잔액만 확인했습니다.',direct:false},
+    {icon:'📱',title:'가족이 먼저 꺼낸 옛이야기',text:'“요즘 학교 때 그 애들한테 연락 온 건 아니지? 밖에서 누가 지켜보는 것 같으면 혼자 확인하지 마.”',direct:true},
+    {icon:'🧷',title:'바뀐 비상 연락처',text:'병원 앱의 비상 연락처가 잠깐 옛 동아리 순서로 돌아갔다가 다시 비어 있었습니다. 수정 기록에는 관리자 이름이 남지 않았습니다.',direct:false},
+    {icon:'🎓',title:'졸업사진 뒤의 새 메모',text:'분명 빈칸이던 졸업사진 뒷면에 “우리는 아직 네가 끝냈다는 말에 동의하지 않았어”라는 문장이 적혀 있습니다.',direct:false},
+  ];
+
   function ensure(life) {
     if (!life.childhoodCircle || typeof life.childhoodCircle !== 'object') {
       life.childhoodCircle = { anchor:null, schoolId:null, stage:'dormant', pressure:0, trust:0, accountability:0, refusals:0, pastStructure:'failed_shared_harem', collectiveFault:'protective_plan', playerFault:'conflict_avoidance', seen:{}, traits:{}, route:null, pending:null };
@@ -346,6 +357,8 @@
     if (!Number.isFinite(state.trust)) state.trust = 0;
     if (!Number.isFinite(state.accountability)) state.accountability = 0;
     if (!Number.isFinite(state.refusals)) state.refusals = 0;
+    if (!Number.isFinite(state.foreshadowIndex)) state.foreshadowIndex = 0;
+    if (!Number.isFinite(state.lastForeshadowDay)) state.lastForeshadowDay = 0;
     state.pastStructure = 'failed_shared_harem';
     state.collectiveFault = 'protective_plan';
     state.playerFault = 'conflict_avoidance';
@@ -372,6 +385,16 @@
     const rows = person && person.childhoodFriend && LINES[person.name] && LINES[person.name][scene];
     return rows && rows.length ? rows[Math.floor(Math.random() * rows.length)] : '';
   }
+  function foreshadow(life,day) {
+    const state=ensure(life),now=Math.max(1,Math.floor(Number(day||life.day||1)));
+    if(!state.anchor||state.removed||state.seen.reunion||state.route==='cut_past')return null;
+    if(now<2||now-state.lastForeshadowDay<2)return null;
+    const hint=FORESHADOWS[state.foreshadowIndex%FORESHADOWS.length];
+    state.foreshadowIndex+=1;
+    state.lastForeshadowDay=now;
+    state.lastForeshadow=hint.title;
+    return{...hint,index:state.foreshadowIndex,day:now};
+  }
   function monthly(life) {
     const state = ensure(life);
     if (!state.anchor || state.removed || state.pending || ['complete','fractured','removed'].includes(state.stage) || state.route === 'cut_past') return state.pending;
@@ -380,7 +403,8 @@
     const anchor = met(life, state.anchor);
     if (!anchor) return null;
     let event = null;
-    if (!state.seen.reunion && (anchor.affection || 0) >= 32) event = 'reunion';
+    const fallback=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.fallbackReady(life,'childhood')&&state.foreshadowIndex>=4&&state.lastForeshadowDay>=8;
+    if (!state.seen.reunion && ((anchor.affection || 0) >= 32||fallback)) event = 'reunion';
     else if (!state.seen.pact && state.seen.reunion && activeCount(life) >= 5) event = 'pact';
     else if (!state.seen.motel_boundary && state.seen.pact && activeCount(life) >= 5) event = 'motel_boundary';
     else if (!state.seen.sera_collision && state.seen.motel_boundary && (function(){
@@ -399,7 +423,7 @@
       const person=met(life,name);
       return person && (person.affection || 0) >= 48 && (person.trust || 0) >= 35;
     })) event = 'graduation';
-    if (event && Math.random() < .55) state.pending = event;
+    if (event && (fallback || Math.random() < .55)) state.pending = event;
     return state.pending;
   }
   function event(id) { return EVENTS[id] || null; }
@@ -435,7 +459,7 @@
   }
 
   root.QT_CHILDHOOD_CIRCLE = {
-    MEMBERS, META, STORIES, LINES, EVENTS,
-    ensure, register, storyFor, line, monthly, event, resolve, activeCount
+    MEMBERS, META, STORIES, LINES, EVENTS, FORESHADOWS,
+    ensure, register, storyFor, line, foreshadow, monthly, event, resolve, activeCount
   };
 })(window);

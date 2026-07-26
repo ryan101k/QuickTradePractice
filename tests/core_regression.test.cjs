@@ -164,6 +164,18 @@ for (const file of [
   life.partner={name:'강유진'};life.polycule.members=[{name:'한채린'},{name:'윤세라'}];
   routes.preserveMembers(life,[{name:'채원'},{name:'유나'},{name:'소희'}]);
   assert.deepEqual(Array.from(life.polycule.members,x=>x.name).sort(),['소희','윤세라','유나','채원','한채린'].sort(),'후속 그룹이 성립해도 기존 그룹 구성원을 덮어쓰면 안 된다');
+  const axisLife={day:4,met:[],freedomTrio:{guildStage:3,firstOuting:'seen'},businessRomance:{staff:{}},polycule:{active:false,members:[]}};
+  routes.engage(axisLife,'business','test');
+  assert.equal(routes.center(axisLife),'business','앞선 인연이 없으면 사업 4인조가 인간관계 중심축이 될 수 있어야 한다');
+  routes.engage(axisLife,'freedom','test');
+  assert.equal(routes.center(axisLife),'freedom','사업 4인조보다 우선인 자유인 3인조가 나타나면 중심축이 승격돼야 한다');
+  routes.engage(axisLife,'dangerous','test');
+  assert.equal(routes.center(axisLife),'dangerous','위험 3인조를 거르지 않았다면 최우선 인간관계 중심축이 돼야 한다');
+  routes.engage(axisLife,'childhood','test');
+  assert.equal(routes.center(axisLife),'dangerous','후순위 그룹이 생겨도 이미 성립한 위험 3인조 중심축을 밀어내면 안 된다');
+  routes.decline(axisLife,'dangerous','test_skip');
+  assert.equal(routes.center(axisLife),'freedom','위험 3인조를 거르면 이미 이어진 자유인 3인조가 중심축을 이어받아야 한다');
+  assert.equal(routes.canStart(axisLife,'dangerous').reason,'declined','명시적으로 거른 상위 그룹이 뒤늦게 중심 루트로 되살아나면 안 된다');
   const crossSource=fs.readFileSync(path.join(root,'js/character_cross_events.js'),'utf8');
   for(const id of ['group_dangerous_freedom_first_table','group_dangerous_freedom_table','group_freedom_business_contract','group_business_childhood_audit','group_childhood_dangerous_truth']){
     assert.match(crossSource,new RegExp(id),`${id} 그룹 대치 사건이 있어야 한다`);
@@ -332,6 +344,19 @@ for (const file of [
   assert.match(circle.line(anchor,'first'),/도망|출구/,'나영의 소꿉친구 첫 대사는 자신이 출구를 막은 책임을 인정해야 한다');
   const reunion=circle.event('reunion');
   assert.match(reunion.desc,/서로 알고 동의|보호 계획/,'재회 사건은 실패한 첫 하렘과 다섯의 책임을 명시해야 한다');
+  const shadowAnchor={name:'예린',status:'ex',affection:10,trust:8};
+  const shadowLife={day:1,met:[shadowAnchor]};
+  circle.register(shadowLife,shadowAnchor,'student_council');
+  const shadows=[2,4,6,8].map(day=>{shadowLife.day=day;return circle.foreshadow(shadowLife,day);});
+  assert.ok(shadows.every(Boolean),'소꿉친구가 전면에 나오기 전에도 두 달 간격으로 차단 알림·감시 흔적이 이어져야 한다');
+  assert.match(shadows.map(hint=>hint.text).join(' '),/단체방|공유 달력|상비약|우산/,'소꿉친구 복선은 문자 한 종류가 아니라 연락·생활·동선 감시로 달라야 한다');
+  assert.equal(circle.monthly(shadowLife),'reunion','앞선 세 그룹을 모두 만나지 않았다면 누적된 복선 뒤 소꿉친구가 마지막 중심축으로 전면에 나와야 한다');
+  circle.resolve(shadowLife,'reunion',reunion.choices.find(choice=>choice.id==='present'));
+  assert.equal(context.QT_ROMANCE_ROUTES.center(shadowLife),'childhood','다른 구원축을 전부 거른 인생에서는 소꿉친구 5인조가 중심축이 돼야 한다');
+  const freedomExists={day:8,met:[{...shadowAnchor}],freedomTrio:{guildStage:1}};
+  circle.register(freedomExists,freedomExists.met[0],'student_council');
+  [2,4,6,8].forEach(day=>circle.foreshadow(freedomExists,day));
+  assert.equal(circle.monthly(freedomExists),null,'자유인 3인조 인연이 이미 생겼다면 소꿉친구 복선이 곧바로 중심 루트 시작으로 바뀌면 안 된다');
   const severedLife={met:[{...anchor}]};
   circle.register(severedLife,severedLife.met[0],'athletics');
   circle.resolve(severedLife,'reunion',reunion.choices.find(choice=>choice.id==='sever'));
@@ -353,6 +378,9 @@ for (const file of [
 {
   const appSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
   assert.match(appSource,/childhoodNightContract/,'소꿉친구 하룻밤 계약 상태가 저장돼야 한다');
+  assert.match(appSource,/QT_ROMANCE_ROUTES\.engage\(L,'dangerous','sera_cohabit'\)/,'윤세라와 동거하면 위험 3인조가 인간관계 중심축으로 먼저 기록돼야 한다');
+  assert.match(appSource,/QT_ROMANCE_ROUTES\.decline\(L,'dangerous'/,'윤세라와 동거하지 않으면 위험 3인조 중심축을 거른 상태로 남겨야 한다');
+  assert.match(appSource,/monthlyChildhoodForeshadow\(L\)/,'소꿉친구가 전면 등장하기 전에도 월간 감시·연락 복선이 계속 처리돼야 한다');
   assert.match(appSource,/showChildhoodRelapseEnding\('클럽의 낯선 사람','club'\)/,'계약 뒤 클럽 하룻밤은 즉시 배드엔딩으로 연결돼야 한다');
   assert.match(appSource,/removeChildhoodCircleFromGame\(\)/,'단체방 거부 시 다섯 명을 게임 시스템에서 제거해야 한다');
   assert.doesNotMatch(appSource,/function makeCandidate/,'외출의 무작위 새 만남이 없어야 제거된 다섯 명도 후보로 재등장하지 않는다');
