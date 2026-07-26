@@ -119,6 +119,7 @@ for (const file of [
   'js/career.js',
   'js/business.js',
   'js/business_romance.js',
+  'js/relationship_social.js',
   'js/freedom_trio.js',
   'js/services/save.js',
   'js/ui/page-lifecycle.js',
@@ -439,7 +440,9 @@ for (const file of [
   const shadows=[2,4,6,8].map(day=>{shadowLife.day=day;return circle.foreshadow(shadowLife,day);});
   assert.ok(shadows.every(Boolean),'소꿉친구가 전면에 나오기 전에도 두 달 간격으로 차단 알림·감시 흔적이 이어져야 한다');
   assert.match(shadows.map(hint=>hint.text).join(' '),/단체방|공유 달력|상비약|우산/,'소꿉친구 복선은 문자 한 종류가 아니라 연락·생활·동선 감시로 달라야 한다');
-  assert.equal(circle.monthly(shadowLife),'reunion','앞선 세 그룹을 모두 만나지 않았다면 누적된 복선 뒤 소꿉친구가 마지막 중심축으로 전면에 나와야 한다');
+  assert.equal(circle.monthly(shadowLife),null,'소꿉친구 5인은 최종 확장 전까지 복선만 남고 본편에 직접 등장하면 안 된다');
+  shadowLife.devChildhoodFinale=true;
+  assert.equal(circle.monthly(shadowLife),'reunion','개발용 최종장 플래그에서만 보존된 소꿉친구 사건을 검증할 수 있어야 한다');
   circle.resolve(shadowLife,'reunion',reunion.choices.find(choice=>choice.id==='present'));
   assert.equal(context.QT_ROMANCE_ROUTES.center(shadowLife),'childhood','다른 구원축을 전부 거른 인생에서는 소꿉친구 5인조가 중심축이 돼야 한다');
   const freedomExists={day:8,met:[{...shadowAnchor}],freedomTrio:{guildStage:1}};
@@ -465,18 +468,65 @@ for (const file of [
 }
 
 {
+  const social=context.QT_RELATIONSHIP_SOCIAL;
+  const life={
+    day:12,relationship:'dating',partner:{name:'윤세라'},
+    relationshipGroup:{status:'dating',members:[{name:'윤세라'},{name:'소희'},{name:'유나'}],agreement:{publicity:'public',cohabiting:false},stability:68},
+    met:[
+      {name:'윤세라',status:'polycule'},
+      {name:'소희',status:'polycule'},
+      {name:'유나',status:'polycule'},
+    ],
+    dangerousTrioBond:{active:true,members:['강유진','한채린','윤세라']},
+    faction:{level:3,firstAttacker:'🦁 태양',defense:.2,members:[]},
+    business:{owned:[{id:'one'},{id:'two'},{id:'three'}]},
+    lovers:[],
+  };
+  const state=social.refresh(life,{businessCount:3});
+  assert.equal(state.partnerCount,3,'관계 사회 상태는 실제 관계 구성원 수를 별도로 계산해야 한다');
+  assert.equal(state.celebrityPartnerCount,2,'유나·소희의 대중 노출 위험을 일반 관계와 구분해야 한다');
+  assert.equal(state.hasPreviouslyAttackedPartner,true,'윤세라는 과거 세력 피해자 태그를 가져야 한다');
+  assert.ok(state.factionTargetRisk>=70,'유명인·세력 피해자 관계는 적대 세력의 표적 위험을 높여야 한다');
+  const father=social.fatherReaction(life);
+  assert.match(father.text,/학교 때 그 다섯한테서 겨우 벗어난/,'아버지는 현재 관계를 걱정할 때 소꿉친구 5인 사건을 명시적으로 기억해야 한다');
+  assert.equal(social.fatherReaction(life),null,'아버지의 강한 관계 반응은 매달 반복되면 안 된다');
+
+  const confrontation=social.seraConfrontation(life,'🦁 태양');
+  const confrontationView=social.view(life,confrontation);
+  assert.match(confrontationView.desc,/“윤세라\? 누구였지\.”/,'윤세라가 아니라 공격 세력이 피해자를 기억하지 못해야 한다');
+  assert.match(confrontationView.line,/그 많은 피해자 이름을 우리가 어떻게 다 기억/,'상대는 플레이어가 기록을 들이민 뒤에야 과거 피해자를 알아봐야 한다');
+  const confronted=social.resolve(life,confrontation,'name');
+  assert.match(confronted.text,/망각 자체가 이 세력을 무너뜨릴 이유/,'세력의 망각은 플레이어가 복수할 개인적 동기로 이어져야 한다');
+  assert.equal(social.seraConfrontation(life,'🦁 태양'),null,'확인한 윤세라 피해 사건은 반복 예약되면 안 된다');
+
+  const publicEvent=social.celebrityDisclosure(life);
+  assert.deepEqual(Array.from(publicEvent.names).sort(),['소희','유나'],'유명인 공개 사건은 현재 관계에 포함된 인물만 다뤄야 한다');
+  assert.match(social.view(life,publicEvent).title,/장중 긴급 속보/,'유나·소희가 함께 공개되면 투자 게임의 긴급 뉴스로 보여야 한다');
+  const awareness=social.rivalAwareness(life,{leader:'태양'},{businessCount:3});
+  assert.equal(awareness.stage,'threat','성장한 세력과 복합 관계를 가진 플레이어는 전면전 대상으로 재분류돼야 한다');
+  assert.match(social.relationshipAttackText(life,{leader:'수빈'},{businessCount:3}),/연예 기사|팬 계정|광고주/,'경쟁 세력의 공격은 현재 관계의 약점을 실제 수단으로 이용해야 한다');
+}
+
+{
   const appSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
   assert.match(appSource,/childhoodNightContract/,'소꿉친구 하룻밤 계약 상태가 저장돼야 한다');
   assert.match(appSource,/QT_ROMANCE_ROUTES\.engage\(L,'dangerous','sera_cohabit'\)/,'윤세라와 동거하면 위험 3인조가 인간관계 중심축으로 먼저 기록돼야 한다');
   assert.match(appSource,/QT_ROMANCE_ROUTES\.decline\(L,'dangerous'/,'윤세라와 동거하지 않으면 위험 3인조 중심축을 거른 상태로 남겨야 한다');
   assert.match(appSource,/monthlyChildhoodForeshadow\(L\)/,'소꿉친구가 전면 등장하기 전에도 월간 감시·연락 복선이 계속 처리돼야 한다');
+  const relationshipUpdate=appSource.slice(appSource.indexOf('function updateRelationships'),appSource.indexOf('const SIGNATURE_EVENTS'));
+  assert.doesNotMatch(relationshipUpdate,/CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE\.monthly/,'현재 본편 월간 처리에서 소꿉친구 최종장 사건을 직접 예약하면 안 된다');
+  assert.doesNotMatch(relationshipUpdate,/monthlyChildhoodCircleBond\(L\)/,'현재 본편에서 소꿉친구 5인의 직접 간섭 루프를 실행하면 안 된다');
   assert.match(appSource,/showChildhoodRelapseEnding\('클럽의 낯선 사람','club'\)/,'계약 뒤 클럽 하룻밤은 즉시 배드엔딩으로 연결돼야 한다');
   assert.match(appSource,/removeChildhoodCircleFromGame\(\)/,'단체방 거부 시 다섯 명을 게임 시스템에서 제거해야 한다');
   assert.doesNotMatch(appSource,/function makeCandidate/,'외출의 무작위 새 만남이 없어야 제거된 다섯 명도 후보로 재등장하지 않는다');
+  assert.match(appSource,/showRelationshipSocialEvent/,'관계의 사회 반응은 설명 문서가 아니라 실제 선택 사건으로 연결돼야 한다');
+  assert.match(fs.readFileSync(path.join(root,'index.html'),'utf8'),/js\/relationship_social\.js/,'관계 사회 반응 모듈이 앱보다 먼저 로드돼야 한다');
 }
 
 {
   assert.equal(context.QT_BUSINESS_ROMANCE.introduce({},'office'),null,'한채린과 친구·연인·공동생활 관계가 아니면 사업 4인조 소개를 직접 열 수 없어야 한다');
+  const independentLife={met:[],faction:{level:3},business:{owned:[]}};
+  assert.ok(context.QT_BUSINESS_ROMANCE.introduce(independentLife,'office'),'충분한 독립 세력을 만든 플레이어는 한채린 없이도 업계 소개를 받아야 한다');
   const life={met:[{name:'한채린',status:'friend'}]};
   const romance=context.QT_BUSINESS_ROMANCE,state=romance.ensure(life);
   assert.ok(romance.introduce(life,'office'),'한채린과 가까워지면 자유인 3인조 진행 여부와 무관하게 사업 책임자 소개가 열려야 한다');

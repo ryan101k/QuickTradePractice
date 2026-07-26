@@ -95,6 +95,7 @@ career.js
 economy.js
 business.js
 business_romance.js
+relationship_social.js
 housing.js
 life_finance.js
 ui/page-lifecycle.js
@@ -151,6 +152,8 @@ app.js
 - 캐릭터별 대사·스토리·조우 조건·수치 변화
 - 저장 마이그레이션과 호환성 규칙
 - 재사용되는 시장·관계·세력 판정
+
+관계가 가족·부하·대중·경쟁 세력에 미치는 파장은 `js/relationship_social.js`가 소유한다. 윤세라 과거 피해 대치, 유명인 연애 속보, 익명 협박, 관계별 세력 공격 문구도 이 모듈을 먼저 확인한다. 상세 기준은 [`RELATIONSHIP_SOCIAL_FACTION_PLAN.md`](./RELATIONSHIP_SOCIAL_FACTION_PLAN.md)에 있다.
 
 ## 5. 중심 상태
 

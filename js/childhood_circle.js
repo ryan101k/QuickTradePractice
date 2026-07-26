@@ -362,6 +362,7 @@
     state.pastStructure = 'failed_shared_harem';
     state.collectiveFault = 'protective_plan';
     state.playerFault = 'conflict_avoidance';
+    state.futureExpansion = true;
     return state;
   }
   function register(life, person, schoolId) {
@@ -397,6 +398,9 @@
   }
   function monthly(life) {
     const state = ensure(life);
+    // 소꿉친구 5인조는 관계 서사의 최종 확장장이다. 일반 플레이에서는
+    // 복선만 남기고, 개발용 명시 플래그가 있을 때만 구버전 사건을 재생한다.
+    if(life.devChildhoodFinale!==true)return null;
     if (!state.anchor || state.removed || state.pending || ['complete','fractured','removed'].includes(state.stage) || state.route === 'cut_past') return state.pending;
     const routeGuard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'childhood');
     if(!state.seen.reunion&&routeGuard&&!routeGuard.ok)return null;

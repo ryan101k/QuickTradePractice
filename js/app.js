@@ -38,6 +38,7 @@ const VOICE = window.QT_VOICE;
 const ECONOMY = window.QT_ECONOMY;
 const BUSINESS = window.QT_BUSINESS;
 const BUSINESS_ROMANCE = window.QT_BUSINESS_ROMANCE;
+const RELATIONSHIP_SOCIAL = window.QT_RELATIONSHIP_SOCIAL;
 const HOUSING = window.QT_HOUSING;
 const LIFE_FINANCE = window.QT_LIFE_FINANCE;
 const WEALTH = window.QT_WEALTH;
@@ -224,6 +225,7 @@ function newLife() {
     housing: null,
     finance: null,
     business: null,            // 독립 사업체·직원·월간 보고
+    relationshipSocialState: null, // 관계의 가족·직원·세력·대중 파장
     social: null,
     faction: null,             // 라이벌 공격에 맞서는 플레이어 세력
     chats: {},                 // 인게임 연락 기록 {사람이름:{messages:[],unread}}
@@ -1751,6 +1753,13 @@ function settleMonth() {
     : null;
   if (attack) {
     registerFactionAttack(attack.attacker);
+    if(RELATIONSHIP_SOCIAL){
+      const businessCount=BUSINESS&&BUSINESS.ensure?BUSINESS.ensure(L).owned.length:0;
+      const awareness=RELATIONSHIP_SOCIAL.rivalAwareness(L,attack.attacker,{businessCount});
+      attack.attacker.playerAwarenessStage=awareness.stage;
+      const relationshipPressure=RELATIONSHIP_SOCIAL.relationshipAttackText(L,attack.attacker,{businessCount});
+      if(relationshipPressure)attack.message+=` ${relationshipPressure}`;
+    }
     L._attackedRecently=3;
     const seraScout=metRecord(L,'윤세라');
     if(seraScout)queueYujinInvestigation(L.seraHousing,attack.attacker);
@@ -1853,6 +1862,7 @@ function settleMonth() {
     addNews(`${publicityResult.type==='exposed'?'📸':'🤝'} ${publicityResult.text}`,publicityResult.reputationDelta<0?'bad':'good');
     if(publicityResult.type==='exposed')queueImportantEvent({type:'love',icon:'📸',title:'비공개 관계가 먼저 소문났다',desc:publicityResult.text,detail:`평판 ${publicityResult.reputationDelta} · 그룹 긴장도 증가 · 관계 공개 여부를 다시 정할 수 있습니다.`,tone:'bad'});
   }
+  queueRelationshipSocialMonthly(L);
   monthlySocialMessages(L);
   monthlyFactionMemberMessages(L);
   const justiceResult=JUSTICE.monthly(L,SOCIAL.legalShield(L)+(L.legalShield||0)*.03);
@@ -2364,11 +2374,13 @@ const LIFE_SCENE_IMAGES = {
 function lifeSceneImage(key) { return LIFE_SCENE_IMAGES[key] || LIFE_SCENE_IMAGES.life; }
 function importantEventPriority(event) {
   if(event.factionStory==='first_attack'||event.factionStory==='legal_result')return 100;
+  if(event.relationshipSocialEvent&&event.kind==='sera-victim-confrontation')return 92;
   if(event.factionVictory||event.captivity||event.type==='ending')return 95;
   if(event.type==='debt'||event.type==='incident'||event.dangerousHeroineEvent)return 85;
   if(event.yujinInvestigation)return 80;
   if(event.storyBridge)return 78;
   if(event.groupConfession)return 76;
+  if(event.relationshipSocialEvent)return 74;
   if(event.childhoodCircleEvent||event.dangerousTrioPrelude||event.dangerousTrioStart||event.freedomTrioStart||event.freedomGuildEvent||event.freedomCounselingEvent||event.freedomFirstOuting||event.freedomDangerousDisclosure)return 75;
   if(event.crossEventId||event.story||event.bondEncounter)return 55;
   if(event.businessRomanceEvent)return 45;
@@ -2378,6 +2390,7 @@ function importantEventPriority(event) {
 }
 function importantEventKey(event) {
   if(event.factionStory)return`faction:${event.factionStory}`;
+  if(event.relationshipSocialEvent)return`relationship-social:${event.kind}:${event.key||event.attackerName||event.day||''}`;
   if(event.yujinInvestigation)return'yujin:first-investigation';
   if(event.dangerousTrioPrelude)return`dangerous:prelude:${event.dangerousTrioPrelude}`;
   if(event.freedomCounselingEvent)return`freedom:counseling:${event.eventId}`;
@@ -2466,6 +2479,7 @@ function showNextImportantEvent(resumeCurrent = false) {
     maybeLifeEvent();
     return;
   }
+  if (event.relationshipSocialEvent) { showRelationshipSocialEvent(event); return; }
   if (event.childhoodCircleEvent) { showChildhoodCircleEvent(event.childhoodCircleEvent); return; }
   if (event.dangerousTrioPrelude) { showDangerousTrioPrelude(event.dangerousTrioPrelude); return; }
   if (event.dangerousTrioStart) { startDangerousTrioRoute(true); return; }
@@ -2576,6 +2590,53 @@ function resolveBusinessReport(choiceId){
   $('business-report-outcome').innerHTML=`<div class="story-dialogue"><b>${managerName}</b> “${result.outcome}”</div><div class="oc-changes">${result.detail}${cashText}${managerIdentity?` · 숨은 신뢰 ${managerIdentity.bond}/100`:''}</div><button id="business-report-confirm" class="session-btn opening">보고 확인 · 다음 사건 보기</button>`;
   addNews(`${result.type.icon} [사업 결정] ${managerName} · ${result.outcome}${cashText}`,result.cash>=0?'good':'neutral');
   $('business-report-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._businessReport=null;renderCapital();renderLifePanel();autoSave();showNextImportantEvent();});
+  renderCapital();renderLifePanel();autoSave();
+}
+
+function showRelationshipSocialEvent(event){
+  const host=$('life-event'),view=RELATIONSHIP_SOCIAL&&RELATIONSHIP_SOCIAL.view(S.life,event);
+  if(!host||!view){showNextImportantEvent();return;}
+  S._relationshipSocialEvent=event;
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window relationship-social-window">
+    <div class="title-bar event-bar"><div class="title-bar-text">${view.icon} 관계와 세력 · 사회 반응</div></div>
+    <div class="window-body">
+      <img class="life-scene-banner" src="${view.scene}" alt="${view.title}">
+      <div class="event-title">${view.title}</div>
+      <div class="event-desc">${view.desc}</div>
+      <div class="story-dialogue"><b>${event.kind==='sera-victim-confrontation'?event.attackerName:event.kind==='unknown-threat'?'저장하지 않은 번호':'당사자 단체방'}</b> ${view.line}</div>
+      <div class="event-options">${view.choices.map(choice=>`<button class="event-opt" data-relationship-social-choice="${choice.id}">${choice.text}</button>`).join('')}</div>
+      <div class="event-outcome" id="relationship-social-outcome"></div>
+    </div>
+  </div>`;
+  host.querySelectorAll('[data-relationship-social-choice]').forEach(button=>button.addEventListener('click',()=>resolveRelationshipSocialEvent(button.dataset.relationshipSocialChoice)));
+}
+
+function resolveRelationshipSocialEvent(choiceId){
+  const host=$('life-event'),pending=S._relationshipSocialEvent;
+  if(!host||!pending||!RELATIONSHIP_SOCIAL)return;
+  const result=RELATIONSHIP_SOCIAL.resolve(S.life,pending,choiceId);
+  if(!result||!result.ok){flashToast(result&&result.text||'관계 사건을 처리하지 못했습니다','bad');return;}
+  const social=SOCIAL.ensure(S.life),faction=RIVALS.ensureFaction(S.life);
+  social.reputation=clamp(social.reputation+(result.reputation||0),0,100);
+  S.life.stress=clamp((S.life.stress||0)+(result.stress||0),0,100);
+  faction.intel=clamp((faction.intel||0)+(result.factionIntel||0)/100,0,.95);
+  faction.tempDefense=clamp((faction.tempDefense||0)+(result.factionDefense||0),0,.75);
+  if(result.market){
+    S.stocks.filter(stock=>stock.listed&&stock.sector===result.market.sector).forEach(stock=>{
+      stock.pendingIssue={text:result.market.text,impact:result.market.impact};
+    });
+  }
+  const options=host.querySelector('.event-options');if(options)options.innerHTML='';
+  $('relationship-social-outcome').innerHTML=`<div class="oc-text ${result.tone==='bad'?'down':result.tone==='good'?'up':''}">${result.text}</div><div class="oc-changes">평판 ${Math.round(social.reputation)} · 세력 정보 ${Math.round((faction.intel||0)*100)}% · 스트레스 ${Math.round(S.life.stress||0)}</div><button id="relationship-social-confirm" class="session-btn opening">결과 확인 · 다음 사건 보기</button>`;
+  const headline=pending.kind==='sera-victim-confrontation'
+    ?`🧾 ${pending.attackerName}은 윤세라의 이름을 기억하지 못했습니다. 기록을 들이민 뒤에야 과거 피해자였음을 확인했습니다.`
+    :`${pending.kind==='celebrity-disclosure'?'📸':'📵'} ${result.text}`;
+  addNews(headline,result.tone||'neutral');
+  $('relationship-social-confirm').addEventListener('click',()=>{
+    host.style.display='none';host.innerHTML='';S._relationshipSocialEvent=null;
+    renderCapital();renderLifePanel();autoSave();showNextImportantEvent();
+  });
   renderCapital();renderLifePanel();autoSave();
 }
 
@@ -4978,6 +5039,28 @@ function monthlySocialMessages(L){
     queueImportantEvent({monthlyMessage:true,targetType:'contact',targetId:c.id,text:line});
   });
 }
+
+function queueRelationshipSocialMonthly(L){
+  if(!RELATIONSHIP_SOCIAL)return;
+  const businessCount=BUSINESS&&BUSINESS.ensure?BUSINESS.ensure(L).owned.length:0;
+  RELATIONSHIP_SOCIAL.refresh(L,{businessCount});
+  const fatherReaction=RELATIONSHIP_SOCIAL.fatherReaction(L);
+  if(fatherReaction){
+    const father=(SOCIAL.ensure(L).contacts||[]).find(contact=>contact.role==='father');
+    if(father){
+      pushPersonMessage(L,father,fatherReaction.text,false);
+      queueImportantEvent({monthlyMessage:true,targetType:'contact',targetId:father.id,text:fatherReaction.text});
+    }
+  }
+  const faction=RIVALS.ensureFaction(L);
+  const seraEvent=RELATIONSHIP_SOCIAL.seraConfrontation(L,faction.firstAttacker||faction.lastAttacker);
+  if(seraEvent)queueImportantEvent(seraEvent);
+  const publicityEvent=RELATIONSHIP_SOCIAL.celebrityDisclosure(L);
+  if(publicityEvent)queueImportantEvent(publicityEvent);
+  const threatEvent=RELATIONSHIP_SOCIAL.unknownThreat(L,S.day);
+  if(threatEvent)queueImportantEvent(threatEvent);
+}
+
 function showFreedomGuildEvent(eventId){
   const event=FREEDOM_TRIO&&FREEDOM_TRIO.guildEvent(eventId),host=$('life-event');if(!event||!host)return;
   S._freedomGuildEvent=eventId;host.style.display='block';
@@ -5047,16 +5130,19 @@ function monthlyFactionMemberMessages(L){
   let message;
   const sera=metRecord(L,'윤세라'),circle=L.childhoodCircleBond&&L.childhoodCircleBond.active;
   const businessWomen=BUSINESS_ROMANCE?BUSINESS_ROMANCE.IDS.filter(id=>BUSINESS_ROMANCE.staffState(L,id).hired):[];
-  if(circle&&sera&&['friend','casual','partner','lover','polycule'].includes(sera.status))message='목숨이 여러 개입니까? 집에는 스토커가 열쇠를 들고 있고, 소꿉친구 다섯은 출입 기록을 맞춰 보고 있습니다. 신고해야죠. 아니, 경찰도 같이 저러네. 이 나라는 망했습니다.';
-  else if(businessWomen.length===4)message='형님, 직원은 왜 전부 여자입니까? 우연이라고 하기엔 유통·제작·계약·현장까지 정확히 한 명씩인데요. 회사 조직도인지 소개팅 명단인지 저도 이제 모르겠습니다.';
-  else if(circle)message='형님, 차라리 조직 생활할 때가 더 좋았습니다. 적은 밖에 있고 보고서라도 남기죠. 저 다섯 분은 형님 과거와 현재를 동시에 포위하고 있습니다.';
-  else if(sera&&sera.yandere)message='세력 보고보다 먼저 묻겠습니다. 왜 윤세라 씨가 사무실 예비 열쇠를 갖고 있습니까? 정보원과 스토커는 종이 한 장 차이입니다.';
-  else if(women.length>=5)message=`형님, 여사친이 ${women.length}명이나 되는데 일정표는 제가 봐도 위험합니다. 칼보다 단체 채팅방이 먼저 터지겠어요.`;
-  else if(partners.length>=2)message=`형님 연애 사정은 안 묻겠습니다. 다만 ${partners.join(', ')} 쪽 일정과 작전 일정이 겹치면 저도 미리 알아야 합니다.`;
-  else if(loan>=20000000)message=`빚이 ${won(loan)}원입니다. 체면보다 현금흐름부터 지키죠. 이번 달엔 공격보다 방어가 먼저입니다.`;
-  else if((L.stress||0)>=75)message='형님, 요즘 답장이 짧고 판단도 급합니다. 오늘 작전은 제가 볼 테니 한 번 쉬십시오.';
-  else if(faction.lastAttacker)message=`${faction.lastAttacker} 쪽 움직임 다시 잡았습니다. 바로 치진 말고, 형님 신호 올 때까지 기록부터 모으겠습니다.`;
-  else message='이번 달은 조용합니다. 조용할 때 사람과 돈줄을 챙겨두는 게 세력 운영입니다.';
+  message=RELATIONSHIP_SOCIAL&&RELATIONSHIP_SOCIAL.subordinateLine(L,member);
+  if(!message){
+    if(circle&&sera&&['friend','casual','partner','lover','polycule'].includes(sera.status))message='목숨이 여러 개입니까? 집에는 스토커가 열쇠를 들고 있고, 소꿉친구 다섯은 출입 기록을 맞춰 보고 있습니다. 신고해야죠. 아니, 경찰도 같이 저러네. 이 나라는 망했습니다.';
+    else if(businessWomen.length===4)message='형님, 직원은 왜 전부 여자입니까? 우연이라고 하기엔 유통·제작·계약·현장까지 정확히 한 명씩인데요. 회사 조직도인지 소개팅 명단인지 저도 이제 모르겠습니다.';
+    else if(circle)message='형님, 차라리 조직 생활할 때가 더 좋았습니다. 적은 밖에 있고 보고서라도 남기죠. 저 다섯 분은 형님 과거와 현재를 동시에 포위하고 있습니다.';
+    else if(sera&&sera.yandere)message='세력 보고보다 먼저 묻겠습니다. 왜 윤세라 씨가 사무실 예비 열쇠를 갖고 있습니까? 정보원과 스토커는 종이 한 장 차이입니다.';
+    else if(women.length>=5)message=`형님, 여사친이 ${women.length}명이나 되는데 일정표는 제가 봐도 위험합니다. 칼보다 단체 채팅방이 먼저 터지겠어요.`;
+    else if(partners.length>=2)message=`형님 연애 사정은 안 묻겠습니다. 다만 ${partners.join(', ')} 쪽 일정과 작전 일정이 겹치면 저도 미리 알아야 합니다.`;
+    else if(loan>=20000000)message=`빚이 ${won(loan)}원입니다. 체면보다 현금흐름부터 지키죠. 이번 달엔 공격보다 방어가 먼저입니다.`;
+    else if((L.stress||0)>=75)message='형님, 요즘 답장이 짧고 판단도 급합니다. 오늘 작전은 제가 볼 테니 한 번 쉬십시오.';
+    else if(faction.lastAttacker)message=`${faction.lastAttacker} 쪽 움직임 다시 잡았습니다. 바로 치진 말고, 형님 신호 올 때까지 기록부터 모으겠습니다.`;
+    else message='이번 달은 조용합니다. 조용할 때 사람과 돈줄을 챙겨두는 게 세력 운영입니다.';
+  }
   pushPersonMessage(L,contact,message,false);
   queueImportantEvent({monthlyMessage:true,targetType:'subordinate',targetId:contact.id,text:message});
 }
@@ -5148,8 +5234,6 @@ function updateRelationships(L) {
   queueBondEncounter(L);
   updateCharacterSignatureSystems(L);
   monthlyChildhoodForeshadow(L);
-  const childhoodEvent=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.monthly(L);
-  if(childhoodEvent)queueImportantEvent({childhoodCircleEvent:childhoodEvent});
   const crossEvent = CROSS_EVENTS && CROSS_EVENTS.monthly(L);
   if (crossEvent) queueImportantEvent({ crossEventId:crossEvent.id, storyBridge:!!crossEvent.storyBridge });
   queueNaturalDangerousEvents(L);
@@ -5157,7 +5241,6 @@ function updateRelationships(L) {
   queueGroupConfession(L);
   monthlyDangerousTrioAftermath(L);
   monthlyFreedomTrioAftermath(L);
-  monthlyChildhoodCircleBond(L);
   const poly=ensurePolycule(L);
   if(poly.active&&poly.members.length){
     if((poly.mode==='dangerous_trio'||poly.mode==='dangerous_trio_success')&&DANGEROUS_TRIO){
@@ -7152,7 +7235,7 @@ function registerFactionAttack(attacker) {
   const father=SOCIAL.ensure(S.life).contacts.find(contact=>contact.role==='father');
   if(father&&!S.life.fatherFirstAttackReaction){
     S.life.fatherFirstAttackReaction=true;
-    pushPersonMessage(S.life,father,'계좌에서 이상한 출금 알림이 왔다. 학교 때 그 대회 사람들이 다시 찾아온 거냐? 생활비 걱정은 하지 말고, 혼자 숨기지 말고 경찰이든 아는 사람이든 먼저 불러.',false);
+    pushPersonMessage(S.life,father,'계좌에서 이상한 출금 알림이 왔다. 학교 때 그 다섯에게 휘말렸던 일에서 겨우 벗어난 줄 알았더니, 그 대회 뒤에 있던 사람들까지 다시 찾아온 거냐? 생활비 걱정은 하지 말고 이번에도 혼자 숨지 마라. 경찰이든 믿을 사람이든 먼저 불러.',false);
   }
   queueImportantEvent({ factionStory:'first_attack', type:'faction', scene:lifeSceneImage('faction') });
   addNews(`📱 ${result.attacker}에게서 공격 직후 연락이 왔습니다`, 'bad');
@@ -7263,7 +7346,7 @@ function showFactionStory(stage) {
       <div class="date-profile">${attacker&&attacker.portrait?`<img class="char-portrait" src="./assets/characters/${attacker.portrait}" alt="${attacker.name}">`:'<span class="message-popup-avatar">⚔️</span>'}<div><strong>${faction.firstAttacker||'경쟁 세력'}</strong><br><span class="down">첫 번째 직접 공격</span></div></div>
       <div class="event-title">${attackerLine}</div>
       <div class="event-desc">공격자는 생활경제연구회 모의투자 대회의 계좌번호 일부를 보내 왔습니다. 사라진 후원사는 이 경쟁 세력의 차명회사였고, 당신이 다시 거래하며 남긴 주문 습관이 과거 원본 장부의 작성자를 드러냈습니다. 상대는 조작 증거를 회수하고, 혼자인 당신이 입을 열기 전에 꺾으려 합니다.</div>
-      <div class="important-event-detail">📱 아버지: “학교 때 그 사람들이 다시 찾아온 거냐? 생활비 걱정은 말고 혼자 숨기지 마라.”</div>
+      <div class="important-event-detail">📱 아버지: “학교 때 그 다섯에게서 겨우 벗어난 줄 알았더니, 그 대회 뒤에 있던 사람들까지 다시 찾아온 거냐? 이번에도 혼자 숨지 마라.”</div>
       <div class="event-options">
         <button class="event-opt" data-faction-first="question">왜 나를 노렸는지 묻는다<span class="opt-sub">공격자의 의도를 확인한 뒤 나래에게 기록을 넘깁니다</span></button>
         <button class="event-opt" data-faction-first="report">답하지 않고 나래에게 연락을 전달한다<span class="opt-sub">증거를 보존하고 합법 대응을 시작합니다</span></button>

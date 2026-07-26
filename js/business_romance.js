@@ -358,7 +358,15 @@ function chaerinAccess(life){
   const close=chaerin&&['friend','casual','partner','lover','polycule'].includes(chaerin.status);
   const shared=!!(life.dangerousTrioBond&&life.dangerousTrioBond.active)
     ||!!(life.relationshipGroup&&Array.isArray(life.relationshipGroup.members)&&life.relationshipGroup.members.some(member=>(typeof member==='string'?member:member&&member.name)==='한채린'));
-  return !!(close||shared);
+  const faction=life.faction||{},businessCount=life.business&&Array.isArray(life.business.owned)?life.business.owned.length:0;
+  const socialState=life.relationshipSocialState||{};
+  // 한채린은 가장 빠른 소개 경로지만 유일한 문은 아니다. 독립 세력과
+  // 여러 사업을 직접 키운 플레이어라면 업계가 먼저 책임자 후보를 보낸다.
+  const independent=(faction.level||0)>=3
+    ||businessCount>=4
+    ||((faction.level||0)>=2&&businessCount>=2)
+    ||socialState.factionAwareness>=65;
+  return !!(close||shared||independent);
 }
 function introduce(life,id){
   const state=ensure(life),s=state.staff[id],p=profile(id);if(!s||!p)return null;
