@@ -500,9 +500,12 @@
   function contactMessage(bot,context){
     const ctx=context||{},stock=ctx.stock||{},stockName=stock.name||'시장',change=Number(stock.change)||0;
     const movement=change>0?`오늘 ${change.toFixed(1)}% 오른`:change<0?`오늘 ${Math.abs(change).toFixed(1)}% 밀린`:'가격이 멈춘';
+    const accountTrace=Number(ctx.trades)>0
+      ?`${movement} ${stockName} 호가에도 당신 계좌 흔적이 보이더군요.`
+      :'주문은 숨겼어도 시장에 다시 접속한 시간대는 남더군요.';
     if(bot.settlementOffer)return{kind:'truce',stockName,text:`${bot.leader}입니다. 휴전금 ${Number(bot.settlementOffer).toLocaleString('ko-KR')}원을 걸었습니다. 다음 장까지 답을 듣고 싶군요.`};
     if(bot.reactionStage==='collapse'||bot.reactionStage==='desperate')return{kind:'pressure',stockName,text:`${movement} ${stockName}보다 지금은 현금줄이 중요하군요. 우리 세력을 여기까지 몰아붙인 다음 수가 뭡니까?`};
-    if(ctx.lastAttacker===bot.name||bot.contactReason==='rival_attack')return{kind:'warning',stockName,text:`지난번 공격은 인사였습니다. ${movement} ${stockName} 호가에도 당신 계좌 흔적이 보이더군요. 다음에는 현금만 잃고 끝나지 않을 겁니다.`};
+    if(ctx.lastAttacker===bot.name||ctx.contactReason==='rival_attack'||bot.contactReason==='rival_attack')return{kind:'warning',stockName,text:`지난번 공격은 인사였습니다. ${accountTrace} 다음에는 현금만 잃고 끝나지 않을 겁니다.`};
     if(/^player_operation|^faction_/.test(bot.contactReason||''))return{kind:'retaliation',stockName,text:`우리 쪽을 건드린 기록은 확인했습니다. ${stockName}에서 마주치면 주문보다 먼저 당신 자금줄부터 막겠습니다.`};
     if(bot.style==='value')return{kind:'market',stockName,text:`${movement} ${stockName}을 받치고 있는 게 당신이라면 오래 버티지 마십시오. 장부가 무너지면 우리가 반대편 물량부터 쏟을 테니까.`};
     if(bot.style==='momentum')return{kind:'market',stockName,text:`${stockName} 수급은 우리가 먼저 잡았습니다. 뒤늦게 따라붙으면 당신 물량이 우리 출구가 될 겁니다.`};
