@@ -584,15 +584,32 @@ const DANGEROUS_DISCLOSURE={
     {id:'boundary',text:'사생활의 세부 내용은 숨기되 공동생활과 합의된 관계라는 점은 분명히 밝힌다',warmth:6,trust:4,result:'세 사람은 알고 싶은 것보다 반드시 알아야 했던 경계부터 확인했습니다. 불편함은 남았지만 숨겨진 관계는 더 없었습니다.'},
   ],
 };
+function chapterTwoUnlocked(life){
+  const faction=life&&life.faction||{},trio=life&&life.dangerousTrio||{};
+  if((faction.level||0)<1)return false;
+  const legacySera=rec(life,'윤세라'),housing=life.seraHousing||(legacySera&&legacySera.pickedUpAfterRuin?'cohabit':null);
+  if(['separate','reject'].includes(housing))return true;
+  if(housing!=='cohabit')return false;
+  return !!(trio.ending||(life.dangerousTrioBond&&life.dangerousTrioBond.active));
+}
 function playGuild(life){
   const state=ensure(life),needs=[2,4,6],index=state.guildStage;
   state.gameSessions++;
+  if(index===2&&!chapterTwoUnlocked(life)){
+    state.meetupDeferred=true;
+    return null;
+  }
+  state.meetupDeferred=false;
   return index<GUILD_EVENTS.length&&state.gameSessions>=needs[index]?GUILD_EVENTS[index].id:null;
 }
 function guildEvent(id){return GUILD_EVENTS.find(event=>event.id===id)||null;}
 function resolveGuild(life,id,choiceId){
   const state=ensure(life),event=guildEvent(id),choice=event&&event.choices.find(item=>item.id===choiceId);
   if(!event||!choice)return null;
+  if(id==='offline_table'&&!chapterTwoUnlocked(life)){
+    state.meetupDeferred=true;
+    return{event,choice:null,state,reveal:false,onlineOnly:false,meetupQueued:false,blockedReason:'chapter_order'};
+  }
   state.guildWarmth=clamp(state.guildWarmth+(choice.warmth||0),0,100);
   if(choice.warmth>=0)state.guildStage=Math.max(state.guildStage,GUILD_EVENTS.indexOf(event)+1);
   else state.gameSessions=Math.max(0,state.gameSessions-1);
@@ -683,6 +700,7 @@ function counselingComplete(life){
 }
 function queueFirstOuting(life){
   const state=ensure(life);
+  if(!chapterTwoUnlocked(life)){state.meetupDeferred=true;return false;}
   if(state.entryOutcome!=='offline'||state.onlineOnlyComplete||state.firstOuting==='seen'||state.firstOuting==='blocked')return false;
   const mode=relationshipMode(life);
   if(!mode.canAdvance){
@@ -1005,7 +1023,7 @@ function compatibleCandidate(name){return NAMES.includes(name);}
 
 root.QT_FREEDOM_TRIO={
   NAMES,GUILD_NAME,ROMANCE_ENDINGS,romanceEnding,GUILD_MEMBERS,GUILD_EVENTS,COUNSELING_EVENTS,FIRST_OUTING,DANGEROUS_DISCLOSURE,PERSONAL_EVENTS,CHAPTERS:STORY_CHAPTERS,AFTERMATH,ensure,playGuild,guildEvent,resolveGuild,
-  revealed,canContact,canMeetOffline,relationshipMode,storyMode,nextCounselingEvent,queueCounseling,counselingEvent,applyCounseling,counselingComplete,queueFirstOuting,applyFirstOuting,dangerousDisclosureReady,applyDangerousDisclosure,
+  chapterTwoUnlocked,revealed,canContact,canMeetOffline,relationshipMode,storyMode,nextCounselingEvent,queueCounseling,counselingEvent,applyCounseling,counselingComplete,queueFirstOuting,applyFirstOuting,dangerousDisclosureReady,applyDangerousDisclosure,
   nextPersonalEvent,queuePersonal,personalEvent,applyPersonal,progress,individualStoriesComplete,storyComplete,resolveUnavailable,confessionReady,marketRumorAvailable,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,recovery,compatibleCandidate,
 };
 })(window);

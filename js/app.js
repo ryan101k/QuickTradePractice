@@ -188,6 +188,7 @@ function newLife() {
       firstGuildTutorialSeen: false,
       mainGameStarted: false,
       mainGameStartedDay: null,
+      firstAttackSequence: null, // sera → taesik → complete
     },
     job: 'none',             // 직업 id
     happy: 50,               // 행복도 0~100
@@ -1346,7 +1347,7 @@ function createMonthCloseContext(day, before, after, marginInterest) {
     const lifeActionIndex=context.steps.findIndex(step=>step&&step.name==='life-action');
     context.steps.splice(lifeActionIndex<0?context.steps.length:lifeActionIndex,0,{type:'view',name:'prologue-guild'});
   }
-  if((S._importantEvents||[]).some(event=>event&&event.factionStory==='first_attack')){
+  if((S._importantEvents||[]).some(event=>event&&(event.seraFirstAttackEncounter||event.factionStory==='first_attack'))){
     const eventIndex=context.steps.findIndex(step=>step&&step.name==='important-events');
     const lifeActionIndex=context.steps.findIndex(step=>step&&step.name==='life-action');
     if(eventIndex>=0&&lifeActionIndex>=0&&eventIndex>lifeActionIndex){
@@ -1819,7 +1820,14 @@ function settleMonth() {
     }
     const defended=attack.caught||attack.blocked;
     if(!metRecord(L,'윤세라')&&!defended){
-      L.seraRescueOrigin={ready:true,attacker:attack.attacker,loss:attack.loss||0,day:S.day};
+      L.seraRescueOrigin=Object.assign({},L.seraRescueOrigin,{
+        ready:true,
+        attacker:attack.attacker&&attack.attacker.name||attack.attacker,
+        loss:attack.loss||0,
+        day:L.seraRescueOrigin&&L.seraRescueOrigin.day||S.day,
+      });
+    }else if(L.seraRescueOrigin&&L.seraRescueOrigin.ready){
+      L.seraRescueOrigin.loss=Math.max(0,attack.loss||0);
     }
     rivalNews.push(`⚔️ [나 대상] ${attack.message}`);
     addNews(`⚔️ ${attack.message}`, defended ? 'good' : 'bad');
@@ -2408,6 +2416,7 @@ const LIFE_SCENE_IMAGES = {
 };
 function lifeSceneImage(key) { return LIFE_SCENE_IMAGES[key] || LIFE_SCENE_IMAGES.life; }
 function importantEventPriority(event) {
+  if(event.seraFirstAttackEncounter)return 105;
   if(event.factionStory==='first_attack'||event.factionStory==='legal_result')return 100;
   if(event.relationshipSocialEvent&&event.kind==='sera-victim-confrontation')return 92;
   if(event.factionVictory||event.captivity||event.type==='ending')return 95;
@@ -2426,6 +2435,7 @@ function importantEventPriority(event) {
   return 50;
 }
 function importantEventKey(event) {
+  if(event.seraFirstAttackEncounter)return'sera:first-attack-encounter';
   if(event.factionStory)return`faction:${event.factionStory}`;
   if(event.relationshipSocialEvent)return`relationship-social:${event.kind}:${event.key||event.attackerName||event.day||''}`;
   if(event.yujinInvestigation)return'yujin:first-investigation';
@@ -2534,6 +2544,7 @@ function showNextImportantEvent(resumeCurrent = false) {
   if (event.freedomPersonalEvent) { showFreedomPersonalEvent(event.eventId); return; }
   if (event.groupChatEvent) { showGroupChatEvent(event.eventId); return; }
   if (event.groupConfession) { showGroupConfession(event); return; }
+  if (event.seraFirstAttackEncounter) { showSeraFirstAttackEncounter(); return; }
   if (event.yujinInvestigation) { showYujinInvestigation(false); return; }
   if (event.factionStory) { showFactionMentorPhoneStory(event.factionStory); return; }
   if (event.factionVictory) { showFactionVictoryEnding(); return; }
@@ -3504,6 +3515,7 @@ function applyEventEffects(eff) {
       if(eff.seraHousing==='reject'&&L.seraRescueOrigin)L.seraRescueOrigin.ready=false;
       changes.push('🚪 <b>윤세라에게 따로 지낼 곳을 마련해 줌</b>');
     }
+    queueFactionMentorAfterSera();
     if(queueYujinInvestigation(eff.seraHousing,L.seraRescueOrigin&&L.seraRescueOrigin.attacker)){
       changes.push('👮‍♀️ <b>피해 자금 수사를 맡은 경찰의 방문 조사 예정</b>');
     }
@@ -3545,6 +3557,13 @@ function resolveEvent(i) {
 function closeLifeEvent() {
   const host = $('life-event'); if (host) { host.style.display = 'none'; host.innerHTML = ''; }
   S._curEvent = null;
+  if(S._forcedImportantLifeEvent){
+    S._forcedImportantLifeEvent=false;
+    if(S.monthCloseContext)S.monthCloseContext.currentImportantEvent=null;
+    autoSave();
+    showNextImportantEvent();
+    return;
+  }
   if (S._monthCloseRandomEvent) {
     S._monthCloseRandomEvent = false;
     if (S.monthCloseContext) S.monthCloseContext.currentRandomEvent = null;
@@ -3583,6 +3602,8 @@ function doHobby(id) {
       const eventHost=$('life-event');
       if(eventHost&&eventHost.style.display==='block')queueImportantEvent({freedomGuildEvent:guildEventId});
       else showFreedomGuildEvent(guildEventId);
+    }else if(FREEDOM_TRIO.ensure(S.life).meetupDeferred){
+      flashToast('🎮 길드 대화는 계속됩니다. 현실 정모는 첫 공격과 앞선 인연을 정리한 뒤 열립니다','neutral');
     }
   }
 }
@@ -4211,7 +4232,8 @@ function rememberPerson(c, status) {
 }
 
 function queueYujinInvestigation(housing,attacker){
-  const L=S.life;if(!L||metRecord(L,'강유진')||L.yujinInvestigationSeen||L.yujinInvestigation&&L.yujinInvestigation.ready)return false;
+  const L=S.life,sera=L&&metRecord(L,'윤세라');
+  if(!L||!sera||!['cohabit','separate','reject'].includes(housing||L.seraHousing)||metRecord(L,'강유진')||L.yujinInvestigationSeen||L.yujinInvestigation&&L.yujinInvestigation.ready)return false;
   L.yujinInvestigation={
     ready:true,
     housing:housing||L.seraHousing||'reject',
@@ -4226,6 +4248,12 @@ function showYujinInvestigation(manual){
   const L=S.life,host=$('life-event'),c=D.SPECIAL_CHARACTERS&&D.SPECIAL_CHARACTERS.yujin;
   if(!host||!c)return;
   const sera=metRecord(L,'윤세라'),housing=L.seraHousing||L.yujinInvestigation&&L.yujinInvestigation.housing||'reject';
+  if(!sera){
+    if(L.yujinInvestigation)L.yujinInvestigation.ready=false;
+    if(manual)flashToast('👮‍♀️ 아직 강유진이 맡을 피해자 연결 기록이 없습니다','neutral');
+    else showNextImportantEvent();
+    return;
+  }
   const cohabit=!!(sera&&housing==='cohabit'),separate=!!(sera&&housing==='separate');
   const seraPartner=!!(sera&&RELATIONSHIPS.isPartner(L,'윤세라'));
   S._yujinInvestigation={manual:!!manual,c,sera,housing};
@@ -4282,7 +4310,10 @@ function meetSpecialPerson(id) {
   const c = D.SPECIAL_CHARACTERS && D.SPECIAL_CHARACTERS[id];
   if (!c) return;
   const known=metRecord(S.life,c.name);
-  if(id==='yujin'&&!known){showYujinInvestigation(true);return;}
+  if(id==='yujin'&&!known){
+    if(!metRecord(S.life,'윤세라')){flashToast('👮‍♀️ 경쟁 세력 피해자 기록이 이어진 뒤 담당 수사관을 만나게 됩니다','neutral');return;}
+    showYujinInvestigation(true);return;
+  }
   if(id==='chaerin'&&!known){flashToast('📘 나래의 인맥 수업을 따라 사교모임에 몇 차례 나가면 더 안쪽의 자리를 볼 수 있습니다','neutral');return;}
   if(known&&!hasPersonalContact(known)){
     showSpecialFollowupMeet(id,c,known);
@@ -5139,6 +5170,12 @@ function queueRelationshipSocialMonthly(L){
 
 function showFreedomGuildEvent(eventId){
   const event=FREEDOM_TRIO&&FREEDOM_TRIO.guildEvent(eventId),host=$('life-event');if(!event||!host)return;
+  if(eventId==='offline_table'&&!FREEDOM_TRIO.chapterTwoUnlocked(S.life)){
+    const state=FREEDOM_TRIO.ensure(S.life);state.meetupDeferred=true;
+    flashToast('🎮 정모 이야기는 첫 공격과 앞선 인연의 결말을 정리한 뒤 이어집니다','neutral');
+    showNextImportantEvent();
+    return;
+  }
   S._freedomGuildEvent=eventId;host.style.display='block';
   const members=FREEDOM_TRIO.GUILD_MEMBERS.map(member=>`<div class="trio-dialogue"><span class="pixel-news-avatar">${member.avatar}</span><div><b>${member.nickname}</b><small>${member.role||'길드원'}</small><p>“${member.line}”</p></div></div>`).join('');
   host.innerHTML=`<div class="window event-window freedom-trio-window"><div class="title-bar event-bar"><div class="title-bar-text">🎮 ${FREEDOM_TRIO.GUILD_NAME} · ${event.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${event.scene}" alt="${event.title}"><div class="trio-dialogues">${members}</div><div class="event-desc">${event.desc}</div><div class="important-event-detail">현실 정보 비공개 · 게임한 밤 ${FREEDOM_TRIO.ensure(S.life).gameSessions}회 · 파티의 온기 ${Math.round(FREEDOM_TRIO.ensure(S.life).guildWarmth)}</div><div class="event-options">${event.choices.map(choice=>`<button class="event-opt" data-guild-choice="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="freedom-guild-outcome"></div></div></div>`;
@@ -7384,6 +7421,54 @@ function factionAttackStatus() {
   return{...current,unlocked:!!faction.attackUnlocked||current.unlocked};
 }
 
+function seraOpeningResolved(L=S.life){
+  if(!L)return false;
+  if(['cohabit','separate','reject'].includes(L.seraHousing))return true;
+  const legacySera=metRecord(L,'윤세라');
+  if(legacySera&&legacySera.pickedUpAfterRuin){
+    L.seraHousing='cohabit';
+    return true;
+  }
+  return false;
+}
+
+function queueSeraFirstAttackEncounter(attacker,loss=0){
+  const L=S.life;if(!L||seraOpeningResolved(L))return false;
+  const previous=L.seraRescueOrigin||{};
+  const name=attacker&&attacker.name||attacker||previous.attacker||'경쟁 세력';
+  L.seraRescueOrigin=Object.assign({},previous,{
+    ready:true,
+    attacker:name,
+    loss:Math.max(0,loss||previous.loss||0),
+    day:previous.day||S.day,
+  });
+  const prologue=L.prologue||(L.prologue={});
+  prologue.firstAttackSequence='sera';
+  queueImportantEvent({seraFirstAttackEncounter:true,type:'life',scene:'./assets/event-sera-1.png'});
+  return true;
+}
+
+function queueFactionMentorAfterSera(){
+  const L=S.life;if(!L||!seraOpeningResolved(L)||!FACTION_CAMPAIGN)return false;
+  const faction=FACTION_CAMPAIGN.ensure(L);
+  if(faction.storyStage!=='attacked')return false;
+  const prologue=L.prologue||(L.prologue={});
+  prologue.firstAttackSequence='taesik';
+  queueImportantEvent({factionStory:'first_attack',type:'faction',scene:lifeSceneImage('faction')});
+  return true;
+}
+
+function showSeraFirstAttackEncounter(){
+  const L=S.life,event=(D.LIFE_EVENTS||[]).find(item=>item.id==='life_rainy_canvas');
+  if(!L||seraOpeningResolved(L)||!event){
+    queueFactionMentorAfterSera();
+    showNextImportantEvent();
+    return;
+  }
+  S._forcedImportantLifeEvent=true;
+  showLifeEvent(event);
+}
+
 function registerFactionAttack(attacker) {
   if (!FACTION_CAMPAIGN || !S.life || !attacker) return;
   const prologue=S.life.prologue||(S.life.prologue={});
@@ -7396,18 +7481,24 @@ function registerFactionAttack(attacker) {
   const rival=(S.bots||[]).find(bot=>bot===attacker||bot.name===(attacker.name||attacker));
   if(rival)unlockRivalContact(rival,'rival_attack');
   const result = FACTION_CAMPAIGN.onAttack(S.life, attacker.name || attacker, S.day);
-  if (!result.queued) return;
+  if (!result.queued) return result;
   const father=SOCIAL.ensure(S.life).contacts.find(contact=>contact.role==='father');
   if(father&&!S.life.fatherFirstAttackReaction){
     S.life.fatherFirstAttackReaction=true;
     pushPersonMessage(S.life,father,'계좌에서 이상한 출금 알림이 왔다. 학교 때 그 다섯에게 휘말렸던 일에서 겨우 벗어난 줄 알았더니, 그 대회 뒤에 있던 사람들까지 다시 찾아온 거냐? 생활비 걱정은 하지 말고 이번에도 혼자 숨지 마라. 경찰이든 믿을 사람이든 먼저 불러.',false);
   }
-  queueImportantEvent({ factionStory:'first_attack', type:'faction', scene:lifeSceneImage('faction') });
-  addNews(`📱 ${result.attacker}에게서 공격 직후 연락이 왔습니다`, 'bad');
+  if(!queueSeraFirstAttackEncounter(result.attacker))queueFactionMentorAfterSera();
+  addNews(`⚠️ ${result.attacker}의 첫 공격이 폐작업실 피해자와 장태식의 경고로 이어집니다`, 'bad');
+  return result;
 }
 
 function queueFactionStoryProgress() {
   if (!FACTION_CAMPAIGN || !S.life) return;
+  const faction=FACTION_CAMPAIGN.ensure(S.life);
+  if(faction.storyStage==='attacked'){
+    if(!seraOpeningResolved(S.life))queueSeraFirstAttackEncounter(faction.firstAttacker);
+    else queueFactionMentorAfterSera();
+  }
   const due = FACTION_CAMPAIGN.takeDueStory(S.life, S.day);
   if (due) queueImportantEvent({ factionStory:due, type:'faction', scene:lifeSceneImage('faction') });
 }
@@ -7434,6 +7525,12 @@ function closeFactionStory() {
 
 function showFactionMentorPhoneStory(stage){
   if(stage!=='first_attack'){showFactionStory(stage);return;}
+  if(!seraOpeningResolved(S.life)){
+    queueSeraFirstAttackEncounter(FACTION_CAMPAIGN&&FACTION_CAMPAIGN.ensure(S.life).firstAttacker);
+    queueImportantEvent({factionStory:'first_attack',type:'faction',scene:lifeSceneImage('faction')});
+    showNextImportantEvent();
+    return;
+  }
   const host=$('life-event');if(!host||!FACTION_CAMPAIGN)return;
   const faction=FACTION_CAMPAIGN.ensure(S.life),t=D.SPECIAL_CHARACTERS.taesik;
   host.style.display='block';
@@ -7470,6 +7567,8 @@ function resolveFactionMentorPhone(choice){
 
 function foundFactionFromMentor(pathId){
   const result=FACTION_CAMPAIGN.foundWithMentor(S.life,pathId,S.day);
+  const prologue=S.life.prologue||(S.life.prologue={});
+  prologue.firstAttackSequence='complete';
   if(pathId==='legal')changeMorality(4,'합법 투자조합 창설 원칙을 세웠습니다');
   if(pathId==='underground')changeMorality(-6,'지하 세력의 규칙을 받아들였습니다');
   LEGACY.push(S.life,dateInfo(S.day).age,result.path.icon,`${result.path.name} 창설 · 장태식의 첫 제자`,'faction');
@@ -8341,7 +8440,7 @@ function lifeHubHTML() {
   const yujinRecord=specialRecord('police');
   const sctx = specialRouteContext(L);
   const specialMeetBtns = [
-    (!specialMet('police') && (L.yujinInvestigation&&L.yujinInvestigation.ready||justice.case || L.criminalRecord > 0 || sctx.attacked)) ? '<button class="life-btn hot" data-act="meet-special" data-special="yujin">👮‍♀️ 강유진의 방문 조사에 응한다 <small>경쟁 세력 피해 자금·윤세라 거처 확인</small></button>' :
+    (!specialMet('police') && metRecord(L,'윤세라') && (L.yujinInvestigation&&L.yujinInvestigation.ready||justice.case || L.criminalRecord > 0 || sctx.attacked)) ? `<button class="life-btn hot" data-act="meet-special" data-special="yujin">👮‍♀️ 강유진의 방문 조사에 응한다 <small>경쟁 세력 피해 자금${L.seraHousing==='cohabit'?' · 윤세라 거처 확인':''}</small></button>` :
       canSpecialFollowup(yujinRecord)?`<button class="life-btn hot" data-act="meet-special" data-special="yujin">👮‍♀️ 강유진의 후속 수사에 응한다 <small>${(yujinRecord.specialFollowupCount||0)+1}번째 대화 · 공식 연락에서 개인 연락으로</small></button>`:''
   ].join('');
   const personalBtns = ensureMet(L).filter(m=>(!FREEDOM_TRIO||FREEDOM_TRIO.canContact(L,m.name))&&['friend','casual','partner','polycule','lover'].includes(m.status)).map(m=>{const sig=CHAR_TRAITS&&CHAR_TRAITS.label(m);return`<button class="life-btn" data-act="person-request" data-person="${m.name}">🙏 ${m.name}에게 부탁하기 <small>${relationTag(L,m.name)} · 호감 ${Math.round(m.affection||0)}${m.childhoodFriend?' · 소꿉친구':''}${sig?` · ${sig}`:''}</small></button>`;}).join('');
@@ -8552,6 +8651,10 @@ function maybeRivalRaid() {
     S.capital -= cashLoss;
     if (loss > cashLoss) LOAN.addDebt(L, loss - cashLoss, '라이벌 공작 피해');
     L.happy = clamp(L.happy - 4, 0, 100);
+  }
+  if(L.seraRescueOrigin&&L.seraRescueOrigin.ready){
+    L.seraRescueOrigin.attacker=attacker.name;
+    L.seraRescueOrigin.loss=Math.max(0,loss||0);
   }
   pushRivalFeed(`⚔️ ${attacker.name}의 ${illegal ? '불법 공작' : '견제'} · ${blocked ? '세력이 방어!' : `-${won(loss)}${mitigated ? ` (경감 ${won(mitigated)})` : ''}`}`);
 
