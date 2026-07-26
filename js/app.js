@@ -8874,16 +8874,28 @@ function flashToast(msg, cls) {
 const BGM = window.QT_BGM;
 
 // 지금 화면에 맞는 트랙을 고른다.
-// 장 마감마다 같은 news 트랙만 나오던 문제를 피하고, 인생 장면과 월에 따라
-// 차분한 세 곡을 순환한다. 속보·데이트·장중 추세는 각 전용 트랙을 우선한다.
+// 관계 그룹은 같은 연애곡을 돌려쓰지 않고 각자의 중심 정서를 가진다.
+function relationshipBGM(text) {
+  const copy = String(text || '');
+  if (/사업 4인조|특별 책임자|박지수|한이슬|차서윤|오혜린/.test(copy)) return 'group_business';
+  if (/자유인 3인조|게임 길드|막차요정|무보정|쉼표|채원|유나|소희/.test(copy)) return 'group_freedom';
+  if (/소꿉친구|졸업앨범|끝나지 않은 졸업식|예린|보라|서연|나영|미래\s*·|미래와|미래의/.test(copy)) return 'group_childhood';
+  if (/위험한 3인조|결핍 공생|강유진|한채린|윤세라/.test(copy)) return 'group_dangerous';
+  if (/나래|투자교육|투자 컨설팅/.test(copy)) return 'narae';
+  return null;
+}
 function bgmScene() {
-  const dateOpen = $('date-host') && $('date-host').style.display === 'block';
+  const dateHost = $('date-host'), eventHost = $('life-event');
+  const dateOpen = dateHost && dateHost.style.display === 'block';
+  const lifeEventOpen = eventHost && eventHost.style.display === 'block';
+  const visibleText = `${dateOpen ? dateHost.textContent || '' : ''} ${lifeEventOpen ? eventHost.textContent || '' : ''}`;
+  const relationshipTrack = relationshipBGM(visibleText);
+  if (relationshipTrack) return relationshipTrack;
   if (dateOpen) return 'dreamy';
   if (S.breaking) return 'news';
   if (!S.life || !S.life.started) return 'title';
-  const lifeEventOpen = $('life-event') && $('life-event').style.display === 'block';
   if (lifeEventOpen) {
-    const eventText = $('life-event').textContent || '';
+    const eventText = eventHost.textContent || '';
     if (/위험|공격|습격|파산|감금|추심|경찰|법정/.test(eventText)) return 'market_bear';
     if (/연애|데이트|고백|결혼|가족|친구|추억/.test(eventText)) return 'dreamy';
   }
@@ -8922,10 +8934,13 @@ function renderBGMStatus() {
   if (!btn || !BGM) return;
   const engine = BGM.engine ? BGM.engine() : 'webaudio';
   const state = BGM.state ? BGM.state() : 'unknown';
+  const playback = BGM.debug ? BGM.debug() : null;
   btn.dataset.engine = engine;
   btn.dataset.audioState = state;
+  btn.dataset.track = playback && playback.playing || BGM.current && BGM.current() || '';
+  btn.dataset.loopActive = playback && playback.timerActive ? 'true' : 'false';
   btn.title = S.bgmOn
-    ? `배경음악 켜짐 · ${engine === 'sam+tone' ? 'SAM 보컬 + Tone.js' : 'WebAudio 호환 모드'} · ${state}`
+    ? `배경음악 켜짐 · ${engine === 'sam+tone' ? 'SAM 보컬 + Tone.js' : 'WebAudio 호환 모드'} · ${state}${playback&&playback.playing?` · ${playback.playing}`:''}`
     : '배경음악 켜기';
 }
 let bgmStingToken = 0;

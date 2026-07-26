@@ -73,8 +73,14 @@ vm.createContext(context);
   assert.equal(typeof bgmContext.QT_BGM.playCharacter, 'function', '캐릭터 전용 보컬 선택 API를 제공해야 한다');
   assert.ok(bgmContext.QT_BGM.characterVoices.includes('sera'), '윤세라 보컬 프리셋이 등록돼야 한다');
   assert.ok(bgmContext.QT_BGM.characterVoices.includes('narae'), '나래 보컬 프리셋이 등록돼야 한다');
+  for(const track of ['group_dangerous','group_freedom','group_business','group_childhood','narae']){
+    assert.ok(bgmContext.QT_BGM.tracks.includes(track),`${track} 관계 그룹 전용 BGM이 등록돼야 한다`);
+  }
   bgmContext.QT_BGM.setEnabled(true);
   assert.equal(bgmContext.QT_BGM.play('market_normal', true), true);
+  const sameTrackTicks=bgmContext.QT_BGM.debug().schedulerTicks;
+  assert.equal(bgmContext.QT_BGM.play('market_normal', true), true);
+  assert.equal(bgmContext.QT_BGM.debug().schedulerTicks,sameTrackTicks,'같은 곡 강제 동기화는 루프를 처음부터 재시작하면 안 된다');
   mobileAudio.state = 'suspended';
   const resumeCalls = mobileAudio.resumeCalls;
   bgmDocumentListeners.pointerdown();
@@ -82,6 +88,10 @@ vm.createContext(context);
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(mobileAudio.resumeCalls, resumeCalls + 1, '동시에 들어온 모바일 복구 요청은 하나로 합쳐야 한다');
   assert.equal(bgmContext.QT_BGM.current(), 'market_normal', '잠금 복구 뒤에도 최신 트랙 요청을 유지해야 한다');
+  mobileAudio.state='suspended';
+  assert.equal(bgmContext.QT_BGM.play('group_freedom',true),true);
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(bgmContext.QT_BGM.debug().playing,'group_freedom','정지 중 장면이 바뀌면 복구 뒤 이전 곡이 아니라 최신 그룹곡을 시작해야 한다');
   bgmContext.QT_BGM.stop();
   bgmContext.QT_BGM.setEnabled(false);
 }
@@ -207,6 +217,10 @@ for (const file of [
   assert.equal(legacyPayLife.faction.members[0].upkeep,140000,'이전 버전에서 실제 반영된 위험수당은 원래 급여로 복구돼야 한다');
   assert.equal('trioBaseUpkeep' in legacyPayLife.faction.members[0],false,'복구 뒤 임시 급여 표식도 제거해야 한다');
   const appSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  assert.match(appSource,/function relationshipBGM\(text\)/,'화면의 관계 그룹을 전용 BGM으로 분류해야 한다');
+  for(const track of ['group_business','group_freedom','group_childhood','group_dangerous','narae']){
+    assert.match(appSource,new RegExp(`return '${track}'`),`${track} 전용 분위기가 실제 장면 선택에 연결돼야 한다`);
+  }
   assert.match(appSource,/CROSS_EVENTS\.get\(eventId,S\.life\)/,'교차 사건은 현재 친구·연인 상태에 맞춘 변형을 렌더링해야 한다');
   assert.match(appSource,/게임은 내 취향이 아니라서 따라가진 않을게요/,'자유인 첫 오프라인 모임에는 윤세라가 플레이어를 혼자 보내주는 장면이 있어야 한다');
   assert.match(appSource,/세라 씨에게 들었어요\. 게임 모임 상대가 여자 세 명이었다면서요/,'위험 3인조 공동연애 중에는 자유인 정체 공개 뒤 강유진의 알림이 와야 한다');
