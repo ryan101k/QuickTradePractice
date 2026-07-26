@@ -97,5 +97,25 @@
     return current(context);
   }
 
+  /*
+   * 위험한 3인조 마지막 장은 엔딩 확인 뒤 life-event만 닫고
+   * 중요 사건 큐의 다음 항목을 호출하지 않는 구버전 경로가 있다.
+   * 월말 진행 중 해당 확인 버튼이 눌리면 현재 월말 단계를 다시 렌더한 뒤
+   * 기존 View의 다음 버튼을 사용해 정상 큐 처리 함수로 복귀시킨다.
+   */
+  document.addEventListener('click', event => {
+    const target = event.target && event.target.closest ? event.target.closest('#trio-confirm') : null;
+    if (!target) return;
+    setTimeout(() => {
+      const sessionButton = document.getElementById('session-btn');
+      if (!sessionButton) return;
+      sessionButton.click();
+      setTimeout(() => {
+        const nextButton = document.querySelector('#market-close [data-month-close-next]');
+        if (nextButton) nextButton.click();
+      }, 0);
+    }, 0);
+  });
+
   root.QT_MONTH_CLOSE_FLOW = { VERSION, build, normalize, current, advance };
 })(window);
