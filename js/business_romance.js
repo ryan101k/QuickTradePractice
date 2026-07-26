@@ -293,8 +293,16 @@ function asCharacter(id){
 function ownedIds(businessState){
   return new Set(((businessState&&businessState.owned)||[]).map(item=>item.specialManagerId||item.managerId).filter(id=>IDS.includes(id)));
 }
+function chaerinAccess(life){
+  const chaerin=(life.met||[]).find(person=>person.name==='한채린');
+  const close=chaerin&&['friend','casual','partner','lover','polycule'].includes(chaerin.status);
+  const shared=!!(life.dangerousTrioBond&&life.dangerousTrioBond.active)
+    ||!!(life.relationshipGroup&&Array.isArray(life.relationshipGroup.members)&&life.relationshipGroup.members.some(member=>(typeof member==='string'?member:member&&member.name)==='한채린'));
+  return!!(close||shared);
+}
 function introduce(life,id){
   const state=ensure(life),s=state.staff[id],p=profile(id);if(!s||!p)return null;
+  if(!chaerinAccess(life)&&!s.introduced)return null;
   s.introduced=true;
   if(state.selectedId&&state.selectedId!==id)s.rival=true;
   return identity(life,id);
@@ -661,5 +669,5 @@ function progressSummary(life){
     synergy:Math.round(q.synergy),governance:Math.round(q.governance),boundary:Math.round(q.boundary)};
 }
 
-root.QT_BUSINESS_ROMANCE={PROFILES,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,introduce,recruit,canRomance,applyDecision,monthly,view,resolve,endingSummary,progressSummary};
+root.QT_BUSINESS_ROMANCE={PROFILES,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,ownedIds,chaerinAccess,introduce,recruit,canRomance,applyDecision,monthly,view,resolve,endingSummary,progressSummary};
 })(window);

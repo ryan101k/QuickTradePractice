@@ -7,7 +7,7 @@ const rec=(life,name)=>(life.met||[]).find(person=>person.name===name);
 
 const PRELUDES=[
  {
-  id:'three_ends_one_ledger',title:'악우 형성 1 · 한 장부의 세 끝',icon:'📒',scene:'./assets/event-trio-first-meeting.png',
+  id:'three_ends_one_ledger',title:'악우 형성 1 · 한 장부의 세 끝',icon:'📒',scene:'./assets/event-trio-647.png',
   desc:'유진이 가져온 차명계좌 수사자료, 채린이 회수한 계열사 결재선, 세라가 숨겨 둔 원본 장부가 같은 테이블 위에서 맞물립니다. 셋은 서로 처음 제대로 마주친 자리에서 인사보다 먼저 “누가 이 일을 키웠는가”부터 따집니다.',
   speakers:[
    {name:'강유진',line:'한 대표 계열사에서 피해자 주소를 샀고, 세라 씨는 그 명단을 불법으로 빼냈어요. 둘 다 조사 대상이에요.'},
@@ -22,7 +22,7 @@ const PRELUDES=[
   ]
  },
  {
-  id:'preference_audit',title:'악우 형성 2 · 들켜버린 취향',icon:'🦂',scene:'./assets/event-trio-first-meeting.png',
+  id:'preference_audit',title:'악우 형성 2 · 들켜버린 취향',icon:'🦂',scene:'./assets/event-trio-meeting-2.png',
   desc:'두 번째 공조 회의는 수사보다 당신을 대하는 방식에 대한 폭로전이 됩니다. 셋은 상대의 결핍을 너무 정확히 알아보고, 들킨 쪽은 부정하는 대신 더 아픈 말을 골라 되돌려 줍니다.',
   speakers:[
    {name:'강유진',line:'한채린 씨는 일부러 자기 말을 거절하고 명령해 줄 사람을 찾죠. 돈으로 다 누를 수 있으니까, 안 눌리는 사람 앞에서만 편해지는 거예요.'},
@@ -38,7 +38,7 @@ const PRELUDES=[
   ]
  },
  {
-  id:'fault_tribunal',title:'악우 형성 3 · 잘잘못 재판',icon:'⚖️',scene:'./assets/life-faction-war.png',
+  id:'fault_tribunal',title:'악우 형성 3 · 잘잘못 재판',icon:'⚖️',scene:'./assets/event-trio-647.png',
   desc:'셋은 회의실 벽에 서로의 잘못을 적은 표를 붙입니다. 불법 추적, 사적 경호, 계열사 압박, 무단 침입이 줄줄이 올라가지만 외부 세력의 이름이 나오자 세 사람은 동시에 상대의 약점부터 가립니다. 싸울 권리는 자기들에게만 있다는 듯한 이상한 편들기입니다.',
   speakers:[
    {name:'강유진',line:'세라 씨 무단침입 여섯 번, 한채린 씨 사적 경호 동원 네 번. 이건 취향이 아니라 사건 목록이에요.'},
@@ -56,7 +56,7 @@ const PRELUDES=[
 
 const CHAPTERS=[
  {
-  title:'악우가 같은 편이 된 날',icon:'🗝️',scene:'./assets/event-trio-first-meeting.png',
+  title:'악우가 같은 편이 된 날',icon:'🗝️',scene:'./assets/event-trio-647.png',
   desc:'장부 사건 뒤에도 서로 연락을 끊지 못한 세 사람이 이번에는 당신을 공격한 세력을 함께 치기 위해 모였습니다. 이미 서로의 결핍과 취향까지 알아버린 셋은 친해서 온 것이 아니라고 강조하면서도, 설명 없이 수사·자금·정보 역할을 나눕니다.',
   speakers:[
    {name:'강유진',line:'세라 씨 방식은 불법이에요. 자료는 내가 증거로 바꿀 테니 원본은 건드리지 마요.'},
@@ -70,7 +70,7 @@ const CHAPTERS=[
   ]
  },
  {
-  title:'쟤보다는 내가 정상',icon:'🦂',scene:'./assets/event-trio-first-meeting.png',
+  title:'쟤보다는 내가 정상',icon:'🦂',scene:'./assets/event-trio-meeting-2.png',
   desc:'세 사람은 부하들 앞에서 누가 가장 정상인지 싸우지만, 서로의 약점은 외부인이 건드리지 못하게 막습니다. 유진과 채린이 세라의 스토킹을 욕하고 세라가 둘의 결핍을 찌르는 동안에도, 테이블 아래에서는 같은 적의 계좌 자료가 실시간으로 공유됩니다.',
   speakers:[
    {name:'강유진',line:'집 앞에서 기다리고 동선을 외우는 건 보호가 아니라 스토킹이에요.'},
@@ -99,51 +99,51 @@ const CHAPTERS=[
   ]
  },
  {
-  title:'열린 문, 닫힌 세계',icon:'🌅',scene:'./assets/event-trio-secure-home-ending.png',
-  desc:'세 사람이 만든 집의 현관문은 열려 있습니다. 유진은 보호받는 당신의 안도한 표정을 좋아하고, 채린은 세상에서 유일하게 자기 지원을 걷어차고 명령하는 당신 앞에서만 왕관을 내려놓으며, 세라는 돌아올 곳을 얻었습니다. 셋의 광기는 서로가 선을 넘지 못하게 견제할 때만 위협이 아닌 방패가 됩니다.',
+  title:'네 번째 열쇠가 놓인 방',icon:'🌅',scene:'./assets/event-trio-meeting-3.png',
+  desc:'세 사람은 넓고 안전한 집 대신 당신이 처음 버티던 자취방으로 짐을 들고 왔습니다. 유진은 비상연락표를, 채린은 새 집 계약서를, 세라는 복사한 열쇠를 꺼냅니다. 여기서 서로의 권한과 퇴로를 인정하지 못하면 공동생활은 시작되기도 전에 감금이나 쟁탈전으로 무너집니다.',
   speakers:[
    {name:'강유진',line:'나가도 돼요. 위험하면 가장 먼저 나를 부른다는 약속만 해요.'},
-   {name:'한채린',line:'어디든 갈 수 있죠. 내가 준비한 곳 중에서 고른다면.'},
-   {name:'윤세라',line:'문은 열려 있잖아요. 돌아오기만 하면 아무도 화내지 않아요.'}
+   {name:'한채린',line:'집도 생활비도 내가 다 바꿔 줄 수 있어. 그래도 이 좁은 방을 고집할 거면, 적어도 내 돈은 받지 마.'},
+   {name:'윤세라',line:'문은 열어 둘게요. 대신 돌아온다는 말은 세 사람한테 전부 해줘요.'}
   ],
   choices:[
-   {id:'badfriends',tag:'balance',text:'계속 서로 욕하면서 같은 편으로 살라고 한다',preview:'가짜 불화·진짜 공조의 악우 공동생활',stability:18,trust:8,result:'세 사람은 끝내 친하다는 말을 하지 않았습니다. 대신 한 사람이 선을 넘으면 둘이 막고, 외부가 한 사람을 건드리면 셋이 동시에 움직였습니다.'},
-   {id:'goldencage',tag:'containment',text:'세 사람이 만든 안전망 안에서만 살겠다고 약속한다',preview:'가장 안전하고 가장 빠져나오기 어려운 결말',stability:12,obsession:15,result:'문은 잠기지 않았습니다. 잠글 필요가 없어졌기 때문입니다. 당신이 갈 수 있는 모든 곳에는 이미 세 사람 중 하나가 기다리고 있습니다.'},
-   {id:'chooseone',tag:'fracture',text:'오늘 여기서 한 사람만 선택하겠다고 선언한다',preview:'공생을 깨고 마지막 쟁탈전을 시작한다',stability:-25,obsession:10,result:'세 사람은 당신의 선택을 기다리지 않았습니다. 각자가 가진 권력과 기록과 기억으로, 나머지 둘을 먼저 밀어내기 시작했습니다.'}
+   {id:'badfriends',tag:'balance',text:'채린의 돈은 거절하고, 유진의 절차와 세라의 정보만 각자의 자리에서 돕게 한다',preview:'누구도 주인이 되지 않는 악우 공동생활',stability:18,trust:8,result:'당신은 채린의 새 집과 생활비를 정중히 돌려보냈습니다. 유진은 조직 밖에서 법과 절차를 맡고, 세라만 정보원으로 세력에 들어왔습니다. 세 사람은 불만을 쏟아내면서도 처음으로 서로의 자리를 침범하지 않았습니다.'},
+   {id:'goldencage',tag:'containment',text:'열쇠와 계좌와 일정을 세 사람에게 전부 맡긴다',preview:'공동생활이 아니라 세 겹의 감금이 된다',stability:-18,obsession:15,result:'합의할 규칙이 사라지자 세 사람은 당신을 지키는 방식만 놓고 충돌했습니다. 문은 열려 있었지만 누구의 허락으로 나가야 하는지조차 정할 수 없었습니다.'},
+   {id:'chooseone',tag:'fracture',text:'오늘 여기서 한 사람만 선택하겠다고 선언한다',preview:'공동생활을 깨고 마지막 쟁탈전을 시작한다',stability:-25,obsession:10,result:'세 사람은 당신의 선택을 기다리지 않았습니다. 각자가 가진 권력과 기록과 기억으로, 나머지 둘을 먼저 밀어내기 시작했습니다.'}
   ]
  }
 ];
 const AFTERMATH=[
  {
-  id:'replaced_frames',title:'공동생활 1개월 · 사라진 단체사진',icon:'🖼️',scene:'./assets/event-sera-three-chairs.png',
-  desc:'공동 거처의 액자 속 사진이 밤사이 전부 바뀌었습니다. 유진의 순찰 사진도, 채린의 이사회 사진도, 당신의 어린 시절 사진도 같은 구도의 세라 사진으로 덮여 있습니다.',
+  id:'replaced_frames',title:'공동생활 1개월 · 너무 좁은 첫 아침',icon:'☀️',scene:'./assets/event-trio-meeting-5.png',
+  desc:'자취방의 첫 아침, 네 사람 몫의 컵과 옷과 충전기가 작은 탁자 하나를 점령했습니다. 더 좋은 집을 준비하겠다는 채린과 이 방에서 약속부터 지키자는 유진, 이미 자기 물건을 전부 들인 세라가 동시에 입을 엽니다.',
   speakers:[
-   {name:'윤세라',line:'한 집에 사는데 사진도 같은 사람을 보면 덜 헷갈리잖아요.'},
-   {name:'강유진',line:'남의 물건을 허락 없이 바꾸는 건 공동생활이 아니라 침입이에요.'},
-   {name:'한채린',line:'취향은 최악인데 실행력은 인정할게. 원본은 내 보관실에 있어.'}
+   {name:'윤세라',line:'좁으면 더 잘 보이잖아요. 누가 언제 나가는지도, 언제 돌아오는지도.'},
+   {name:'강유진',line:'그래서 더 규칙이 필요해요. 쉬는 사람한테 보고서를 읽어 주는 건 금지예요.'},
+   {name:'한채린',line:'내가 집을 사 주겠다는 것도 싫다니 취향 한번 고약하네. 그래도 네가 거절한 건 네 결정으로 기록해 둘게.'}
   ],
   choices:[
-   {id:'restore',text:'네 사람의 사진을 새로 찍어 같은 크기로 건다',result:'세라는 자기 사진이 줄었다며 불평했지만, 누구도 지워지지 않는 첫 공동사진이 생겼습니다.',stability:8,obsession:-5},
-   {id:'sera_wall',text:'세라 사진 한 장만 남기고 나머지는 원래대로 돌린다',result:'세라는 선택받은 한 장을 매일 닦았습니다. 유진과 채린은 그 정도가 피해를 줄이는 타협이라고 받아들였습니다.',stability:3,obsession:5},
-   {id:'office',text:'사진들을 세력 사무실의 상황판으로 옮긴다',result:'채린은 액자를 정보판으로 바꾸고 유진은 비상연락망을 붙였습니다. 세라는 당신 사진 옆에 자기 사진을 다시 끼웠습니다.',stability:5,faction:6}
+   {id:'restore',text:'돈 대신 네 사람 몫의 생활 규칙부터 같이 적는다',result:'채린은 돈으로 해결하지 못하는 일이 가장 비효율적이라 투덜댔지만 끝까지 자리에 남았습니다. 네 사람 모두의 거절권이 첫 줄에 적혔습니다.',stability:8,obsession:-5},
+   {id:'sera_wall',text:'오늘 하루만큼은 아무도 밖에 나가지 말자고 한다',result:'세라는 만족했고 유진과 채린도 휴대전화를 뒤집어 두었습니다. 편안한 휴식이었지만 세라는 이것을 새 규칙으로 기억했습니다.',stability:3,obsession:5},
+   {id:'office',text:'유진은 외부 법률 대응, 세라는 세력 정보만 맡는다고 다시 확인한다',result:'유진은 세력 명단 대신 비상연락망에 이름을 올렸고, 세라는 정보 담당으로 정식 보고를 시작했습니다. 채린의 송금은 다시 반환됐습니다.',stability:5,faction:6}
   ]
  },
  {
-  id:'faction_table',title:'공동생활 2개월 · 세력 회의의 세 자리',icon:'🦂',scene:'./assets/life-faction-war.png',
-  desc:'세력 회의실에 세 개의 의자가 새로 놓였습니다. 유진은 합법적인 방어선을, 채린은 자금과 거점을, 세라는 누구도 기록하지 못한 사람들의 습관을 보고합니다.',
+  id:'faction_table',title:'공동생활 2개월 · 소파 위의 역할 회의',icon:'🦂',scene:'./assets/event-trio-meeting-6.png',
+  desc:'늦은 밤, 세력 보고가 텔레비전 화면을 대신합니다. 유진은 경찰 신분으로 조직에 들어갈 수 없다고 선을 긋고, 채린은 지원금 계약서를 내밀며, 세라는 이미 세력원의 귀가 습관을 표로 정리해 왔습니다.',
   speakers:[
    {name:'강유진',line:'세력을 키우는 건 상관없어요. 증거와 절차를 지키면 내가 방패가 될게요.'},
-   {name:'한채린',line:'작은 조직 흉내는 그만둬. 내가 돈을 대면 적어도 무너지진 않아.'},
+   {name:'한채린',line:'작은 조직 흉내는 그만둬. 내가 돈을 대면 적어도 무너지진 않아. 거절할 거면 눈 보고 말해.'},
    {name:'윤세라',line:'배신할 사람은 표정만 봐도 알아요. 가까이서 계속 보면 더 잘 알 수 있고.'}
   ],
   choices:[
-   {id:'roles',text:'유진은 법무·채린은 운영·세라는 정보 담당으로 선을 정한다',result:'세 사람은 서로의 보고서를 검증하며 이상할 만큼 효율적인 간부진이 됐습니다.',stability:9,faction:10},
-   {id:'competition',text:'이번 달 가장 성과가 큰 사람에게 내 일정을 맡긴다',result:'세력의 실적은 올랐지만 당신의 일정이 세 사람의 전리품처럼 취급되기 시작했습니다.',stability:-4,obsession:8,faction:8},
-   {id:'separate',text:'연애와 세력 업무를 분리하고 회의석을 치운다',result:'유진은 안도했고 채린은 비효율적이라 평했으며 세라는 회의실 밖에서 모든 대화를 들었습니다.',stability:2,obsession:-3}
+   {id:'roles',text:'유진의 법적 방어는 받되 채린의 자금은 다시 정중히 거절한다',result:'유진은 조직 밖의 비상 연락처로 남았고 채린은 거절 확인서를 받아 갔습니다. 세라만 세력 정보원 자리에 앉았습니다.',stability:9,faction:10},
+   {id:'competition',text:'세 사람 중 가장 도움이 큰 사람에게 내 일정을 맡긴다',result:'지원 경쟁이 다시 시작됐고 당신의 일정은 세 사람의 전리품처럼 취급되기 시작했습니다.',stability:-4,obsession:8,faction:8},
+   {id:'separate',text:'연애와 세력 업무를 분리하고 오늘은 텔레비전만 켠다',result:'유진은 안도했고 채린은 비효율적이라 평했으며 세라는 리모컨을 당신 손에 쥐여 주고 옆에 붙어 앉았습니다.',stability:2,obsession:-3}
   ]
  },
  {
-  id:'closed_world',title:'공동생활 3개월 · 문 밖의 약속',icon:'🌙',scene:'./assets/event-trio-secure-home-ending.png',
+  id:'closed_world',title:'공동생활 3개월 · 늦은 귀가',icon:'🌙',scene:'./assets/event-trio-meeting-7.png',
   desc:'늦은 귀가 한 번으로 세 사람의 규칙이 충돌했습니다. 유진은 신고 시각을, 채린은 경호차량을, 세라는 귀가하지 않는 선택 자체를 문제 삼습니다.',
   speakers:[
    {name:'강유진',line:'연락이 늦은 건 화낼 일이 아니라 확인할 일이에요. 그 뒤에는 기다려야 해요.'},
@@ -254,17 +254,25 @@ function start(life){
  return{ok:true,state,chapter:CHAPTERS[state.stage]};
 }
 function next(life){const state=ensure(life);return state.active&&!state.ending?CHAPTERS[state.stage]||null:null;}
-function endingFor(state){
+function endingFor(state,finalChoice){
  const a=state.axes||{};
- if((a.fracture||0)>=(a.balance||0)&&a.fracture>(a.containment||0))return{id:'war',title:'깨져버린 악우의 규칙',tone:'bad',text:'플레이어가 거듭 서열 경쟁을 부추기자 가짜 불화가 처음으로 실제 적대가 됐습니다. 서로의 약점을 가장 잘 아는 세 사람이 그 지식을 공격에 쓰기 시작했습니다.'};
- if((a.containment||0)>(a.balance||0))return{id:'golden_cage',title:'잠글 필요 없는 문',tone:'bad',text:'유진의 기록, 채린의 자원, 세라의 기억이 빈틈을 없앴습니다. 세 사람은 만족했고 주인공에게는 혼자일 시간이 사라졌습니다.'};
- return{id:'bad_friends',title:'쟤보다는 내가 정상',tone:'good',text:'세 사람은 끝내 서로를 좋아하지 않았습니다. 하지만 서로의 비정상을 가장 정확히 알아보는 악우가 되어, 위험한 균형 안에서 주인공을 함께 지켰습니다.'};
+ const formed=finalChoice&&finalChoice.id==='badfriends'
+  &&state.stability>=55
+  &&(a.balance||0)>=(a.fracture||0);
+ if(!formed){
+  const fracture=finalChoice&&finalChoice.tag==='fracture'||(a.fracture||0)>(a.balance||0);
+  return{id:'shared_home_failed',title:fracture?'한 사람을 고르려 한 밤':'합의가 사라진 방',tone:'bad',scene:'./assets/event-trio-bed-ending.png',
+   text:fracture
+    ?'공동생활을 시작하기도 전에 한 사람만 고르겠다는 말이 세 사람의 마지막 규칙을 깨뜨렸습니다. 눈을 뜬 방에는 누가 이겼는지 알려 주는 이름조차 없고, 세 겹의 잠금장치만 남았습니다.'
+    :'열쇠와 계좌와 일정을 전부 넘기는 순간 공동생활은 합의가 아니라 세 겹의 감금이 됐습니다. 세 사람은 서로를 믿지 못해 교대로 문을 지켰고, 당신에게는 다시 선택할 시간이 남지 않았습니다.'};
+ }
+ return{id:'bad_friends',title:'네 번째 열쇠',tone:'good',scene:'./assets/event-trio-meeting-5.png',text:'세 사람은 끝내 서로를 좋아한다고 말하지 않았습니다. 그러나 각자의 권한과 거절선을 인정하는 악우가 되어, 좁은 자취방에서 위험한 공동생활을 시작했습니다.'};
 }
 function apply(life,choiceId){
  const state=ensure(life),chapter=next(life);if(!chapter)return null;const choice=chapter.choices.find(c=>c.id===choiceId);if(!choice)return null;
  state.stability=clamp((state.stability||0)+(choice.stability||0),0,100);state.axes[choice.tag]=(state.axes[choice.tag]||0)+1;state.history.push({stage:state.stage,choice:choice.id,tag:choice.tag});
  NAMES.forEach(name=>{const r=rec(life,name);if(!r)return;r.trust=clamp((r.trust||0)+(choice.trust||0),0,100);r.affection=clamp((r.affection||0)+(choice.tag==='fracture'?-2:3),0,100);if(choice.obsession)r.obsession=clamp((r.obsession||0)+choice.obsession,0,100);});
- state.stage++;if(state.stage>=CHAPTERS.length){state.ending=endingFor(state);state.active=false;if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'dangerous',state.ending.id,state.ending.tone);}
+ state.stage++;if(state.stage>=CHAPTERS.length){state.ending=endingFor(state,choice);state.active=false;if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'dangerous',state.ending.id,state.ending.tone);}
  return{chapter,choice,state,ending:state.ending};
 }
 function monthly(life){
@@ -274,6 +282,7 @@ function monthly(life){
 }
 function nextAftermath(life){
  const state=ensure(life);if(!state.ending)return null;
+ if(state.ending.tone!=='good'||!(life.dangerousTrioBond&&life.dangerousTrioBond.active))return null;
  if(!Number.isFinite(state.aftermathIndex))state.aftermathIndex=0;
  if(state.aftermathIndex>=AFTERMATH.length)return null;
  return AFTERMATH[state.aftermathIndex];

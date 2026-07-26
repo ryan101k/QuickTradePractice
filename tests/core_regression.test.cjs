@@ -296,6 +296,20 @@ for (const file of [
   assert.equal(trio.ensure(life).ending.id,'bad_friends','균형 선택은 위험 3인조 악우 공동생활 결말이어야 한다');
   assert.ok(context.QT_ROMANCE_ROUTES.ensure(life).completed.dangerous,'그룹 엔딩은 공통 진행 장부에 완료로 기록돼야 한다');
 
+  const failedLife={
+    day:20,seraHousing:'cohabit',partner:{name:'강유진'},polycule:{active:false,members:[]},
+    yujinInvestigationSeen:true,faction:{level:1,members:[{uid:'unit',name:'부하'}]},
+    met:trio.NAMES.map(name=>({name,status:'friend',affection:85,trust:70,story:{completed:true,ending:{route:endings[name],title:name}}}))
+  };
+  trio.PRELUDES.forEach((event,index)=>{failedLife.day=20+index;trio.queuePrelude(failedLife,failedLife.day);trio.applyPrelude(failedLife,event.choices[0].id);});
+  assert.equal(trio.start(failedLife).ok,true);
+  while(trio.next(failedLife)){
+    const chapter=trio.next(failedLife),choice=chapter===trio.CHAPTERS.at(-1)?chapter.choices.find(item=>item.id==='goldencage'):chapter.choices.find(item=>item.tag==='balance');
+    trio.apply(failedLife,choice.id);
+  }
+  assert.equal(trio.ensure(failedLife).ending.id,'shared_home_failed','공동생활 최종 합의가 실패하면 즉시 실패 배드엔딩이어야 한다');
+  assert.match(trio.ensure(failedLife).ending.scene,/event-trio-bed-ending/,'공동생활 성립 실패는 새 잠금방 컷신을 사용해야 한다');
+
   life.dangerousTrioBond={active:true,members:trio.NAMES.slice()};
   life.polycule={active:true,members:[{name:'한채린'},{name:'윤세라'}]};
   const freedom=context.QT_FREEDOM_TRIO;
@@ -318,6 +332,17 @@ for (const file of [
   assert.equal(starter.id,'starter','새 게임은 부모님 집이 아니라 월세 자취방에서 시작해야 한다');
   assert.equal(starter.tenure,'monthly');
   assert.ok(context.QT_HOUSING.monthly(life,1).expense>0,'시작 자취방은 매달 실제 월세가 나가야 한다');
+  life.dangerousTrioBond={active:true};
+  assert.equal(context.QT_HOUSING.monthly(life,1).expense,0,'위험 3인조 공동생활이 성립한 자취방은 월세가 사라져야 한다');
+  assert.equal(context.QT_HOUSING.move(life,'premium','owned'),null,'공동생활 중에는 다른 집으로 이사할 수 없어야 한다');
+}
+
+{
+  const life={dangerousTrioBond:{active:true},playerName:'나',met:[],children:[]};
+  assert.equal(context.QT_FAMILY.startPlan(life,'birth',{caregivers:['강유진','한채린','윤세라']}).ok,true,'위험 3인조 공동생활도 명시적인 가족 계획은 시작할 수 있어야 한다');
+  for(let month=0;month<9;month++)context.QT_FAMILY.monthly(life);
+  assert.equal(life.familyRouteLock,'dangerous','공동생활에서 아이가 생기면 위험 3인조 가족 루트로 고정돼야 한다');
+  assert.equal(context.QT_ROMANCE_ROUTES.canStart(life,'freedom').reason,'family_route_locked','아이 출생 뒤 다른 관계 그룹은 새로 편입될 수 없어야 한다');
 }
 
 {
@@ -411,7 +436,8 @@ for (const file of [
 }
 
 {
-  const life={};
+  assert.equal(context.QT_BUSINESS_ROMANCE.introduce({},'office'),null,'한채린과 친구·연인·공동생활 관계가 아니면 사업 4인조 소개를 직접 열 수 없어야 한다');
+  const life={met:[{name:'한채린',status:'friend'}]};
   const romance=context.QT_BUSINESS_ROMANCE,state=romance.ensure(life);
   assert.equal(context.QT_BUSINESS_ROMANCE.identity(life,'office').displayName,'박 매니저','공개 전에는 실명 대신 직함을 보여야 한다');
   romance.introduce(life,'office');
@@ -446,9 +472,13 @@ for (const file of [
   const socialLife={};
   assert.equal(context.QT_SOCIAL.attendIndustry(socialLife,'lounge').ok,false,'사교 실적 없이 상위 모임에 바로 갈 수 없어야 한다');
   context.QT_SOCIAL.attendIndustry(socialLife,'open',()=>0);
+  const blocked=context.QT_SOCIAL.attendIndustry(socialLife,'lounge',()=>0);
+  assert.equal(blocked.introduced,null,'한채린과 친구가 되기 전에는 사업 4인조를 정식 소개받으면 안 된다');
+  assert.equal(blocked.chaerinRequired,true,'가려진 책임자를 봐도 한채린의 소개가 필요하다는 상태를 반환해야 한다');
+  socialLife.met=[{name:'한채린',status:'friend'}];
   const lounge=context.QT_SOCIAL.attendIndustry(socialLife,'lounge',()=>0);
   assert.equal(lounge.introduced,'office','등급을 올린 업계 모임은 특별 책임자를 소개해야 한다');
-  assert.equal(context.QT_SOCIAL.ensure(socialLife).industry.standing,3);
+  assert.equal(context.QT_SOCIAL.ensure(socialLife).industry.standing,5);
 }
 
 {
@@ -1321,6 +1351,10 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
     'pixel-event-childhood-reunion-v1.png','pixel-event-childhood-pact-v1.png',
     'pixel-event-childhood-graduation-v1.png','characters/yerin-childhood-pixel-v1.png',
   ]) assert.equal(fs.existsSync(path.join(root,'assets',file)),true,`${file} 도트 컷신이 누락되면 안 된다`);
+  for(const file of ['event-trio-647.png','event-trio-bed-ending.png','event-trio-meeting-2.png','event-trio-meeting-3.png','event-trio-meeting-5.png','event-trio-meeting-5_2.png','event-trio-meeting-6.png','event-trio-meeting-7.png']){
+    assert.equal(fs.existsSync(path.join(root,'assets',file)),true,`${file} 공동생활 컷신이 누락되면 안 된다`);
+  }
+  assert.equal(fs.existsSync(path.join(root,'assets','event-trio-first-meeting.png')),false,'화풍이 맞지 않는 기존 첫 만남 컷신은 남아 있으면 안 된다');
   assert.match(context.QT_CHILDHOOD_CIRCLE.event('reunion').scene,/pixel-event-childhood-reunion-v1/);
   const motelBoundary=context.QT_CHILDHOOD_CIRCLE.event('motel_boundary');
   assert.equal(motelBoundary.choices.find(choice=>choice.id==='stop').rivalMotive,true);
@@ -1336,7 +1370,9 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/L\.seraRescueOrigin=\{ready:true/,'윤세라 조우는 첫 경쟁 세력 피해에서 시작해야 한다');
   assert.match(appSource,/L\.seraIntelHelper=true/,'구조된 윤세라는 세력 정보 조력자가 되어야 한다');
   assert.match(appSource,/L\.seraHousing=eff\.seraHousing/,'윤세라 구조 선택은 동거 여부를 저장해야 한다');
-  assert.match(appSource,/showCaptivityEnding\(sera,'club'\)/,'윤세라 3인 공동생활 중 클럽은 기억상실 감금엔딩이어야 한다');
+  assert.match(appSource,/bond\.clubEscapeAttempts=Math\.max\(0,bond\.clubEscapeAttempts\|\|0\)\+1/,'공동생활 중 클럽 시도는 경고 횟수를 누적해야 한다');
+  assert.match(appSource,/bond\.clubEscapeAttempts>=3[\s\S]*showDangerousTrioClubEnding/,'클럽은 두 번의 부하 경고 뒤 세 번째 시도에만 공동 감금엔딩이어야 한다');
+  assert.match(appSource,/event-trio-bed-ending\.png/,'공동생활 실패와 반복 클럽 시도 엔딩은 새 잠금방 컷신을 사용해야 한다');
   assert.match(appSource,/sera_reverse_outing:\{[\s\S]*event-sera-8\.png/,'sera-8은 외출 중 역집착에 윤세라가 당황하는 사건으로 사용해야 한다');
   assert.match(appSource,/이 정도면 너무 풀어준 거 아니야\? 아까 세 번이나 날 놓쳤잖아/,'sera-8 사건에는 플레이어가 집착 수위를 되묻는 전용 선택지가 있어야 한다');
   assert.match(appSource,/function seraCaptivityVariant\(L,r,origin\)/,'윤세라 감금 결말은 일방·상호·공개기록·이탈 상처를 구분해야 한다');
