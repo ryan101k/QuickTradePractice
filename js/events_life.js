@@ -283,8 +283,8 @@ LIFE_EVENTS.push(
     ],
   },
   {
-    id: 'life_parenthealth', cat: 'life', emoji: '🏥', title: '부모님의 검진 결과',
-    desc: '부모님 건강검진에서 재검사가 필요하다는 연락이 왔습니다.',
+    id: 'life_parenthealth', cat: 'life', emoji: '🏥', title: '아버지의 검진 결과',
+    desc: '아버지 건강검진에서 재검사가 필요하다는 연락이 왔습니다.',
     options: [
       { text: '휴가를 내고 같이 병원에 간다', effects: { cash: -500000, happy: 10 }, outcome: '다행히 큰 문제는 아니었다. 같이 간 게 더 오래 기억에 남았다.' },
       { text: '검사비를 보내드린다', effects: { cash: -1500000, happy: 4 }, outcome: '"바쁜데 뭐하러." 목소리는 서운함 반, 고마움 반이었다.' },

@@ -165,19 +165,21 @@ const LIFE = {
   LIFE_LOAN_INTEREST: 0.02,  // 개인 대출 월 이자 2%
   EVENT_PROB: 0.72,          // 장 마감 때 선택지 이벤트가 뜰 확률
 };
+const FATHER_MONTHLY_SUPPORT = 1000000;
 
 function newLife() {
   return {
     started: false,          // 직업 선택 완료 여부
     lifeView: null,          // 구버전 세이브 호환
-    familyBackground: null,  // 시작 가정환경
+    familyBackground: null,  // 새 게임은 father_home으로 자동 고정
     schoolLife: null,        // 학창생활
-    firstCareerPool: [],     // 가정·학창생활로 만들어진 첫 정규직 후보
-    prologue: {              // 실패한 학창 관계 뒤 은둔·단기 알바로 버티는 도입부
-      stage: 'origin',       // origin | shut_in | support | career
+    firstCareerPool: [],     // 구버전 저장 호환(새 게임에서는 사용하지 않음)
+    prologue: {              // 실패한 학창 관계 뒤 은둔하다 투자·사업으로 재기하는 도입부
+      stage: 'origin',       // origin | shut_in | support
       careerUnlocked: false,
       firstCareerStarted: false,
       candidateJobs: [],
+      attackForeshadowed: false,
     },
     job: 'none',             // 직업 id
     happy: 50,               // 행복도 0~100
@@ -1147,7 +1149,7 @@ function scalarMonthChanges(before, after) {
     ['morality', '도덕성', '⚖️'],
     ['guilt', '죄책감', '🕯️'],
     ['familyBond', '가족 유대', '👨‍👩‍👧'],
-    ['parentHealth', '부모님 건강', '👵'],
+    ['parentHealth', '아버지 건강', '👨'],
   ];
   const changes = definitions.flatMap(([key, label, icon]) => {
     const from = Math.round(before[key] || 0), to = Math.round(after[key] || 0);
@@ -1182,7 +1184,7 @@ function scalarMonthChanges(before, after) {
     }
   });
   if (Math.floor(after.parentAge) !== Math.floor(before.parentAge)) {
-    changes.push({ key:'parentAge', label:'부모님 나이', icon:'🕰️', before:Math.floor(before.parentAge), after:Math.floor(after.parentAge), delta:-1 });
+    changes.push({ key:'parentAge', label:'아버지 나이', icon:'🕰️', before:Math.floor(before.parentAge), after:Math.floor(after.parentAge), delta:-1 });
   }
   return changes;
 }
@@ -1227,21 +1229,10 @@ function relationshipMonthChanges(before, after) {
 
 function careerMonthChanges(before, after, settle) {
   const changes = [];
-  if (settle.incident) changes.push({
-    icon:settle.incident.emoji || '🚑', title:`${settle.incident.job} 근무 사고`,
-    desc:settle.incident.text,
-    detail:`총비용 ${won(settle.incident.cost)}원 · 현금 지출 ${won(settle.incident.cashPaid)}원 · 사고채무 +${won(settle.incident.debtAdded)}원`,
-    tone:'bad',
-  });
   if (settle.career && settle.career.promotion) changes.push({
-    icon:'🎉', title:`${settle.career.promotion} 승진`,
-    desc:'경력과 업무 능력을 인정받았습니다.',
-    detail:`축하금 +${won(settle.career.bonus || 0)}원`, tone:'good',
-  });
-  if (before.job !== after.job) changes.push({
-    icon:'📦', title:'직업 상태 변화',
-    desc:`${(D.JOBS.find(job => job.id === before.job) || {}).name || before.job} → ${(D.JOBS.find(job => job.id === after.job) || {}).name || after.job}`,
-    detail:'다음 인생 행동에서 이직·자기계발·자격증을 선택할 수 있습니다.', tone:'bad',
+    icon:'🎉', title:`운영 단계 · ${settle.career.promotion}`,
+    desc:'사업과 세력을 직접 관리한 경험이 쌓였습니다.',
+    detail:'매출·비용·조직 수익·방어 보정이 강화됩니다.', tone:'good',
   });
   (settle.businessReports || []).filter(report => Math.abs(report.net || 0) >= 1000000).forEach(report => {
     const manager=BUSINESS_ROMANCE?BUSINESS_ROMANCE.identity(S.life,report.managerId):null;
@@ -1270,7 +1261,7 @@ function familyMonthChanges(settle) {
     const health = text.includes('건강') || text.includes('돌봄');
     changes.push({
       icon:health ? '🏥' : text.includes('🎂') ? '🎂' : '🏠',
-      title:health ? '부모님 돌봄 변화' : '가족의 이번 달 소식',
+      title:health ? '아버지 돌봄 변화' : '가족의 이번 달 소식',
       desc:text.replace(/^[^\p{L}\p{N}]+/u, ''),
       detail:family.cost ? `공동생활·양육비 ${won(family.cost)}원` : '',
       tone:health ? 'bad' : 'good',
@@ -1572,7 +1563,7 @@ function rollPartnerIncident(L, partner, per) {
   return ev;
 }
 
-// 월말 정산: 월급 + 월세 + 부동산 시세상승 − 대출이자 − 직업사고 + 연애상대 효과 − 행복감소
+// 월말 정산: 아버지 생활비 + 자산·사업·세력 수입 − 생활·금융비용 + 관계·건강 변화
 function settleMonth() {
   const L = S.life;
   S._importantEvents = [];
@@ -1585,15 +1576,16 @@ function settleMonth() {
   const job = jobOf();
   if (L._attackedRecently > 0) L._attackedRecently--;   // 피습 여운(경찰 조우 조건) 감소
 
-  // 1) 월급 (사업가/유튜버는 변동 · 적자 가능) — 적성이 맞으면 성과로 조금 더 번다
+  // 1) 직업 월급 대신 아버지가 보내는 최소 생활비. 돈을 크게 버는 축은 투자·사업·세력이다.
   const wasJailed = L.jailMonths > 0;
-  const aptMul = APTITUDE ? APTITUDE.performanceMul(job, L) : 1;
-  b.salary = wasJailed ? 0 : Math.round(CAREER.salary(job, L) * ECONOMY.salaryMultiplier(S.economy) * aptMul);
+  L.job='none';
+  b.salary = L.generation===1 ? FATHER_MONTHLY_SUPPORT : 0;
+  b.familySupport=b.salary;
   S.capital += b.salary;
   if (wasJailed) {
     L.jailMonths--;
     L.happy = clamp(L.happy - 12, 0, 100);
-    addNews(`🔒 수감 생활로 이번 달 월급을 받지 못했습니다 · 남은 형기 ${L.jailMonths}개월`, 'bad');
+    addNews(`🔒 수감 생활이 이어집니다 · 남은 형기 ${L.jailMonths}개월`, 'bad');
   }
 
   // 2) 부동산 월세 + 시세 상승
@@ -1660,21 +1652,7 @@ function settleMonth() {
   b.lifeInterest = debtResult.interest;
   b.debtResult = debtResult;
 
-  // 4) 직업 리스크 사고 → 빚 발생 (고소득일수록·적성이 안 맞을수록·건강이 나쁠수록 위험이 큼)
-  const riskAptMul = APTITUDE ? APTITUDE.riskMul(job, L) : 1;
-  const hp = (L.health != null ? L.health : 80), stress = L.stress || 0;
-  // 건강 좋고 스트레스 낮으면 사고 확률이 크게 준다(최저 0.4배), 반대면 최대 2.4배
-  const healthMul = clamp(1 + (65 - hp) / 110 + stress / 180, 0.4, 2.4);
-  const incidentRisk = job.risk * riskAptMul * healthMul;
-  if (job.risk && job.incidents && job.incidents.length && Math.random() < incidentRisk) {
-    const inc = pick(job.incidents);
-    const cost = Math.round(rand(inc.cost[0], inc.cost[1]));
-    const cashPaid = Math.min(Math.max(0, S.capital), cost);
-    const debtAdded = Math.max(0, cost - cashPaid);
-    S.capital -= cashPaid;
-    if (debtAdded > 0) LOAN.addDebt(L, debtAdded, `${job.name} 사고채무 · ${inc.text}`);
-    b.incident = { job: job.name, emoji: job.emoji, text: inc.text, cost, cashPaid, debtAdded };
-  }
+  // 4) 직업 사고는 제거했다. 위험과 손실은 실제로 운영 중인 사업·세력 사건에서 발생한다.
 
   // 5) 동등한 관계 구성원의 공동생활 예산. 인원수만큼 돈이 복제되지 않도록 실제 생활비까지만 분담한다.
   const relationshipMembers=RELATIONSHIPS.consensualMembers(L);
@@ -1748,8 +1726,7 @@ function settleMonth() {
   L.happy = clamp(L.happy - LIFE.HAPPY_DECAY, 0, 100);
 
   if (info.month === 1 && S.day > 1) addNews(`🎂 생일! 만 ${info.age}세가 되었습니다`, 'good');
-  if (b.salary > 0) addNews(`💼 월급 ${won(b.salary)}원 입금 (${job.name})`, 'good');
-  else if (b.salary < 0) addNews(`📉 ${job.name} 적자 ${won(b.salary)}원`, 'bad');
+  if (b.salary > 0) addNews(`👨 아버지가 이번 달 생활비 ${won(b.salary)}원을 보냈습니다`, 'good');
   if (b.rent > 0) addNews(`🏠 월세 수입 ${won(b.rent)}원`, 'good');
   if (b.passive > 0) addNews(`💸 주식 외 자동수입 ${won(b.passive)}원 입금`, 'good');
   if (b.businessDebt) addNews(`🏪 사업체 적자 중 현금 부족분 ${won(b.businessDebt)}원이 운영채무로 전환됐습니다`, 'bad');
@@ -1818,7 +1795,7 @@ function settleMonth() {
   }
   L.health=clamp(L.health+housingResult.health,0,100);L.stress=clamp(L.stress+housingResult.stress+housingResult.commute*.25,0,100);L.charm=Math.max(0,L.charm+housingResult.charm*.08);
   const healthResult = HEALTH.monthly(L, {
-    age: info.age, jobRisk: job.risk || 0,
+    age: info.age, jobRisk: 0,
     debtRatio: L.loan / Math.max(1, Math.max(0, b.salary + b.rent) * 12),
     jailed: wasJailed, happy: L.happy,
   });
@@ -1828,21 +1805,18 @@ function settleMonth() {
     addNews(text, 'bad');
     queueImportantEvent({ type:'incident', icon:'🏥', title:'건강 상태에 변화가 생겼습니다', desc:text, detail:`현재 건강 ${Math.round(L.health)} · 스트레스 ${Math.round(L.stress)}`, tone:'bad' });
   });
-  // 적성: 매달 조금씩 성장하고, 적합도에 따라 직업 만족도(행복)가 오르내린다
-  if (APTITUDE && L.job !== 'none') {
-    APTITUDE.grow(L, job);
-    const m = APTITUDE.match(job, L);
-    const satisfaction = Math.round((m - 55) / 22);   // 대략 -2 ~ +2
-    if (satisfaction) L.happy = clamp(L.happy + satisfaction, 0, 100);
-    b.aptMatch = m;
-  }
-  const careerResult = CAREER.monthly(L, job, { health:L.health, stress:L.stress });
+  // 기존 경력 데이터는 사업·세력 운영 경험으로 전환한다.
+  const businessStateForCareer=BUSINESS?BUSINESS.ensure(L):{owned:[]};
+  const factionForCareer=L.faction||{};
+  const careerResult = CAREER.monthly(L, {
+    health:L.health,stress:L.stress,businesses:businessStateForCareer.owned.length,
+    factionLevel:factionForCareer.level||0,factionMembers:(factionForCareer.members||[]).length,
+  });
   b.career = careerResult;
   if (careerResult.promotion) {
-    S.capital += careerResult.bonus;
-    addNews(`🎉 ${job.name} ${careerResult.promotion} 승진 · 축하금 ${won(careerResult.bonus)}원`, 'good');
-    flashToast(`🎉 ${careerResult.promotion} 승진!`, 'good'); celebrate();
-    queueImportantEvent({ type:'job', icon:'🎉', title:`${careerResult.promotion} 승진`, desc:`${job.name}에서 경력과 능력을 인정받았습니다.`, detail:`축하금 ${won(careerResult.bonus)}원이 입금됐습니다.`, tone:'good' });
+    addNews(`🎉 운영 단계 상승 · ${careerResult.promotion}`, 'good');
+    flashToast(`🎉 운영 역량: ${careerResult.promotion}`, 'good'); celebrate();
+    queueImportantEvent({ type:'business', icon:'🎉', title:`운영 단계 · ${careerResult.promotion}`, desc:'사업과 세력을 직접 관리한 경험이 쌓였습니다.', detail:'사업 매출·비용과 세력 수익·방어 보정이 강화됩니다.', tone:'good' });
   }
   const familyResult = FAMILY.monthly(L);
   familyResult.cost = Math.round(familyResult.cost * ECONOMY.livingMultiplier(S.economy));
@@ -1863,7 +1837,7 @@ function settleMonth() {
     age: info.age,
     income: Math.max(0, b.salary + b.rent + b.passive + (b.businessNet||0)),
     propertyValue: L.properties.reduce((sum, p) => sum + p.value, 0),
-    unemployed: L.job === 'none',
+    unemployed: false,
   });
   const financeIncome = financeResult.pensionPayout + financeResult.incomeBenefit;
   const financeExpense = financeResult.premiums + financeResult.tax + financeResult.propertyTax + financeResult.pensionContribution;
@@ -1875,7 +1849,7 @@ function settleMonth() {
   if (financeResult.tax + financeResult.propertyTax) addNews(`🧾 소득세·재산세 ${won(financeResult.tax + financeResult.propertyTax)}원`, 'neutral');
   if (financeResult.pensionContribution) addNews(`🏦 연금 적립 ${won(financeResult.pensionContribution)}원`, 'neutral');
   if (financeResult.pensionPayout) addNews(`👴 연금 수령 +${won(financeResult.pensionPayout)}원`, 'good');
-  if (financeResult.incomeBenefit) addNews(`🧰 실직 소득보장 +${won(financeResult.incomeBenefit)}원`, 'good');
+  if (financeResult.incomeBenefit) addNews(`🧰 소득보장 +${won(financeResult.incomeBenefit)}원`, 'good');
   b.finance = financeResult;
   const socialResult = SOCIAL.monthly(L);
   socialResult.news.forEach(text=>addNews(text,'good'));
@@ -1896,13 +1870,6 @@ function settleMonth() {
     }
   });
   if(justiceResult.verdict&&justiceResult.verdict.fine){const paid=Math.min(Math.max(0,S.capital),justiceResult.verdict.fine);S.capital-=paid;if(justiceResult.verdict.fine>paid)LOAN.addDebt(L,justiceResult.verdict.fine-paid,'형사 벌금 미납');}
-  const layoffExempt = ['none','civil','teacher','doctor','nurse','lawyer','accountant','ceo','youtuber'];
-  if (!layoffExempt.includes(job.id) && Math.random() < ECONOMY.layoffRisk(S.economy, job.risk)) {
-    L.job = 'none'; CAREER.switchJob(L, 'none'); L.happy = clamp(L.happy-14,0,100);
-    addNews(`📦 ${ECONOMY.phase(S.economy).name} 여파로 ${job.name}에서 해고됐습니다`, 'bad');
-    flashToast('📦 경기 악화로 해고됐습니다', 'bad');
-    queueImportantEvent({ type:'job', icon:'📦', title:`${job.name}에서 해고`, desc:`${ECONOMY.phase(S.economy).name} 여파로 회사가 고용을 줄였습니다.`, detail:'현재 직업은 무직으로 변경됐습니다. 다음 장마감 행동에서 이직에 도전할 수 있습니다.', tone:'bad' });
-  }
   const economyResult = ECONOMY.monthly(S.economy);
   if (economyResult.rateDecision) {
     const rd = economyResult.rateDecision;
@@ -1932,19 +1899,18 @@ function settleMonth() {
 }
 
 /* ---- 출신 배경 / 학창생활 / 직업 ---- */
-const FAMILY_BACKGROUNDS=(ORIGIN&&ORIGIN.FAMILY_BACKGROUNDS)||[];
 const SCHOOL_LIVES=(ORIGIN&&ORIGIN.SCHOOL_LIVES)||[];
-const CORE_JOB_IDS=(ORIGIN&&ORIGIN.CORE_JOB_IDS)||D.JOBS.map(j=>j.id);
 
 function startLifeSetup(){
-  if(!S.life.familyBackground)showFamilyBackgroundModal();
-  else if(!S.life.schoolLife)showSchoolLifeModal();
+  if(!S.life.familyBackground){
+    const fatherHome=ORIGIN&&ORIGIN.family('father_home');
+    S.life.familyBackground='father_home';
+    if(fatherHome)applyOriginStats(fatherHome);
+    const father=SOCIAL.addContact(S.life,{name:'아버지',role:'father',origin:'family',originKey:'family-father',relationLabel:'가족',trust:66,favor:1});
+    pushPersonMessage(S.life,father,'학교 때 일은 이제 놓고 살아라. 생활비는 보낼 테니 집에만 있지 말고 네 생활부터 만들어.',false);
+  }
+  if(!S.life.schoolLife)showSchoolLifeModal();
   else assignStartingCareer();
-}
-function showFamilyBackgroundModal(){
-  const host=$('life-modal');if(!host)return;host.style.display='flex';host.className='life-modal-host';
-  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🏠 인생 시작 1/2 · 어떤 집에서 자랐을까?</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-family.png" alt="어린 시절 가족과 함께 보낸 생활의 기억"><p class="life-intro">부모님의 생활과 직업은 초기 신용·자금·적성뿐 아니라 <b>실제로 연락할 수 있는 가족</b>과 첫 취업 경로를 만듭니다.</p><div class="event-options">${FAMILY_BACKGROUNDS.map(v=>`<button class="event-opt origin-choice" data-family-bg="${v.id}"><b>${v.icon} ${v.name}</b><span>${v.desc}</span><small>${v.result}</small></button>`).join('')}</div></div></div>`;
-  host.querySelectorAll('[data-family-bg]').forEach(b=>b.addEventListener('click',()=>chooseFamilyBackground(b.dataset.familyBg)));
 }
 function boostOriginAptitude(effects){
   if(!APTITUDE||!effects)return;const apt=APTITUDE.ensure(S.life);
@@ -1957,19 +1923,14 @@ function applyOriginStats(origin){
   const social=SOCIAL.ensure(L);social.reputation=clamp(social.reputation+(origin.reputation||0),0,100);
   boostOriginAptitude(origin.aptitude);
 }
-function chooseFamilyBackground(id){
-  const bg=ORIGIN&&ORIGIN.family(id);if(!bg)return;const L=S.life;L.familyBackground=id;applyOriginStats(bg);
-  bg.contacts.forEach((spec,index)=>{const c=SOCIAL.addContact(L,{...spec,origin:'family',originKey:`family-${index}`,relationLabel:spec.role==='guardian'?'보호자':'가족',trust:62,favor:1});pushPersonMessage(L,c,SOCIAL.contactLine(c),false);});
-  addNews(`${bg.icon} 가정환경 · ${bg.name}`,'neutral');autoSave();showSchoolLifeModal();
-}
 function showSchoolLifeModal(){
   const host=$('life-modal');if(!host)return;host.style.display='flex';host.className='life-modal-host';
   const bg=ORIGIN&&ORIGIN.family(S.life.familyBackground);
-  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🎒 인생 시작 2/2 · 학창시절은 어땠을까?</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-school.png" alt="방과 후 여러 동아리와 친구 사이에서 진로를 고민하는 장면"><div class="origin-selected">${bg?`${bg.icon} ${bg.name}에서 자랐습니다.`:''}</div><p class="life-intro">학창시절 선택이 강점과 훗날 지원할 진로를 좁히고, 졸업 뒤에도 연락하는 친구 한 명을 만듭니다. 하지만 학교를 떠난 직후에는 곧바로 번듯한 직장에 들어가지 못합니다.</p><div class="event-options">${SCHOOL_LIVES.map(v=>`<button class="event-opt origin-choice" data-school-life="${v.id}"><b>${v.icon} ${v.name}</b><span>${v.desc}</span><small>${v.result}</small></button>`).join('')}</div></div></div>`;
+  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🎒 인생 시작 · 학창시절은 어땠을까?</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-school.png" alt="방과 후 여러 동아리와 친구 사이에서 진로를 고민하는 장면"><div class="origin-selected">${bg?`${bg.icon} ${bg.name} · 연락이 남은 가족은 아버지뿐입니다.`:''}</div><p class="life-intro">학창시절 선택은 직업을 정하지 않습니다. 대신 사업과 세력을 운영할 때 쓰는 강점, 졸업 뒤에도 연락하는 고정 친구, 그리고 생활경제연구회의 과거를 정합니다.</p><div class="event-options">${SCHOOL_LIVES.map(v=>`<button class="event-opt origin-choice" data-school-life="${v.id}"><b>${v.icon} ${v.name}</b><span>${v.desc}</span><small>${v.result}</small></button>`).join('')}</div></div></div>`;
   host.querySelectorAll('[data-school-life]').forEach(b=>b.addEventListener('click',()=>chooseSchoolLife(b.dataset.schoolLife)));
 }
 function chooseSchoolLife(id){
-  const school=ORIGIN&&ORIGIN.school(id);if(!school)return;const L=S.life;L.schoolLife=id;L.originNarrativeVersion=2;applyOriginStats(school);
+  const school=ORIGIN&&ORIGIN.school(id);if(!school)return;const L=S.life;L.schoolLife=id;L.originNarrativeVersion=3;applyOriginStats(school);
   const childhood=school.childhood||{},heroine=D.CHARACTERS.find(person=>person.name===childhood.heroine),ally=(D.WORLD_MALE_NPCS||[]).find(person=>person.name===childhood.ally);
   if(ally){
     const friend=SOCIAL.addContact(L,{name:ally.name,role:'schoolfriend',origin:'school',originKey:'school-best-friend',relationLabel:school.friendTag,trust:60,favor:2,schoolTag:school.friendTag,worldNpcId:ally.id,freeRecruit:true});
@@ -1987,35 +1948,21 @@ function chooseSchoolLife(id){
     const anchor=heroine&&metRecord(L,heroine.name);
     if(anchor)CHILDHOOD_CIRCLE.register(L,anchor,id);
   }
-  const social=SOCIAL.ensure(L),father=social.contacts.find(contact=>contact.role==='father'),guardian=social.contacts.find(contact=>contact.role==='guardian');
-  const warning=father||guardian;
-  if(warning){
-    const line=father
-      ?'학교 때 일은 이제 놓고 살아라. 지나간 사람들 연락처는 차단해 두고, 집에만 있지 말고 밖에 나가 네 생활부터 만들어.'
-      :'학교 때 동아리 일처럼 혼자 감당하지 마. 돈 문제든 사람 문제든 이상하면 먼저 연락해.';
-    pushPersonMessage(L,warning,line,false);
-  }
+  const father=SOCIAL.ensure(L).contacts.find(contact=>contact.role==='father');
+  if(father)pushPersonMessage(L,father,'학교 때 일은 이제 놓고 살아라. 지나간 사람들 연락처는 차단해 두고, 집에만 있지 말고 밖에 나가 네 생활부터 만들어.',false);
   addNews(`${school.icon} 학창생활 · ${school.name}`,'neutral');autoSave();assignStartingCareer();
-}
-function originCareerCandidates(){
-  const bg=ORIGIN&&ORIGIN.family(S.life.familyBackground),school=ORIGIN&&ORIGIN.school(S.life.schoolLife),weighted=[];
-  (bg&&bg.jobs||[]).forEach(id=>weighted.push(id));
-  (school&&school.jobs||[]).forEach(id=>{weighted.push(id,id,id);});
-  const jobs=weighted.filter(id=>CORE_JOB_IDS.includes(id)&&D.JOBS.some(j=>j.id===id));
-  if(APTITUDE)D.JOBS.filter(j=>jobs.includes(j.id)&&APTITUDE.match(j,S.life)>=68).forEach(j=>jobs.push(j.id));
-  return jobs.length?jobs:['office'];
 }
 function assignStartingCareer(){
   const L=S.life;if(L.started)return;
-  const pool=originCareerCandidates(),job=D.JOBS.find(j=>j.id==='parttime')||D.JOBS.find(j=>j.id==='none');
-  L.firstCareerPool=[...new Set(pool)];
-  L.prologue={stage:'shut_in',careerUnlocked:false,firstCareerStarted:false,candidateJobs:[...L.firstCareerPool]};
-  L.job=job.id;L.lifeView='origin';CAREER.switchJob(L,job.id);L.started=true;
+  const job={id:'none',name:'무직'};
+  L.firstCareerPool=[];
+  L.prologue={stage:'shut_in',careerUnlocked:false,firstCareerStarted:false,candidateJobs:[],attackForeshadowed:true};
+  L.job='none';L.lifeView='origin';CAREER.switchJob(L,'none');L.started=true;
   const bg=ORIGIN&&ORIGIN.family(L.familyBackground),school=ORIGIN&&ORIGIN.school(L.schoolLife),social=SOCIAL.ensure(L);
   const contacts=social.contacts.filter(c=>c.origin).map(c=>`${SOCIAL.role(c).icon} ${c.name}`).join(' · ');
   const host=$('life-modal');host.style.display='flex';host.className='life-modal-host';
-  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🌒 프롤로그 · 문을 잠근 뒤</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-school.png" alt="불이 꺼진 방에서 휴대전화를 뒤집어 둔 밤"><div class="origin-timeline"><div>${bg.icon}<b>${bg.name}</b></div><i>→</i><div>${school.icon}<b>${school.name}</b></div><i>→</i><div>🌒<b>멈춘 생활</b></div></div><div class="event-title">졸업 뒤, 한동안 집 밖으로 나갈 이유를 만들지 못했습니다.</div><div class="event-desc">생활경제연구회에서 끝내 정리하지 못한 관계와 실패가 겹친 뒤 연락처를 차단하고 방 안에 머물렀습니다. 사람 없는 새벽 시간의 편의점 대타와 집에서 받는 단기 의뢰만으로 월세와 식비를 버팁니다. 지금의 직업은 경력이 아니라 <b>${job.name}</b>입니다.</div><div class="important-event-detail">과거가 남긴 정규직 후보 ${L.firstCareerPool.length}개 · 투자지원 등록 뒤 지원 가능<br>남아 있는 연락처 · ${contacts}</div><button id="origin-start" class="session-btn opening">불이 켜진 휴대전화를 확인한다</button></div></div>`;
-  addNews(`🌒 은둔 생활 시작 · ${job.name}와 단기 의뢰로 생활비를 버팁니다`,'neutral');
+  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🌒 프롤로그 · 문을 잠근 뒤</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-family.png" alt="아버지의 송금 문자만 켜진 채 어두운 자취방에 남은 밤"><div class="origin-timeline"><div>${bg.icon}<b>${bg.name}</b></div><i>→</i><div>${school.icon}<b>${school.name}</b></div><i>→</i><div>🌒<b>멈춘 생활</b></div></div><div class="event-title">졸업 뒤, 직업도 약속도 없이 자취방에 틀어박혔습니다.</div><div class="event-desc">${ORIGIN.PAST_CLUB.incident} 당신은 그날 내려받은 원본 거래 장부를 지우지 못한 채 사람들과 연락을 끊었습니다. 월세가 밀리지 않는 건 매달 생활비를 보내는 아버지 덕분입니다. 아버지는 돈을 보낼 때마다 같은 말을 남깁니다. <b>“직업을 가지든, 네 일을 만들든 이제는 밖으로 나가라.”</b></div><div class="important-event-detail">현재 상태 · ${job.name} · 아버지 생활비 월 ${won(FATHER_MONTHLY_SUPPORT)}원<br>남아 있는 연락처 · ${contacts}<br>⚠️ 과거 장부와 같은 주문 습관이 다시 시장에 찍히면, 사라진 후원사의 사람들이 당신을 알아볼 수 있습니다.</div><button id="origin-start" class="session-btn opening">불이 켜진 휴대전화를 확인한다</button></div></div>`;
+  addNews(`🌒 은둔 생활 시작 · 무직 · 아버지가 매달 최소 생활비를 보냅니다`,'neutral');
   $('origin-start').addEventListener('click',()=>{celebrate();checkAchievements();renderMarketPhase();renderAll();showOriginFriendReferral();autoSave();});
   autoSave();
 }
@@ -2032,7 +1979,9 @@ function showOriginFriendReferral(){
   if(!host||!contact){S.life.tutorialSeen=true;unlockPrologueCareer();closeLifeModal();renderAll();autoSave();return;}
   const npc=(D.WORLD_MALE_NPCS||[]).find(item=>item.id===origin.npcId)||{name:contact.name,portrait:'mob-faction-intel.png',job:'학창시절 친구'};
   const lines=[
-    [contact.name,school&&school.guideLine||'돈 버는 법 알려 달라 했지? 괜찮은 투자지원 프로그램을 찾았어.'],
+    [contact.name,school&&school.guideLine||'직업 좀 가져. 언제까지 아버지가 보내 주는 돈으로 버틸 거야?'],
+    ['플레이어','출근해서 사람들 사이에 끼는 건 아직 싫어.'],
+    [contact.name,'그럴 줄 알았다. 그래서 네가 혼자 시작할 수 있는 투자지원 프로그램도 찾아봤어.'],
     ['플레이어','갑자기 웬 투자지원 프로그램이야? 너 이런 거 챙겨 주는 성격 아니잖아.'],
     [contact.name,'무료 교육에 초보 지원금도 있대. 대신 첫 등록은 직접 가야 한대.'],
     ['플레이어','온라인으로 하면 안 되냐고 물어봐 줘.'],
@@ -2044,7 +1993,7 @@ function showOriginFriendReferral(){
     ['플레이어','그게 진짜 목적이지? 궁금하면 네가 직접 가.'],
     [contact.name,'처음부터 둘이 들이대면 영업하러 온 줄 알잖아. 네가 교육부터 들어 보고 자연스럽게 분위기 좀 봐 줘.'],
     ['플레이어','투자를 배우라는 건지 번호를 받아 오라는 건지 하나만 해.'],
-    [contact.name,'투자가 먼저지. 너 옛날 동아리 일 겪고도 사람부터 보면 진짜 답 없다. 이번에는 돈 얘기만 잘 듣고 와. 주소 보냈다.'],
+    [contact.name,'투자가 먼저지. 취업이 싫으면 네 사업이라도 만들든가. 그리고 옛날 대회 계정은 절대 다시 쓰지 마. 그 장부 아직 갖고 있으면 더더욱. 주소 보냈다.'],
   ];
   S._originReferralIndex=0;
   const render=()=>{
@@ -2056,77 +2005,6 @@ function showOriginFriendReferral(){
     const skip=$('origin-referral-skip');if(skip)skip.addEventListener('click',()=>{S.life.referralSeen=true;S.life.tutorialSeen=true;unlockPrologueCareer();closeLifeModal();renderAll();autoSave();});
   };
   render();
-}
-// 이직 합격 확률(%) — 목표 난이도 vs 현재 경력 + 적성 적합도
-function jobHireChance(target) {
-  const cur = jobOf();
-  let base = 85 - (target.difficulty || 0) + (cur.difficulty || 0) * 0.4;
-  if (APTITUDE) base += (APTITUDE.match(target, S.life) - 55) * 0.4;   // 적성이 맞으면 서류·면접 유리
-  const c = CAREER.ensure(S.life);
-  base += (c.skill - 20) * 0.15;   // 쌓은 직무능력도 반영
-  return Math.round(clamp(base, 3, 97));
-}
-
-function showJobModal(isChange) {
-  const host = $('life-modal'); if (!host) return;
-  host.className = 'life-modal-host';
-  const prologue=S.life.prologue||{},enteringCareer=S.life.job==='parttime'&&!prologue.firstCareerStarted;
-  if(isChange&&enteringCareer&&!prologue.careerUnlocked){flashToast('📱 투자지원 등록을 마치면 처음 정규직에 지원할 수 있습니다','neutral');return;}
-  const candidateIds=new Set(prologue.candidateJobs&&prologue.candidateJobs.length?prologue.candidateJobs:S.life.firstCareerPool||[]);
-  const focusedJobs=D.JOBS.filter(j=>enteringCareer?(j.id===S.life.job||candidateIds.has(j.id)):(CORE_JOB_IDS.includes(j.id)||j.id===S.life.job));
-  const rows = focusedJobs.map(j => {
-    const extra = isChange
-      ? (j.id === S.life.job ? '<span class="risk-tag">현재 직업</span>' : `<span class="risk-tag">합격 ${jobHireChance(j)}%</span>`)
-      : `<span class="risk-tag">${jobRiskTier(j).icon}${jobRiskTier(j).label}</span>`;
-    // 적성 적합도 배지 + 요구 적성 축
-    let aptTag = '';
-    if (APTITUDE && (j.apt || []).length) {
-      const m = APTITUDE.match(j, S.life), t = APTITUDE.matchTier(m);
-      const axes = j.apt.map(k => { const a = APTITUDE.axis(k); return a ? a.icon : ''; }).join('');
-      aptTag = `<span class="apt-tag ${t.mood}">${t.icon} ${t.label} ${m}% <span class="muted">${axes}</span></span>`;
-    }
-    return `<li class="job-row" data-id="${j.id}">
-       <span class="job-emoji">${j.emoji}</span>
-       <span class="job-main"><strong>${j.name}</strong> ${extra} ${aptTag}<br><span class="muted">${j.desc}</span></span>
-       <span class="job-sal">${jobIncomeLabel(j)}</span>
-     </li>`;
-  }).join('');
-  host.style.display = 'block';
-  host.innerHTML =
-    `<div class="window life-window">
-       <div class="title-bar life-bar"><div class="title-bar-text">${isChange ? '💼 이직 도전' : '🎬 첫 취업 결과'}</div>
-         ${isChange ? '<div class="title-bar-controls"><button aria-label="Close" id="job-x"></button></div>' : ''}</div>
-       <div class="window-body">
-         <img class="life-scene-banner" src="./assets/life-career.png" alt="직업 면접 장면">
-         <p class="life-intro">${enteringCareer?'가정환경과 학창생활이 남긴 후보입니다. 단기 알바로 버티던 생활을 끝내고 첫 정규직에 지원합니다.':isChange ? '주요 인물들의 직장·업계와 실제로 연결되는 핵심 직군만 표시됩니다. 지원하면 <b>합격 확률</b>로 성패가 갈립니다.' : '첫 직업은 가정환경과 학창생활에 따라 자동으로 정해집니다.'}</p>
-         <ul class="clean-list job-list">${rows}</ul>
-       </div>
-     </div>`;
-  host.querySelectorAll('.job-row').forEach(li => li.addEventListener('click', () => isChange ? attemptJobChange(li.dataset.id) : chooseJob(li.dataset.id)));
-  const x = $('job-x'); if (x) x.addEventListener('click', closeLifeModal);
-}
-
-// 이직 시도 — 합격 확률로 성공/실패
-function attemptJobChange(id) {
-  const target = D.JOBS.find(j => j.id === id); if (!target) return;
-  if (id === S.life.job) { flashToast('이미 그 직업이에요', 'neutral'); return; }
-  const chance = jobHireChance(target);
-  markMonthAction('경력');
-  closeLifeModal();
-  if (Math.random() * 100 < chance) {
-    const firstCareer=S.life.job==='parttime'&&S.life.prologue&&!S.life.prologue.firstCareerStarted;
-    S.life.job = id;
-    CAREER.switchJob(S.life, id);
-    if(firstCareer){S.life.prologue.firstCareerStarted=true;S.life.prologue.stage='career';}
-    addNews(`✅ ${target.name} 이직 성공! (합격 확률 ${chance}%)`, 'good');
-    flashToast(firstCareer?`✅ 첫 정규직 · ${target.name} 합격!`:`✅ ${target.name} 합격!`, 'good'); celebrate(); playSound('buy');
-  } else {
-    S.life.happy = clamp(S.life.happy - 4, 0, 100);
-    addNews(`❌ ${target.name} 이직 실패 — 서류 탈락 (합격 확률 ${chance}%)`, 'bad');
-    flashToast(`❌ ${target.name} 탈락...`, 'bad'); playSound('error');
-  }
-  checkAchievements(); renderMarketPhase(); renderAll(); autoSave();
-  if (S.phase === 'closed' && $('market-close') && $('market-close').style.display === 'block') renderCloseReport(S.day);
 }
 function closeLifeModal() { const h = $('life-modal'); if (h) { h.style.display = 'none'; h.innerHTML = ''; } }
 
@@ -2258,7 +2136,7 @@ const NARAE_TUTORIAL_STEPS = [
   { target:'#buy-btn', title:'매수·매도·공매도', text:'매수는 주식을 사는 것, 매도는 보유 주식을 파는 것이에요. 보유량 없이 매도하면 하락에 베팅하는 공매도가 되므로 손실이 크게 날 수 있어요.' },
   { target:'#leverage-select', title:'신용 레버리지', text:'레버리지는 빚을 섞어 투자 규모를 키우는 기능이에요. 수익도 커지지만 손실·이자·반대매매 위험도 같은 배율로 커집니다. ETF의 2배·인버스와는 별개예요.' },
   { target:'[data-tab="news"]', title:'뉴스와 기업 공시', text:'뉴스의 기업명을 누르면 해당 기업 리포트와 차트로 이동할 수 있어요. 호재는 긍정적 재료, 악재는 부정적 재료지만 가격이 반드시 같은 방향으로 움직인다는 보장은 없어요.' },
-  { target:'[data-tab="life"]', title:'장마감 후 인생 행동', text:'마감 뒤에는 자유시간 4회로 데이트·취미·경력·인맥·가족 행동을 선택해요. 월급·빚·부동산도 함께 정산됩니다. 친구 소개로 온 지원 등록은 여기까지예요. 이제 직접 투자해 보세요.' },
+  { target:'[data-tab="life"]', title:'장마감 후 인생 행동', text:'마감 뒤에는 자유시간 4회로 생활·수입·운영·인맥·가족 행동을 선택해요. 아버지 생활비와 빚·부동산·사업도 함께 정산됩니다. 친구 소개로 온 지원 등록은 여기까지예요. 이제 직접 투자해 보세요.' },
 ];
 
 function clearTutorialFocus() {
@@ -2369,10 +2247,10 @@ function showGameGuide(fromStart = false) {
       • 뉴스에 뜬 <b>기업을 클릭</b>하면 재무·토론방이 담긴 <b>기업 리포트</b>가 열리고, '거래하기'로 그 차트로 이동합니다.<br>
       • 큰 사건은 <b>긴급속보</b>로 뜨고 전문가들이 엇갈린 전망을 냅니다(참고만!).<br>
       • 소형주는 <b>상장폐지(파산)</b> 위험이 있고, 폐지되면 <b>사유 팝업</b>이 뜹니다. 보유분은 휴지조각이 돼요.`) +
-    sec('💼', '직업·경력·이직', `
-      • 시작 시 <b>직업</b>을 고르면 매달 <b>월급</b>이 들어옵니다. 고소득 직업일수록 <b>사고 리스크</b>(→빚)가 큽니다.<br>
-      • <b>이직</b>은 직업마다 <b>합격 확률</b>이 다르고(현재 경력 vs 목표 난이도), 성공/실패로 갈립니다.<br>
-      • 취미의 <b>자기계발</b>과 자격증으로 능력을 키우면 <b>승진</b>과 이직에 유리합니다.`) +
+    sec('📈', '사업·세력 운영 역량', `
+      • 플레이어는 직업 없이 시작하며 아버지가 매달 <b>최소 생활비</b>를 보냅니다.<br>
+      • 큰돈은 주식·자동수입·부동산·사업체·세력 활동으로 직접 만듭니다.<br>
+      • 취미의 <b>자기계발</b>과 관리 교육으로 운영력을 키우면 <b>사업 수익과 세력 방어</b>에 유리합니다.`) +
     sec('💘', '사람과 관계', `
       • 혼자 하는 외출에서는 새로운 연락처가 생기지 않습니다. 사람과의 약속은 각자의 이야기에서 연락처를 교환한 뒤 잡을 수 있습니다.<br>
       • 같은 사람을 여러 번 만나도 어떤 태도를 보였는지에 따라 다음 대화가 달라집니다. 가까워지면 자연스럽게 둘만의 약속이나 고백이 이어집니다.<br>
@@ -3290,12 +3168,7 @@ function maybeLifeEvent() {
     showLifeEvent(seraIntro);
     return true;
   }
-  const jobSpecific = (D.CAREER_EVENTS || []).filter(e => Array.isArray(e.jobs) && e.jobs.includes(L.job) && (!e.cond || e.cond(ctx)));
-  if (jobSpecific.length && Math.random() < 0.65) {
-    showLifeEvent(pick(jobSpecific));
-    return true;
-  }
-  const pool = (D.LIFE_EVENTS || []).concat(D.ROMANCE_EVENTS || [], D.CAREER_EVENTS || []).filter(e => !e.cond || e.cond(ctx));
+  const pool = (D.LIFE_EVENTS || []).concat(D.ROMANCE_EVENTS || []).filter(e => !e.cond || e.cond(ctx));
   if (pool.length) { showLifeEvent(pick(pool)); return true; }
   return false;
 }
@@ -3438,21 +3311,6 @@ function closeLifeEvent() {
   }
 }
 
-function chooseJob(id) {
-  const job = D.JOBS.find(j => j.id === id); if (!job) return;
-  const first = !S.life.started;
-  S.life.job = id;
-  CAREER.switchJob(S.life, id);
-  S.life.started = true;
-  closeLifeModal();
-  flashToast(`${job.emoji} 직업: ${job.name}`, 'good');
-  addNews(first ? `💼 ${job.name}(으)로 사회생활 시작!` : `💼 ${job.name}(으)로 이직!`, 'neutral');
-  if (first) celebrate();
-  checkAchievements();
-  renderMarketPhase(); renderAll(); autoSave();
-  if (S.phase === 'closed' && $('market-close') && $('market-close').style.display === 'block') renderCloseReport(S.day);
-}
-
 /* ---- 마감 후 인생 행동 ---- */
 function doHobby(id) {
   const h = D.HOBBIES.find(x => x.id === id); if (!h) return;
@@ -3465,7 +3323,7 @@ function doHobby(id) {
   let careerText = '';
   if (id === 'study') {
     const career = CAREER.train(S.life);
-    careerText = ` · 직무 능력 ${Math.round(career.skill)}`;
+    careerText = ` · 운영 역량 ${Math.round(career.skill)}`;
   }
   if (id === 'gym') HEALTH.exercise(S.life);
   else if (id === 'travel' || id === 'game') HEALTH.rest(S.life);
@@ -3627,18 +3485,17 @@ function resolveSeraHomeMoment(id){
 }
 
 function incomeWorkOptions(){
-  const job=jobOf(),career=CAREER.ensure(S.life),repeat=monthActionCount('수입');
+  const career=CAREER.ensure(S.life),repeat=monthActionCount('수입');
   const fatigue=Math.max(.65,1-repeat*.12);
-  const regularMonthly=job.variable?(job.variable[0]+job.variable[1])/2:(job.salary||0);
-  const overtimeBase=clamp(Math.round(Math.max(700000,regularMonthly*.42)),700000,3500000);
+  const researchBase=clamp(Math.round(650000+(career.skill||0)*15000),650000,2200000);
   const gigBase=clamp(Math.round(550000+(career.skill||0)*20000+(S.life.charm||0)*4000),550000,2500000);
   const dayBase=1000000;
   const scaled=value=>Math.max(100000,Math.round(value*fatigue/10000)*10000);
   return [
-    {id:'overtime',icon:job.id==='none'?'🏪':'🧰',name:job.id==='none'?'주말 매장 대타':'본업 추가 근무',pay:scaled(overtimeBase),stress:8,happy:-3,
-      desc:job.id==='none'?'급하게 빈 근무표를 메워 확실한 일당을 받습니다.':`${job.name} 경력을 살려 추가 근무나 단기 프로젝트를 맡습니다.`},
+    {id:'overtime',icon:'📊',name:'시장 자료 조사',pay:scaled(researchBase),stress:7,happy:-2,skill:1,
+      desc:'상점과 기업의 가격·수요 자료를 모아 작은 사업자에게 정리해 줍니다.'},
     {id:'gig',icon:'💻',name:'온라인 단기 의뢰',pay:scaled(gigBase),stress:5,happy:-1,skill:1,
-      desc:'현재 직무 능력과 매력을 활용해 번역·문서·디자인·상담 같은 짧은 의뢰를 처리합니다.'},
+      desc:'현재 운영 역량과 매력을 활용해 자료 정리·문서·디자인·상담 같은 짧은 의뢰를 처리합니다.'},
     {id:'daywork',icon:'📦',name:'하루 일당 업무',pay:scaled(dayBase),stress:10,happy:-2,
       desc:'행사 설치, 창고 정리, 배달 보조처럼 조건 없이 바로 시작할 수 있는 일을 합니다.'},
   ];
@@ -3648,7 +3505,7 @@ function showIncomeWorkModal(){
   const host=$('life-event');if(!host)return;
   const options=incomeWorkOptions(),repeat=monthActionCount('수입');
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window income-work-window"><div class="title-bar event-bar"><div class="title-bar-text">💵 이번 주 돈 벌기</div><div class="title-bar-controls"><button aria-label="Close" id="income-work-x"></button></div></div><div class="window-body"><div class="home-life-summary"><b>현재 현금 ${won(S.capital)}원</b><small>이번 달 수입 행동 ${repeat}회 · ${repeat?`반복 피로로 이번 보수 ${Math.round(Math.max(.65,1-repeat*.12)*100)}%`:'첫 수입 행동은 보수 100%'}</small></div><div class="event-desc">자유시간 1회를 사용해 즉시 현금을 받습니다. 초반 자금이 부족할 때 투자금이나 생활비를 직접 마련할 수 있습니다.</div><div class="event-options">${options.map(option=>`<button class="event-opt" data-income-work="${option.id}"><b>${option.icon} ${option.name} · +${won(option.pay)}원</b><span>${option.desc}</span><small>스트레스 +${option.stress}${option.skill?' · 직무 능력 +1':''}</small></button>`).join('')}<button class="event-opt" id="income-work-close">이번 주는 다른 일을 한다</button></div></div></div>`;
+  host.innerHTML=`<div class="window event-window income-work-window"><div class="title-bar event-bar"><div class="title-bar-text">💵 이번 주 돈 벌기</div><div class="title-bar-controls"><button aria-label="Close" id="income-work-x"></button></div></div><div class="window-body"><div class="home-life-summary"><b>현재 현금 ${won(S.capital)}원</b><small>이번 달 수입 행동 ${repeat}회 · ${repeat?`반복 피로로 이번 보수 ${Math.round(Math.max(.65,1-repeat*.12)*100)}%`:'첫 수입 행동은 보수 100%'}</small></div><div class="event-desc">자유시간 1회를 사용해 즉시 현금을 받습니다. 정규직은 없지만 시장과 현장에서 작은 일을 맡아 투자금이나 생활비를 직접 마련할 수 있습니다.</div><div class="event-options">${options.map(option=>`<button class="event-opt" data-income-work="${option.id}"><b>${option.icon} ${option.name} · +${won(option.pay)}원</b><span>${option.desc}</span><small>스트레스 +${option.stress}${option.skill?' · 운영 역량 +1':''}</small></button>`).join('')}<button class="event-opt" id="income-work-close">이번 주는 다른 일을 한다</button></div></div></div>`;
   const close=()=>{host.style.display='none';host.innerHTML='';};
   host.querySelectorAll('[data-income-work]').forEach(button=>button.addEventListener('click',()=>resolveIncomeWork(button.dataset.incomeWork)));
   $('income-work-x').addEventListener('click',close);$('income-work-close').addEventListener('click',close);
@@ -3751,9 +3608,9 @@ function doChildBond(id) {
 }
 
 function doParentCare() {
-  const cost=1500000;if(S.capital<cost){flashToast('💸 부모님 돌봄 비용 1,500,000원 부족','bad');return;}
+  const cost=1500000;if(S.capital<cost){flashToast('💸 아버지 돌봄 비용 1,500,000원 부족','bad');return;}
   S.capital-=cost;FAMILY.careParents(S.life);S.life.happy=clamp(S.life.happy+4,0,100);
-  flashToast('👵 부모님 병원과 생활을 챙겼습니다','good');afterLifeAction('가족');
+  flashToast('👨 아버지 병원과 생활을 챙겼습니다','good');afterLifeAction('가족');
 }
 
 function doCertification(id) {
@@ -7252,8 +7109,7 @@ function closeBusinessOperation(id){
 }
 
 function takeLoan(providerId, amt) {
-  const job = jobOf();
-  const monthlyIncome = job.variable ? Math.max(0, (job.variable[0] + job.variable[1]) / 2) : job.salary;
+  const monthlyIncome = FATHER_MONTHLY_SUPPORT+Math.max(0,businessState.lastNet||0)+propertyIncome+passiveIncome;
   const result = LOAN.borrow(S.life, providerId, amt, monthlyIncome);
   if (!result.ok) { flashToast(`⛔ ${result.message}`, 'bad'); playSound('error'); return; }
   S.capital += result.amount;
@@ -7322,6 +7178,11 @@ function registerFactionAttack(attacker) {
   if(rival)unlockRivalContact(rival,'rival_attack');
   const result = FACTION_CAMPAIGN.onAttack(S.life, attacker.name || attacker, S.day);
   if (!result.queued) return;
+  const father=SOCIAL.ensure(S.life).contacts.find(contact=>contact.role==='father');
+  if(father&&!S.life.fatherFirstAttackReaction){
+    S.life.fatherFirstAttackReaction=true;
+    pushPersonMessage(S.life,father,'계좌에서 이상한 출금 알림이 왔다. 학교 때 그 대회 사람들이 다시 찾아온 거냐? 생활비 걱정은 하지 말고, 혼자 숨기지 말고 경찰이든 아는 사람이든 먼저 불러.',false);
+  }
   queueImportantEvent({ factionStory:'first_attack', type:'faction', scene:lifeSceneImage('faction') });
   addNews(`📱 ${result.attacker}에게서 공격 직후 연락이 왔습니다`, 'bad');
 }
@@ -7430,7 +7291,8 @@ function showFactionStory(stage) {
       <img class="life-scene-banner" src="${lifeSceneImage('faction')}" alt="첫 세력 공격 직후 도착한 연락">
       <div class="date-profile">${attacker&&attacker.portrait?`<img class="char-portrait" src="./assets/characters/${attacker.portrait}" alt="${attacker.name}">`:'<span class="message-popup-avatar">⚔️</span>'}<div><strong>${faction.firstAttacker||'경쟁 세력'}</strong><br><span class="down">첫 번째 직접 공격</span></div></div>
       <div class="event-title">${attackerLine}</div>
-      <div class="event-desc">공격자는 피해가 우연이 아니었다는 사실을 일부러 알려 왔습니다. 시장에는 돈만 많은 사람이 아니라 정보와 사람을 함께 움직이는 조직이 있습니다.</div>
+      <div class="event-desc">공격자는 생활경제연구회 모의투자 대회의 계좌번호 일부를 보내 왔습니다. 사라진 후원사는 이 경쟁 세력의 차명회사였고, 당신이 다시 거래하며 남긴 주문 습관이 과거 원본 장부의 작성자를 드러냈습니다. 상대는 조작 증거를 회수하고, 혼자인 당신이 입을 열기 전에 꺾으려 합니다.</div>
+      <div class="important-event-detail">📱 아버지: “학교 때 그 사람들이 다시 찾아온 거냐? 생활비 걱정은 말고 혼자 숨기지 마라.”</div>
       <div class="event-options">
         <button class="event-opt" data-faction-first="question">왜 나를 노렸는지 묻는다<span class="opt-sub">공격자의 의도를 확인한 뒤 나래에게 기록을 넘깁니다</span></button>
         <button class="event-opt" data-faction-first="report">답하지 않고 나래에게 연락을 전달한다<span class="opt-sub">증거를 보존하고 합법 대응을 시작합니다</span></button>
@@ -7448,8 +7310,8 @@ function resolveFactionFirstAttack(choice) {
   const n=D.SPECIAL_CHARACTERS.narae;
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
   const opener=choice==='question'
-    ?`${faction.firstAttacker}은 “돈, 정보, 사람 중 하나라도 없으면 결국 누군가의 먹잇감이 된다”고 답한 뒤 연락을 끊었습니다.`
-    :'답장은 보내지 않았습니다. 연락 원문과 거래 기록을 그대로 보존했습니다.';
+    ?`${faction.firstAttacker}은 “그 장부가 네 손에 있는 한 넌 투자자가 아니라 증거물이다. 혼자면 빼앗기면 끝이지”라고 답한 뒤 연락을 끊었습니다.`
+    :'답장은 보내지 않았습니다. 과거 원본 장부, 연락 원문, 이번 거래 기록을 한 묶음으로 보존했습니다.';
   $('faction-first-outcome').innerHTML=`<div class="date-profile"><img class="char-thumb" src="${characterPortrait(n,'neutral')}" alt="나래"><div><b>나래</b><br><span class="muted">합법 대응을 준비합니다</span></div></div><div class="oc-text">${opener}<br><br>“제가 증권사 기록과 신고 절차부터 맡을게요. 싸우기 전에, 상대가 다시는 모른 척하지 못할 증거를 남겨야 해요.”</div><button id="faction-first-confirm" class="session-btn opening">나래에게 대응을 맡긴다 · 다음 달 결과 확인</button>`;
   $('faction-first-confirm').addEventListener('click',closeFactionStory);
 }
@@ -7795,7 +7657,7 @@ function resolveFactionTradeCall(choice) {
 const MONTHLY_ACTION_GROUPS = {
   date:'데이트', hobby:'취미', rest:'휴식', decompress:'휴식', 'sera-home':'휴식',
   'income-work':'수입',
-  cert:'경력', changejob:'경력', 'investment-consult':'경력',
+  cert:'경력', 'investment-consult':'경력',
   'contact-meet':'인맥', 'contact-nurture':'인맥', 'contact-ask':'인맥', 'meet-special':'인맥', 'person-request':'인맥',
   'business-start':'사업', 'business-hire':'사업', 'business-expand':'사업', 'business-close':'사업', 'business-strategy':'사업',
   rival:'라이벌', faction:'라이벌', 'faction-recruit':'라이벌', polycule:'데이트', marry:'가족', 'child-bond':'가족', 'child-edu':'가족', 'parent-care':'가족', 'family-plan':'가족'
@@ -7949,14 +7811,13 @@ function renderLifePanel() {
      <div class="life-stat"><span>연대기</span><strong>📜 ${legacyState.timeline.length}개 기록 · 가문 ${legacyState.dynasty.length+1}대</strong></div>
      ${finance.claims ? `<div class="life-stat"><span>보험금 수령</span><strong class="up">${won(finance.claims)}원</strong></div>` : ''}
      <div class="life-stat"><span>경기 설명</span><strong class="muted">${ECONOMY.phase(S.economy).desc}</strong></div>
-     <div class="life-stat"><span>직업</span><strong>${job.emoji} ${job.name} <span class="risk-tag">${risk.icon}${risk.label}</span></strong></div>
-     ${APTITUDE&&(job.apt||[]).length?(()=>{const m=APTITUDE.match(job,L),t=APTITUDE.matchTier(m);return `<div class="life-stat"><span>직업 적합도</span><strong class="${t.mood}">${t.icon} ${t.label} ${m}%</strong></div>`;})():''}
-     ${APTITUDE?`<div class="life-stat"><span>적성</span><strong>${APTITUDE.ranked(L).map(a=>`${a.icon}${a.value}`).join(' · ')}</strong></div>`:''}
-     <div class="life-stat"><span>직급</span><strong>📈 ${CAREER.rank(L)} · 경력 ${CAREER.ensure(L).months}개월</strong></div>
-     <div class="life-stat"><span>직무능력</span><strong>${Math.round(CAREER.ensure(L).skill)} · 성과 ${Math.round(CAREER.ensure(L).performance)} · 평판 ${Math.round(CAREER.ensure(L).reputation)}</strong></div>
-     ${CAREER.ensure(L).certifications.length?`<div class="life-stat"><span>자격</span><strong>${CAREER.ensure(L).certifications.map(id=>(CAREER.CERTS.find(c=>c.id===id)||{}).icon+(CAREER.CERTS.find(c=>c.id===id)||{}).name).join(' · ')}</strong></div>`:''}
-     ${CAREER.abilities(L).length?`<div class="life-stat"><span>직업 특수능력</span><strong class="up">${CAREER.abilities(L).map(a=>a.icon+a.name).join(' · ')}</strong></div>`:''}
-     <div class="life-stat"><span>월 수입</span><strong>${jobIncomeLabel(job)}</strong></div>
+     <div class="life-stat"><span>생활 상태</span><strong>🌒 무직 · 투자·사업·세력으로 재기 중</strong></div>
+     ${APTITUDE?`<div class="life-stat"><span>운영 강점</span><strong>${APTITUDE.ranked(L).map(a=>`${a.icon}${a.value}`).join(' · ')}</strong></div>`:''}
+     <div class="life-stat"><span>운영 단계</span><strong>📈 ${CAREER.rank(L)} · 관리 경험 ${CAREER.ensure(L).months}개월</strong></div>
+     <div class="life-stat"><span>운영 역량</span><strong>${Math.round(CAREER.ensure(L).skill)} · 현장 대응 ${Math.round(CAREER.ensure(L).performance)} · 평판 ${Math.round(CAREER.ensure(L).reputation)}</strong></div>
+     ${CAREER.ensure(L).certifications.length?`<div class="life-stat"><span>관리 교육</span><strong>${CAREER.ensure(L).certifications.map(id=>(CAREER.CERTS.find(c=>c.id===id)||{}).icon+(CAREER.CERTS.find(c=>c.id===id)||{}).name).join(' · ')}</strong></div>`:''}
+     ${CAREER.abilities(L).length?`<div class="life-stat"><span>운영 특수능력</span><strong class="up">${CAREER.abilities(L).map(a=>a.icon+a.name).join(' · ')}</strong></div>`:''}
+     <div class="life-stat"><span>아버지 생활비</span><strong>월 ${won(FATHER_MONTHLY_SUPPORT)}원</strong></div>
      <div class="life-stat"><span>행복도</span><strong>${hearts} ${Math.round(L.happy)}/100</strong></div>
      <div class="life-stat"><span>건강</span><strong class="${L.health < 35 ? 'down' : ''}">❤️ ${Math.round(L.health)}/100</strong></div>
      <div class="life-stat"><span>스트레스</span><strong class="${L.stress > 70 ? 'down' : ''}">🧠 ${Math.round(L.stress)}/100</strong></div>
@@ -7966,7 +7827,7 @@ function renderLifePanel() {
      <div class="life-stat"><span>세대</span><strong>🌳 ${L.generation}대</strong></div>
      <div class="life-stat"><span>주인공</span><strong>${L.playerName}</strong></div>
      <div class="life-stat"><span>가족 유대</span><strong>🏡 ${Math.round(L.familyBond)}/100</strong></div>
-     ${L.generation===1?`<div class="life-stat"><span>부모님</span><strong class="${L.parentHealth<35?'down':''}">만 ${Math.floor(L.parentAge)}세 · 건강 ${Math.round(L.parentHealth)}</strong></div>`:''}
+     ${L.generation===1?`<div class="life-stat"><span>아버지</span><strong class="${L.parentHealth<35?'down':''}">만 ${Math.floor(L.parentAge)}세 · 건강 ${Math.round(L.parentHealth)}</strong></div>`:''}
       ${L.familyPlan?`<div class="life-stat"><span>가족 계획</span><strong>👶 ${L.familyPlan.method} · ${L.familyPlan.months}개월 남음 · 양육 합의 ${(L.familyPlan.caregivers||[]).join('·')}</strong></div>`:''}
       <div class="life-stat"><span>자녀</span><strong>${L.children.length}명</strong></div>
       ${L.children.length?`<div class="life-props">${L.children.map(c=>{const t=FAMILY.traitOf(c),origin=c.origin==='affair'?'혼외자':c.origin==='premarital'?'혼전 출생':c.origin==='casual'?'가벼운 만남에서 태어남':'';return `${t.icon}<b>${c.name}</b> ${FAMILY.childAge(c).label}·${FAMILY.stage(c)}·유대 ${Math.round(c.bond)} · 양육자 ${FAMILY.caregiverLabel(c)}${origin?` · <span class="${c.secret?'down':'muted'}">${origin}${c.secret?' · 비밀':''}</span>`:''}`}).join('<br>')}</div>`:''}
@@ -8032,11 +7893,11 @@ function lifeHubHTML() {
     const managerName=identity?identity.displayName:manager.name;
     const managerPortrait=identity&&identity.introduced?identity.portrait:null;
     if(item){
-      const plan=BUSINESS.projected(item,S.economy.id),expandCost=BUSINESS.expansionCost(L,item.id),resale=BUSINESS.resaleValue(L,item.id);
+      const plan=BUSINESS.projected(item,S.economy.id,L),expandCost=BUSINESS.expansionCost(L,item.id),resale=BUSINESS.resaleValue(L,item.id);
       const capacity=BUSINESS.staffCapacity(item),hireCost=BUSINESS.hireCost(item);
       const staffEffect=BUSINESS.staffEffect(item);
-      const hirePreview=BUSINESS.projected({...item,employees:item.employees+1,hiredStaff:[...(item.hiredStaff||[]),`${item.id}-junior`]},S.economy.id);
-      const expandedPreview=BUSINESS.projected({...item,level:Math.min(5,item.level+1),morale:Math.min(100,item.morale+4),momentum:Math.min(.5,item.momentum+.08)},S.economy.id);
+      const hirePreview=BUSINESS.projected({...item,employees:item.employees+1,hiredStaff:[...(item.hiredStaff||[]),`${item.id}-junior`]},S.economy.id,L);
+      const expandedPreview=BUSINESS.projected({...item,level:Math.min(5,item.level+1),morale:Math.min(100,item.morale+4),momentum:Math.min(.5,item.momentum+.08)},S.economy.id,L);
       const strategy=BUSINESS.strategyOf(item.strategy);
       const strategyButtons=Object.values(BUSINESS.STRATEGIES).map(option=>`<button class="${option.id===strategy.id?'active':''}" data-act="business-strategy" data-business="${item.id}" data-strategy="${option.id}" title="${option.desc}">${option.icon} ${option.name}</button>`).join('');
       return`<article class="asset-business-card"><div class="faction-member business-staff"><img src="${managerPortrait||BUSINESS.portraitPath(manager.id,item.lastNet<0?'sad':item.lastNet>1000000?'happy':'neutral')}" alt="${managerName}"><span><b>${type.icon} ${type.name} · ${item.level}단계</b><small>${managerName} · ${manager.role}${identity?' · 전속 특별 책임자':' · 일반 운영'}<br>직원 ${item.employees}/${capacity}명 · 직원 매출 기여 +${Math.round(staffEffect.salesBonus*100)}% · 월 인건비 ${won(staffEffect.wages)}<br>사기 ${Math.round(item.morale)} · 평판 ${Math.round(item.reputation)}<br>지난달 매출 ${won(item.lastSales)} · 비용 ${won(item.lastCost)} · <b class="${item.lastNet>=0?'up':'down'}">순익 ${item.lastNet>=0?'+':''}${won(item.lastNet)}</b><br>다음 달 기준 예상 ${plan.net>=0?'+':''}${won(plan.net)} · ${strategy.icon} ${strategy.name}</small></span></div><div class="business-strategy-row" aria-label="${type.name} 운영 방침">${strategyButtons}</div><div class="asset-card-actions"><button class="life-btn" data-act="business-manager" data-business="${item.id}" ${item.specialManagerId?'disabled':''}>🤝 특별 책임자 <small>${item.specialManagerId?`${managerName} 전속 계약 중`:'사교 모임 소개 인물 중 한 명을 선택'}</small></button><button class="life-btn" data-act="business-hire" data-business="${item.id}" ${item.employees>=capacity?'disabled':''}>👥 일반 직원 모집 <small>${item.employees>=capacity?'현재 정원 완료':`채용·교육 ${won(hireCost)} · 최소 예상 순익 +${won(Math.max(0,hirePreview.net-plan.net))}`}</small></button><button class="life-btn" data-act="business-expand" data-business="${item.id}" ${item.level>=5?'disabled':''}>🏗️ 확장 <small>${item.level>=5?'최대 규모':`${won(expandCost)} · ${item.level+1}단계 · 예상 순익 ${expandedPreview.net>=0?'+':''}${won(expandedPreview.net)}`}</small></button><button class="life-btn hot" data-act="business-close" data-business="${item.id}">🚪 운영 종료 <small>${won(resale)} 회수</small></button></div></article>`;
@@ -8163,22 +8024,22 @@ function lifeHubHTML() {
   const mentor=investmentMentorState(L);
   const shutInOuting=!freeOutingUnlocked(L);
   const weekLabel = actionLeft > 0 ? `${actionUsed + 1}주차 일정 선택` : '이번 달 일정 완료';
-  const quickBtns=`<button class="life-btn daily-choice home" data-act="home-life">🏠 집에서 보내기 <small>휴식·게임·공부·생활공간 꾸미기</small></button><button class="life-btn daily-choice outing" data-act="date">🌆 목적을 정해 외출하기 <small>장소·취미·약속을 먼저 선택</small></button><button class="life-btn daily-choice earning" data-act="income-work">💵 이번 주 돈 벌기 <small>추가 근무·단기 의뢰·일당 업무</small></button>`;
+  const quickBtns=`<button class="life-btn daily-choice home" data-act="home-life">🏠 집에서 보내기 <small>휴식·게임·공부·생활공간 꾸미기</small></button><button class="life-btn daily-choice outing" data-act="date">🌆 목적을 정해 외출하기 <small>장소·취미·약속을 먼저 선택</small></button><button class="life-btn daily-choice earning" data-act="income-work">💵 이번 주 돈 벌기 <small>시장 조사·단기 의뢰·현장 일당</small></button>`;
   const workspaceLaunchers=`<div class="life-workspace-launchers">
     <button data-life-window="wellbeing"><span>🌿</span><b>생활·건강</b><small>외부 취미·검진·관계 약속</small></button>
     <button data-life-window="social"><span>👨‍👩‍👧</span><b>가족·인맥</b><small>가족·친구·개인 이야기</small></button>
     <button data-life-window="power"><span>⚔️</span><b>세력·법정</b><small>조직·라이벌·진행 사건</small></button>
     <button data-life-window="investment"><span>📘</span><b>투자 컨설팅</b><small>나래의 분석 노트 · ${mentor.skill>=70?'통찰':mentor.skill>=45?'분석':mentor.skill>=20?'기초':'입문'}</small></button>
-    <button data-life-window="career"><span>📈</span><b>경력 관리</b><small>이직·자격증</small></button>
+    <button data-life-window="career"><span>📈</span><b>운영 역량</b><small>사업·세력 관리 교육</small></button>
     <button data-life-window="housing"><span>🏠</span><b>거주지</b><small>월세·전세·매매</small></button>
     <button data-life-window="assets"><span>🏢</span><b>자산·사업</b><small>부동산·사업체·직원 모집</small></button>
   </div>`;
   const lifeWorkspaces=`<div class="life-workspace-layer" hidden>
     <section class="life-workspace-window" data-life-panel="wellbeing" hidden><header><div><span>🌿</span><b>생활·건강</b><small>밖에서 하는 취미, 건강관리, 관계 약속</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('health')}" alt="생활과 건강 관리"><div class="workspace-content"><div class="hub-note">게임과 자기계발은 집에서, 운동·외식·여행은 이곳에서 일정을 잡습니다.</div><div class="workspace-card-grid">${hobbyBtns}<button class="life-btn" data-act="checkup">🏥 건강검진 <small>500,000</small></button><button class="life-btn" data-act="treat" ${treatment?'':'disabled'}>💊 ${treatment?`${treatment.name} 치료 · ${won(treatment.cost)}`:'현재 필요한 치료 없음'}</button>${relBtns}</div></div></section>
-    <section class="life-workspace-window" data-life-panel="social" hidden><header><div><span>👨‍👩‍👧</span><b>가족·인맥</b><small>가까운 사람과 보내는 시간</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('network')}" alt="가족과 인맥 모임"><div class="workspace-content"><div class="workspace-card-grid">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👵 부모님 돌봄 <small>1,500,000</small></button><button class="life-btn" data-act="contact-meet">🍽️ 일반 업계 모임 <small>주요 인맥 연락처 만들기</small></button><button class="life-btn hot" data-act="industry-gathering">🥂 사교 모임 등급 <small>실적·평판을 쌓아 특별 책임자 소개받기</small></button>${specialMeetBtns}${personalBtns}${contactBtns}</div></div></section>
+    <section class="life-workspace-window" data-life-panel="social" hidden><header><div><span>👨‍👩‍👧</span><b>가족·인맥</b><small>가까운 사람과 보내는 시간</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('network')}" alt="가족과 인맥 모임"><div class="workspace-content"><div class="workspace-card-grid">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👨 아버지 돌봄 <small>1,500,000</small></button><button class="life-btn" data-act="contact-meet">🍽️ 일반 업계 모임 <small>주요 인맥 연락처 만들기</small></button><button class="life-btn hot" data-act="industry-gathering">🥂 사교 모임 등급 <small>실적·평판을 쌓아 특별 책임자 소개받기</small></button>${specialMeetBtns}${personalBtns}${contactBtns}</div></div></section>
     <section class="life-workspace-window" data-life-panel="power" hidden><header><div><span>⚔️</span><b>세력·라이벌·법정</b><small>${justice.case?'진행 중인 사건 있음':'조직 운영과 경쟁 대응'}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${justice.case?lifeSceneImage('court'):lifeSceneImage('faction')}" alt="${justice.case?'법정 심리':'세력 작전실'}"><div class="workspace-content">${factionBox}<div class="route-sep">경쟁 세력 선택</div>${rivalSelect}<div class="workspace-card-grid">${rivalBtns}${courtBtns}</div></div></section>
-    <section class="life-workspace-window" data-life-panel="investment" hidden><header><div><span>📘</span><b>나래의 투자 컨설팅</b><small>${shutInOuting?'센터가 잡아 둔 대면 일정':'시장 화면을 함께 읽는 정기 상담'}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="./assets/life-guide.png" alt="나래의 투자 컨설팅"><div class="workspace-content"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래 · 투자교육 매니저</strong><br><span class="muted">“${shutInOuting?'또 화상으로 바꾸려고 했죠? 현관까지만 나오세요. 제가 1층에 있을게요.':'정답을 찍어드리진 않아요. 대신 무엇을 먼저 봐야 하는지는 알려드릴게요.'}”</span></div></div><div class="home-life-summary"><b>투자 감각 · ${mentor.skill>=70?'통찰':mentor.skill>=45?'분석':mentor.skill>=20?'기초':'입문'}</b><small>상담 ${mentor.sessions}회${mentor.escortedSessions?` · 나래가 마중 나온 날 ${mentor.escortedSessions}회`:''} · 배운 항목 ${mentor.unlocks.length?mentor.unlocks.join(' · '):'기초 화면 읽기'}</small></div>${investmentInsightHTML()}<div class="workspace-card-grid"><button class="life-btn" data-act="investment-consult">📚 ${shutInOuting?'센터 현장 상담에 출석한다':'월간 컨설팅 받기'} <small>500,000 · 이번 달 경력 행동 사용</small></button></div></div></section>
-    <section class="life-workspace-window" data-life-panel="career" hidden><header><div><span>📈</span><b>경력 관리</b><small>${jobOf().name} · 능력 ${Math.round(career.skill||0)}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('career')}" alt="경력 관리 장면"><div class="workspace-content"><div class="hub-note">직장은 이직으로 바꾸고, 자격증은 지원 가능한 직업과 직무 능력을 넓힙니다.</div><div class="workspace-card-grid"><button class="life-btn" data-act="changejob">💼 이직 알아보기</button>${certBtns}</div></div></section>
+    <section class="life-workspace-window" data-life-panel="investment" hidden><header><div><span>📘</span><b>나래의 투자 컨설팅</b><small>${shutInOuting?'센터가 잡아 둔 대면 일정':'시장 화면을 함께 읽는 정기 상담'}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="./assets/life-guide.png" alt="나래의 투자 컨설팅"><div class="workspace-content"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래 · 투자교육 매니저</strong><br><span class="muted">“${shutInOuting?'또 화상으로 바꾸려고 했죠? 현관까지만 나오세요. 제가 1층에 있을게요.':'정답을 찍어드리진 않아요. 대신 무엇을 먼저 봐야 하는지는 알려드릴게요.'}”</span></div></div><div class="home-life-summary"><b>투자 감각 · ${mentor.skill>=70?'통찰':mentor.skill>=45?'분석':mentor.skill>=20?'기초':'입문'}</b><small>상담 ${mentor.sessions}회${mentor.escortedSessions?` · 나래가 마중 나온 날 ${mentor.escortedSessions}회`:''} · 배운 항목 ${mentor.unlocks.length?mentor.unlocks.join(' · '):'기초 화면 읽기'}</small></div>${investmentInsightHTML()}<div class="workspace-card-grid"><button class="life-btn" data-act="investment-consult">📚 ${shutInOuting?'센터 현장 상담에 출석한다':'월간 컨설팅 받기'} <small>500,000 · 이번 달 역량 행동 사용</small></button></div></div></section>
+    <section class="life-workspace-window" data-life-panel="career" hidden><header><div><span>📈</span><b>운영 역량</b><small>${CAREER.rank(L)} · 운영력 ${Math.round(career.skill||0)}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="./assets/life-career.png" alt="사업과 세력 운영 교육 장면"><div class="workspace-content"><div class="hub-note">관리 교육은 사업 매출·비용과 세력 수익·방어에 직접 보정을 줍니다. 직업과 이직은 더 이상 사용하지 않습니다.</div><div class="workspace-card-grid">${certBtns}</div></div></section>
     <section class="life-workspace-window" data-life-panel="housing" hidden><header><div><span>🏠</span><b>거주지 선택</b><small>현재 ${HOUSING.home(L).name} · ${HOUSING.TENURES[L.housing.tenure].name}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${dangerousHomeLocked?'./assets/event-trio-meeting-5_2.png':lifeSceneImage('home')}" alt="거주지 선택 장면"><div class="workspace-content"><div class="hub-note">${dangerousHomeLocked?'강유진·한채린·윤세라와 합의한 공동생활 거점입니다. 자취방 월세는 사라지지만 관계가 유지되는 동안 이사할 수 없습니다.':'월세는 초기 부담이 작고, 전세는 보증금을 맡기는 대신 월 부담이 낮습니다. 매매 주택에는 월 임대료가 없습니다.'}</div><div class="workspace-card-grid">${housingBtns}</div></div></section>
     <section class="life-workspace-window" data-life-panel="assets" hidden><header><div><span>🏢</span><b>자산·사업 관리실</b><small>서로 다른 업종을 동시에 운영하고 직원을 모집할 수 있습니다.</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('business')}" alt="자산과 사업을 관리하는 사무실"><div class="workspace-content">${assetPortfolioStrip}<nav class="workspace-tabs"><button data-workspace-tab="business" class="active">사업체·직원</button><button data-workspace-tab="property">투자 부동산</button><button data-workspace-tab="income">자동수입</button><button data-workspace-tab="finance">금융·보장</button></nav><div data-workspace-page="business"><div class="hub-note">각 업종은 매출 구조와 경기 민감도가 다릅니다. 직원을 늘리면 매출 여력이 커지지만 매달 인건비도 증가합니다.</div><div class="asset-business-grid">${businessBox}</div></div><div data-workspace-page="property" hidden>${propertyOwned}<div class="asset-action-grid">${propBtns}</div></div><div data-workspace-page="income" hidden><div class="asset-action-grid">${passiveBtns}</div></div><div data-workspace-page="finance" hidden><div class="hub-btns">${loanBtns}<button class="life-btn" data-act="repay">상환${L.loan>0?' '+won(L.loan):''}</button>${insuranceBtns}${pensionBtns}</div></div></div></section>
   </div>`;
@@ -8188,10 +8049,10 @@ function lifeHubHTML() {
       <div class="life-time-progress" aria-label="이번 달 자유시간 사용 현황">${Array.from({length:LIFE_ACTIONS_PER_MONTH},(_,i)=>`<span class="${i<actionUsed?'used':i===actionUsed?'available current':'available'}">${i<actionUsed?'✓':i+1+'주차'}</span>`).join('')}</div>
       <div class="hub-quick">${quickBtns}</div>
       ${workspaceLaunchers}
-      <div class="hub-note">한 달에 자유시간 4회를 사용하며 같은 행동도 다시 선택할 수 있습니다. 돈이 부족하면 추가 근무·단기 의뢰·일당 업무로 현금을 먼저 만들 수 있고, 같은 수입 행동을 반복하면 피로 때문에 보수가 조금씩 줄어듭니다.</div>
+      <div class="hub-note">한 달에 자유시간 4회를 사용하며 같은 행동도 다시 선택할 수 있습니다. 돈이 부족하면 시장 조사·단기 의뢰·현장 일당으로 현금을 먼저 만들 수 있고, 같은 수입 행동을 반복하면 피로 때문에 보수가 조금씩 줄어듭니다.</div>
       ${storyProgressHTML(L)}
       ${assetPortfolioStrip}
-      <div class="month-action-status">${['데이트','취미','휴식','수입','경력','인맥','사업','가족','라이벌'].map(g=>{const count=monthActionCount(g);return`<span class="${count?'done':''}">${count?`×${count}`:'○'} ${g}</span>`;}).join('')}</div>
+      <div class="month-action-status">${['데이트','취미','휴식','수입','경력','인맥','사업','가족','라이벌'].map(g=>{const count=monthActionCount(g),label=g==='경력'?'역량':g;return`<span class="${count?'done':''}">${count?`×${count}`:'○'} ${label}</span>`;}).join('')}</div>
       ${lifeWorkspaces}
     </div>`;
 }
@@ -8232,7 +8093,7 @@ function wireLifeHub(host) {
     if(new Set([
       'home-life','income-work','origin-ally','meet-special','person-request',
       'business-start','business-hire','business-manager','business-expand','business-close','business-strategy','industry-gathering',
-      'faction-recruit','date','marry','polycule','changejob','rival','faction'
+      'faction-recruit','date','marry','polycule','rival','faction'
     ]).has(act))closeWorkspace();
     if (act === 'home-life') showHomeLifeModal();
     else if (act === 'income-work') showIncomeWorkModal();
@@ -8280,7 +8141,6 @@ function wireLifeHub(host) {
     else if (act === 'marry') doMarriage();
     else if (act === 'relationship-publicity') doRelationshipPublicity(b.dataset.mode);
     else if (act === 'polycule') showPolyculeProposal();
-    else if (act === 'changejob') showJobModal(true);
   }));
   // 월말 창에는 좌우 이동 transform이 있어 그 안의 fixed 요소도 620px 폭에 갇힌다.
   // 모든 핸들러를 연결한 뒤 관리 레이어만 body로 올려 큰 화면을 온전히 사용한다.
@@ -9631,11 +9491,19 @@ function loadSave() {
     S.limitOrders = Array.isArray(d.limitOrders) ? d.limitOrders : [];
     S.companyNews = Array.isArray(d.companyNews) ? d.companyNews : [];
     S.life = Object.assign(newLife(), d.life || {});
+    S.life.job='none';
+    S.life.familyBackground='father_home';
+    S.life.firstCareerPool=[];
+    S.life.originNarrativeVersion=Math.max(3,S.life.originNarrativeVersion||0);
     S.economy = ECONOMY.ensure(d.economy);
     LOAN.ensure(S.life); HEALTH.ensure(S.life); FAMILY.ensure(S.life);
     CAREER.ensure(S.life); HOUSING.ensure(S.life); LIFE_FINANCE.ensure(S.life);
     if (BUSINESS) BUSINESS.ensure(S.life);
-    CHILD_EVENTS.ensure(S.life); SOCIAL.ensure(S.life); JUSTICE.ensure(S.life); LEGACY.ensure(S.life);
+    CHILD_EVENTS.ensure(S.life); SOCIAL.ensure(S.life);
+    if(!SOCIAL.ensure(S.life).contacts.some(contact=>contact.role==='father')){
+      SOCIAL.addContact(S.life,{name:'아버지',role:'father',origin:'family',originKey:'family-father',relationLabel:'가족',trust:62,favor:1});
+    }
+    JUSTICE.ensure(S.life); LEGACY.ensure(S.life);
     if (APTITUDE) APTITUDE.ensure(S.life);
     if (typeof S.life.partner === 'string') S.life.partner = null;   // 구버전 세이브(문자열 상대) 호환
     migrateLifePeople(S.life);
@@ -9928,8 +9796,8 @@ function boot() {
   }
   if (!S.life.started) {
     startLifeSetup();
-    flashToast('🎬 QuickTrade Life! 가정환경과 학창생활에서 인생을 시작하세요', 'neutral');
-  } else if(S.life.originNarrativeVersion===2&&!S.life.tutorialSeen) {
+    flashToast('🎬 아버지와 남은 집 · 학창생활에서 재기를 시작하세요', 'neutral');
+  } else if(S.life.originNarrativeVersion>=2&&!S.life.tutorialSeen) {
     S.life.referralSeen?showTutorial():showOriginFriendReferral();
   } else if (loaded) {
     flashToast(S.phase === 'open'

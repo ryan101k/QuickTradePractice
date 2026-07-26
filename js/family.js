@@ -33,7 +33,7 @@ function createChild(life){const plan=life.familyPlan||{},trait=pick(TRAITS),ava
 function monthly(life){ensure(life);const news=[];let cost=0,birth=null;
  if(life.familyPlan){life.familyPlan.months--;if(life.familyPlan.months<=0){birth=createChild(life);news.push(`👶 ${birth.name}이(가) 가족이 되었습니다`);life.familyPlan=null;life.familyBond=clamp(life.familyBond+15,0,100);}}
  life.children.forEach(c=>{c.ageMonths++;cost+=monthlyCost(c);const t=TRAITS.find(x=>x.id===c.trait)||TRAITS[0],careCount=(c.caregivers||[]).length,careBonus=careCount>=3?2:careCount>=2?1:0;c.happy=clamp(c.happy+(t.happy||0)+(c.bond>60?1:0)+careBonus-1,0,100);if(c.ageMonths%12===0)news.push(`🎂 ${c.name} ${childAge(c).label} · ${stage(c)} · 양육자 ${careCount}명`);});
- if(life.parentAge<100&&life.generation===1){life.parentAge+=1/12;const decay=life.parentAge>70?.8:.25;life.parentHealth=clamp(life.parentHealth-decay,0,100);if(life.parentHealth<35&&Math.random()<.12)news.push('👵 부모님의 건강이 좋지 않아 돌봄이 필요합니다.');}
+ if(life.parentAge<100&&life.generation===1){life.parentAge+=1/12;const decay=life.parentAge>70?.8:.25;life.parentHealth=clamp(life.parentHealth-decay,0,100);if(life.parentHealth<35&&Math.random()<.12)news.push('👨 아버지의 건강이 좋지 않아 돌봄이 필요합니다.');}
  return{cost,news,birth};}
 function educate(life,id,amount){const c=life.children.find(x=>x.id===id);if(!c)return null;const t=TRAITS.find(x=>x.id===c.trait)||TRAITS[0];c.education+=Math.round(amount/100000)*(t.study||1);c.bond=clamp(c.bond+2,0,100);return c;}
 function bond(life,id){const c=life.children.find(x=>x.id===id);if(!c)return null;c.bond=clamp(c.bond+10,0,100);c.happy=clamp(c.happy+8,0,100);life.familyBond=clamp(life.familyBond+4,0,100);return c;}

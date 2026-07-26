@@ -9,7 +9,7 @@
         <div class="title-bar family-flow-bar"><div class="title-bar-text">👨‍👩‍👧 가족·자녀 월간 정리</div></div>
         <div class="window-body month-flow-body">
           ${api.progress()}
-          <p class="month-flow-intro">출산, 성장, 부모님 건강처럼 확인할 가치가 큰 변화가 있었어요.</p>
+          <p class="month-flow-intro">출산, 성장, 아버지 건강처럼 확인할 가치가 큰 변화가 있었어요.</p>
           <div class="career-month-list">${changes.map(change => `
             <article class="career-month-card ${change.tone || ''}">
               <span>${change.icon || '🏠'}</span>

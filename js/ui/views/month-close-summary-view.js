@@ -34,7 +34,7 @@
             </section>
             <section class="month-close-card">
               <h3>💼 수입</h3>
-              ${row('월급·직업소득', r.salary, true)}
+              ${row('아버지 생활비', r.salary, true)}
               ${row('부동산 임대수익', r.propertyIncome, true)}
               ${row('자동수입', r.passiveIncome, true)}
               ${row('사업 손익', r.businessIncome, (r.businessIncome || 0) >= 0)}
