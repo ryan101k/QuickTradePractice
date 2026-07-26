@@ -5,10 +5,59 @@ const NAMES=['강유진','한채린','윤세라'];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const rec=(life,name)=>(life.met||[]).find(person=>person.name===name);
 
+const PRELUDES=[
+ {
+  id:'three_ends_one_ledger',title:'악우 형성 1 · 한 장부의 세 끝',icon:'📒',scene:'./assets/event-trio-first-meeting.png',
+  desc:'유진이 가져온 차명계좌 수사자료, 채린이 회수한 계열사 결재선, 세라가 숨겨 둔 원본 장부가 같은 테이블 위에서 맞물립니다. 셋은 서로 처음 제대로 마주친 자리에서 인사보다 먼저 “누가 이 일을 키웠는가”부터 따집니다.',
+  speakers:[
+   {name:'강유진',line:'한 대표 계열사에서 피해자 주소를 샀고, 세라 씨는 그 명단을 불법으로 빼냈어요. 둘 다 조사 대상이에요.'},
+   {name:'한채린',line:'내가 모르는 계열사까지 내 죄라면 경찰이 놓친 범죄는 전부 당신 죄겠네요. 원본부터 내놔요, 윤세라.'},
+   {name:'윤세라',line:'두 사람 다 늦었어요. 나는 이 사람이 털린 날부터 따라갔거든요. 누가 더 잘못했는지는 장부 다 보고 싸워요.'},
+   {name:'첫 부하',line:'보고드리겠습니다. 세 분이 서로 고소하겠다고 하면서 같은 장부에 포스트잇을 붙이고 있습니다.'}
+  ],
+  choices:[
+   {id:'divide_roles',text:'유진은 증거, 채린은 돈줄, 세라는 원본을 맡으라고 한다',stability:8,trust:3,result:'셋은 역할 분담이라는 말은 싫다며 각자 자기가 나머지 둘을 감시하는 것뿐이라고 우겼습니다. 그런데 세 종류의 자료는 한 줄도 겹치지 않고 완성됐습니다.'},
+   {id:'ask_fault',text:'그래서 셋 중 누가 가장 잘못했는지 끝까지 따져보라고 한다',stability:-3,trust:1,result:'첫 회의는 두 시간 더 길어졌습니다. 결론은 나지 않았지만 셋은 서로가 숨기는 방식과 화낼 때 먼저 보는 증거가 무엇인지 전부 외웠습니다.'},
+   {id:'confiscate',text:'싸울 거면 자료를 전부 두고 나가라고 한다',stability:5,trust:2,result:'세 사람은 동시에 자료에서 손을 떼지 않았습니다. 서로는 못 믿어도 다른 누군가에게 이 사건을 넘길 생각은 없다는 것만은 같았습니다.'}
+  ]
+ },
+ {
+  id:'preference_audit',title:'악우 형성 2 · 들켜버린 취향',icon:'🦂',scene:'./assets/event-trio-first-meeting.png',
+  desc:'두 번째 공조 회의는 수사보다 당신을 대하는 방식에 대한 폭로전이 됩니다. 셋은 상대의 결핍을 너무 정확히 알아보고, 들킨 쪽은 부정하는 대신 더 아픈 말을 골라 되돌려 줍니다.',
+  speakers:[
+   {name:'강유진',line:'한채린 씨는 일부러 자기 말을 거절하고 명령해 줄 사람을 찾죠. 돈으로 다 누를 수 있으니까, 안 눌리는 사람 앞에서만 편해지는 거예요.'},
+   {name:'한채린',line:'당신은 이 사람이 무너질 때까지 보호를 늘려서 결국 자기 번호부터 누르게 만들잖아. 구조가 아니라 의존을 좋아하는 거지.'},
+   {name:'윤세라',line:'두 사람은 핑계가 필요하네요. 나는 보고 싶으면 보고 싶다고 하고, 갖고 싶으면 갖고 싶다고 해요.'},
+   {name:'강유진',line:'그래서 남의 열쇠를 복사합니까? 솔직한 것과 선이 없는 건 달라요.'},
+   {name:'첫 부하',line:'이런 말씀 드리긴 죄송하지만 진짜 미친년들 같습니다. 서로 취향을 다 맞혔는데 한 분도 부정을 안 합니다.'}
+  ],
+  choices:[
+   {id:'all_correct',text:'“셋 다 맞는 말 같은데”라고 인정한다',stability:9,trust:4,result:'잠깐 정적이 흘렀습니다. 셋은 당신에게 화를 내는 대신 상대가 다음에 어떤 방식으로 선을 넘을지 감시하기 시작했습니다. 그날부터 폭로는 흉이 아니라 경고가 됐습니다.'},
+   {id:'most_normal',text:'누가 가장 정상인지 셋이 직접 투표해 보라고 한다',stability:-5,trust:1,result:'세 표가 전부 자기 이름에 들어갔습니다. 셋은 결과가 공정하다고 우기면서도 상대 표의 필체와 접는 습관까지 기억했습니다.'},
+   {id:'private',text:'내 취향을 회의 자료로 만들지 말라고 셋 모두에게 경고한다',stability:6,trust:3,result:'유진은 기록을 봉인했고, 채린은 사본을 회수했으며, 세라는 이미 외웠다고 답했습니다. 셋은 처음으로 같은 이유로 당신에게 꾸중을 들었습니다.'}
+  ]
+ },
+ {
+  id:'fault_tribunal',title:'악우 형성 3 · 잘잘못 재판',icon:'⚖️',scene:'./assets/life-faction-war.png',
+  desc:'셋은 회의실 벽에 서로의 잘못을 적은 표를 붙입니다. 불법 추적, 사적 경호, 계열사 압박, 무단 침입이 줄줄이 올라가지만 외부 세력의 이름이 나오자 세 사람은 동시에 상대의 약점부터 가립니다. 싸울 권리는 자기들에게만 있다는 듯한 이상한 편들기입니다.',
+  speakers:[
+   {name:'강유진',line:'세라 씨 무단침입 여섯 번, 한채린 씨 사적 경호 동원 네 번. 이건 취향이 아니라 사건 목록이에요.'},
+   {name:'한채린',line:'당신 비공식 순찰도 넣어. 윤세라가 가져온 증거를 썼으면서 혼자 합법인 척하지 말고.'},
+   {name:'윤세라',line:'채린 씨 계열사 일은 내가 지웠고, 유진 씨 순찰기록은 채린 씨가 막았네요. 둘 다 나 싫다면서 왜 내 흔적을 치워줘요?'},
+   {name:'첫 부하',line:'대장님, 이런 말씀 드리긴 죄송하지만 진짜 미친년들 같습니다. 저 회의를 계속 경호하라면 월급 두 배는 받아야겠습니다.'}
+  ],
+  choices:[
+   {id:'double_pay',text:'“맞는 말이다. 이번 달부터 두 배로 받아.”',stability:10,trust:5,payRate:2,result:'첫 부하는 잠시 말을 잃었다가 보고서를 다시 집어 들었습니다. 셋은 자신들이 위험물 취급을 받았다는 데 화를 냈지만, 누구도 위험수당 자체에는 이의를 제기하지 못했습니다.'},
+   {id:'hazard_bonus',text:'문구는 고치고 위험수당 50%만 더 주겠다고 한다',stability:6,trust:2,payRate:1.5,result:'보고서의 “미친”에는 취소선이 그어지고 “통제 난이도 최상”이라는 표현이 들어갔습니다. 세 사람은 더 모욕적이라며 처음으로 한목소리를 냈습니다.'},
+   {id:'make_apologize',text:'급여는 그대로 두고 셋에게 부하에게 사과하라고 한다',stability:3,trust:-2,payRate:1,result:'유진은 정식으로 사과했고, 채린은 다음 회의 차량을 내줬고, 세라는 부하의 집 앞에 아무도 모르게 간식을 두고 왔습니다. 부하는 마지막 행동이 가장 무섭다고 보고했습니다.'}
+  ]
+ }
+];
+
 const CHAPTERS=[
  {
-  title:'한 방에 모인 세 개의 결핍',icon:'🗝️',scene:'./assets/event-trio-first-meeting.png',
-  desc:'유진이 추적한 차명계좌는 채린의 계열 경호사에서 끊겼고, 세라는 그 회사가 피해자 주소를 사들인 원본 장부를 숨겨뒀습니다. 유진은 압수수색 기록을, 채린은 계열사를 잘라낼 자금과 거처를, 세라는 경쟁 세력의 송금책을 들고 같은 방에 들어옵니다. 셋은 서로를 비정상이라 부르면서도 설명 없이 수사·자금·정보 역할을 나눕니다.',
+  title:'악우가 같은 편이 된 날',icon:'🗝️',scene:'./assets/event-trio-first-meeting.png',
+  desc:'장부 사건 뒤에도 서로 연락을 끊지 못한 세 사람이 이번에는 당신을 공격한 세력을 함께 치기 위해 모였습니다. 이미 서로의 결핍과 취향까지 알아버린 셋은 친해서 온 것이 아니라고 강조하면서도, 설명 없이 수사·자금·정보 역할을 나눕니다.',
   speakers:[
    {name:'강유진',line:'세라 씨 방식은 불법이에요. 자료는 내가 증거로 바꿀 테니 원본은 건드리지 마요.'},
    {name:'한채린',line:'내 계열사라고 봐줄 생각은 없어. 압류 전에 돈줄부터 묶을게. 경찰관은 영장, 세라는 우회 계좌를 줘.'},
@@ -111,7 +160,57 @@ const AFTERMATH=[
 
 function ensure(life){
  if(!life.dangerousTrio||typeof life.dangerousTrio!=='object')life.dangerousTrio={active:false,queued:false,encountered:false,stage:0,stability:50,axes:{balance:0,containment:0,fracture:0},history:[],ending:null};
- const s=life.dangerousTrio;if(!s.axes)s.axes={balance:0,containment:0,fracture:0};if(!Array.isArray(s.history))s.history=[];return s;
+ const s=life.dangerousTrio;
+ if(!s.axes)s.axes={balance:0,containment:0,fracture:0};
+ if(!Array.isArray(s.history))s.history=[];
+ if(!Number.isFinite(s.preludeStage))s.preludeStage=0;
+ if(!Array.isArray(s.preludeHistory))s.preludeHistory=[];
+ if(s.active||s.encountered||s.ending){
+  s.preludeStage=PRELUDES.length;
+  s.badFriendsFormed=true;
+ }
+ return s;
+}
+function preludeEligibility(life){
+ const state=ensure(life),people=NAMES.map(name=>rec(life,name));
+ const allKnown=people.every(person=>person&&!['ex','deceased'].includes(person.status));
+ const sera=rec(life,'윤세라'),legacyHome=life.seraHousing==null&&sera&&sera.pickedUpAfterRuin;
+ const seraHome=(life.seraHousing==='cohabit'||legacyHome)&&!state.lockedOut;
+ const faction=life.faction||{},subordinateReady=(faction.level||0)>0&&Array.isArray(faction.members)&&faction.members.length>0;
+ const caseLinked=!!life.yujinInvestigationSeen||!!(rec(life,'강유진')||{}).officialContact;
+ return{ok:!state.active&&!state.encountered&&!state.ending&&!state.badFriendsFormed&&allKnown&&seraHome&&subordinateReady&&caseLinked,allKnown,seraHome,subordinateReady,caseLinked};
+}
+function nextPrelude(life){
+ const state=ensure(life);
+ return !state.badFriendsFormed?PRELUDES[state.preludeStage]||null:null;
+}
+function queuePrelude(life,day){
+ const state=ensure(life),event=nextPrelude(life);
+ if(!event||!preludeEligibility(life).ok||state.preludeQueued||state.lastPreludeDay===(day||0))return null;
+ state.preludeQueued=true;
+ return event;
+}
+function deferPrelude(life,day){
+ const state=ensure(life);state.preludeQueued=false;state.lastPreludeDay=day||state.lastPreludeDay||0;return state;
+}
+function applyPrelude(life,choiceId){
+ const state=ensure(life),event=nextPrelude(life);if(!event)return null;
+ const choice=event.choices.find(item=>item.id===choiceId);if(!choice)return null;
+ state.preludeQueued=false;
+ state.stability=clamp((state.stability||50)+(choice.stability||0),0,100);
+ state.preludeHistory.push({eventId:event.id,choiceId:choice.id,payRate:choice.payRate||null});
+ NAMES.forEach(name=>{
+  const person=rec(life,name);if(!person)return;
+  person.trust=clamp((person.trust||0)+(choice.trust||0),0,100);
+  person.dangerousBadFriend=true;
+ });
+ state.preludeStage++;
+ if(state.preludeStage>=PRELUDES.length){
+  state.preludeStage=PRELUDES.length;
+  state.badFriendsFormed=true;
+  state.badFriendsDay=life.day||0;
+ }
+ return{event,choice,state,complete:state.badFriendsFormed};
 }
 function progress(life){
  const rows=NAMES.map(name=>{
@@ -139,7 +238,7 @@ function eligibility(life){
  const legacyHome=life.seraHousing==null&&sera&&sera.pickedUpAfterRuin;
  const seraHome=(life.seraHousing==='cohabit'||legacyHome)&&!state.lockedOut;
  const guard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'dangerous');
- return{ok:(!guard||guard.ok)&&!state.encountered&&!state.active&&!state.ending&&partner&&clean&&seraHome&&rows.every(row=>row.ready),partner,clean,seraHome,outsiders,rows,guard};
+ return{ok:!!((!guard||guard.ok)&&!state.encountered&&!state.active&&!state.ending&&state.badFriendsFormed&&partner&&clean&&seraHome&&rows.every(row=>row.ready)),partner,clean,seraHome,badFriendsFormed:!!state.badFriendsFormed,outsiders,rows,guard};
 }
 function queue(life){
  const check=eligibility(life),state=ensure(life);
@@ -189,5 +288,5 @@ function applyAftermath(life,choiceId){
 }
 function compatibleCandidate(){return false;}
 
-root.QT_DANGEROUS_TRIO={NAMES,CHAPTERS,AFTERMATH,ensure,progress,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
+root.QT_DANGEROUS_TRIO={NAMES,PRELUDES,CHAPTERS,AFTERMATH,ensure,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
 })(window);
