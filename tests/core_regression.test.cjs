@@ -209,8 +209,18 @@ for (const file of [
   const endings={강유진:'dangerous_dependence',한채린:'private_submission',윤세라:'anchored'};
   const life={
     day:9,seraHousing:'cohabit',partner:{name:'강유진'},polycule:{active:false,members:[]},
+    yujinInvestigationSeen:true,
+    faction:{level:1,members:[{uid:'mentor-intel-1',sourceId:'mentor-intel',name:'강도윤',upkeep:140000,loyalty:78}]},
     met:trio.NAMES.map(name=>({name,status:'friend',affection:85,trust:70,story:{chapter:5,completed:true,history:[],traits:{},variant:'adult',ending:{route:endings[name],title:name}}}))
   };
+  assert.equal(trio.PRELUDES.length,3,'위험 3인조는 정식 공생 전에 첫 대면·취향 폭로·잘잘못 재판을 거쳐야 한다');
+  assert.equal(trio.eligibility(life).ok,false,'세 사람이 악우가 되기 전에 정식 공동 루트가 먼저 열리면 안 된다');
+  trio.PRELUDES.forEach((event,index)=>{
+    life.day=9+index;
+    assert.equal(trio.queuePrelude(life,life.day).id,event.id,`${event.title} 사건이 순서대로 예약돼야 한다`);
+    assert.ok(trio.applyPrelude(life,event.choices[0].id),`${event.title} 선택이 적용돼야 한다`);
+  });
+  assert.equal(trio.ensure(life).badFriendsFormed,true,'세 사건 뒤 셋은 정식 루트 이전부터 악우가 돼야 한다');
   assert.equal(trio.eligibility(life).ok,true,'위험 3인조는 세 개인 결핍 루트를 완성하고 윤세라와 동거하면 시작돼야 한다');
   assert.equal(trio.start(life).ok,true);
   while(trio.next(life))trio.apply(life,trio.next(life).choices.find(choice=>choice.tag==='balance').id);
@@ -1227,8 +1237,14 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/function advancedRelationshipGroup\(\)/,'진전된 다른 그룹은 소꿉친구 재발 배드엔딩에 개입해야 한다');
   assert.match(appSource,/data-sera-response="reverse"/,'윤세라에게 역으로 집착하는 대응이 있어야 한다');
   assert.match(appSource,/차라리 조직 생활할 때가 더 좋았습니다/,'첫 부하는 위험 관계 사이의 정상인 반응을 해야 한다');
+  assert.match(appSource,/function firstSubordinateWitness\(\)/,'위험 3인조 사건은 임의 목격자가 아니라 실제 첫 부하를 찾아야 한다');
+  assert.match(appSource,/function applyDangerousTrioHazardPay\(rate\)/,'첫 부하의 위험수당 요구는 실제 세력 급여에 연결돼야 한다');
+  assert.match(appSource,/member\.upkeep=Math\.round\(base\*rate\)/,'월급 두 배 선택은 첫 부하의 월 유지비를 실제로 바꿔야 한다');
   const trioSource=fs.readFileSync(path.join(root,'js/dangerous_trio.js'),'utf8');
   assert.match(trioSource,/가짜 불화와 진짜 공조/,'위험 3인조는 겉으로만 사이 나쁜 악우여야 한다');
+  assert.match(trioSource,/진짜 미친년들 같습니다/,'악우 형성 사건에는 첫 부하의 솔직한 상황 보고가 있어야 한다');
+  assert.match(trioSource,/월급 두 배는 받아야겠습니다/,'잘잘못 재판 뒤 첫 부하가 위험수당을 요구해야 한다');
+  assert.match(trioSource,/id:'preference_audit'/,'세 사람은 정식 공생 전에 서로의 취향을 폭로하는 사건을 겪어야 한다');
   assert.match(trioSource,/life\.seraHousing==='cohabit'/,'위험 3인조는 윤세라와 실제 동거 중일 때만 열려야 한다');
   const lifeEventsSource=fs.readFileSync(path.join(root,'js/events_life.js'),'utf8');
   assert.match(lifeEventsSource,/seraHousing:'separate'/,'윤세라를 집에서 내보내는 선택지가 있어야 한다');

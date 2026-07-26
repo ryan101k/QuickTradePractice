@@ -2485,7 +2485,7 @@ function importantEventPriority(event) {
   if(event.factionVictory||event.captivity||event.type==='ending')return 95;
   if(event.type==='debt'||event.type==='incident'||event.dangerousHeroineEvent)return 85;
   if(event.yujinInvestigation)return 80;
-  if(event.childhoodCircleEvent||event.dangerousTrioStart||event.freedomTrioStart||event.freedomGuildEvent)return 75;
+  if(event.childhoodCircleEvent||event.dangerousTrioPrelude||event.dangerousTrioStart||event.freedomTrioStart||event.freedomGuildEvent)return 75;
   if(event.crossEventId||event.story||event.bondEncounter)return 55;
   if(event.businessRomanceEvent)return 45;
   if(event.businessEvent)return 40;
@@ -2495,6 +2495,7 @@ function importantEventPriority(event) {
 function importantEventKey(event) {
   if(event.factionStory)return`faction:${event.factionStory}`;
   if(event.yujinInvestigation)return'yujin:first-investigation';
+  if(event.dangerousTrioPrelude)return`dangerous:prelude:${event.dangerousTrioPrelude}`;
   if(event.monthlyMessage)return`message:${event.targetType}:${event.targetId!=null?event.targetId:event.personName||''}`;
   if(event.businessEvent)return`business:${event.businessId}:${event.eventId}`;
   if(event.story)return`story:${event.personName}`;
@@ -2503,7 +2504,7 @@ function importantEventKey(event) {
 function importantEventRouteGroup(event){
   if(!event)return null;
   if(event.childhoodCircleEvent)return'childhood';
-  if(event.dangerousTrioStart||event.dangerousTrioChapter)return'dangerous';
+  if(event.dangerousTrioPrelude||event.dangerousTrioStart||event.dangerousTrioChapter)return'dangerous';
   if(event.freedomTrioStart||event.freedomTrioChapter)return'freedom';
   if(event.businessRomanceEvent&&['quartet-story','quartet-ending'].includes(event.kind))return'business';
   return null;
@@ -2577,6 +2578,7 @@ function showNextImportantEvent(resumeCurrent = false) {
     return;
   }
   if (event.childhoodCircleEvent) { showChildhoodCircleEvent(event.childhoodCircleEvent); return; }
+  if (event.dangerousTrioPrelude) { showDangerousTrioPrelude(event.dangerousTrioPrelude); return; }
   if (event.dangerousTrioStart) { startDangerousTrioRoute(true); return; }
   if (event.dangerousTrioChapter) { showDangerousTrioStory(); return; }
   if (event.dangerousTrioAftermath) { showDangerousTrioAftermath(); return; }
@@ -4558,7 +4560,9 @@ function awakenDangerousHeroine(r,source){
 function queueNaturalDangerousEvents(L){
   if(DANGEROUS_TRIO){
     const state=DANGEROUS_TRIO.ensure(L);
-    if(DANGEROUS_TRIO.queue(L))queueImportantEvent({dangerousTrioStart:true});
+    const prelude=DANGEROUS_TRIO.queuePrelude(L,S.day);
+    if(prelude)queueImportantEvent({dangerousTrioPrelude:prelude.id});
+    else if(DANGEROUS_TRIO.queue(L))queueImportantEvent({dangerousTrioStart:true});
     else if(state.active&&state.encountered&&state.lastChapterDay!==S.day){
       state.lastChapterDay=S.day;queueImportantEvent({dangerousTrioChapter:true});
     }
@@ -6220,12 +6224,87 @@ function removeDangerousTrioFaction(L){
   RIVALS.ensureFaction(L);
 }
 
+function firstSubordinateWitness(){
+  const L=S.life,social=SOCIAL.ensure(L),faction=RIVALS.ensureFaction(L);
+  const contacts=(social.contacts||[]).filter(contact=>SOCIAL.isSubordinate(contact));
+  const contact=contacts.find(item=>/첫 부하/.test(item.relationLabel||''))||contacts.find(item=>item.factionMemberId)||contacts[0]||null;
+  const members=faction.members||[];
+  const member=contact
+    ?members.find(item=>item.sourceId===contact.factionMemberId||item.uid===contact.factionMemberId||item.name===contact.name)
+    :members.find(item=>/^mentor-/.test(item.sourceId||''))||members[0];
+  const name=(contact&&contact.name)||(member&&member.name)||'겁먹은 행동대원';
+  return{name,contact,member,portrait:member?characterPortrait(member):emojiAvatar({emoji:'🕶️'})};
+}
 function trioWitness(){
   const L=S.life,taesik=metRecord(L,'장태식');
   if(L.makjang||taesik)return{name:'장태식',portrait:characterPortrait(D.SPECIAL_CHARACTERS.taesik,'angry'),line:'저 미친 여자들 제발 어디 방생하지 말고 네가 평생 책임져. 나도 살면서 이런 조합은 처음 본다.'};
-  const faction=RIVALS.ensureFaction(L),mob=(faction.members||[]).find(member=>!member.named)||faction.members[0];
-  if(mob)return{name:mob.name,portrait:characterPortrait(mob),line:'대장님, 저 셋 제발 밖에 방생하지 말고 여기서 풀어요. 라이벌보다 무섭습니다.'};
-  return{name:'겁먹은 행동대원',portrait:emojiAvatar({emoji:'🕶️'}),line:'형님, 저 셋 제발 밖에 방생하지 말고 여기서 풀어요. 남들은 좀 살게요.'};
+  const witness=firstSubordinateWitness();
+  if(witness.member||witness.contact)return{...witness,line:'대장님, 저 셋 제발 밖에 방생하지 말고 여기서 풀어요. 라이벌보다 무섭습니다.'};
+  return{...witness,line:'형님, 저 셋 제발 밖에 방생하지 말고 여기서 풀어요. 남들은 좀 살게요.'};
+}
+function dangerousTrioSpeaker(s,witness){
+  const subordinate=s.name==='첫 부하'||s.name==='목격자';
+  const person=subordinate?witness:metRecord(S.life,s.name);
+  return{
+    name:subordinate?witness.name:s.name,
+    line:s.name==='목격자'?witness.line:s.line,
+    portrait:subordinate?witness.portrait:characterPortrait(person)
+  };
+}
+function applyDangerousTrioHazardPay(rate){
+  const witness=firstSubordinateWitness(),member=witness.member,contact=witness.contact;
+  if(!member)return'세력원이 아직 없어 급여 조정은 기록만 남았습니다.';
+  const base=Number.isFinite(member.trioBaseUpkeep)?member.trioBaseUpkeep:Math.max(120000,Number(member.upkeep)||0);
+  member.trioBaseUpkeep=base;
+  member.trioHazardPayRate=rate;
+  member.upkeep=Math.round(base*rate);
+  if(rate>=2){
+    member.loyalty=clamp((member.loyalty||50)+10,0,100);
+    if(contact)contact.trust=clamp((contact.trust||0)+8,0,100);
+  }else if(rate>1){
+    member.loyalty=clamp((member.loyalty||50)+4,0,100);
+    if(contact)contact.trust=clamp((contact.trust||0)+3,0,100);
+  }else{
+    member.loyalty=clamp((member.loyalty||50)-6,0,100);
+    if(contact)contact.trust=clamp((contact.trust||0)-5,0,100);
+  }
+  const faction=S.life.faction;
+  faction.projectedUpkeep=(faction.members||[]).reduce((sum,item)=>sum+(item.upkeep||0),0);
+  if(Number.isFinite(faction.projectedGross))faction.projectedNet=faction.projectedGross-faction.projectedUpkeep;
+  if(contact){
+    const line=rate>=2
+      ?'형님, 농담 반으로 말씀드린 건데 진짜 올려주실 줄은 몰랐습니다. 그럼 저 세 분 회의는 제가 끝까지 지키겠습니다.'
+      :rate>1
+        ?'위험수당 확인했습니다. 다음 보고서에는 표현을 조금 순화해 보겠습니다. 사실관계까지 순화할 수 있을지는 모르겠습니다.'
+        :'급여는 확인했습니다. 대신 다음 회의에는 방탄조끼 입고 들어가겠습니다.';
+    pushPersonMessage(S.life,contact,line,false);
+  }
+  return`${witness.name} 월 급여 ${base.toLocaleString('ko-KR')}원 → ${member.upkeep.toLocaleString('ko-KR')}원`;
+}
+function showDangerousTrioPrelude(eventId){
+  if(!DANGEROUS_TRIO)return;
+  const host=$('life-event'),event=DANGEROUS_TRIO.nextPrelude(S.life);
+  if(!host||!event||event.id!==eventId){closeLifeEvent();showNextImportantEvent();return;}
+  const state=DANGEROUS_TRIO.ensure(S.life),witness=firstSubordinateWitness();
+  const phase=['서로 경계함','서로의 결핍을 알아챔','싸우면서 편들기 시작함'][state.preludeStage]||'악우가 됨';
+  const speakers=event.speakers.map(s=>{
+    const row=dangerousTrioSpeaker(s,witness);
+    return`<div class="trio-dialogue"><img src="${row.portrait}" alt="${row.name}"><div><b>${row.name}</b><p>“${row.line}”</p></div></div>`;
+  }).join('');
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">${event.icon} ${event.title}</div><div class="title-bar-controls"><button aria-label="Close" id="trio-prelude-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${event.scene}" alt="${event.title} 사건"><div class="trio-meter"><span>세 사람의 현재 거리</span><b class="${state.stability<30?'down':'up'}">${phase}</b></div><div class="event-desc">${event.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${event.choices.map(choice=>`<button class="event-opt" data-trio-prelude-choice="${choice.id}">${choice.text}</button>`).join('')}<button class="event-opt" id="trio-prelude-later">오늘은 회의를 끝낸다</button></div><div class="event-outcome" id="trio-prelude-outcome"></div></div></div>`;
+  host.querySelectorAll('[data-trio-prelude-choice]').forEach(button=>button.addEventListener('click',()=>resolveDangerousTrioPrelude(button.dataset.trioPreludeChoice)));
+  [$('trio-prelude-x'),$('trio-prelude-later')].forEach(button=>button.addEventListener('click',()=>{DANGEROUS_TRIO.deferPrelude(S.life,S.day);closeLifeEvent();autoSave();}));
+}
+function resolveDangerousTrioPrelude(choiceId){
+  const result=DANGEROUS_TRIO.applyPrelude(S.life,choiceId);if(!result)return;
+  result.state.lastPreludeDay=S.day;
+  const payText=Number.isFinite(result.choice.payRate)?applyDangerousTrioHazardPay(result.choice.payRate):'';
+  const host=$('life-event'),options=host&&host.querySelector('.event-options');if(options)options.innerHTML='';
+  $('trio-prelude-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">세 사람의 공조 ${result.choice.stability>=0?'+':''}${result.choice.stability} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust}${payText?`<br>🛡️ ${payText}`:''}</div>${result.complete?'<div class="important-event-detail up">셋은 끝내 친해졌다는 말을 하지 않았습니다. 대신 서로의 잘못을 가장 먼저 지적하고, 외부가 한 사람을 건드리면 나머지 둘이 먼저 움직이는 악우가 됐습니다.</div>':''}<button id="trio-prelude-confirm" class="session-btn opening">회의를 마친다</button>`;
+  addNews(`${result.event.icon} 강유진·한채린·윤세라 · ${result.event.title}`,result.choice.stability<0?'bad':'neutral');
+  $('trio-prelude-confirm').addEventListener('click',()=>{closeLifeEvent();renderLifePanel();showNextImportantEvent();});
+  renderLifePanel();autoSave();
 }
 function dangerousTrioCast(){
   return DANGEROUS_TRIO.NAMES.map(name=>metRecord(S.life,name)).filter(Boolean);
@@ -6235,7 +6314,7 @@ function showDangerousTrioRoute(){
   const L=S.life,state=DANGEROUS_TRIO.ensure(L),check=DANGEROUS_TRIO.eligibility(L),cast=dangerousTrioCast();
   if(state.active){showDangerousTrioStory();return;}
   const castHtml=cast.map(r=>`<div class="trio-person"><img src="${characterPortrait(r)}" alt="${r.name}"><b>${r.name}</b><small>${relationTag(L,r.name)}</small></div>`).join('');
-  const progress=check.rows.map(row=>`<div class="trio-requirement ${row.ready?'ready':''}"><b>${row.name}</b><span>${row.ready?'시선을 피하지 않고 자리에 남았습니다':'아직 같은 방에 오래 머물 생각은 없어 보입니다'}</span></div>`).join('');
+  const progress=`<div class="trio-requirement ${check.badFriendsFormed?'ready':''}"><b>세 사람</b><span>${check.badFriendsFormed?'서로를 욕하면서도 같은 자료를 들고 왔습니다':'서로의 잘못을 따지느라 아직 같은 편이라고 인정하지 않습니다'}</span></div>`+check.rows.map(row=>`<div class="trio-requirement ${row.ready?'ready':''}"><b>${row.name}</b><span>${row.ready?'시선을 피하지 않고 자리에 남았습니다':'아직 같은 방에 오래 머물 생각은 없어 보입니다'}</span></div>`).join('');
   const ending=state.ending?`<div class="story-ending"><b>📕 ${state.ending.title}</b><br>${state.ending.text}</div>`:'';
   host.style.display='block';
   host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">🦂 세 사람의 낯선 동석</div><div class="title-bar-controls"><button aria-label="Close" id="trio-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${state.ending?'./assets/event-trio-secure-home-ending.png':'./assets/event-trio-first-meeting.png'}" alt="강유진 한채린 윤세라가 같은 방에 모인 장면"><div class="trio-cast">${castHtml}</div><div class="event-desc">서로를 믿지 않던 유진, 채린, 세라가 한 테이블에 앉았습니다. 셋은 각자 자신이 가장 정상이라고 주장하면서도 누구도 먼저 자리를 뜨지 않습니다.</div>${ending||`<div class="trio-requirements">${progress}</div><div class="important-event-detail">${check.ok?'세 사람 모두 당신의 말을 기다리고 있습니다.':'몇 번이나 대화가 끊기고 의자가 밀려났습니다. 오늘은 아직 셋을 붙잡아 둘 수 없을 것 같습니다.'}</div><button id="trio-start" class="session-btn ${check.ok?'opening':''}" ${check.ok?'':'disabled'}>세 사람과 이야기를 시작한다</button>`}</div></div>`;
@@ -6244,16 +6323,15 @@ function showDangerousTrioRoute(){
 }
 function startDangerousTrioRoute(auto){
   const result=DANGEROUS_TRIO.start(S.life);if(!result.ok){if(auto)showNextImportantEvent();else flashToast('세 사람은 아직 같은 자리에 오래 머물 생각이 없습니다','neutral');return;}
-  addNews('🦂 친구로 알고 지내던 강유진·한채린·윤세라가 같은 방에서 처음 마주쳤습니다','bad');
+  addNews('🦂 서로의 잘잘못과 취향까지 알아버린 강유진·한채린·윤세라가 처음으로 같은 편을 자처했습니다','bad');
   autoSave();showDangerousTrioStory();
 }
 function showDangerousTrioStory(){
   const chapter=DANGEROUS_TRIO.next(S.life),host=$('life-event');if(!chapter||!host){closeLifeEvent();showNextImportantEvent();return;}
   const state=DANGEROUS_TRIO.ensure(S.life),witness=trioWitness();
   const speakers=chapter.speakers.map(s=>{
-    const person=s.name==='목격자'?witness:metRecord(S.life,s.name);
-    const name=s.name==='목격자'?witness.name:s.name,line=s.name==='목격자'?witness.line:s.line;
-    return`<div class="trio-dialogue"><img src="${s.name==='목격자'?witness.portrait:characterPortrait(person)}" alt="${name}"><div><b>${name}</b><p>“${line}”</p></div></div>`;
+    const row=dangerousTrioSpeaker(s,witness);
+    return`<div class="trio-dialogue"><img src="${row.portrait}" alt="${row.name}"><div><b>${row.name}</b><p>“${row.line}”</p></div></div>`;
   }).join('');
   host.style.display='block';
   host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">${chapter.icon} ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="trio-story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${chapter.scene}" alt="${chapter.title} 이벤트 컷신"><div class="trio-meter"><span>세 사람의 분위기</span><b class="${state.stability<30?'down':'up'}">${state.stability<30?'금방이라도 깨질 듯함':'묘하게 맞물림'}</b></div><div class="event-desc">${chapter.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${chapter.choices.map(choice=>`<button class="event-opt" data-trio-choice="${choice.id}">${choice.text}</button>`).join('')}<button class="event-opt" id="trio-story-later">지금은 셋을 돌려보낸다</button></div><div class="event-outcome" id="trio-outcome"></div></div></div>`;
