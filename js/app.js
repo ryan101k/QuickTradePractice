@@ -4456,7 +4456,7 @@ function resolveCharacterStory(choice){
 function characterStoryEndingScene(r,ending){
   if(!r||!ending)return null;
   if(r.name==='강유진')return{
-    dangerous_dependence:'./assets/event-yujin-safehouse-ending.png',
+    dangerous_dependence:'./assets/event-yujin-1111.png',
     accomplice:'./assets/event-yujin-night-call.png',
     equal:'./assets/event-yujin-riverside-date.png'
   }[ending.route]||'./assets/event-yujin-rain-rescue.png';

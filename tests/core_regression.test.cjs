@@ -229,15 +229,21 @@ for (const file of [
 
 {
   const stories=context.QT_CHARACTER_STORIES;
-  for(const name of ['강유진','한채린']){
-    const story=stories.get(name);
-    assert.equal(story.chapters.length,8,`${name} 개인 스토리는 윤세라와 같은 8장 분량이어야 한다`);
-    assert.ok(story.chapters.every(chapter=>Number.isFinite(chapter.min)&&chapter.scene),`${name}의 모든 장에는 조건과 컷신 자리가 있어야 한다`);
+  const yujinStory=stories.get('강유진'),chaerinStory=stories.get('한채린');
+  assert.equal(yujinStory.chapters.length,9,'강유진 개인 스토리는 추가 일러를 쓰는 9장 분량이어야 한다');
+  assert.equal(chaerinStory.chapters.length,8,'한채린 개인 스토리는 8장 분량이어야 한다');
+  assert.ok([...yujinStory.chapters,...chaerinStory.chapters].every(chapter=>Number.isFinite(chapter.min)&&chapter.scene),'강유진·한채린의 모든 장에는 조건과 컷신 자리가 있어야 한다');
+  for(const scene of ['event-yujin-1.png','event-yujin-2.png','event-yujin-night-3.png','event-yujin-5135.png','event-yujin-14.png']){
+    assert.ok(yujinStory.chapters.some(chapter=>chapter.scene===scene),`강유진 추가 일러 ${scene}가 개인 스토리에 배치돼야 한다`);
+    assert.ok(fs.existsSync(path.join(root,'assets',scene)),`강유진 추가 일러 ${scene} 파일이 있어야 한다`);
   }
+  const storyAppSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  assert.match(storyAppSource,/dangerous_dependence:'\.\/assets\/event-yujin-1111\.png'/,'강유진 위험한 의존 완결에는 전용 내면 독백 컷신을 써야 한다');
   const finish=(name,routeChoice)=>{
     const rec={name,status:'friend',affection:100,trust:100,dangerLevel:0};
-    for(let chapter=0;chapter<8;chapter++){
-      const choice=name==='한채린'?routeChoice:chapter<3?'support':routeChoice;
+    const chapterCount=stories.get(name).chapters.length;
+    for(let chapter=0;chapter<chapterCount;chapter++){
+      const choice=name==='한채린'?routeChoice:chapter===0?'support':routeChoice;
       const result=context.QT_CHARACTER_STORIES.apply(rec,choice);
       assert.ok(result,`${name} ${chapter+1}장이 진행돼야 한다`);
     }
