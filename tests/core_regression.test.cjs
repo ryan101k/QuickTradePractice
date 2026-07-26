@@ -731,6 +731,14 @@ for (const file of [
   assert.equal(freedom.confessionReady(closedLife),false,'구성원이 떠난 그룹에서는 전원 고백이 오면 안 된다');
   assert.equal(state.ending.id,'same_party','공동 관계 결말은 동거가 아니라 각자의 집과 같은 파티를 유지해야 한다');
   assert.equal(state.finalRoute,'shared');
+  life.freedomTrioBond={active:true,members:freedom.NAMES.slice()};
+  assert.equal(freedom.nextAftermath(life).id,'same_party_night','공동 관계 엔딩 뒤에는 각자의 집에서 이어지는 전용 후일담이 시작돼야 한다');
+  for(const expected of ['same_party_night','reply_gap','dawn_meal','four_addresses']){
+    const aftermath=freedom.nextAftermath(life);
+    assert.equal(aftermath.id,expected);
+    assert.ok(freedom.applyAftermath(life,aftermath.choices[0].id),`${expected} 후일담 선택을 처리할 수 있어야 한다`);
+  }
+  assert.equal(freedom.nextAftermath(life),null,'일반 공동 관계에는 한집 동거가 아닌 네 개의 후일담만 순서대로 나와야 한다');
   const recovery=freedom.recovery(life);
   assert.equal(recovery.happy>0,true);
   assert.equal(recovery.stress<0,true,'서로 연락을 유지하는 공동 관계는 월마다 스트레스를 실제로 낮춰야 한다');
@@ -751,6 +759,13 @@ for (const file of [
   assert.equal(sharedState.extensionCompleted,true);
   assert.equal(sharedState.ending.id,'six_people_online','두 번의 시험 한 달과 여섯 사람 합의 뒤에만 확장 엔딩이 나와야 한다');
   assert.equal(sharedState.finalRoute,'shared');
+  sharedLife.freedomTrioBond={active:true,members:freedom.NAMES.slice()};
+  const extensionAftermath=[];
+  while(freedom.nextAftermath(sharedLife)){
+    const aftermath=freedom.nextAftermath(sharedLife);extensionAftermath.push(aftermath.id);
+    freedom.applyAftermath(sharedLife,aftermath.choices[0].id);
+  }
+  assert.deepEqual(extensionAftermath,['same_party_night','reply_gap','dawn_meal','four_addresses','six_people_channel'],'광기 3인 확장 관계에서는 자유인 후일담 뒤 두 집·여섯 사람 대칭 사건이 추가돼야 한다');
   assert.equal(freedom.confessionReady(sharedLife),true,'여섯 사람 합의 뒤에는 자유인 3인의 공개 공동 관계만 최종 확정할 수 있어야 한다');
 
   const betrayalLife={met:freedom.NAMES.map(name=>({name,status:'friend',affection:70,trust:45})),dangerousTrioBond:{active:true}};

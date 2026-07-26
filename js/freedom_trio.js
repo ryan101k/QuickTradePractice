@@ -156,62 +156,76 @@ const CHAPTERS=[
 
 const AFTERMATH=[
   {
-    id:'shared_calendar',title:'공동생활 1개월 · 아무 일정도 없는 일요일',icon:'🗓️',scene:'./assets/event-yuna-5.png',
-    desc:'세 사람의 일정표는 비행과 촬영과 공연으로 가득하지만, 함께 쉬는 날은 아무도 먼저 적지 못했습니다. 쉬는 일에도 목적을 붙이던 습관을 내려놓을 차례입니다.',
+    id:'same_party_night',title:'공동 관계 1개월 · 세 집의 같은 밤',icon:'🎧',scene:'./assets/event-freedom-shared-voice-night.png',
+    desc:'함께 살지는 않습니다. 채원은 출장을 마친 원룸에서, 유나는 촬영 뒤 자기 방에서, 소희는 작업실에서 같은 길드 음성 채널에 접속했습니다. 네 사람은 연인이 된 뒤에도 상대의 빈 시간을 자기 몫으로 요구하지 않기로 했습니다.',
     speakers:[
-      {name:'채원',line:'빈칸이 생기면 알려줄게요. 그걸 꼭 누가 먼저 차지할 필요는 없잖아요.'},
-      {name:'유나',line:'일정표에 연애라고 쓰지는 말죠. 그냥 아무것도 안 하는 날이면 돼.'},
-      {name:'소희',line:'연습 없는 날이 아니라, 일부러 연습하지 않는 날도 필요하겠네요.'},
+      {name:'채원',line:'피곤하면 먼저 나가도 돼요. …그래도 다음 접속 시간은 알려 줬으면 좋겠어요.'},
+      {name:'유나',line:'연애 시작했다고 출석 검사하면 바로 차단이에요. 대신 잠수도 금지.'},
+      {name:'소희',line:'말없이 사라지는 건 배려가 아니었어요. 오늘은 제가 먼저, 더 있고 싶다고 말할게요.'},
     ],
     choices:[
-      {id:'blank',text:'한 달에 하루는 늦잠과 배달 음식만 허락한다',result:'세 사람은 그날 무엇을 할지 정하지 않았습니다. 함께 빈둥거린 시간이 처음으로 아깝지 않았습니다.',harmony:9,rest:10,happy:6,stress:-7},
-      {id:'rotate',text:'매달 한 사람이 소박한 동네 데이트를 정한다',result:'시장 장보기, 강변 산책, 작은 서점이 차례로 공동생활의 추억이 됐습니다.',harmony:7,rest:8,happy:5,stress:-5,income:100000},
-      {id:'sponsor',text:'쉬는 날에도 공동 콘텐츠를 촬영한다',result:'수익은 늘었지만 유나는 집에서까지 표정을 관리해야 하는지 물었습니다.',harmony:-5,rest:-6,happy:-3,stress:8,income:800000},
+      {id:'next_login',text:'오늘 끝내기 전에 다음 접속 시간을 네 사람이 함께 정한다',result:'누구도 매일을 약속하지 않았습니다. 대신 헤어질 때마다 다음 만남을 직접 정했고, 빈 화면은 더 이상 이별처럼 보이지 않았습니다.',harmony:10,rest:8,happy:6,stress:-7},
+      {id:'open_channel',text:'말이 없는 날도 들어와 있을 수 있는 조용한 채널을 만든다',result:'소희는 작업하며, 채원은 짐을 풀며, 유나는 화장을 지우며 접속해 있었습니다. 침묵도 상대를 지우지 않는 방식이 됐습니다.',harmony:8,rest:11,happy:5,stress:-8},
+      {id:'attendance',text:'연인이 됐으니 매일 정해진 시간에 접속하자고 한다',result:'채원은 웃으며 일정을 피했고, 유나는 규칙 이름부터 지웠습니다. 자유를 확인하던 자리가 출석 검사가 되자 세 사람은 다시 거리를 쟀습니다.',harmony:-10,rest:-8,happy:-5,stress:9},
     ],
   },
   {
-    id:'homecoming',title:'공동생활 2개월 · 가장 늦은 귀가',icon:'🏠',scene:'./assets/event-freedom-tro-meeting.png',
-    desc:'새벽 마지막 편으로 돌아온 채원, 해외 촬영을 마친 유나, 공연 투어에서 온 소희가 같은 날 현관에 도착했습니다. 모두 지쳤지만 서로 먼저 기대려 하지는 않습니다.',
+    id:'reply_gap',title:'공동 관계 2개월 · 사흘 동안 멈춘 단체방',icon:'📱',scene:'./assets/event-freedom-shared-voice-night.png',
+    desc:'채원의 비행은 지연되고, 유나는 휴대폰을 맡긴 채 촬영에 들어갔고, 소희는 공연 전 연락을 줄였습니다. 세 사람 모두 상대를 방해하지 않겠다며 단체방에서 한발씩 물러난 결과, 사흘 동안 아무도 먼저 말을 걸지 않았습니다.',
     speakers:[
-      {name:'채원',line:'세 명 다 돌아왔네요. 이런 날은 정말 드문데.'},
-      {name:'유나',line:'사진 찍지 마요. 지금 얼굴은 여기 있는 사람들만 보는 거예요.'},
-      {name:'소희',line:'말하지 않아도 되는 환영회면 좋겠어요. 오늘은 그냥 듣고 싶어요.'},
+      {name:'채원',line:'다들 바쁜 줄 알았어요. 제가 굳이 이유를 물으면 부담일까 봐.'},
+      {name:'유나',line:'이렇게 전부 배려만 하다가 단체방 장례식 치르겠네.'},
+      {name:'소희',line:'보낼 말을 적었다가 지웠어요. 또 제 자리를 먼저 없애고 있었네요.'},
     ],
     choices:[
-      {id:'soup',text:'따뜻한 식사만 준비하고 말없이 쉬게 한다',result:'대화는 짧았지만 다음 날 세 사람 모두 같은 거실에서 편하게 잠들어 있었습니다.',harmony:10,rest:11,happy:6,stress:-8},
-      {id:'stories',text:'씻고 누운 뒤 각자 좋았던 일을 하나씩만 말한다',result:'세 도시는 한 이불 위에서 이어졌고 누구의 이야기도 경쟁이 되지 않았습니다.',harmony:8,rest:8,happy:6,stress:-5},
-      {id:'ranking',text:'누가 가장 보고 싶었는지 한 명을 고른다',result:'농담으로 시작한 질문이 세 사람의 피로를 정확히 찔렀습니다.',harmony:-10,rest:-8,happy:-6,stress:10},
+      {id:'ask_reason',text:'답을 재촉하지 않되 사라진 이유는 서로 묻기로 한다',result:'“괜찮아?” 대신 “무슨 일이 있었어?”라는 문장이 남았습니다. 대답할 자유와 질문받을 자리가 함께 생겼습니다.',harmony:12,rest:8,happy:6,stress:-7},
+      {id:'one_signal',text:'바쁜 날에는 이모티콘 하나만 남기는 구조 신호를 정한다',result:'짧은 신호는 감시가 아니라 귀환 예고가 됐습니다. 세 사람은 말할 힘이 없는 날에도 자기 자리를 지웠다고 착각하지 않았습니다.',harmony:9,rest:10,happy:5,stress:-8},
+      {id:'let_go',text:'연락하지 않는 것도 자유라며 그대로 기다린다',result:'누구도 잘못하지 않았지만 단체방은 다시 조용해졌습니다. 붙잡지 않는다는 말이 또 한 번 외면의 핑계가 됐습니다.',harmony:-12,rest:-5,happy:-6,stress:8},
     ],
   },
   {
-    id:'world_offer',title:'공동생활 3개월 · 동네 축제의 작은 무대',icon:'🏘️',scene:'./assets/sohee-evnet-1.png',
-    desc:'동네 축제에서 채원에게 안내를, 유나에게 사진을, 소희에게 짧은 연주를 부탁했습니다. 돈도 명성도 거의 없지만 네 사람이 집 근처에서 함께 보낼 수 있는 하루입니다.',
+    id:'dawn_meal',title:'공동 관계 3개월 · 한 시간짜리 아침',icon:'🍲',scene:'./assets/event-freedom-shared-dawn-meal.png',
+    desc:'채원의 첫차와 유나의 밤 촬영, 소희의 새벽 리허설 사이에 딱 한 시간이 겹쳤습니다. 세 사람은 각자의 집으로 돌아가기 전에 24시간 식당에 모였고, 당신의 빈자리에도 뜨거운 국을 주문해 두었습니다.',
     speakers:[
-      {name:'채원',line:'멀리 안 가는 일정은 오랜만이네요. 걸어서 집에 올 수 있겠어요.'},
-      {name:'유나',line:'보정 없는 사진도 괜찮다면 찍어 줄게요. 이웃들이니까.'},
-      {name:'소희',line:'앵콜 대신 끝나고 다 같이 저녁 먹는 조건이면 좋아요.'},
+      {name:'채원',line:'오래 못 봐도 이렇게 만나면 되네요. 완벽한 하루를 기다릴 필요는 없었어요.'},
+      {name:'유나',line:'한 시간 보자고 세 사람 다 온 게 제일 웃겨. 아무도 안 매달리는 척하더니.'},
+      {name:'소희',line:'짧아서 아쉬운 약속도 약속이에요. 다음을 말할 수 있으니까.'},
     ],
     choices:[
-      {id:'terms',text:'무보수로 돕고 축제 뒤 이웃들과 국수를 먹는다',result:'박수는 작았지만 집까지 걸어오는 길에 네 사람은 오래 손을 잡았습니다.',harmony:11,rest:9,happy:8,stress:-6},
-      {id:'scale',text:'필요한 장비만 빌려 주고 행사를 소박하게 지킨다',result:'무대는 작고 조명은 서툴렀지만 세 사람 모두 오랜만에 실패해도 괜찮은 일을 했습니다.',harmony:8,rest:7,happy:6,stress:-5,cash:-500000,income:300000},
-      {id:'playerbrand',text:'행사를 홍보 콘텐츠로 키워 수익화한다',result:'수익은 생겼지만 세 사람은 다시 집 근처에서도 표정을 관리해야 하는지 물었습니다.',harmony:-9,rest:-7,happy:-4,stress:9,income:1500000},
+      {id:'empty_seat',text:'늦더라도 빈자리에 앉아 네 사람이 함께 식사를 끝낸다',result:'국은 조금 불었지만 누구도 먼저 계산하고 사라지지 않았습니다. 한 시간짜리 만남은 다음 약속을 만드는 데 충분했습니다.',harmony:12,rest:10,happy:8,stress:-8},
+      {id:'voice_breakfast',text:'갈 수 없다고 솔직히 말하고 영상 통화로 아침을 함께한다',result:'당신의 자리는 작은 화면이 됐습니다. 실망을 숨기지 않고도 관계를 끝내지 않는 첫 아침이었습니다.',harmony:9,rest:9,happy:5,stress:-6},
+      {id:'choose_one',text:'셋을 다 맞추기 어려우니 앞으로 한 사람만 따로 만나자고 한다',result:'유나는 휴대폰을 뒤집었고, 채원은 괜찮다고 말했으며, 소희는 자기 그릇을 치웠습니다. 비밀 선택은 아니었지만 네 사람이 만든 합의를 편의대로 줄인 말이었습니다.',harmony:-18,rest:-10,happy:-9,stress:13},
+    ],
+  },
+  {
+    id:'four_addresses',title:'공동 관계 4개월 · 돌아갈 집이 네 곳',icon:'🏠',scene:'./assets/event-freedom-shared-voice-night.png',
+    desc:'네 사람은 합칠 집을 알아보지 않았습니다. 대신 각자의 현관 비밀번호를 맡기지 않고, 찾아가기 전에는 묻고, 혼자 있고 싶은 날에도 다음 연락을 남기는 규칙을 다시 읽었습니다. 같은 주소가 없어도 관계는 계속되고 있습니다.',
+    speakers:[
+      {name:'채원',line:'붙잡지 않아도 기다린다고 말할 수 있네요. 이제야 그 차이를 알겠어요.'},
+      {name:'유나',line:'문을 열어 줄지는 내가 정해요. 그래도 문 앞까지 온 이유는 듣고.'},
+      {name:'소희',line:'제 자리를 없애지 않을게요. 돌아갈 집이 따로 있어도, 네 사람 사이에는 계속 있을게요.'},
+    ],
+    choices:[
+      {id:'keep_addresses',text:'각자의 집을 지키며 계절마다 네 사람이 머물 장소만 정한다',result:'동거 계약서 대신 다음 계절의 약속이 달력에 남았습니다. 자유는 헤어질 준비가 아니라 다시 만날 여백이 됐습니다.',harmony:14,rest:12,happy:9,stress:-10},
+      {id:'shared_keybox',text:'비상시에만 여는 공동 열쇠함과 연락 규칙을 만든다',result:'열쇠는 소유권이 아니라 구조 신호가 됐습니다. 누구도 허락 없이 문을 열지 않았고, 누구도 위급할 때 혼자 사라지지 않았습니다.',harmony:11,rest:10,happy:7,stress:-8},
+      {id:'one_home',text:'이제 충분히 가까워졌으니 모두 한집으로 합치자고 밀어붙인다',result:'세 사람은 같은 대답을 했습니다. “우리가 선택한 건 함께 사라지지 않는 관계지, 서로의 생활을 없애는 집이 아니에요.”',harmony:-14,rest:-12,happy:-7,stress:11},
+    ],
+  },
+  {
+    id:'six_people_channel',title:'확장 관계 · 두 집, 하나의 길드 채널',icon:'🪞',scene:'./assets/event-trio-meeting-6.png',requiresExtension:true,
+    desc:'광기 3인과 자유인 3인은 같은 집으로 합치지 않았습니다. 자유인들은 각자의 집에서 접속하고, 광기 3인은 플레이어의 거실에 모였습니다. 여섯 사람은 서로의 정반대인 관계 방식을 고치기 위해 한 달에 한 번 같은 음성 채널을 엽니다.',
+    speakers:[
+      {name:'채원',line:'걱정된다고 전부 대신 결정하지 말기. 대신 걱정한 이유는 말하기.'},
+      {name:'유나',line:'선택권을 준다면서 먼저 차단하지 않기. 이건 나도 지킬 거예요.'},
+      {name:'소희',line:'붙잡기 전에 묻고, 사라지기 전에 말해요. 양쪽 다 상대 대답을 먼저 듣는 거예요.'},
+    ],
+    choices:[
+      {id:'mirror_rules',text:'서로의 정반대인 실수를 발견하면 바로 알려 주기로 한다',result:'여섯 사람은 상대를 정상으로 만들지 못했습니다. 대신 추적과 잠수, 통제와 차단이 시작될 때 그것을 이름 붙여 멈출 사람은 생겼습니다.',harmony:14,rest:9,happy:7,stress:-9},
+      {id:'separate_channels',text:'부딪히는 날에는 채널을 나누되 다음 합류 시간을 정한다',result:'도망도 감금도 아닌 임시 퇴장이 처음으로 가능해졌습니다. 나간 사람은 약속한 시간에 다시 접속했습니다.',harmony:12,rest:11,happy:6,stress:-10},
+      {id:'winner_rules',text:'더 건강한 쪽의 규칙만 따르자고 한다',result:'누가 더 정상인지 따지는 순간 채널은 전쟁터가 됐습니다. 여섯 사람은 문제의 모양만 다를 뿐이라는 사실부터 다시 인정해야 했습니다.',harmony:-16,rest:-10,happy:-8,stress:13},
     ],
   },
 ];
-AFTERMATH.push({
-  id:'open_table',title:'공동생활 4개월 · 싸우러 온 사람에게 내온 국',icon:'🍲',scene:'./assets/event-freedom-tro-meeting.png',
-  desc:'주인공의 다른 인연들이 따지러 집까지 찾아왔습니다. 세 사람은 문을 막거나 목소리를 높이지 않았습니다. 채원은 외투를 받아 걸고, 유나는 수건을 내오고, 소희는 식탁에 국을 한 그릇 더 놓았습니다.',
-  speakers:[
-    {name:'채원',line:'할 말 많으면 앉아서 해요. 서서 싸우면 다리만 아파요.'},
-    {name:'유나',line:'누가 더 사랑받는지 정하러 왔으면 밥부터 먹어요. 배고플 때 내린 결론은 대개 별로니까.'},
-    {name:'소희',line:'우리는 누구를 몰아낼 생각 없어요. 대신 이 집에서 사람을 겁주게 두지도 않을 거예요.'},
-  ],
-  choices:[
-    {id:'meal',text:'찾아온 사람들까지 식탁에 앉혀 끝까지 듣는다',result:'견제는 결투가 되지 못했습니다. 세 사람은 누구 편도 빼앗지 않고 공격적인 말 속의 두려움만 골라 돌려주었습니다.',harmony:12,rest:9,happy:7,stress:-9},
-    {id:'tea',text:'세 사람에게 대화를 맡기고 따뜻한 차를 더 끓인다',result:'채원의 현실감, 유나의 여유, 소희의 침묵 사이에서 날카로운 말들이 차츰 힘을 잃었습니다.',harmony:10,rest:11,happy:6,stress:-10},
-    {id:'rank',text:'그래도 누가 가장 정상인지 정해 달라고 한다',result:'세 사람은 동시에 웃었습니다. “그 질문을 하는 사람부터 쉬어야겠네요.” 유일한 판정은 주인공의 강제 취침이었습니다.',harmony:5,rest:8,happy:4,stress:-7},
-  ],
-});
 
 /*
  * v2 그룹 본편
@@ -468,6 +482,10 @@ function ensure(life){
     if(!settled&&!state.onlineOnlyComplete){
       state.active=false;state.queued=false;state.encountered=false;state.stage=0;state.ending=null;
     }
+  }
+  if(state.aftermathVersion!==2){
+    state.aftermathVersion=2;
+    state.aftermathIndex=0;
   }
   if(!state.axes)state.axes={freedom:0,career:0,control:0};
   if(!Array.isArray(state.history))state.history=[];
@@ -963,8 +981,10 @@ function monthly(life){
   return state.harmony<=20||state.rest<=20?'길드와 단체방까지 대답을 재촉하는 긴장으로 가득해지고 있습니다. 다음 이야기에서 각자의 거리를 다시 합의해야 합니다.':null;
 }
 function nextAftermath(life){
-  ensure(life);
-  return null;
+  const state=ensure(life),bond=life.freedomTrioBond;
+  if(!bond||!bond.active||!state.ending||state.ending.tone!=='good'||state.finalRoute!=='shared')return null;
+  const events=AFTERMATH.filter(event=>!event.requiresExtension||state.extensionCompleted);
+  return events[state.aftermathIndex]||null;
 }
 function applyAftermath(life,choiceId){
   const state=ensure(life),event=nextAftermath(life);if(!event)return null;
