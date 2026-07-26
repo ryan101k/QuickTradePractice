@@ -361,7 +361,7 @@ function close(life,id){
 function assetValue(life){
   return ensure(life).owned.reduce((sum,item)=>sum+resaleValue(life,item.id),0);
 }
-function projected(item,phaseId){
+function projected(item,phaseId,life){
   const type=typeOf(item.typeId);if(!type)return{sales:0,cost:0,net:0};
   const strategy=strategyOf(item.strategy);
   const levelMul=1+(item.level-1)*.46;
@@ -370,8 +370,9 @@ function projected(item,phaseId){
   const moraleMul=.86+item.morale*.0022;
   const staff=staffEffect(item);
   const staffSales=1+staff.salesBonus;
-  const sales=Math.round(type.baseSales*levelMul*phaseMul*qualityMul*moraleMul*(1+item.momentum)*staffSales*strategy.sales);
-  const cost=Math.round((type.fixedCost*(1+(item.level-1)*.37)+staff.wages)*strategy.cost);
+  const management=root.QT_CAREER&&life?root.QT_CAREER.businessEffects(life):{salesMultiplier:1,costMultiplier:1};
+  const sales=Math.round(type.baseSales*levelMul*phaseMul*qualityMul*moraleMul*(1+item.momentum)*staffSales*strategy.sales*management.salesMultiplier);
+  const cost=Math.round((type.fixedCost*(1+(item.level-1)*.37)+staff.wages)*strategy.cost*management.costMultiplier);
   return{sales,cost,net:sales-cost,strategy};
 }
 function reportLine(item){
@@ -394,7 +395,7 @@ function monthly(life,context){
   state.owned.forEach(item=>{
     item.months++;
     const type=typeOf(item.typeId);
-    const plan=projected(item,phaseId);
+    const plan=projected(item,phaseId,life);
     const swing=1+(random()*2-1)*type.variance;
     const sales=Math.max(0,Math.round(plan.sales*swing));
     const cost=plan.cost;

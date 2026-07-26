@@ -274,7 +274,8 @@
     f.members.forEach(m=>{if((m.injuredMonths||0)>0)m.injuredMonths--;});
     recalcFaction(f);
     const active=f.members.filter(m=>(m.injuredMonths||0)<=0);
-    const income=f.projectedGross;
+    const management=root.QT_CAREER?root.QT_CAREER.factionEffects(life):{incomeMultiplier:1};
+    const income=Math.round(f.projectedGross*management.incomeMultiplier);
     const upkeep=f.members.reduce((s,m)=>s+(m.upkeep||0),0);
     const paid=Math.min(Math.max(0,cash),upkeep);cash=cash-paid+income;
     if(paid<upkeep){
@@ -332,7 +333,8 @@
   function defendAttack(life,attack){
     const f=ensureFaction(life);if(!attack||attack.caught)return attack;
     f.lastAttacker=attack.attacker&&attack.attacker.name;
-    const certBonus=((life.career&&life.career.certifications)||[]).includes('security')?.12:0,temporary=f.tempDefense||0;f.tempDefense=0;
+    const management=root.QT_CAREER?root.QT_CAREER.factionEffects(life):{defenseBonus:0};
+    const certBonus=management.defenseBonus||0,temporary=f.tempDefense||0;f.tempDefense=0;
     if(!f.level&&!certBonus&&!temporary)return attack;
     if(Math.random()<Math.min(.9,f.defense+certBonus+temporary)){attack.blocked=true;attack.originalLoss=attack.loss;attack.loss=0;attack.message=`🛡️ ${f.name}이 ${f.lastAttacker}의 공작을 막아냈습니다.`;return attack;}
     const cut=Math.round(attack.loss*f.defense*.65);attack.loss=Math.max(0,attack.loss-cut);attack.mitigated=cut;

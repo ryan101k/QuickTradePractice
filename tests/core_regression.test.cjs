@@ -116,6 +116,7 @@ for (const file of [
   'js/wealth.js',
   'js/chat_lines.js',
   'js/social_network.js',
+  'js/career.js',
   'js/business.js',
   'js/business_romance.js',
   'js/freedom_trio.js',
@@ -346,6 +347,17 @@ for (const file of [
   while(freedom.next(life))freedom.apply(life,freedom.next(life).choices.find(choice=>choice.tag!=='control').id);
   assert.equal(freedom.ensure(life).ending.tone,'good','통제하지 않는 선택은 자유인 3인조 힐링 결말이어야 한다');
   assert.ok(context.QT_ROMANCE_ROUTES.ensure(life).completed.freedom,'편입된 자유인 그룹도 완료 상태를 남겨야 한다');
+}
+
+{
+  const career=context.QT_CAREER;
+  const life={career:{jobId:'office',months:4,level:1,skill:50,reputation:40,performance:60,certifications:['finance','security']},job:'office'};
+  career.ensure(life);
+  assert.equal(life.job,'office','상태 조회만으로 외부 마이그레이션 전의 life.job을 임의 변경하지 않아야 한다');
+  assert.equal(life.career.jobId,'none','구버전 직업 경력 id는 운영 역량 상태로 정규화돼야 한다');
+  assert.ok(career.businessEffects(life).salesMultiplier>1,'운영 역량은 사업 매출에 실제 보정을 줘야 한다');
+  assert.ok(career.businessEffects(life).costMultiplier<1,'사업 회계 교육은 사업 비용을 실제로 줄여야 한다');
+  assert.ok(career.factionEffects(life).defenseBonus>=.12,'위기관리 교육은 세력 방어에 실제 보정을 줘야 한다');
 }
 
 {
@@ -946,7 +958,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /function resolveIncomeWork[\s\S]{0,420}S\.capital\+=option\.pay/, '수입 행동은 자유시간을 현금으로 바꿔야 한다');
   assert.match(appSource, /positionBias\(playerPosition,meta/, '플레이어가 보유한 종목의 우호 수급을 실제 틱에 반영해야 한다');
   assert.doesNotMatch(appSource, /data-act="career-train"/, '중복된 직무교육 버튼은 제거돼야 한다');
-  assert.match(appSource, /id === 'study'[\s\S]{0,160}CAREER\.train/, '자기계발이 직무 능력 성장을 대신해야 한다');
+  assert.match(appSource, /id === 'study'[\s\S]{0,160}CAREER\.train/, '자기계발이 운영 역량 성장을 도와야 한다');
   assert.match(appSource, /allowShort:true,shortSellingPower:power/, '세력 자동 공매도는 실제 공매도 체결 경로를 사용해야 한다');
   assert.match(appSource, /class="life-action-money"/, '장 마감 행동 화면에서 보유 현금이 항상 보여야 한다');
   assert.match(lifeActionViewSource, /class="life-action-wallet"/, '행동 화면의 현금 표시줄은 스크롤 본문 밖에 고정돼야 한다');
@@ -954,7 +966,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.doesNotMatch(lifeActionViewSource, /포기하고 주요 사건/, '남은 월 행동을 건너뛰는 버튼이 다시 생기면 안 된다');
   assert.match(lifeActionViewSource, /remaining>0\?'disabled'/, '행동 4회를 채우기 전에는 사건 단계 진행 버튼이 비활성화돼야 한다');
   assert.match(appSource, /restoreRequiredLifeActionStep/, '사건 단계로 잘못 넘어간 저장은 행동 단계로 복구해야 한다');
-  assert.match(appSource, /function lifeHubHTML\(\)[\s\S]{0,420}const career=CAREER\.ensure\(L\)/, '행동 허브는 경력 관리창을 그리기 전에 career 상태를 선언해야 한다');
+  assert.match(appSource, /function lifeHubHTML\(\)[\s\S]{0,420}const career=CAREER\.ensure\(L\)/, '행동 허브는 운영 역량 창을 그리기 전에 호환 career 상태를 선언해야 한다');
   assert.match(appSource, /class="asset-portfolio-strip"/, '부동산·자동수입·사업체는 공통 자산 요약을 제공해야 한다');
   assert.match(appSource, /data-life-panel="assets"/, '분산된 자산 메뉴는 하나의 별도 자산·사업 관리 창으로 통합돼야 한다');
   assert.doesNotMatch(appSource, /<summary>🏪 사업체·직원/, '사업체 메뉴가 자산 운영 밖에 중복되면 안 된다');
@@ -989,14 +1001,20 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /former\.status='ex'/, '옛 동아리 여성 다섯은 현재 친구가 아니라 전 연인 상태여야 한다');
   assert.match(appSource, /function showOriginFriendReferral/, '은둔 프롤로그 뒤 고정 친구의 투자지원센터 소개 장면이 있어야 한다');
   const careerAssignSource=appSource.slice(appSource.indexOf('function assignStartingCareer'),appSource.indexOf('function unlockPrologueCareer'));
-  assert.match(careerAssignSource,/j=>j\.id==='parttime'/,'새 인생은 정규직 추첨이 아니라 단기 알바로 시작해야 한다');
+  assert.match(careerAssignSource,/const job=\{id:'none',name:'무직'\}/,'새 인생은 직업 없이 은둔 상태로 시작해야 한다');
+  assert.match(careerAssignSource,/L\.job='none'/,'플레이어의 직업 상태는 무직으로 고정돼야 한다');
   assert.match(careerAssignSource,/stage:'shut_in'/,'초기 프롤로그는 집에 틀어박힌 상태를 저장해야 한다');
   assert.doesNotMatch(careerAssignSource,/const id=pick\(pool\)/,'가정·학창 선택 직후 정규 직업을 무작위 확정하면 안 된다');
-  assert.match(appSource,/prologue\.careerUnlocked=true/,'투자지원 등록 뒤에 첫 정규직 지원을 열어야 한다');
-  assert.match(appSource,/firstCareerStarted=true;S\.life\.prologue\.stage='career'/,'첫 정규직 합격은 프롤로그 완료 상태로 이어져야 한다');
-  const referralSource=appSource.slice(appSource.indexOf('function showOriginFriendReferral'),appSource.indexOf('// 이직 합격 확률'));
+  assert.match(appSource,/prologue\.careerUnlocked=true/,'투자지원 등록 완료 상태는 구버전 프롤로그 필드에도 저장돼야 한다');
+  assert.doesNotMatch(appSource,/data-act="changejob"/,'월 행동 UI에 이직 선택지가 남으면 안 된다');
+  assert.match(appSource,/FATHER_MONTHLY_SUPPORT = 1000000/,'아버지의 월 생활비가 명시돼야 한다');
+  assert.match(appSource,/아버지가 이번 달 생활비/,'월 정산에서 직업 월급 대신 아버지 생활비가 안내돼야 한다');
+  assert.match(appSource,/S\.life\.familyBackground='father_home'/,'새 게임의 가족 배경은 아버지 한 명으로 고정돼야 한다');
+  assert.match(appSource,/생활경제연구회 모의투자 대회의 계좌번호 일부/,'첫 공격 장면은 과거 조작 장부와 현재 경쟁 세력을 연결해야 한다');
+  assert.match(appSource,/fatherFirstAttackReaction/,'첫 공격 뒤 아버지의 별도 연락이 한 번 발생해야 한다');
+  const referralSource=appSource.slice(appSource.indexOf('function showOriginFriendReferral'),appSource.indexOf('function closeLifeModal'));
   assert.doesNotMatch(referralSource,/윤세라/,'시작 친구는 아직 만나지 않은 윤세라를 알고 있으면 안 된다');
-  assert.match(referralSource,/옛날 동아리 일/,'시작 친구의 경고는 함께 겪어 알고 있는 학창 시절 사건까지만 언급해야 한다');
+  assert.match(referralSource,/옛날 대회 계정/,'시작 친구의 경고는 함께 겪어 알고 있는 학창 시절 사건까지만 언급해야 한다');
   assert.match(appSource, /freeRecruit:true/, '남성 시작 친구는 무료 조력자 영입 권한을 가져야 한다');
   assert.match(appSource, /data-act="origin-ally"/, '무료 조력자는 사업체나 세력 합류 UI를 제공해야 한다');
   assert.match(appSource, /data-life-panel="investment"/, '나래는 별도의 투자 컨설팅 창을 가져야 한다');

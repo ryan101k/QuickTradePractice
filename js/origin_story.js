@@ -1,4 +1,4 @@
-/* QuickTrade Life — 가정환경·학창생활·첫 직업 연결 데이터 */
+/* QuickTrade Life — 아버지·학창생활·재기 서사 연결 데이터 */
 (function(root){
   'use strict';
 
@@ -8,50 +8,19 @@
   ];
   const PAST_CLUB={
     name:'생활경제연구회',
-    incident:'졸업 직전 모의투자 대회 계정이 조작됐고, 주인공이 다섯 사람 모두를 의심하면서 동아리와 연애 관계가 한꺼번에 무너졌다.',
+    incident:'졸업 직전 모의투자 대회 후원사가 차명계좌로 주문을 조작했다. 주인공은 원본 거래 장부를 따로 보관했지만 서로를 의심하는 사이 동아리와 관계가 무너졌고, 후원사는 경쟁 세력의 페이퍼컴퍼니로 사라졌다.',
+    attackReason:'주인공이 다시 실전 거래를 시작하자 과거 장부와 같은 주문 습관이 시장에 찍혔다. 경쟁 세력은 조작 증거를 회수하고 혼자인 주인공을 침묵시키려 공격한다.',
     members:['예린','보라','서연','나영','미래'],
   };
 
   const FAMILY_BACKGROUNDS = [
     {
-      id:'dual_income',icon:'🏢',name:'맞벌이 직장인 부모',
-      desc:'늘 바쁜 부모님 대신 스스로 일정을 챙겼다. 회사 생활의 현실을 일찍 배웠다.',
-      result:'성실성과 생활 감각이 높고, 엄마·아빠 두 사람의 연락처가 남는다.',
-      cash:500000,credit:25,reputation:3,charm:2,skill:2,
-      aptitude:{diligence:12,social:5},jobs:['office','sales','flightattendant','designer'],
-      contacts:[{name:'엄마',role:'mother'},{name:'아빠',role:'father'}],
-    },
-    {
-      id:'public_family',icon:'🏛️',name:'공무원·교사 부모',
-      desc:'규칙과 책임을 중시하는 집에서 자랐다. 안정적인 진로에 익숙하다.',
-      result:'신용과 평판이 높고 공공·교육 직군에 강하다.',
-      cash:200000,credit:45,reputation:8,charm:0,skill:4,
-      aptitude:{diligence:14,analysis:7},jobs:['civil','teacher','police','office'],
-      contacts:[{name:'엄마',role:'mother'},{name:'아빠',role:'father'}],
-    },
-    {
-      id:'medical_family',icon:'🩺',name:'의료계 부모',
-      desc:'교대근무와 시험 이야기가 익숙했다. 사람을 돌보는 일의 무게도 알고 있다.',
-      result:'분석력과 직무 기초가 높고 의료·연구 직군에 강하다.',
-      cash:0,credit:35,reputation:5,charm:1,skill:7,
-      aptitude:{analysis:13,diligence:10},jobs:['nurse','pharmacist','researcher'],
-      contacts:[{name:'엄마',role:'mother'},{name:'아빠',role:'father'}],
-    },
-    {
-      id:'self_employed',icon:'🏪',name:'자영업 부모',
-      desc:'가게 일을 거들며 손님, 매출, 재료비를 생활 속에서 배웠다.',
-      result:'대인력과 실전 감각이 높고 서비스·창작 직군에 강하다.',
-      cash:800000,credit:-20,reputation:4,charm:5,skill:3,
-      aptitude:{social:13,daring:7},jobs:['chef','trainer','designer','sales'],
-      contacts:[{name:'엄마',role:'mother'},{name:'아빠',role:'father'}],
-    },
-    {
-      id:'single_guardian',icon:'🫶',name:'한부모·보호자 가정',
-      desc:'한 사람과 서로 의지하며 컸다. 도움을 기다리기보다 먼저 움직이는 법을 배웠다.',
-      result:'독립성과 대담성이 높지만 초기 자금과 신용은 조금 낮다.',
-      cash:-200000,credit:-35,reputation:0,charm:7,skill:5,
-      aptitude:{daring:14,stamina:7},jobs:['office','dev','police','trainer'],
-      contacts:[{name:'보호자',role:'guardian'}],
+      id:'father_home',icon:'👨',name:'아버지와 남은 집',
+      desc:'학교 사건 뒤에도 아버지는 연락을 끊지 않았다. 생활비는 보내되, 다시 밖으로 나가 네 삶을 만들라고 재촉한다.',
+      result:'가족 연락처는 아버지 한 명으로 고정되며 매달 최소 생활비를 받는다.',
+      cash:0,credit:0,reputation:0,charm:0,skill:0,
+      aptitude:{diligence:4},monthlySupport:1000000,
+      contacts:[{name:'아버지',role:'father'}],
     },
   ];
 
@@ -59,47 +28,42 @@
     {
       id:'student_council',icon:'📣',name:'학생회와 반장 일을 맡았다',
       desc:'행사와 갈등을 조율하며 얼굴이 넓어졌다.',
-      result:'대인력·성실성, 학교 친구 신뢰가 높다.',
+      result:'대인력·성실성이 높아 조직 운영과 교섭에 유리하다.',
       charm:6,reputation:7,skill:3,aptitude:{social:15,diligence:8},
-      jobs:['civil','teacher','police','flightattendant','office'],
       friends:['김지민','박서진','윤하린'],friendTag:'학생회 친구',
-      childhood:{heroine:'예린',ally:'민준'},guideLine:'돈 버는 법 알려 달라 했지? 네 성격이면 지원 제도부터 챙겨야 해.',
+      childhood:{heroine:'예린',ally:'민준'},guideLine:'직업 좀 가져. 네가 계속 싫다고 해서 투자지원센터도 찾아봤다.',
     },
     {
       id:'study',icon:'📚',name:'도서관과 독서실에서 살았다',
       desc:'성적과 자격증을 우선하며 몇 명의 친구와 깊게 지냈다.',
-      result:'분석력·성실성, 전문직 진입 가능성이 높다.',
+      result:'분석력·성실성이 높아 회계와 사업 구조 파악에 유리하다.',
       charm:1,reputation:3,skill:9,aptitude:{analysis:16,diligence:12},
-      jobs:['pharmacist','researcher','nurse','civil','dev'],
       friends:['이수현','정민서','최예원'],friendTag:'공부 친구',
-      childhood:{heroine:'보라',ally:'도윤'},guideLine:'혼자 책만 보지 말고 실제 교육을 받아. 무료 투자지원 프로그램을 찾았어.',
+      childhood:{heroine:'보라',ally:'도윤'},guideLine:'취업 원서라도 넣어. 싫으면 최소한 네 돈 굴리는 법부터 제대로 배워.',
     },
     {
       id:'arts',icon:'🎨',name:'예술동아리에 모든 걸 쏟았다',
       desc:'공연, 전시, 마감 때문에 늘 바빴지만 취향이 분명해졌다.',
-      result:'창의력·매력, 창작 업계 인연이 높다.',
+      result:'창의력·매력이 높아 상품 기획과 평판 관리에 유리하다.',
       charm:10,reputation:2,skill:5,aptitude:{creative:18,social:6},
-      jobs:['designer','chef','webtoon','dev'],
       friends:['한소라','임유림','오세린'],friendTag:'동아리 친구',
-      childhood:{heroine:'서연',ally:'시우'},guideLine:'네가 숫자 화면은 질색하니까, 설명 잘하는 데부터 연결해 줄게.',
+      childhood:{heroine:'서연',ally:'시우'},guideLine:'직업부터 가지라니까 또 싫다고 할 거지? 설명 잘하는 투자지원센터는 찾았다.',
     },
     {
       id:'sports',icon:'🏃',name:'운동부에서 끝까지 버텼다',
       desc:'훈련과 대회를 거치며 체력과 승부욕을 길렀다.',
-      result:'체력·대담성, 현장 대응 직군에 강하다.',
+      result:'체력·대담성이 높아 세력 현장 대응과 위기 수습에 유리하다.',
       charm:7,reputation:4,skill:4,fitness:12,aptitude:{stamina:18,daring:10},
-      jobs:['trainer','police','flightattendant','nurse'],
       friends:['강민지','문태호','조나현'],friendTag:'운동부 친구',
-      childhood:{heroine:'나영',ally:'건우'},guideLine:'몸으로 버는 것도 한계가 있어. 돈 굴리는 법도 배워 둬.',
+      childhood:{heroine:'나영',ally:'건우'},guideLine:'언제까지 방에 있을래. 직업이 싫으면 돈 굴리는 법이라도 배우러 나와.',
     },
     {
       id:'computer_finance',icon:'💻',name:'컴퓨터·투자동아리를 만들었다',
       desc:'게임을 만들고 모의투자를 하며 밤을 새웠다.',
-      result:'분석력·창의력과 투자 감각이 높지만 조금 외골수다.',
+      result:'분석력·창의력이 높아 시장 분석과 운영 자동화에 유리하다.',
       charm:3,reputation:1,skill:8,aptitude:{analysis:14,creative:12,daring:5},
-      jobs:['dev','trader','designer','office','sales'],
       friends:['배준호','신미래','서정우'],friendTag:'동아리 창립 친구',
-      childhood:{heroine:'미래',ally:'시우'},guideLine:'모의투자 말고 진짜 시장 배울 곳 찾음. 초보 지원도 있음.',
+      childhood:{heroine:'미래',ally:'시우'},guideLine:'취업은 또 싫다며. 그럼 모의투자 말고 진짜 시장부터 배울 곳은 찾았다.',
     },
   ];
 
