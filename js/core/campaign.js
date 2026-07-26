@@ -27,13 +27,13 @@
     const notable = wealth >= RULES.attackWealth
       || monthlyProfit >= RULES.attackMonthlyProfit
       || rank <= RULES.attackTopRank;
-    let reason = '아직 시장의 표적이 될 만큼 알려지지 않았습니다.';
+    let reason = '아직 실전 주문 기록이 충분히 쌓이지 않았습니다.';
     if (!oldEnough) reason = `${RULES.attackMinMonth}개월차부터 경쟁 세력이 움직입니다.`;
-    else if (!notable) reason = `총자산 3천만·월 수익 1천만·랭킹 3위 중 하나를 달성하면 세력전이 시작됩니다.`;
+    else if (!notable) reason = '반복된 주문 습관이 과거 모의투자 대회의 원본 장부와 연결됐습니다.';
     else reason = wealth >= RULES.attackWealth ? '큰 자산이 시장에 알려졌습니다.'
       : monthlyProfit >= RULES.attackMonthlyProfit ? '한 달의 큰 수익으로 주목받았습니다.'
       : '상위권 진입으로 경쟁 세력의 표적이 됐습니다.';
-    return { unlocked:oldEnough && notable, oldEnough, notable, month, wealth, monthlyProfit, rank, reason };
+    return { unlocked:oldEnough, oldEnough, notable, month, wealth, monthlyProfit, rank, reason };
   }
 
   function rivalWorth(bot) {

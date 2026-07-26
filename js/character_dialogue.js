@@ -233,7 +233,9 @@
 
   /* Dates already use QT_VOICES. Overlay those banks so they inherit the same voice. */
   if(root.QT_VOICES && root.QT_VOICES.CHARACTER_VOICES){
+    const factionOnly=new Set(['하은','수아','다은','혜진','아린']);
     Object.keys(DIALOGUE).forEach(name=>{
+      if(factionOnly.has(name))return;
       const p=DIALOGUE[name],v=root.QT_VOICES.CHARACTER_VOICES[name]||(root.QT_VOICES.CHARACTER_VOICES[name]={});
       v.style=p.style; v.good=p.warm; v.mid=p.brief; v.bad=p.storyBad; v.deep=p.warm.concat(p.storyGood);
       v.news=p.incoming;
