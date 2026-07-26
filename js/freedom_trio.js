@@ -3,6 +3,21 @@
 'use strict';
 
 const NAMES=['채원','유나','소희'];
+const ROMANCE_ENDINGS={
+  cohabitation_refusal:{
+    icon:'🌙',title:'공동생활 배드엔딩 · 치워진 네 번째 슬리퍼',scene:'./assets/event-freedom-trio-homecoming.png',
+    quote:'“싫다는 말은 들었어요. 이제 우리도 돌아오지 않을게요.”',
+    text:'세 사람은 붙잡거나 따지지 않았습니다. 현관의 슬리퍼와 게임 친구 목록, 주식 소문을 전하던 단체방까지 조용히 정리했습니다. 가장 따뜻했던 집은 누구도 돌아오지 않는 장소가 됐습니다.',
+    detail:'자유인 3인조 공동생활 제안 거절 · 관계와 안식처 완전 단절'
+  },
+  pure_affair:{
+    icon:'🏠',title:'순애 배드엔딩 · 불이 꺼진 작은 집',scene:'./assets/event-freedom-trio-empty-gate-ending.png',
+    quote:'“한 사람만 고르겠다는 말도 당신이 먼저 했잖아요.”',
+    text:'한 사람과 평범한 저녁을 택한 뒤 다른 사람을 유혹하려 했다는 사실을 세 사람 모두 알게 됐습니다. 누구도 복수하지 않았지만, 다시 접속해도 파티에는 당신 자리만 비어 있었습니다.',
+    detail:'개인 순애 약속 위반 · 세 사람 전원 연락 단절'
+  }
+};
+function romanceEnding(kind){return ROMANCE_ENDINGS[kind]||null;}
 const GUILD_MEMBERS=[
   {name:'채원',nickname:'막차요정',avatar:'🪽',line:'막판이라고 무리하지 마요. 내일 다시 하면 되잖아요.'},
   {name:'유나',nickname:'무보정',avatar:'📷',line:'사진 인증은 금지. 여기서는 편한 목소리가 먼저예요.'},
@@ -532,7 +547,7 @@ function recovery(life){
 function compatibleCandidate(name){return NAMES.includes(name);}
 
 root.QT_FREEDOM_TRIO={
-  NAMES,GUILD_MEMBERS,GUILD_EVENTS,COUNSELING_EVENTS,FIRST_OUTING,PERSONAL_EVENTS,CHAPTERS,AFTERMATH,ensure,playGuild,guildEvent,resolveGuild,
+  NAMES,ROMANCE_ENDINGS,romanceEnding,GUILD_MEMBERS,GUILD_EVENTS,COUNSELING_EVENTS,FIRST_OUTING,PERSONAL_EVENTS,CHAPTERS,AFTERMATH,ensure,playGuild,guildEvent,resolveGuild,
   revealed,canContact,canMeetOffline,relationshipMode,storyMode,nextCounselingEvent,queueCounseling,counselingEvent,applyCounseling,counselingComplete,queueFirstOuting,applyFirstOuting,
   nextPersonalEvent,queuePersonal,personalEvent,applyPersonal,progress,individualStoriesComplete,storyComplete,resolveUnavailable,confessionReady,marketRumorAvailable,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,recovery,compatibleCandidate,
 };

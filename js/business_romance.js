@@ -3,6 +3,21 @@
 
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 const finite=(value,fallback)=>Number.isFinite(Number(value))?Number(value):fallback;
+const ROMANCE_ENDINGS={
+  cohabitation_refusal:{
+    icon:'📑',title:'공동생활 배드엔딩 · 부결된 마지막 안건',scene:'./assets/event-business-quartet-afterhours.png',
+    quote:'“사적인 안건은 부결됐습니다. 이제 공적인 정리만 남았네요.”',
+    text:'네 사람은 감정을 인사평가에 섞지 않았습니다. 대신 공동생활 제안을 거절한 대표가 없어도 회사가 굴러가도록 권한과 거래처를 완벽하게 분리했습니다. 다음 결재일, 대표실만 비어 있었습니다.',
+    detail:'사업 4인조 공동 관계 제안 거절 · 경영권 상실 배드엔딩'
+  },
+  pure_affair:{
+    icon:'🏢',title:'순애 배드엔딩 · 네 사람이 검토한 이중장부',scene:'./assets/event-business-quartet-boardroom.png',
+    quote:'“연애는 사생활이지만, 거짓말은 위험 관리 대상입니다.”',
+    text:'한 책임자와 순애를 약속하고 다른 사람을 유혹한 기록은 네 부서의 결재선에서 동시에 발견됐습니다. 네 사람은 감정 대신 증거와 계약으로 움직였고, 당신은 연인과 사업을 같은 날 잃었습니다.',
+    detail:'개인 순애 약속 위반 · 관계 폭로와 대표 해임'
+  }
+};
+function romanceEnding(kind){return ROMANCE_ENDINGS[kind]||null;}
 
 const PROFILES={
   office:{
@@ -712,5 +727,5 @@ function confessionReady(life){
   return (partnerNames.length===0||sharedLiving)&&storyComplete(life)&&(!routes||routes.romanceAvailable(life,'business'));
 }
 
-root.QT_BUSINESS_ROMANCE={PROFILES,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,ownedIds,chaerinAccess,introduce,recruit,canRomance,applyDecision,monthly,view,resolve,endingSummary,progressSummary,storyComplete,resolveUnavailable,confessionReady};
+root.QT_BUSINESS_ROMANCE={PROFILES,ROMANCE_ENDINGS,romanceEnding,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,ownedIds,chaerinAccess,introduce,recruit,canRomance,applyDecision,monthly,view,resolve,endingSummary,progressSummary,storyComplete,resolveUnavailable,confessionReady};
 })(window);
