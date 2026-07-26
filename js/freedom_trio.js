@@ -319,8 +319,9 @@ function relationshipNames(life){
 }
 function relationshipMode(life){
   const names=relationshipNames(life);
-  const groupActive=!!((life.dangerousTrioBond&&life.dangerousTrioBond.active)||(life.businessQuartetBond&&life.businessQuartetBond.active)||(life.childhoodCircleBond&&life.childhoodCircleBond.active)||(life.polycule&&life.polycule.active&&names.length>1));
-  return{names,none:names.length===0,poly:groupActive||names.length>1,exclusive:names.length===1&&!groupActive,canAdvance:names.length===0||groupActive||names.length>1};
+  const dangerousShared=!!(life.dangerousTrioBond&&life.dangerousTrioBond.active);
+  const groupActive=!!(dangerousShared||(life.businessQuartetBond&&life.businessQuartetBond.active)||(life.childhoodCircleBond&&life.childhoodCircleBond.active)||(life.polycule&&life.polycule.active&&names.length>1));
+  return{names,none:names.length===0,poly:groupActive||names.length>1,exclusive:names.length===1&&!groupActive,dangerousShared,canAdvance:names.length===0||dangerousShared};
 }
 function storyMode(life){
   if((life.dangerousTrioBond&&life.dangerousTrioBond.active)||(life.dangerousTrio&&life.dangerousTrio.badFriendsFormed))return'guarded';
@@ -417,10 +418,46 @@ function progress(life){
       need:!person?'아직 만나지 못함':!active?`현재 관계: ${person.status||'지인'} · 관계가 끊김`:seen<ids.length?`개별 이벤트 ${seen}/${ids.length}`:(person.affection||0)<45?`호감 ${Math.round(person.affection||0)}/45`:`신뢰 ${Math.round(person.trust||0)}/20`};
   });
 }
+function individualStoriesComplete(life){
+  const state=ensure(life);
+  return NAMES.every(name=>{
+    const person=rec(life,name);
+    if(!person)return false;
+    if(['ex','deceased'].includes(person.status))return true;
+    const ids=Object.entries(PERSONAL_EVENTS).filter(([,event])=>event.name===name).map(([id])=>id);
+    return ids.every(id=>state.personal[id]==='seen');
+  });
+}
+function storyComplete(life){
+  const state=ensure(life);
+  return revealed(life)&&counselingComplete(life)&&state.firstOuting==='seen'&&individualStoriesComplete(life)&&!!state.ending;
+}
+function resolveUnavailable(life){
+  const state=ensure(life),people=NAMES.map(name=>rec(life,name));
+  if(state.ending||!revealed(life)||!counselingComplete(life)||state.firstOuting!=='seen'||!individualStoriesComplete(life)||
+    !people.some(person=>person&&['ex','deceased'].includes(person.status)))return false;
+  state.active=false;state.queued=false;state.encountered=true;
+  state.ending={id:'friends_departed',title:'비어 있는 게임 파티',tone:'neutral',scene:'./assets/event-freedom-trio-empty-gate-ending.png',text:'세 사람의 고민과 개인 이야기는 모두 끝났지만 누군가는 현실의 인연을 정리했습니다. 남은 사람들은 게임 친구로 안부를 나누고, 공동생활 고백은 오지 않습니다.'};
+  if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'freedom',state.ending.id,'good');
+  return true;
+}
+function confessionReady(life){
+  const state=ensure(life),routes=root.QT_ROMANCE_ROUTES;
+  return !!(relationshipMode(life).canAdvance&&storyComplete(life)&&state.ending.tone==='good'&&(!routes||routes.romanceAvailable(life,'freedom')));
+}
+function marketRumorAvailable(life){
+  return storyComplete(life)&&NAMES.some(name=>{
+    const person=rec(life,name);
+    return person&&!['ex','deceased'].includes(person.status)&&['friend','partner','polycule','lover'].includes(person.status);
+  });
+}
 function eligibility(life){
   const state=ensure(life),rows=progress(life),mode=relationshipMode(life),integratedDangerous=!!(life.dangerousTrioBond&&life.dangerousTrioBond.active);
   const guard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'freedom');
-  return{ok:(!guard||guard.ok)&&!state.encountered&&!state.active&&!state.ending&&state.firstOuting==='seen'&&mode.canAdvance&&rows.every(row=>row.ready),partner:mode.names.length>0,friendOnly:mode.exclusive,relationshipMode:mode,dangerous:integratedDangerous,integratedDangerous,outsiders:[],rows,guard};
+  const routeState=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.ensure(life);
+  const dangerousPriority=!!(root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.engaged(life,'dangerous')&&
+    !integratedDangerous&&!routeState.completed.dangerous&&!routeState.failed.dangerous&&!routeState.declined.dangerous);
+  return{ok:(!guard||guard.ok)&&!dangerousPriority&&!state.encountered&&!state.active&&!state.ending&&state.firstOuting==='seen'&&mode.canAdvance&&rows.every(row=>row.ready),partner:mode.names.length>0,friendOnly:mode.exclusive,relationshipMode:mode,dangerous:integratedDangerous,integratedDangerous,dangerousPriority,outsiders:[],rows,guard};
 }
 function queue(life){
   const check=eligibility(life),state=ensure(life);
@@ -445,9 +482,9 @@ function endingFor(state){
     return{id:'empty_gate',title:'불이 꺼진 현관',tone:'bad',scene:'./assets/event-freedom-trio-empty-gate-ending.png',text:'쉴 곳에도 평가와 허락이 생기자 세 사람은 더 이상 돌아오지 않았습니다. 현관에는 열쇠만 남았고 네 사람의 저녁은 다시 각자의 일정표로 흩어졌습니다.'};
   }
   if((axes.career||0)>(axes.freedom||0)){
-    return{id:'bright_home',title:'화려한 날 뒤의 불 켜진 집',tone:'good',scene:'./assets/event-freedom-trio-homecoming.png',text:'채원은 비행을, 유나는 촬영을, 소희는 공연을 계속했습니다. 그러나 현관을 닫은 뒤에는 누구도 직업으로 불리지 않았습니다. 네 사람은 성공을 나누는 대신 피로를 내려놓는 집을 만들었습니다.'};
+    return{id:'bright_home',title:'화려한 날 뒤의 불 켜진 집',tone:'good',scene:'./assets/event-freedom-trio-homecoming.png',text:'채원은 비행을, 유나는 촬영을, 소희는 공연을 계속했습니다. 현관을 닫은 뒤에는 누구도 직업으로 불리지 않았습니다. 세 사람은 관계를 먼저 정하지 않고 네 번째 슬리퍼만 남겨 두었습니다.'};
   }
-  return{id:'small_days',title:'네 사람의 작은 저녁',tone:'good',scene:'./assets/event-freedom-trio-home.png',text:'장보기와 설거지와 늦잠이 네 사람의 가장 중요한 일정이 됐습니다. 화려한 세상에서 돌아온 사람을 심문하지 않고 따뜻한 한 끼를 남겨 두는, 가장 소박하고 오래가는 연애가 시작됐습니다.'};
+  return{id:'small_days',title:'네 사람의 작은 저녁',tone:'good',scene:'./assets/event-freedom-trio-home.png',text:'장보기와 설거지와 늦잠이 네 사람의 가장 중요한 일정이 됐습니다. 세 사람은 따뜻한 한 끼와 네 번째 자리를 남겨 두되, 모든 이야기가 끝나기 전에는 그 자리를 연애라고 부르지 않았습니다.'};
 }
 function apply(life,choiceId){
   const state=ensure(life),chapter=next(life);if(!chapter)return null;
@@ -497,6 +534,6 @@ function compatibleCandidate(name){return NAMES.includes(name);}
 root.QT_FREEDOM_TRIO={
   NAMES,GUILD_MEMBERS,GUILD_EVENTS,COUNSELING_EVENTS,FIRST_OUTING,PERSONAL_EVENTS,CHAPTERS,AFTERMATH,ensure,playGuild,guildEvent,resolveGuild,
   revealed,canContact,canMeetOffline,relationshipMode,storyMode,nextCounselingEvent,queueCounseling,counselingEvent,applyCounseling,counselingComplete,queueFirstOuting,applyFirstOuting,
-  nextPersonalEvent,queuePersonal,personalEvent,applyPersonal,progress,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,recovery,compatibleCandidate,
+  nextPersonalEvent,queuePersonal,personalEvent,applyPersonal,progress,individualStoriesComplete,storyComplete,resolveUnavailable,confessionReady,marketRumorAvailable,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,recovery,compatibleCandidate,
 };
 })(window);

@@ -21,6 +21,7 @@ const ROMANCE = window.QT_ROMANCE;
 const STORIES = window.QT_CHARACTER_STORIES;
 const CHAR_TRAITS = window.QT_CHARACTER_TRAITS;
 const CROSS_EVENTS = window.QT_CHARACTER_CROSS_EVENTS;
+const ROMANCE_ROUTES = window.QT_ROMANCE_ROUTES;
 const DANGEROUS_TRIO = window.QT_DANGEROUS_TRIO;
 const FREEDOM_TRIO = window.QT_FREEDOM_TRIO;
 const CHILDHOOD_CIRCLE = window.QT_CHILDHOOD_CIRCLE;
@@ -731,9 +732,19 @@ function maybeIntraHelp() {
   const L = S.life; if (!L) return;
   const helpers = [];
   const social = SOCIAL.ensure(L);
-  (social.contacts || []).forEach(c => { if ((c.trust || 0) >= 25) helpers.push({ t: 'contact', p: c, role: SOCIAL.role(c) }); });
-  RELATIONSHIPS.consensualMembers(L).forEach(person => helpers.push({ t: 'partner', p: person }));
-  (L.met || []).forEach(m => { if (m.status !== 'ex' && (m.affection || 0) >= 30 && !RELATIONSHIPS.isPartner(L, m.name)) helpers.push({ t: 'acq', p: m }); });
+  (social.contacts || []).forEach(c => {
+    const role=SOCIAL.role(c);
+    if((c.trust||0)>=25&&['banker','lawyer','official'].includes(role.id))helpers.push({t:'contact',p:c,role});
+  });
+  if(FREEDOM_TRIO&&FREEDOM_TRIO.marketRumorAvailable(L)){
+    FREEDOM_TRIO.NAMES.forEach(name=>{
+      const person=metRecord(L,name);
+      if(person&&!['ex','deceased'].includes(person.status))helpers.push({t:'freedom-rumor',p:person});
+    });
+  }
+  RELATIONSHIPS.consensualMembers(L)
+    .filter(person=>!FREEDOM_TRIO||!FREEDOM_TRIO.NAMES.includes(person.name))
+    .forEach(person=>helpers.push({t:'partner',p:person}));
   if (!helpers.length) return;
   runIntraHelp(pick(helpers));
 }
@@ -743,18 +754,22 @@ function runIntraHelp(h) {
   if (h.t === 'contact' && h.role && !p.emoji) p.emoji = h.role.icon;   // 인맥은 역할 아이콘을 아바타로
   if (h.t === 'contact') {
     const role = h.role || {};
-    if (['reporter', 'founder', 'mentor'].includes(role.id)) {
-      const good = Math.random() < 0.6;
-      const s = tipStock(good);
-      if (s) {
-        const dir = s.pendingIssue.impact >= 0 ? '호재' : '악재';
-        showHelpCard(p, `${role.icon} <b>${name}</b> <span class="muted">· ${role.name}</span><br>"제가 들은 정보인데, <b>${s.name}</b> 쪽에 곧 <b class="${s.pendingIssue.impact >= 0 ? 'up' : 'down'}">${dir}</b>가 있을 것 같아요."`, () => goBuy(s.name), '📈 차트 보기');
-        return;
-      }
-    }
     if (role.id === 'banker') { L.creditScore = clamp((L.creditScore || 600) + 5, 300, 950); showHelpCard(p, `🏦 <b>${name}</b> <span class="muted">· 은행원</span><br>"신용 관리 팁 드릴게요. 무리한 빚투는 조심하세요. <span class="up">(신용 +5)</span>"`); return; }
     if (role.id === 'lawyer' || role.id === 'official') { L.legalShield = (L.legalShield || 0) + 1; showHelpCard(p, `⚖️ <b>${name}</b> <span class="muted">· ${role.name}</span><br>"혹시 모를 법적 위험, 제가 챙겨뒀어요. <span class="up">(법적 방패 +1)</span>"`); return; }
     showHelpCard(p, `${role.icon || '🤝'} <b>${name}</b><br>"요즘 시장 분위기, 한번 참고해 보세요."`);
+    return;
+  }
+  if(h.t==='freedom-rumor'){
+    const good=Math.random()<.62,s=tipStock(good)||pick(S.stocks.filter(stock=>stock.listed&&stock.type!=='etf'));
+    if(!s)return;
+    const accurate=!!s.pendingIssue&&s.pendingIssue.impact!=null;
+    const direction=accurate?(s.pendingIssue.impact>=0?'매수세가 붙을':'매물이 늘어날'):(good?'관심이 몰릴':'분위기가 식을');
+    const lines={
+      '채원':`공항 라운지에서 ${s.name} 쪽 사람들 얘기가 계속 들렸어요. 곧 ${direction} 것 같아요. 주문은 직접 판단해요.`,
+      '유나':`${s.name} 캠페인 반응이 업계에서 먼저 바뀌고 있어요. 차트에는 늦게 보일 수 있으니 ${direction} 가능성만 기억해요.`,
+      '소희':`공연 후원 일정표에서 ${s.name} 이름이 평소보다 자주 보였어요. 시장에서 ${direction} 조짐인지 확인해 봐요.`,
+    };
+    showHelpCard(p,`📡 <b>${name}</b> <span class="muted">· 자유인 3인조의 생활 소문</span><br>"${lines[name]}"`,()=>goBuy(s.name),'📈 차트 확인');
     return;
   }
   if (h.t === 'partner') {
@@ -763,11 +778,6 @@ function runIntraHelp(h) {
     showHelpCard(p, `💕 <b>${name}</b><br>"${pick(lines)}" <span class="up">(행복 +4)</span>`);
     return;
   }
-  // 지인(아는 사람) — 소문. 절반은 부정확하다
-  const good = Math.random() < 0.5;
-  const reliable = Math.random() < 0.5;
-  const s = reliable ? tipStock(good) : pick(S.stocks.filter(x => x.listed && x.type !== 'etf'));
-  if (s) showHelpCard(p, `🗣️ <b>${name}</b> <span class="muted">· 아는 사람</span><br>"이건 그냥 소문인데… <b>${s.name}</b> 곧 ${good ? '뜬다' : '빠진다'}던데? 믿거나 말거나."`, () => goBuy(s.name), '📈 차트 보기');
 }
 
 function showHelpCard(person, html, onAction, actionLabel) {
@@ -2486,6 +2496,7 @@ function importantEventPriority(event) {
   if(event.type==='debt'||event.type==='incident'||event.dangerousHeroineEvent)return 85;
   if(event.yujinInvestigation)return 80;
   if(event.storyBridge)return 78;
+  if(event.groupConfession)return 76;
   if(event.childhoodCircleEvent||event.dangerousTrioPrelude||event.dangerousTrioStart||event.freedomTrioStart||event.freedomGuildEvent||event.freedomCounselingEvent||event.freedomFirstOuting)return 75;
   if(event.crossEventId||event.story||event.bondEncounter)return 55;
   if(event.businessRomanceEvent)return 45;
@@ -2499,6 +2510,7 @@ function importantEventKey(event) {
   if(event.dangerousTrioPrelude)return`dangerous:prelude:${event.dangerousTrioPrelude}`;
   if(event.freedomCounselingEvent)return`freedom:counseling:${event.eventId}`;
   if(event.freedomFirstOuting)return'freedom:first-outing';
+  if(event.groupConfession)return`group-confession:${event.groupId}`;
   if(event.crossEventId)return`cross:${event.crossEventId}`;
   if(event.monthlyMessage)return`message:${event.targetType}:${event.targetId!=null?event.targetId:event.personName||''}`;
   if(event.businessEvent)return`business:${event.businessId}:${event.eventId}`;
@@ -2593,6 +2605,7 @@ function showNextImportantEvent(resumeCurrent = false) {
   if (event.freedomCounselingEvent) { showFreedomCounselingEvent(event.eventId); return; }
   if (event.freedomFirstOuting) { showFreedomFirstOuting(); return; }
   if (event.freedomPersonalEvent) { showFreedomPersonalEvent(event.eventId); return; }
+  if (event.groupConfession) { showGroupConfession(event); return; }
   if (event.yujinInvestigation) { showYujinInvestigation(false); return; }
   if (event.factionStory) { showFactionMentorPhoneStory(event.factionStory); return; }
   if (event.factionVictory) { showFactionVictoryEnding(); return; }
@@ -2838,18 +2851,7 @@ function resolveBusinessRomanceEvent(choiceId){
     LEGACY.push(S.life,dateInfo(S.day).age,'💍',`${result.title} · 사업 담당자 순애엔딩`,'love');
     celebrate();
   }
-  if(result.quartet){
-    BUSINESS_ROMANCE.IDS.forEach(id=>{
-      const rec=rememberPerson(BUSINESS_ROMANCE.asCharacter(id),'polycule');
-      rec.affection=Math.max(rec.affection||0,75);rec.trust=Math.max(rec.trust||0,55);
-      RELATIONSHIPS.addMember(S.life,rec,S.day);
-    });
-    const group=RELATIONSHIPS.ensure(S.life).relationshipGroup;
-    group.agreement.publicity='private';group.agreement.cohabiting=true;
-    S.life.businessQuartetBond={active:true,since:S.day,members:BUSINESS_ROMANCE.IDS.map(id=>BUSINESS_ROMANCE.profile(id).name)};
-    LEGACY.push(S.life,dateInfo(S.day).age,'🏢','네 개의 명함 · 사업 담당자 4인 세트엔딩','love');
-    celebrate();
-  }
+  if(result.quartet)result.text+=' 네 사람의 공동 이야기는 끝났지만, 사적인 대답은 다음 연락에서 따로 묻기로 했습니다.';
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
   const cashText=result.cash<0
     ?`<br><b class="down">합의·수습 비용 ${won(Math.abs(result.cash))}원${S.capital<=0?' · 부족액은 채무 처리':''}</b>`
@@ -2863,6 +2865,24 @@ function resolveBusinessRomanceEvent(choiceId){
   });
   const retryButton=$('business-romance-retry');if(retryButton)retryButton.addEventListener('click',retryBusinessManagementEnding);
   renderCapital();renderLifePanel();autoSave();
+}
+
+function activateBusinessQuartetBond(){
+  if(!BUSINESS_ROMANCE)return;
+  BUSINESS_ROMANCE.IDS.forEach(id=>{
+    const rec=rememberPerson(BUSINESS_ROMANCE.asCharacter(id),'polycule');
+    rec.affection=Math.max(rec.affection||0,75);rec.trust=Math.max(rec.trust||0,55);
+    RELATIONSHIPS.addMember(S.life,rec,S.day);
+  });
+  const members=BUSINESS_ROMANCE.IDS.map(id=>BUSINESS_ROMANCE.profile(id).name);
+  const first=metRecord(S.life,members[0]);
+  if(first){S.life.relationship='dating';S.life.partner=Object.assign({},first,{mood:'happy'});first.status='partner';}
+  const group=RELATIONSHIPS.ensure(S.life).relationshipGroup;
+  group.agreement.publicity='private';group.agreement.cohabiting=true;
+  S.life.businessQuartetBond={active:true,since:S.day,members};
+  LEGACY.push(S.life,dateInfo(S.day).age,'🏢','네 개의 명함 · 사업 담당자 4인 세트엔딩','love');
+  addNews('🏢 네 책임자의 고백을 받아들였습니다 · 공동 경영과 관계를 분리한 4인 연애 시작','good');
+  celebrate();
 }
 
 function retryBusinessManagementEnding(){
@@ -3054,12 +3074,16 @@ function resolveCrossCharacterEvent(choiceIndex) {
 }
 
 function noteChaerinSupportRefusal(L,source){
-  if(!BUSINESS||!BUSINESS_ROMANCE||!BUSINESS_ROMANCE.chaerinAccess(L))return null;
+  if(!BUSINESS||!BUSINESS_ROMANCE)return null;
   const state=BUSINESS_ROMANCE.ensure(L);
   state.chaerinSupportRefusals=(state.chaerinSupportRefusals||0)+1;
   if(L.dangerousTrioBond&&L.dangerousTrioBond.active)L.dangerousTrioBond.chaerinSupportRefusals=state.chaerinSupportRefusals;
   if(state.chaerinReferralGiven)return{text:'채린은 이미 소개한 책임자와 사업체부터 제대로 굴리라며 추가 송금을 거뒀습니다.',given:false};
   if(state.chaerinSupportRefusals<2)return{text:'채린은 송금 확인 화면을 한참 바라보다가 “다음에도 거절하면 진짜 아무것도 안 줘”라고 메시지를 남겼습니다.',given:false};
+  if(!BUSINESS_ROMANCE.chaerinAccess(L)){
+    state.chaerinReferralPending=true;
+    return{text:'채린은 사람을 소개해 주겠다고 했지만, “네가 지금 만나는 사람들 이야기부터 끝내. 내 사람은 그다음 장이야”라며 명함을 다시 넣었습니다.',given:false,pending:true};
+  }
   const candidates=BUSINESS_ROMANCE.IDS.filter(id=>{
     const profile=BUSINESS_ROMANCE.profile(id),staff=BUSINESS_ROMANCE.staffState(L,id);
     return profile&&staff&&!staff.hired&&!BUSINESS.owned(L,profile.businessId);
@@ -3084,6 +3108,7 @@ function noteChaerinSupportRefusal(L,source){
   const staff=BUSINESS_ROMANCE.staffState(L,staffId);
   staff.chaerinReferral=true;staff.bond=Math.max(staff.bond||0,10);staff.trust=Math.max(staff.trust||0,5);
   state.chaerinReferralGiven=true;state.chaerinReferralStaffId=staffId;state.chaerinReferralSource=source||'support-refusal';
+  state.chaerinReferralPending=false;
   const type=BUSINESS.typeOf(profile.businessId);
   const text=`채린은 잠시 말이 없다가 “그래, 내 돈은 그렇게 싫다 이거지. 그럼 사람이나 하나 소개해 줄게”라고 했습니다. ${profile.alias}을 책임자로 붙인 ${type?type.name:'사업체'}${gifted?'를 통째로 넘겼습니다':'의 운영권을 넘겼습니다'}.`;
   addNews(`👑 한채린의 소개 · ${profile.alias}과 ${type?type.name:'사업체'} 운영 시작`,'good');
@@ -4854,8 +4879,94 @@ function awakenDangerousHeroine(r,source){
   if(r.name==='윤세라')r.obsession=Math.max(58,r.obsession||0);
   else r.dangerLevel=Math.max(28,r.dangerLevel||0);
 }
+const GROUP_CONFESSION_SCENES={
+  dangerous:{
+    icon:'🦂',title:'제1장 마지막 · 네 번째 열쇠를 받을 사람',scene:'./assets/event-trio-secure-home-ending.png',
+    desc:'세 사람의 개인사와 악우 사건이 모두 끝난 뒤에야 같은 메시지가 도착했습니다. 유진은 보호를, 채린은 권력을, 세라는 집을 핑계로 쓰지 않고 처음으로 네 사람이 함께 사는 관계를 묻습니다.',
+    line:'“이번에는 구해 주거나 사 주거나 따라온다는 말 말고 물을게요. 우리 셋과 같이 살래요?”',
+    accept:'네 번째 열쇠를 받아 공동생활을 시작한다',reject:'열쇠를 돌려주고 악우로만 남는다',
+  },
+  freedom:{
+    icon:'🏠',title:'제2장 마지막 · 말없이 늘어난 슬리퍼',scene:'./assets/event-freedom-trio-homecoming.png',
+    desc:'게임에서 시작한 고민 상담과 각자의 개인사, 네 사람의 귀가 이야기가 모두 끝났습니다. 채원·유나·소희는 누구 한 명을 고르라는 대신 현관에 놓인 네 번째 슬리퍼를 가리킵니다.',
+    line:'“우리 셋 다 같은 마음이에요. 싫으면 오늘 치울게요. 좋으면 그냥 여기 두고요.”',
+    accept:'네 번째 슬리퍼를 신고 작은 집에 남는다',reject:'슬리퍼를 치우고 세 사람의 친구로 남는다',
+  },
+  business:{
+    icon:'🏢',title:'제3장 마지막 · 결재가 끝난 뒤의 네 이름',scene:'./assets/event-business-quartet-afterhours.png',
+    desc:'자유인 3인조의 이야기를 지나 사업이 안정된 뒤, 네 책임자의 개인사와 다섯 번의 공동 이사회까지 모두 끝났습니다. 아무도 고용과 사랑을 거래하지 않는다는 규칙 아래 네 사람이 마지막 안건을 올립니다.',
+    line:'“이 안건은 부결돼도 인사평가에 남지 않습니다. 그래도 네 사람 모두 같은 답을 기다리고 있어요.”',
+    accept:'업무 밖에서 네 사람의 고백을 받아들인다',reject:'공동 경영진과 친구로만 남는다',
+  },
+};
+function groupStoryComplete(id,L=S.life){
+  if(id==='dangerous')return !!(DANGEROUS_TRIO&&DANGEROUS_TRIO.storyComplete(L));
+  if(id==='freedom')return !!(FREEDOM_TRIO&&FREEDOM_TRIO.storyComplete(L));
+  if(id==='business')return !!(BUSINESS_ROMANCE&&BUSINESS_ROMANCE.storyComplete(L));
+  if(id==='childhood'){
+    const state=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.ensure(L);
+    return !!(state&&(state.stage==='complete'||state.stage==='removed'||state.route));
+  }
+  return false;
+}
+function groupConfessionReady(id,L=S.life){
+  if(!ROMANCE_ROUTES||!ROMANCE_ROUTES.romanceAvailable(L,id))return false;
+  if(id==='dangerous')return !!(DANGEROUS_TRIO&&DANGEROUS_TRIO.confessionReady(L));
+  if(id==='freedom')return !!(FREEDOM_TRIO&&FREEDOM_TRIO.confessionReady(L));
+  if(id==='business')return !!(BUSINESS_ROMANCE&&BUSINESS_ROMANCE.confessionReady(L));
+  return false;
+}
+function lockGroupRomance(id,reason){
+  if(!ROMANCE_ROUTES||!id)return null;
+  const result=ROMANCE_ROUTES.lockRomance(S.life,id,reason);
+  const meta=ROMANCE_ROUTES.META[id];
+  if(meta)meta.members.forEach(name=>{
+    const person=metRecord(S.life,name);
+    if(person&&!['ex','deceased'].includes(person.status)&&!RELATIONSHIPS.isPartner(S.life,name))person.status='friend';
+  });
+  return result;
+}
+function queueGroupConfession(L){
+  if(!ROMANCE_ROUTES)return false;
+  for(const id of ['dangerous','freedom','business']){
+    if(!groupConfessionReady(id,L))continue;
+    const confession=ROMANCE_ROUTES.confession(L,id);
+    if(confession&&['queued','accepted','rejected'].includes(confession.status))continue;
+    ROMANCE_ROUTES.setConfession(L,id,'queued');
+    queueImportantEvent({groupConfession:true,groupId:id});
+    return true;
+  }
+  return false;
+}
+function showGroupConfession(event){
+  const id=event.groupId,meta=GROUP_CONFESSION_SCENES[id],host=$('life-event');
+  if(!meta||!host||!groupConfessionReady(id)){showNextImportantEvent();return;}
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window trio-route-window group-confession-window"><div class="title-bar event-bar"><div class="title-bar-text">${meta.icon} ${meta.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${meta.scene}" alt="${meta.title}"><div class="event-desc">${meta.desc}</div><div class="story-dialogue"><b>${ROMANCE_ROUTES.META[id].members.join(' · ')}</b> ${meta.line}</div><div class="event-options"><button class="event-opt opening" data-group-confession="accept"><b>${meta.accept}</b></button><button class="event-opt" data-group-confession="reject"><b>${meta.reject}</b><span>이 선택 뒤에는 이 그룹과 다시 연인이 될 수 없습니다.</span></button></div><div class="event-outcome" id="group-confession-outcome"></div></div></div>`;
+  S._groupConfession=id;
+  host.querySelectorAll('[data-group-confession]').forEach(button=>button.addEventListener('click',()=>resolveGroupConfession(button.dataset.groupConfession)));
+}
+function resolveGroupConfession(choice){
+  const id=S._groupConfession,host=$('life-event'),meta=GROUP_CONFESSION_SCENES[id];
+  if(!id||!host||!meta)return;
+  const options=host.querySelector('.event-options');if(options)options.innerHTML='';
+  if(choice==='reject'){
+    lockGroupRomance(id,'incoming_group_confession_rejected');
+    $('group-confession-outcome').innerHTML=`<div class="oc-text">고백은 거절됐지만 지금까지 끝낸 개인사와 우정은 사라지지 않습니다. 세트 연애만 다시 열리지 않습니다.</div><button id="group-confession-confirm" class="session-btn opening">다음 장으로 넘어간다</button>`;
+    addNews(`${meta.icon} ${ROMANCE_ROUTES.META[id].name}의 고백을 거절했습니다 · 연애 루트 영구 마감`,'neutral');
+  }else{
+    ROMANCE_ROUTES.setConfession(S.life,id,'accepted');
+    if(id==='dangerous')activateDangerousTrioBond();
+    else if(id==='freedom')activateFreedomTrioBond(FREEDOM_TRIO.ensure(S.life).ending.id);
+    else activateBusinessQuartetBond();
+    $('group-confession-outcome').innerHTML=`<div class="oc-text up">${meta.accept}. 앞 장의 개인사와 합의가 공동 관계의 규칙으로 이어집니다.</div><button id="group-confession-confirm" class="session-btn opening">새 관계를 확인한다</button>`;
+  }
+  $('group-confession-confirm').addEventListener('click',()=>{S._groupConfession=null;closeLifeEvent();renderLifePanel();autoSave();showNextImportantEvent();});
+  autoSave();
+}
 function queueNaturalDangerousEvents(L){
   if(DANGEROUS_TRIO){
+    DANGEROUS_TRIO.resolveUnavailable(L);
     const state=DANGEROUS_TRIO.ensure(L);
     const prelude=DANGEROUS_TRIO.queuePrelude(L,S.day);
     if(prelude)queueImportantEvent({dangerousTrioPrelude:prelude.id});
@@ -4878,6 +4989,7 @@ function queueNaturalDangerousEvents(L){
 }
 function queueNaturalFreedomEvents(L){
   if(!FREEDOM_TRIO)return;
+  FREEDOM_TRIO.resolveUnavailable(L);
   const counselingId=FREEDOM_TRIO.queueCounseling(L);
   if(counselingId){queueImportantEvent({freedomCounselingEvent:true,eventId:counselingId});return;}
   if(FREEDOM_TRIO.queueFirstOuting(L)){queueImportantEvent({freedomFirstOuting:true});return;}
@@ -4887,6 +4999,11 @@ function queueNaturalFreedomEvents(L){
   if(FREEDOM_TRIO.queue(L))queueImportantEvent({freedomTrioStart:true});
   else if(state.active&&state.encountered&&state.lastChapterDay!==S.day){
     state.lastChapterDay=S.day;queueImportantEvent({freedomTrioChapter:true});
+  }
+  const businessState=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.ensure(L);
+  if(FREEDOM_TRIO.storyComplete(L)&&businessState&&businessState.chaerinReferralPending&&!businessState.chaerinReferralGiven){
+    const referral=noteChaerinSupportRefusal(L,'freedom-story-complete');
+    if(referral)addNews(`👑 자유인 3인조의 장이 끝난 뒤 · ${referral.text}`,referral.given?'good':'neutral');
   }
 }
 function monthlyFreedomTrioAftermath(L){
@@ -5186,6 +5303,7 @@ function updateRelationships(L) {
   if (crossEvent) queueImportantEvent({ crossEventId:crossEvent.id, storyBridge:!!crossEvent.storyBridge });
   queueNaturalDangerousEvents(L);
   queueNaturalFreedomEvents(L);
+  queueGroupConfession(L);
   monthlyDangerousTrioAftermath(L);
   monthlyFreedomTrioAftermath(L);
   monthlyChildhoodCircleBond(L);
@@ -6098,7 +6216,17 @@ function resolveDate(i) {
   } else if (L.relationship === 'single') {
     // 연애 여부는 플레이어가 선택. 상대 성격에 따라 '먼저 고백(적극)' vs '내가 고백(소극)'이 갈린다
     const eligible = (tier === '성공' && (rec.affection || 0) >= 60 && (rec.trust||0)>=18 && (rec.dates || 0) >= 3 && knownMonths(rec)>=3);
-    if (eligible) {
+    const routeGroup=ROMANCE_ROUTES&&ROMANCE_ROUTES.memberGroup(c.name);
+    const groupStoryDone=!routeGroup||groupStoryComplete(routeGroup,L);
+    const groupRomanceOpen=!routeGroup||ROMANCE_ROUTES.romanceAvailable(L,routeGroup);
+    if(eligible&&routeGroup&&!groupRomanceOpen){
+      extra+=`<br>🤝 <span class="muted">${c.name}님과는 이미 연애가 아닌 관계로 결론을 냈습니다. 오늘도 그 선을 바꾸지 않습니다.</span>`;
+      S._romance={name:c.name,forward:false,groupId:routeGroup,html:'<div class="romance-choice"><button id="romance-friend" class="life-btn">🤝 친구로 지낸다</button><button id="romance-skip" class="life-btn">⏳ 오늘은 돌아간다</button></div>'};
+    }else if(eligible&&routeGroup&&!groupStoryDone){
+      extra+=`<br>💗 <b>${c.name}님은 아직 자기 이야기를 끝내지 못한 채, 당신이 무슨 말을 할지 기다리고 있습니다.</b>`;
+      S._romance={name:c.name,forward:false,groupId:routeGroup,premature:true,chance:0,html:
+        '<div class="romance-choice"><button id="romance-confess" class="life-btn hot">💌 지금 고백한다</button><button id="romance-friend" class="life-btn">🤝 지금 관계를 지킨다</button><button id="romance-skip" class="life-btn">⏳ 이야기가 끝날 때까지 기다린다</button></div>'};
+    }else if (eligible) {
       const forward = perC.forward === true || (perC.confess != null ? perC.confess >= 0.6 : false);
       if (forward) {
         extra += `<br>💗 <b class="up">${c.name}님이 "우리 이제 사귈래요?"라며 먼저 고백했어요!</b>`;
@@ -6312,11 +6440,19 @@ function romanceResolve(kind, confirmed) {
     const btn=document.createElement('button');btn.className='session-btn opening';btn.textContent='선을 받아들이고 돌아간다';btn.addEventListener('click',closeDateModal);out.appendChild(btn);
     S._romance=null;renderLifePanel();autoSave();return;
   }
+  const romanceState=S._romance||{},routeGroup=ROMANCE_ROUTES&&ROMANCE_ROUTES.memberGroup(c.name);
+  const prematureConfession=kind==='confess'&&routeGroup&&!groupStoryComplete(routeGroup,S.life);
+  const rejectedIncoming=routeGroup&&romanceState.forward&&['decline','friend'].includes(kind);
   let resultHTML = '';
-  if (kind === 'accept') {
+  if(prematureConfession){
+    lockGroupRomance(routeGroup,'player_confessed_before_group_story_complete');
+    rec.status='friend';rec.affection=Math.max(0,(rec.affection||0)-6);rec.trust=Math.max(0,(rec.trust||0)-4);
+    resultHTML=`🕰️ <b class="down">${c.name}님은 끝내지 못한 이야기를 남겨 둔 채 고백부터 받은 사실을 잊지 못했습니다.</b><br><span class="muted">${ROMANCE_ROUTES.META[routeGroup].name}은 친구로 남을 수 있지만, 연애로 이어지는 선택은 다시 열리지 않습니다.</span>`;
+  } else if (kind === 'accept') {
     startDating(c);
     resultHTML = `💕 <b class="up">${c.name}님의 고백을 받아 연애를 시작했어요!</b>`;
   } else if (kind === 'decline') {
+    if(rejectedIncoming)lockGroupRomance(routeGroup,'incoming_individual_confession_rejected');
     rec.affection = Math.max(0, (rec.affection || 0) - 15);
     resultHTML = `🙅 <span class="muted">${c.name}님의 고백을 정중히 거절했다. 사이가 조금 어색해졌다.</span>`;
   } else if (kind === 'confess') {
@@ -6324,8 +6460,9 @@ function romanceResolve(kind, confirmed) {
     if (ok) { startDating(c); resultHTML = `💕 <b class="up">고백 성공! ${c.name}님과 연애를 시작했어요!</b>`; }
     else { rec.affection = Math.max(0, (rec.affection || 0) - 8); resultHTML = `🫸 <b class="down">${c.name}님이 "아직 그런 사이는 아닌 것 같아요"라며 거절했다.</b>`; playSound('error'); }
   } else if (kind === 'friend') {
+    if(rejectedIncoming)lockGroupRomance(routeGroup,'incoming_individual_confession_rejected_as_friend');
     rec.status='friend';rec.trust=Math.min(100,(rec.trust||0)+12);rec.affection=Math.max(15,(rec.affection||0)-4);
-    resultHTML=`🤝 <b>${c.name}님과 연애 대신 가까운 친구가 되기로 했습니다.</b>`;
+    resultHTML=`🤝 <b>${c.name}님과 연애 대신 가까운 친구가 되기로 했습니다.</b>${rejectedIncoming?`<br><span class="muted">${ROMANCE_ROUTES.META[routeGroup].name}의 연애 분기도 함께 닫혔습니다.</span>`:''}`;
   } else if (kind === 'casual') {
     const per=D.PERSONALITIES[c.personality]||{},chastity=rec.chastity==null?(per.chastity==null?55:per.chastity):rec.chastity;
     const accepts=Math.random()<clamp(.82-chastity*.006+(c.personality==='free'?.18:0),.18,.9);
@@ -6677,9 +6814,8 @@ function resolveDangerousTrioStory(choiceId){
   const poly=ensurePolycule(S.life);poly.trust=Math.round(result.state.stability);
   const host=$('life-event'),options=host.querySelector('.event-options');if(options)options.innerHTML='';
   const scene=host.querySelector('.life-scene-banner');if(scene&&result.ending&&result.ending.scene)scene.src=result.ending.scene;
-  if(result.ending&&result.ending.id==='bad_friends')activateDangerousTrioBond();
   const ending=result.ending?`<div class="story-ending ${result.ending.tone==='bad'?'down':''}"><b>📕 ${result.ending.title}</b><br>${result.ending.text}</div>`:'';
-  const success=result.ending&&result.ending.id==='bad_friends'?`<div class="important-event-detail up">세 사람은 끝내 서로를 좋아한다고 말하지 않았습니다. 대신 같은 열쇠 세 개가 현관에 놓였고, 세력 회의에는 늘 세 자리가 비워졌습니다.</div>`:'';
+  const success=result.ending&&result.ending.id==='bad_friends'?`<div class="important-event-detail up">세 사람의 모든 이야기가 끝났습니다. 다음 장에서 세 사람이 먼저 네 번째 열쇠를 받을지 묻습니다.</div>`:'';
   const retry=result.ending&&result.ending.tone==='bad'?'<button id="trio-retry" class="session-btn opening">↩️ 마지막 선택 다시 하기</button>':'';
   $('trio-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">공생 안정도 ${result.choice.stability>=0?'+':''}${result.choice.stability} · 세 사람 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}${result.choice.obsession?` · 집착 +${result.choice.obsession}`:''}</div>${ending}${success}${retry}<button id="trio-confirm" class="session-btn ${result.ending&&result.ending.tone==='bad'?'':'opening'}">${result.ending?'엔딩 확인':'이번 사건을 마친다'}</button>`;
   addNews(`${result.chapter.icon} 위험한 세 사람 · ${result.chapter.title}`,result.choice.tag==='fracture'?'bad':'neutral');
@@ -6772,10 +6908,9 @@ function resolveFreedomTrioStory(choiceId){
   if(result.choice.happy)S.life.happy=clamp((S.life.happy||0)+result.choice.happy,0,100);
   if(result.choice.stress)S.life.stress=clamp((S.life.stress||0)+result.choice.stress,0,100);
   const host=$('life-event'),options=host.querySelector('.event-options');if(options)options.innerHTML='';
-  if(result.ending&&result.ending.tone==='good')activateFreedomTrioBond(result.ending.id);
-  else if(result.ending&&result.ending.tone==='bad')applyFreedomTrioBadEnding();
+  if(result.ending&&result.ending.tone==='bad')applyFreedomTrioBadEnding();
   const ending=result.ending?`<div class="story-ending ${result.ending.tone==='bad'?'down':''}"><img class="relationship-scene" src="${result.ending.scene}" alt="${result.ending.title} 엔딩"><b>📕 ${result.ending.title}</b><br>${result.ending.text}</div>`:'';
-  const success=result.ending&&result.ending.tone==='good'?`<div class="important-event-detail up">어느 날부터 현관에는 슬리퍼가 네 켤레 놓였습니다. 누구도 이사라는 말을 꺼내지 않았지만, 세 사람의 퇴근길은 자연스럽게 같은 집에서 끝났습니다.</div>`:'';
+  const success=result.ending&&result.ending.tone==='good'?`<div class="important-event-detail up">세 사람의 개인사와 작은 집 이야기가 모두 끝났습니다. 다음 장에서 세 사람이 먼저 네 번째 슬리퍼를 남길지 묻습니다.</div>`:'';
   const retry=result.ending&&result.ending.tone==='bad'?'<button id="freedom-retry" class="session-btn opening">↩️ 마지막 선택 다시 하기</button>':'';
   $('freedom-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">관계 조화 ${result.choice.harmony>=0?'+':''}${result.choice.harmony} · 안식감 ${result.choice.rest>=0?'+':''}${result.choice.rest||0} · 세 사람 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}${result.choice.happy?` · 행복 ${result.choice.happy>0?'+':''}${result.choice.happy}`:''}${result.choice.stress?` · 스트레스 ${result.choice.stress>0?'+':''}${result.choice.stress}`:''}${result.choice.cash?` · 현금 -${won(Math.abs(result.choice.cash))}`:''}</div>${ending}${success}${retry}<button id="freedom-confirm" class="session-btn ${result.ending&&result.ending.tone==='bad'?'':'opening'}">${result.ending?'엔딩 확인':'이번 사건을 마친다'}</button>`;
   addNews(`${result.chapter.icon} 작은 집의 세 사람 · ${result.chapter.title}`,result.choice.tag==='control'?'bad':'good');
