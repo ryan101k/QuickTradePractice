@@ -1,6 +1,6 @@
 /* =========================================================================
  *  QuickTrade Life — 배경음악
- *  (다중 악기 · 다중 섹션 칩튠 신스 + Tone.js 공간계 + SAM 보컬라이즈)
+ *  (저밀도 다중 섹션 신스 · 관계 그룹별 스코어 + Tone.js/SAM 기계 보컬)
  *
  *  외부 음원 없이 WebAudio 로 여러 "악기"를 직접 합성한다.
  *  각 악기는 파형이 아니라 음색이다 — ADSR 엔벨로프 + 신스 방식이 다르다:
@@ -32,7 +32,9 @@
  *    BGM.play(name[, force]) / playCharacter(name[, baseTrack, force])
  *    stop() / current() / engine() / tracks / characterVoices
  *  트랙: title · market_normal · market_bull · market_bear · news
- *        · bankrupt · jackpot · dreamy   (별칭 market/closed/date 도 허용)
+ *        · bankrupt · jackpot · dreamy · group_dangerous · group_freedom
+ *        · group_business · group_childhood · narae
+ *        (별칭 market/closed/date 도 허용)
  * ========================================================================= */
 (function (root) {
   'use strict';
@@ -54,7 +56,7 @@
 
   /* --------------------------------------------------------------- 악기 프리셋 */
   const INSTR = {
-    pulse:  { type: 'square',   a: 0.005, d: 0.05, s: 0.45, r: 0.07, voices: 2, detune: 7 },
+    pulse:  { type: 'square',   a: 0.008, d: 0.07, s: 0.4,  r: 0.10, voices: 1, detune: 5 },
     square: { type: 'square',   a: 0.006, d: 0.06, s: 0.55, r: 0.08 },
     saw:    { type: 'sawtooth', a: 0.008, d: 0.08, s: 0.6,  r: 0.10, lp: 3200 },
     tri:    { type: 'triangle', a: 0.006, d: 0.10, s: 0.7,  r: 0.12 },
@@ -62,7 +64,7 @@
     pluck:  { type: 'triangle', a: 0.002, d: 0.14, s: 0.0,  r: 0.09 },
     bell:   { type: 'sine',     a: 0.001, d: 0.5,  s: 0.0,  r: 0.5, fm: { ratio: 2.0, amt: 7, decay: 0.32 } },
     organ:  { type: 'organ',    a: 0.02,  d: 0.04, s: 0.9,  r: 0.10 },
-    pad:    { type: 'sawtooth', a: 0.22,  d: 0.3,  s: 0.78, r: 0.6, voices: 2, detune: 9, lp: 1700 },   // 현악 앙상블(부하↓: 3→2보이스)
+    pad:    { type: 'sawtooth', a: 0.28,  d: 0.35, s: 0.72, r: 0.7, voices: 1, detune: 6, lp: 1450 },
     brass:  { type: 'sawtooth', a: 0.03,  d: 0.10, s: 0.7,  r: 0.14, lp: 2600 },
     // --- 클래식 편성용 ---
     viola:  { type: 'triangle', a: 0.04,  d: 0.16, s: 0.72, r: 0.32, lp: 2400 },   // 따뜻한 현악 멜로디
@@ -329,6 +331,220 @@
     },
   };
 
+  /* ------------------------------------------------------------------
+   * 2026 재편곡 팔레트
+   *
+   * 기존 곡은 빠른 16비트와 상행 멜로디가 많아 어느 화면에서도 같은 경쾌한
+   * 칩튠처럼 들렸다. 아래 팔레트가 같은 트랙 키를 덮어써 기존 호출부는 유지하되,
+   * 실제 재생 데이터는 느리고 성긴 32스텝 편곡으로 전부 교체한다.
+   *
+   * 한 섹션은 항상 32스텝이고 베이스·패드가 끝까지 이어지므로 섹션 경계에
+   * 무음 틈이 생기지 않는다. 그룹곡은 각 관계의 중심 정서를 따로 가진다. */
+  function spaced(notes, width) {
+    const gap = Math.max(1, width || 4);
+    const out = [];
+    notes.forEach(note => {
+      out.push(note || '-');
+      while (out.length % gap) out.push('-');
+    });
+    while (out.length < 32) out.push('-');
+    return out.slice(0, 32);
+  }
+  function rebuiltTrack(spec) {
+    const leads = spec.leads || [[]];
+    const chords = (spec.chords || []).map((chord, index) => [index * 8, chord]);
+    return {
+      bpm: spec.bpm,
+      swing: spec.swing || 0,
+      leadInst: spec.leadInst || 'viola',
+      arpInst: spec.arpInst || 'harp',
+      bassInst: spec.bassInst || 'cello',
+      chordInst: spec.chordInst || 'pad',
+      leadVol: spec.leadVol == null ? 0.042 : spec.leadVol,
+      arpVol: spec.arpVol == null ? 0.018 : spec.arpVol,
+      bassVol: spec.bassVol == null ? 0.052 : spec.bassVol,
+      chordVol: spec.chordVol == null ? 0.022 : spec.chordVol,
+      drumVol: spec.drumVol == null ? 0.018 : spec.drumVol,
+      arp: spec.arp ? spaced(spec.arp, 2) : null,
+      bass: spaced(spec.bass || ['C3','C3','C3','C3','C3','C3','C3','C3'], 4),
+      chords: chord32(chords),
+      drum: (spec.drum || 'k-------s-------k-------s-------').split(''),
+      arrangement: leads.length > 1 ? [0, 1, 0, Math.min(2, leads.length - 1)] : [0],
+      sections: leads.map(line => ({ lead: spaced(line, 4) })),
+      mood: spec.mood || 'calm',
+    };
+  }
+
+  const REBUILT_TRACKS = {
+    title: rebuiltTrack({
+      bpm:88, swing:0.04, leadInst:'viola', bassInst:'cello', chordInst:'pad',
+      leadVol:0.04, bassVol:0.05, chordVol:0.022, drumVol:0.012,
+      bass:['D3','D3','Bb2','Bb2','F2','F2','C3','C3'],
+      chords:['D3+F3+A3','Bb2+D3+F3','F3+A3+C4','C3+E3+G3'],
+      drum:'k---------------s---------------',
+      leads:[
+        ['A4','D5','F5','E5','D5','C5','A4','C5'],
+        ['F5','E5','D5','A4','C5','D5','A4','-'],
+        ['D5','F5','A5','G5','F5','E5','D5','A4'],
+      ],
+      mood:'noir-opening',
+    }),
+    market_normal: rebuiltTrack({
+      bpm:92, swing:0.05, leadInst:'flute', bassInst:'cello', chordInst:'organ',
+      leadVol:0.035, bassVol:0.048, chordVol:0.018, drumVol:0.01,
+      bass:['C3','C3','Ab2','Ab2','Eb3','Eb3','Bb2','Bb2'],
+      chords:['C3+Eb3+G3','Ab2+C3+Eb3','Eb3+G3+Bb3','Bb2+D3+F3'],
+      drum:'k---------------s---------------',
+      leads:[
+        ['G4','C5','Eb5','D5','C5','Bb4','G4','-'],
+        ['Eb5','D5','C5','G4','Bb4','C5','G4','-'],
+      ],
+      mood:'measured-market',
+    }),
+    market_bull: rebuiltTrack({
+      bpm:118, swing:0.03, leadInst:'brass', arpInst:'harp', bassInst:'cello',
+      leadVol:0.043, arpVol:0.014, bassVol:0.057, chordVol:0.018, drumVol:0.022,
+      arp:['D4','A4','D5','F5','C4','G4','C5','E5','Bb3','F4','Bb4','D5','C4','G4','C5','E5'],
+      bass:['D3','D3','C3','C3','Bb2','Bb2','C3','C3'],
+      chords:['D3+F3+A3','C3+E3+G3','Bb2+D3+F3','C3+E3+G3'],
+      drum:'k---h-------s---k---h-------s---',
+      leads:[
+        ['D5','F5','A5','G5','F5','A5','C6','A5'],
+        ['F5','A5','D6','C6','A5','G5','F5','D5'],
+      ],
+      mood:'controlled-rise',
+    }),
+    market_bear: rebuiltTrack({
+      bpm:72, leadInst:'flute', bassInst:'cello', chordInst:'pad',
+      leadVol:0.038, bassVol:0.058, chordVol:0.026, drumVol:0.008,
+      bass:['A2','A2','F2','F2','D2','D2','E2','E2'],
+      chords:['A2+C3+E3','F2+A2+C3','D2+F2+A2','E2+G#2+B2'],
+      drum:'k-----------------------s-------',
+      leads:[
+        ['E5','C5','A4','G4','F4','E4','D4','E4'],
+        ['A4','G#4','E4','F4','D4','C4','B3','A3'],
+      ],
+      mood:'slow-loss',
+    }),
+    news: rebuiltTrack({
+      bpm:84, leadInst:'brass', bassInst:'cello', chordInst:'organ',
+      leadVol:0.041, bassVol:0.05, chordVol:0.016, drumVol:0.017,
+      bass:['D3','D3','Eb3','Eb3','C3','C3','D3','D3'],
+      chords:['D3+F3+A3','Eb3+G3+Bb3','C3+Eb3+G3','D3+F#3+A3'],
+      drum:'k-------s---h---k-------s-------',
+      leads:[
+        ['D5','A4','D5','F5','Eb5','D5','C5','A4'],
+        ['F5','Eb5','D5','A4','C5','D5','F5','D5'],
+      ],
+      mood:'late-newsroom',
+    }),
+    bankrupt: rebuiltTrack({
+      bpm:58, leadInst:'sine', bassInst:'cello', chordInst:'pad',
+      leadVol:0.034, bassVol:0.061, chordVol:0.028, drumVol:0,
+      bass:['C3','C3','Bb2','Bb2','Ab2','Ab2','G2','G2'],
+      chords:['C3+Eb3+G3','Bb2+Db3+F3','Ab2+C3+Eb3','G2+B2+D3'],
+      drum:'--------------------------------',
+      leads:[
+        ['G4','Gb4','F4','E4','Eb4','D4','Db4','C4'],
+        ['C5','Bb4','Ab4','G4','F4','Eb4','D4','C4'],
+      ],
+      mood:'empty-account',
+    }),
+    jackpot: rebuiltTrack({
+      bpm:124, leadInst:'brass', arpInst:'bell', bassInst:'cello',
+      leadVol:0.045, arpVol:0.016, bassVol:0.058, chordVol:0.019, drumVol:0.026,
+      arp:['E4','B4','E5','G5','D4','A4','D5','F#5','C4','G4','C5','E5','D4','A4','D5','F#5'],
+      bass:['E3','E3','D3','D3','C3','C3','D3','D3'],
+      chords:['E3+G3+B3','D3+F#3+A3','C3+E3+G3','D3+F#3+A3'],
+      drum:'k---h---s---h---k---h---s---h---',
+      leads:[
+        ['E5','G5','B5','A5','G5','B5','D6','B5'],
+        ['G5','B5','E6','D6','B5','A5','G5','E5'],
+      ],
+      mood:'earned-victory',
+    }),
+    dreamy: rebuiltTrack({
+      bpm:70, swing:0.03, leadInst:'flute', arpInst:'harp', bassInst:'cello',
+      leadVol:0.034, arpVol:0.013, bassVol:0.043, chordVol:0.026, drumVol:0.006,
+      arp:['C4','G4','E5','G4','F3','C4','A4','C4','A3','E4','C5','E4','G3','D4','B4','D4'],
+      bass:['C3','C3','F2','F2','A2','A2','G2','G2'],
+      chords:['C3+E3+G3','F2+A2+C3','A2+C3+E3','G2+B2+D3'],
+      drum:'k-----------------------h-------',
+      leads:[
+        ['G4','C5','E5','D5','C5','A4','G4','-'],
+        ['E5','D5','C5','G4','A4','C5','G4','-'],
+      ],
+      mood:'quiet-intimacy',
+    }),
+    group_dangerous: rebuiltTrack({
+      bpm:66, swing:0.02, leadInst:'viola', bassInst:'cello', chordInst:'pad',
+      leadVol:0.041, bassVol:0.062, chordVol:0.029, drumVol:0.012,
+      bass:['F#2','F#2','D2','D2','A2','A2','C#3','C#3'],
+      chords:['F#2+A2+C#3','D2+F#2+A2','A2+C#3+E3','C#3+E3+G#3'],
+      drum:'k-----------------------s-------',
+      leads:[
+        ['C#5','A4','F#4','G4','A4','C#5','E5','C#5'],
+        ['F#4','A4','C#5','D5','C#5','A4','G4','F#4'],
+        ['E5','C#5','A4','F#4','G4','A4','C#5','-'],
+      ],
+      mood:'dangerous-codependence',
+    }),
+    group_freedom: rebuiltTrack({
+      bpm:74, swing:0.08, leadInst:'flute', arpInst:'harp', bassInst:'cello',
+      leadVol:0.032, arpVol:0.012, bassVol:0.041, chordVol:0.025, drumVol:0.005,
+      arp:['G3','D4','B4','D4','C4','G4','E5','G4','E4','B4','G5','B4','D4','A4','F#5','A4'],
+      bass:['G2','G2','C3','C3','E3','E3','D3','D3'],
+      chords:['G2+B2+D3','C3+E3+G3','E3+G3+B3','D3+F#3+A3'],
+      drum:'k-------------------------------',
+      leads:[
+        ['B4','D5','G5','D5','E5','D5','B4','-'],
+        ['G4','B4','D5','E5','D5','B4','A4','G4'],
+      ],
+      mood:'warm-small-life',
+    }),
+    group_business: rebuiltTrack({
+      bpm:78, swing:0.04, leadInst:'organ', arpInst:'harp', bassInst:'cello',
+      leadVol:0.032, arpVol:0.012, bassVol:0.055, chordVol:0.018, drumVol:0.012,
+      arp:['C#4','G#4','B4','E5','A3','E4','G#4','C#5','F#3','C#4','E4','A4','G#3','D#4','F#4','B4'],
+      bass:['C#3','C#3','A2','A2','F#2','F#2','G#2','G#2'],
+      chords:['C#3+E3+G#3','A2+C#3+E3','F#2+A2+C#3','G#2+B2+D#3'],
+      drum:'k-------s-------k---h---s-------',
+      leads:[
+        ['G#4','C#5','E5','D#5','C#5','B4','G#4','-'],
+        ['E5','D#5','C#5','G#4','B4','C#5','G#4','-'],
+      ],
+      mood:'after-hours-office',
+    }),
+    group_childhood: rebuiltTrack({
+      bpm:62, leadInst:'bell', bassInst:'cello', chordInst:'pad',
+      leadVol:0.031, bassVol:0.052, chordVol:0.026, drumVol:0,
+      bass:['A2','A2','F2','F2','C3','C3','E2','E2'],
+      chords:['A2+C3+E3','F2+A2+C3','C3+E3+G3','E2+G#2+B2'],
+      drum:'--------------------------------',
+      leads:[
+        ['E5','C5','A4','C5','F5','E5','B4','A4'],
+        ['A4','C5','E5','D5','C5','B4','G#4','A4'],
+        ['C5','B4','A4','E5','D5','C5','A4','-'],
+      ],
+      mood:'damaged-nostalgia',
+    }),
+    narae: rebuiltTrack({
+      bpm:76, swing:0.02, leadInst:'flute', arpInst:'harp', bassInst:'cello',
+      leadVol:0.034, arpVol:0.011, bassVol:0.044, chordVol:0.022, drumVol:0.006,
+      arp:['D4','A4','F5','A4','Bb3','F4','D5','F4','G3','D4','Bb4','D4','A3','E4','C#5','E4'],
+      bass:['D3','D3','Bb2','Bb2','G2','G2','A2','A2'],
+      chords:['D3+F3+A3','Bb2+D3+F3','G2+Bb2+D3','A2+C#3+E3'],
+      drum:'k-----------------------h-------',
+      leads:[
+        ['F4','A4','D5','C5','Bb4','A4','F4','-'],
+        ['D5','C5','Bb4','F4','G4','A4','D5','-'],
+      ],
+      mood:'calm-guidance',
+    }),
+  };
+  Object.keys(TRACKS).forEach(key => { delete TRACKS[key]; });
+  Object.assign(TRACKS, REBUILT_TRACKS);
+
   // 예전 장면 이름 → 새 트랙 (다른 화면·저장 데이터의 호출이 남아도 음악이 꺼지지 않게)
   const ALIASES = { market: 'market_normal', closed: 'news', date: 'dreamy' };
 
@@ -346,26 +562,22 @@
   // sections 가 없으면 score 하나를 계속 반복(구버전 호환).
   const VOCAL_TRACKS = {
     title: {
-      profile: 'bright', style: 'arcade', gain: 0.22, duet: true,
-      sectionStyles: ['arcade', 'neon', 'opera'],
+      profile: 'warm', style: 'choir', gain: 0.11, duet: false,
+      sectionStyles: ['choir', 'dream', 'hollow'],
       sections: [
-        [ // 후렴 — "빠른 매매, 매일 우리는 이긴다"
-          sung('QUICK', 'C5', 0, 3, 'I', 'K'), sung('TRADE', 'E5', 4, 4, 'A', 'T'),
-          sung('RISE', 'G5', 10, 4, 'I', 'R'), sung('TO', 'A5', 16, 2, 'U', 'T'),
-          sung('DAY', 'C6', 18, 6, 'A', 'D'), sung('WE', 'A5', 26, 2, 'E', 'W'),
-          sung('WIN', 'G5', 28, 3, 'I', 'W'),
+        [
+          sung('ONE', 'D4', 0, 5, 'U', 'W'), sung('MORE', 'F4', 8, 5, 'O', 'M'),
+          sung('DAY', 'A4', 16, 7, 'A', 'D'), sung('BE', 'F4', 24, 3, 'E', 'B'),
+          sung('GINS', 'D4', 27, 5, 'I', 'G'),
         ],
-        [ // 절 — "싸게 사서 비싸게, 크게 꿈꿔"
-          sung('BUY', 'C5', 0, 3, 'I', 'B'), sung('LOW', 'E5', 4, 3, 'O', 'L'),
-          sung('SELL', 'G5', 8, 3, 'E', 'S'), sung('HIGH', 'C6', 12, 4, 'I', 'H'),
-          sung('DREAM', 'E6', 18, 4, 'E', 'D'), sung('SO', 'C6', 24, 2, 'O', 'S'),
-          sung('BIG', 'G5', 27, 4, 'I', 'B'),
+        [
+          sung('HOLD', 'D4', 0, 6, 'O', 'H'), sung('THE', 'F4', 8, 3, 'E', 'D'),
+          sung('LINE', 'A4', 12, 7, 'I', 'L'), sung('BREATHE', 'G4', 22, 8, 'E', 'B'),
         ],
-        [ // 브리지 — "우리는 오늘도 살아있다"
-          sung('WE', 'E5', 0, 3, 'E', 'W'), sung('ARE', 'G5', 4, 3, 'A', ''),
-          sung('STILL', 'A5', 8, 3, 'I', 'S'), sung('A', 'G5', 12, 2, 'A', ''),
-          sung('LIVE', 'C6', 14, 5, 'I', 'L'), sung('TO', 'A5', 22, 2, 'U', 'T'),
-          sung('DAY', 'E5', 25, 6, 'A', 'D'),
+        [
+          sung('STILL', 'A4', 0, 6, 'I', 'S'), sung('A', 'G4', 8, 2, 'A', ''),
+          sung('WAKE', 'F4', 12, 6, 'A', 'W'), sung('TO', 'E4', 22, 2, 'U', 'T'),
+          sung('NIGHT', 'D4', 25, 7, 'I', 'N'),
         ],
       ],
     },
@@ -516,7 +728,7 @@
   // 캐릭터 전용 보컬 모티프. 반주는 기존 장면 트랙을 재사용하고 보컬만 교체한다.
   const CHARACTER_VOCALS = {
     narae: {
-      base: 'title', profile: 'warm', style: 'guide', gain: 0.16, duet: true,
+      base: 'narae', profile: 'warm', style: 'guide', gain: 0.13, duet: false,
       score: [
         sung('COME', 'C5', 0, 5, 'U', 'K'),
         sung('THIS', 'E5', 6, 4, 'I', 'D'),
@@ -525,7 +737,7 @@
       ],
     },
     yujin: {
-      base: 'news', profile: 'firm', style: 'guardian', gain: 0.18,
+      base: 'group_dangerous', profile: 'firm', style: 'guardian', gain: 0.15,
       score: [
         sung('STAY', 'C4', 0, 6, 'A', 'S'),
         sung('BE', 'G4', 8, 4, 'E', 'B'),
@@ -534,7 +746,7 @@
       ],
     },
     chaerin: {
-      base: 'dreamy', profile: 'velvet', style: 'velvetKnife', gain: 0.17, duet: true,
+      base: 'group_dangerous', profile: 'velvet', style: 'velvetKnife', gain: 0.14, duet: false,
       score: [
         sung('KNEEL', 'E5', 0, 7, 'E', 'K'),
         sung('THEN', 'C5', 10, 5, 'E', 'D'),
@@ -542,7 +754,7 @@
       ],
     },
     sera: {
-      base: 'bankrupt', profile: 'hollow', style: 'stalker', gain: 0.18, duet: true,
+      base: 'group_dangerous', profile: 'hollow', style: 'stalker', gain: 0.15, duet: false,
       score: [
         sung('FOUND', 'A4', 0, 7, 'O', 'F'),
         sung('YOU', 'E5', 8, 6, 'U', 'Y'),
@@ -631,10 +843,10 @@
           await T.start();
           const destination = T.getDestination ? T.getDestination() : T.Destination;
           const limiter = new T.Limiter(-8).connect(destination);
-          const mix = new T.Gain(Math.max(0.001, volume * 0.38)).connect(limiter);
-          const reverb = new T.Reverb({ decay: 1.8, preDelay: 0.025, wet: 0.18 }).connect(mix);
+          const mix = new T.Gain(Math.max(0.001, volume * 0.28)).connect(limiter);
+          const reverb = new T.Reverb({ decay: 1.2, preDelay: 0.02, wet: 0.12 }).connect(mix);
           const chorus = new T.Chorus({
-            frequency: 1.2, delayTime: 3.2, depth: 0.18, spread: 120, wet: 0.12,
+            frequency: 1.0, delayTime: 2.8, depth: 0.12, spread: 100, wet: 0.07,
           }).start().connect(reverb);
           const vocalFilter = new T.Filter({ type: 'highpass', frequency: 105, rolloff: -12 }).connect(chorus);
           const pad = new T.PolySynth(T.AMSynth, {
@@ -699,7 +911,7 @@
 
     setVolume(v) {
       if (this.nodes && this.nodes.mix) {
-        const target = Math.max(0.0001, v * 0.38);
+        const target = Math.max(0.0001, v * 0.28);
         const gain = this.nodes.mix.gain;
         if (gain && typeof gain.rampTo === 'function') gain.rampTo(target, 0.08);
         else if (gain) gain.value = target;
@@ -770,7 +982,7 @@
       let player;
       try {
         // 짧은 시간에 음절이 몰려도 오래된 샘플을 정리해 모바일 오디오 노드 폭증을 막는다.
-        while (this.players.size >= 12) {
+        while (this.players.size >= 6) {
           const oldest = this.players.values().next().value;
           this.players.delete(oldest);
           try { oldest.stop(); oldest.dispose(); } catch (e) {}
@@ -832,7 +1044,7 @@
       const end = at + duration;
       const voice = { stopped: false, parts: [] };
       try {
-        while (this.voices.size >= 8) {
+        while (this.voices.size >= 4) {
           const oldest = this.voices.values().next().value;
           this.voices.delete(oldest);
           try { oldest.stop(); oldest.dispose(); } catch (e) {}
@@ -965,14 +1177,15 @@
   }
 
   let ctx = null, master = null, comp = null, timer = null;
-  let cur = null, nextTime = 0;
+  let cur = null, curName = null, nextTime = 0;
   let arrIdx = 0, secStep = 0, curSecLen = 16;   // 편곡 진행 상태
   let enabled = false, volume = 0.5, wanted = null;
   let unlockPromise = null;
   let recoveryPromise = null;
+  let loopCount = 0, schedulerTicks = 0, lastSchedulerAt = 0;
 
-  const LOOKAHEAD = 0.14;
-  const TICK_MS = 30;
+  const LOOKAHEAD = 0.22;
+  const TICK_MS = 55;
 
   function ensureCtx() {
     if (ctx) return ctx;
@@ -996,7 +1209,12 @@
     master.connect(comp); comp.connect(ctx.destination);
     if (typeof ctx.addEventListener === 'function') {
       ctx.addEventListener('statechange', () => {
-        if (ctx.state === 'running' && cur && timer) nextTime = ctx.currentTime + 0.06;
+        if (ctx.state !== 'running' || !enabled || !wanted) return;
+        if (curName !== wanted || !cur || !timer) {
+          BGM._start(wanted);
+          return;
+        }
+        nextTime = ctx.currentTime + 0.08;
       });
     }
     return ctx;
@@ -1058,7 +1276,7 @@
   // 화음(패드) — 'C4+E4+G4' 를 동시에 울린다
   function chordVoice(instName, spec, at, dur, vol) {
     if (!spec || spec === '-') return;
-    const notes = spec.split('+');
+    const notes = spec.split('+').slice(0, 3);
     notes.forEach(nm => voice(instName, freq(nm), at, dur, vol / Math.sqrt(notes.length)));
   }
 
@@ -1261,6 +1479,8 @@
     // 백그라운드나 모바일 정책으로 잠긴 동안에는 예약만 멈춘다.
     // setInterval에서 resume()를 반복하면 복구 Promise가 폭증하므로 사용자 동작·pageshow에서만 재개한다.
     if (ctx.state !== 'running') return;
+    schedulerTicks++;
+    lastSchedulerAt = Date.now();
     const spb = 60 / cur.bpm / 4;           // 16분음표 한 칸(초)
     const swing = cur.swing || 0;
     const vocal = vocalFor(wanted);
@@ -1268,9 +1488,11 @@
     // 스케줄러가 크게 밀렸으면(탭 백그라운드·렌더링·느린 기기) 밀린 만큼 따라잡지 말고
     // 현재 시각으로 스냅한다. 안 그러면 while 루프가 수십 스텝을 한꺼번에 예약해
     // 노드가 폭증 → "드드드득" 끊김 → 컨텍스트 정지로 이어진다.
-    if (nextTime < ctx.currentTime) nextTime = ctx.currentTime + 0.03;
+    if (!Number.isFinite(nextTime) || nextTime < ctx.currentTime || nextTime > ctx.currentTime + 1.5) {
+      nextTime = ctx.currentTime + 0.06;
+    }
     let guard = 0;
-    while (nextTime < ctx.currentTime + LOOKAHEAD && guard++ < 32) {
+    while (nextTime < ctx.currentTime + LOOKAHEAD && guard++ < 12) {
       const sec = cur.sections[cur.arrangement[arrIdx % cur.arrangement.length]] || cur.sections[0];
       const i = secStep;
       const at = nextTime + ((i % 2) ? swing * spb : 0);   // 홀수 칸을 살짝 밀어 스윙감
@@ -1282,7 +1504,7 @@
         if (arp) layerNote(cur.arpInst || 'pluck', arp, i, at, spb * 0.9,
           (cur.arpVol != null ? cur.arpVol : (cur.leadVol || 0.05) * 0.55) * mix.arp);
         const chords = layerOf(cur, sec, 'chords');
-        if (chords) chordVoice(cur.chordInst || 'pad', chords[i % chords.length], at, spb * 7, (cur.chordVol || 0.03) * mix.chords);
+        if (chords) chordVoice(cur.chordInst || 'pad', chords[i % chords.length], at, spb * 5.5, (cur.chordVol || 0.03) * mix.chords);
         const drum = layerOf(cur, sec, 'drum');
         if (drum && drum.length && cur.drumVol) {
           const d = drum[i % drum.length];
@@ -1300,7 +1522,9 @@
       secStep++;
       if (secStep >= curSecLen) {          // 섹션 끝 → 다음 편곡 순서로
         secStep = 0;
+        const previousArr = arrIdx;
         arrIdx = (arrIdx + 1) % cur.arrangement.length;
+        if (arrIdx === 0 && previousArr !== 0) loopCount++;
         const nextSec = cur.sections[cur.arrangement[arrIdx]] || cur.sections[0];
         curSecLen = sectionLen(cur, nextSec);
       }
@@ -1318,6 +1542,18 @@
     },
     state() {
       return ctx ? ctx.state : 'uninitialized';
+    },
+    debug() {
+      return {
+        wanted,
+        playing: curName,
+        timerActive: !!timer,
+        loopCount,
+        schedulerTicks,
+        lastSchedulerAt,
+        nextTime,
+        mood: cur && cur.mood || null,
+      };
     },
 
     /* 삼성 인터넷·iOS Safari처럼 사용자 동작 안에서 resume 완료를 요구하는
@@ -1348,7 +1584,6 @@
     setEnabled(on) {
       enabled = !!on;
       if (!enabled) this._halt();
-      else if (wanted) this.play(wanted, true, advanced.voiceOverride);
       return enabled;
     },
 
@@ -1373,7 +1608,10 @@
         recoverPlayback();
         return true;
       }
-      if (!force && cur === t && timer) {
+      if (curName === name && cur === t && timer) {
+        if (!Number.isFinite(nextTime) || nextTime < ctx.currentTime) {
+          nextTime = ctx.currentTime + 0.06;
+        }
         if (vocalFor(name)) {
           if (advanced.name !== name) advanced.start(name);
         } else if (advanced.name) {
@@ -1412,10 +1650,13 @@
       if (!t || !enabled || !ctx || ctx.state !== 'running') return false;
       this._halt();
       cur = normalize(t);
+      curName = name;
       arrIdx = 0; secStep = 0;
+      loopCount = 0;
       curSecLen = sectionLen(cur, cur.sections[cur.arrangement[0]] || cur.sections[0]);
       nextTime = ctx.currentTime + 0.06;
       timer = setInterval(scheduler, TICK_MS);
+      scheduler();
       if (vocalFor(name)) advanced.start(name);
       return true;
     },
@@ -1424,6 +1665,7 @@
       if (timer) { clearInterval(timer); timer = null; }
       advanced.stop();
       cur = null;
+      curName = null;
     },
   };
 
@@ -1434,7 +1676,7 @@
     recoveryPromise = BGM.unlock().then(ok => {
       if (!ok || !enabled || !wanted || !ctx || ctx.state !== 'running') return false;
       // 타이머가 살아 있으면 편곡 진행 위치를 유지하고 예약 시각만 현재로 맞춘다.
-      if (cur && timer) {
+      if (cur && timer && curName === wanted) {
         nextTime = ctx.currentTime + 0.06;
         if (vocalFor(wanted)) {
           if (advanced.name !== wanted) advanced.start(wanted);
