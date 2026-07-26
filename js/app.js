@@ -181,6 +181,11 @@ function newLife() {
       firstCareerStarted: false,
       candidateJobs: [],
       attackForeshadowed: false,
+      firstGuildTutorialQueued: false,
+      firstGuildTutorialChoice: null,
+      firstGuildTutorialSeen: false,
+      mainGameStarted: false,
+      mainGameStartedDay: null,
     },
     job: 'none',             // 직업 id
     happy: 50,               // 행복도 0~100
@@ -1317,7 +1322,7 @@ function createMonthCloseContext(day, before, after, marginInterest) {
   if (settle.died) terminal = { type:'death', age:info.age };
   else if (settle.campaignBankrupt) terminal = { type:'bankruptcy', reason:settle.campaignBankruptcyReason };
   else if (settle.captivity) terminal = { type:'captivity', personName:settle.captivityPerson };
-  return MONTH_CLOSE_FLOW.build({
+  const context=MONTH_CLOSE_FLOW.build({
     id:`month-close:${day}`,
     day,
     report,
@@ -1330,6 +1335,23 @@ function createMonthCloseContext(day, before, after, marginInterest) {
     forcedEvents:(S._importantEvents || []).map(event => event.title || event.type || 'event'),
     terminal,
   });
+  const prologue=S.life&&S.life.prologue;
+  if(day===1&&prologue&&!prologue.firstGuildTutorialSeen&&FREEDOM_TRIO){
+    const guild=FREEDOM_TRIO.ensure(S.life);
+    guild.gameSessions=Math.max(2,guild.gameSessions||0);
+    prologue.firstGuildTutorialQueued=true;
+    const lifeActionIndex=context.steps.findIndex(step=>step&&step.name==='life-action');
+    context.steps.splice(lifeActionIndex<0?context.steps.length:lifeActionIndex,0,{type:'view',name:'prologue-guild'});
+  }
+  if((S._importantEvents||[]).some(event=>event&&event.factionStory==='first_attack')){
+    const eventIndex=context.steps.findIndex(step=>step&&step.name==='important-events');
+    const lifeActionIndex=context.steps.findIndex(step=>step&&step.name==='life-action');
+    if(eventIndex>=0&&lifeActionIndex>=0&&eventIndex>lifeActionIndex){
+      const [eventStep]=context.steps.splice(eventIndex,1);
+      context.steps.splice(lifeActionIndex,0,eventStep);
+    }
+  }
+  return context;
 }
 
 function monthCloseProgress() {
@@ -1363,6 +1385,12 @@ function renderCurrentMonthCloseStep() {
   if (!step) return;
   const host = $('market-close');
   if (!host) return;
+  if(step.name==='prologue-guild'){
+    host.style.display='none';
+    host.innerHTML='';
+    showFirstCloseGuildTutorial();
+    return;
+  }
   if (step.name === 'important-events') {
     host.style.display = 'none';
     host.innerHTML = '';
@@ -1748,9 +1776,22 @@ function settleMonth() {
   RIVALS.settleBots(S.bots).forEach(t => rivalNews.push(t));
   RIVALS.botsFight(S.bots).forEach(t => rivalNews.push(t));
   const attackStatus=factionAttackStatus();
-  const attack = attackStatus.unlocked
+  let attack = attackStatus.unlocked
     ? RIVALS.defendAttack(L, RIVALS.attackPlayer(S.bots, Math.max(0, totalWealth()), S.day))
     : null;
+  const factionBeforeAttack=FACTION_CAMPAIGN&&FACTION_CAMPAIGN.ensure(L);
+  if(!attack&&attackStatus.unlocked&&factionBeforeAttack&&factionBeforeAttack.storyStage==='locked'){
+    const attacker=(S.bots||[])
+      .filter(bot=>bot.leader!=='장태식'&&!bot.bankrupt&&(bot.jailMonths||0)<=0)
+      .sort((a,b)=>(b.aggression||0)-(a.aggression||0))[0];
+    if(attacker){
+      const loss=Math.round(Math.max(100000,Math.max(0,totalWealth())*.02));
+      attack=RIVALS.defendAttack(L,{
+        attacker,caught:false,illegal:false,loss,
+        message:`${attacker.name}이 과거 모의투자 대회의 주문 습관을 알아보고 원본 장부를 회수하려 계좌와 거래 기록을 건드렸습니다. ${loss.toLocaleString('ko-KR')}원 피해`,
+      });
+    }
+  }
   if (attack) {
     registerFactionAttack(attack.attacker);
     if(RELATIONSHIP_SOCIAL){
@@ -1951,7 +1992,11 @@ function assignStartingCareer(){
   const L=S.life;if(L.started)return;
   const job={id:'none',name:'무직'};
   L.firstCareerPool=[];
-  L.prologue={stage:'shut_in',careerUnlocked:false,firstCareerStarted:false,candidateJobs:[],attackForeshadowed:true};
+  L.prologue={
+    stage:'shut_in',careerUnlocked:false,firstCareerStarted:false,candidateJobs:[],attackForeshadowed:true,
+    firstGuildTutorialQueued:false,firstGuildTutorialChoice:null,firstGuildTutorialSeen:false,
+    mainGameStarted:false,mainGameStartedDay:null,
+  };
   L.job='none';L.lifeView='origin';CAREER.switchJob(L,'none');L.started=true;
   const school=ORIGIN&&ORIGIN.school(L.schoolLife);
   const origin=L.originFriend,friend=origin&&SOCIAL.ensure(L).contacts.find(item=>item.id===origin.contactId);
@@ -1964,7 +2009,11 @@ function assignStartingCareer(){
 
 function unlockPrologueCareer(){
   const L=S.life;if(!L)return;
-  L.prologue=Object.assign({stage:'shut_in',careerUnlocked:false,firstCareerStarted:false,candidateJobs:[...(L.firstCareerPool||[])]},L.prologue||{});
+  L.prologue=Object.assign({
+    stage:'shut_in',careerUnlocked:false,firstCareerStarted:false,candidateJobs:[...(L.firstCareerPool||[])],
+    firstGuildTutorialQueued:false,firstGuildTutorialChoice:null,firstGuildTutorialSeen:false,
+    mainGameStarted:false,mainGameStartedDay:null,
+  },L.prologue||{});
   L.prologue.stage='support';L.prologue.careerUnlocked=true;
 }
 
@@ -4398,8 +4447,8 @@ function resolvePersonRequest(kind) {
 const CHARACTER_EVENT_SCENES={
   '나래':'event-narae-market-crash.png','강유진':'event-yujin-rain-rescue.png','윤세라':'event-sera-doorstep.png','한채린':'event-chaerin-contract.png',
   '장태식':'life-debt-crisis.png',
-  '서연':'event-seoyeon-repair.png','하은':'event-haeun-hospital.png','예린':'event-yerin-rain.png','채원':'event-chaewon-7.png','유나':'event-yuna-2.png','수아':'event-sua-classroom.png','보라':'event-bora-pharmacy.png',
-  '다은':'event-daeun-cake.png','혜진':'event-hyejin-blackout.png','소희':'sohee-evnet-3.png','아린':'event-arin-first-snow.png','나영':'event-nayoung-wrist-v2.png','미래':'event-mirae-launch.png'
+  '서연':'event-seoyeon-repair.png','예린':'event-yerin-rain.png','채원':'event-chaewon-7.png','유나':'event-yuna-2.png','보라':'event-bora-pharmacy.png',
+  '소희':'sohee-evnet-3.png','나영':'event-nayoung-wrist-v2.png','미래':'event-mirae-launch.png'
 };
 const CHARACTER_STORY_EXTRA_SCENES={
   '강유진':['event-yujin-night-call.png','event-yujin-night-call.png'],
@@ -5051,6 +5100,38 @@ function showFreedomGuildEvent(eventId){
   host.innerHTML=`<div class="window event-window freedom-trio-window"><div class="title-bar event-bar"><div class="title-bar-text">🎮 ${FREEDOM_TRIO.GUILD_NAME} · ${event.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${event.scene}" alt="${event.title}"><div class="trio-dialogues">${members}</div><div class="event-desc">${event.desc}</div><div class="important-event-detail">현실 정보 비공개 · 게임한 밤 ${FREEDOM_TRIO.ensure(S.life).gameSessions}회 · 파티의 온기 ${Math.round(FREEDOM_TRIO.ensure(S.life).guildWarmth)}</div><div class="event-options">${event.choices.map(choice=>`<button class="event-opt" data-guild-choice="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="freedom-guild-outcome"></div></div></div>`;
   host.querySelectorAll('[data-guild-choice]').forEach(button=>button.addEventListener('click',()=>resolveFreedomGuildEvent(button.dataset.guildChoice)));
 }
+function showFirstCloseGuildTutorial(){
+  const host=$('life-event'),event=FREEDOM_TRIO&&FREEDOM_TRIO.guildEvent('first_party'),L=S.life;
+  if(!host||!event||!L){advanceMonthCloseFlow();return;}
+  prepareLifeEventOverlay(false);
+  const prologue=L.prologue||(L.prologue={});
+  const members=FREEDOM_TRIO.GUILD_MEMBERS.map(member=>`<div class="trio-dialogue"><span class="pixel-news-avatar">${member.avatar}</span><div><b>${member.nickname}</b><small>${member.role||'길드원'} · 현실 정보 비공개</small><p>“${member.line}”</p></div></div>`).join('');
+  const chosen=prologue.firstGuildTutorialChoice&&event.choices.find(choice=>choice.id===prologue.firstGuildTutorialChoice);
+  const result=chosen
+    ?`<div class="event-outcome"><div class="oc-text ${chosen.warmth<0?'down':'up'}">${chosen.result}</div><div class="oc-changes">파티의 온기 ${chosen.warmth>=0?'+':''}${chosen.warmth}</div><button id="first-guild-confirm" class="session-btn opening">게임을 끄고 이번 달 일정을 정한다</button></div>`
+    :`<div class="event-options">${event.choices.map(choice=>`<button class="event-opt" data-first-guild-choice="${choice.id}">${choice.text}</button>`).join('')}</div>`;
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window freedom-trio-window first-close-guild-window"><div class="title-bar event-bar"><div class="title-bar-text">🎮 첫 장 마감 · 남아 있던 대화창</div></div><div class="window-body"><img class="life-scene-banner" src="${event.scene}" alt="장 마감 뒤 온라인 게임에 접속한 방"><div class="event-title">차트를 닫자 방 안이 너무 조용해졌습니다.</div><div class="event-desc">이번 달 사람과 나눈 말은 시우의 안부, 나래의 투자 설명, 아버지의 송금 메시지가 전부였습니다. 밖으로 나갈 생각은 들지 않았고, 습관처럼 시우가 알려 준 게임을 켰습니다.<br><br>알게 된 지 얼마 되지 않아 얼굴도 직업도 모르지만, 요즘 먼저 말을 걸고 다음 접속을 기다려 주는 사람은 이 세 닉네임뿐입니다.</div><div class="important-event-detail">이 게임은 단순한 스트레스 회복 행동이 아닙니다. 같은 사람들과 계속 파티를 이어 가면 길드와 오프라인 정모 이야기가 열리고, 현관 밖으로 나갈 또 다른 계기가 생깁니다.</div><div class="trio-dialogues">${members}</div>${result}</div></div>`;
+  if(!chosen){
+    host.querySelectorAll('[data-first-guild-choice]').forEach(button=>button.addEventListener('click',()=>{
+      const choiceId=button.dataset.firstGuildChoice;
+      const resolved=FREEDOM_TRIO.resolveGuild(L,'first_party',choiceId);
+      if(!resolved)return;
+      prologue.firstGuildTutorialChoice=choiceId;
+      autoSave();
+      showFirstCloseGuildTutorial();
+    }));
+  }else{
+    $('first-guild-confirm').addEventListener('click',()=>{
+      prologue.firstGuildTutorialSeen=true;
+      prologue.firstGuildTutorialQueued=false;
+      host.style.display='none';
+      host.innerHTML='';
+      autoSave();
+      advanceMonthCloseFlow();
+    });
+  }
+}
 function resolveFreedomGuildEvent(choiceId){
   const eventId=S._freedomGuildEvent,result=FREEDOM_TRIO&&FREEDOM_TRIO.resolveGuild(S.life,eventId,choiceId),host=$('life-event');if(!result||!host)return;
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
@@ -5248,16 +5329,11 @@ const SIGNATURE_EVENTS={
  '강유진':['당신을 걱정하는 선을 넘었다','망가질수록 자신만이 구할 수 있다고 믿으며 연락과 보호를 통제하기 시작했습니다.'],
  '한채린':['자기 명령을 거절해주길 기다린다','아첨하는 사람은 이름조차 기억하지 않던 채린이, 자기 말을 끊고 계약을 돌려보내는 당신의 무례를 사적인 애정으로 기다리기 시작했습니다.'],
  '서연':['당신이 작업의 영감이 되었다','둘만의 기억을 디자인에 남기며 새로운 작품을 만들기 시작했습니다.'],
- '하은':['돌봄이 사랑보다 의무가 되었다','당신까지 챙기느라 지친 마음을 처음으로 드러냈습니다.'],
  '예린':['함께 살 수 있는 사람으로 보기 시작했다','생활표와 저축 계획에 당신의 자리를 만들었습니다.'],
  '채원':['돌아올 곳을 정했다','긴 비행 뒤 가장 먼저 연락하는 사람이 당신이 되었습니다.'],
  '유나':['관계가 대중의 먹잇감이 되었다','사진과 목격담이 퍼지며 공개할지 숨길지 선택해야 합니다.'],
- '수아':['모두의 책임을 떠안고 무너진다','학교와 가족, 관계의 부탁을 거절하지 못해 한계에 닿았습니다.'],
  '보라':['반복되는 일상에 당신이 들어왔다','매일 같은 시간에 함께하는 안정이 특별한 애정이 되었습니다.'],
- '다은':['둘만의 가게를 꿈꾸기 시작했다','새 메뉴와 작은 가게의 이름을 당신과 함께 정하고 싶어 합니다.'],
- '혜진':['감정보다 강한 증거를 얻었다','반복해서 지킨 약속을 근거로 당신을 완전히 신뢰하기 시작했습니다.'],
  '소희':['자유 안에 당신의 자리를 남겼다','떠나고 돌아오는 삶에서도 관계를 책임지는 방식을 찾았습니다.'],
- '아린':['마음의 원고를 건넸다','누구에게도 보여주지 않은 자신의 이야기를 당신에게 먼저 읽혀줍니다.'],
  '나영':['당신을 경쟁자로 인정했다','함께 성장할 상대라며 운동과 인생 모두에서 승부를 걸어옵니다.'],
  '미래':['현실에서도 파티원이 되었다','게임 취향뿐 아니라 생활 리듬까지 맞아 공동 프로젝트를 제안했습니다.']
 };
@@ -5267,7 +5343,6 @@ function updateCharacterSignatureSystems(L){
   if(!CHAR_TRAITS)return;const active=new Set(['friend','casual','partner','lover','polycule']),results=CHAR_TRAITS.monthly(L,signatureContext(L));results.forEach(x=>{if((!FREEDOM_TRIO||FREEDOM_TRIO.canContact(L,x.rec.name))&&x.changed)signatureEvent(x);});
   ensureMet(L).forEach(r=>{if(!active.has(r.status)||(FREEDOM_TRIO&&!FREEDOM_TRIO.canContact(L,r.name)))return;const s=CHAR_TRAITS.system(r.name),st=CHAR_TRAITS.ensure(r);if(!s||!st)return;const stage=CHAR_TRAITS.stageOf(s,st.value);if(stage<3)return;
     if(r.name==='강유진'){r.menhera=true;r.affection=clamp((r.affection||0)+3,0,100);L.legalShield=Math.min(5,(L.legalShield||0)+1);L.stress=clamp((L.stress||0)+1,0,100);r.protectionEnjoyed=true;}
-    else if(r.name==='하은'||r.name==='수아'){r.affection=Math.max(0,(r.affection||0)-3);}
     else if(r.name==='유나'){SOCIAL.ensure(L).reputation-=2;}
     else if(r.name==='한채린'){S.capital+=500000;L.charm=Math.max(0,(L.charm||0)-1);}
     else if(r.name==='나래'){CAREER.ensure(L).performance=clamp(CAREER.ensure(L).performance+2,0,100);}
@@ -5275,10 +5350,7 @@ function updateCharacterSignatureSystems(L){
     else if(r.name==='채원'){L.happy=clamp((L.happy||0)+2,0,100);}
     else if(r.name==='예린'){L.creditScore=clamp((L.creditScore||600)+3,0,1000);}
     else if(r.name==='보라'){L.health=clamp((L.health||50)+2,0,100);}
-    else if(r.name==='다은'){S.capital+=200000;}
-    else if(r.name==='혜진'){L.legalShield=Math.min(5,(L.legalShield||0)+1);}
     else if(r.name==='소희'){L.happy=clamp((L.happy||0)+3,0,100);}
-    else if(r.name==='아린'){L.stress=clamp((L.stress||0)-3,0,100);}
     else if(r.name==='나영'){L.fitness=clamp((L.fitness||0)+2,0,100);}
     else if(r.name==='미래'){CAREER.ensure(L).skill=clamp(CAREER.ensure(L).skill+1,0,100);}
     else if(s.good){r.trust=clamp((r.trust||0)+2,0,100);}
@@ -5783,7 +5855,7 @@ function showOutsideFearModal(){
   const L=S.life,host=$('date-host');if(!L||!host)return;
   S._outsideFearPromptCount=Math.max(0,S._outsideFearPromptCount||0)+1;
   const nudge=L.tutorialMet
-    ?`<div class="phone-shell outside-fear-phone"><div class="phone-status"><span>투자지원센터</span><span>방금</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">📘</span><span><b>나래 매니저</b><small>예약 안내</small></span></header><div class="phone-chat-log"><div class="phone-bubble incoming">${S._outsideFearPromptCount<=1?'다음 상담도 온라인 변경은 안 돼요. 현관까지만 나오세요. 제가 1층에서 기다릴게요.':'또 현관 앞에서 돌아갔죠? 괜찮으니까 다음 상담 날에는 엘리베이터만 타요. 나머지는 제가 같이 갈게요.'}</div></div></div></div>`
+    ?`<div class="phone-shell outside-fear-phone"><div class="phone-status"><span>투자지원센터</span><span>방금</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">📘</span><span><b>나래 매니저</b><small>예약 안내</small></span></header><div class="phone-chat-log"><div class="phone-bubble incoming">${S._outsideFearPromptCount<=1?'다음 상담도 온라인 변경은 안 돼요. 현관까지만 나오세요. 제가 1층에서 기다릴게요.':'또 현관 앞에서 돌아갔죠? 괜찮으니까 다음 상담 날에는 엘리베이터만 타요. 나머지는 제가 같이 갈게요.'}</div></div></div></div><div class="important-event-detail">혼자 나가는 일이 아직 어렵다면 집에서 온라인 게임을 이어 가 보세요. 같은 길드 사람들과 관계가 쌓이면 화면 밖에서 만날 안전한 약속이 생깁니다.</div>`
     :'';
   host.style.display='block';
   host.innerHTML=`<div class="window event-window place-encounter-window outside-fear-window"><div class="title-bar event-bar"><div class="title-bar-text">🚪 현관 앞에서 멈춘 주말</div><div class="title-bar-controls"><button aria-label="Close" id="outside-fear-x"></button></div></div><div class="window-body"><img class="dating-banner date-scene" src="${dateSceneImage('solo')}" alt="문 앞에서 외출을 망설이는 장면"><div class="event-title">아직은 밖에 나가기가 무섭다.</div><div class="event-desc">출근이나 시간을 정해 둔 상담은 어떻게든 버티지만, 아무도 기다리지 않는 곳으로 혼자 나가려니 예전 일이 다시 떠오릅니다. 손잡이를 잡은 채 한참 서 있다가 신발을 벗었습니다.</div>${nudge}<div class="event-options"><button class="event-opt" id="outside-fear-close">오늘은 문을 잠그고 돌아간다</button></div></div></div>`;
@@ -7211,6 +7283,13 @@ function factionAttackStatus() {
 
 function registerFactionAttack(attacker) {
   if (!FACTION_CAMPAIGN || !S.life || !attacker) return;
+  const prologue=S.life.prologue||(S.life.prologue={});
+  if(!prologue.mainGameStarted){
+    prologue.mainGameStarted=true;
+    prologue.mainGameStartedDay=S.day;
+    prologue.stage='main';
+    addNews('⚠️ 프롤로그 종료 · 시장 밖의 경쟁 세력이 먼저 당신을 찾아냈습니다. 사업·운영·세력 대응 기능이 열립니다.','bad');
+  }
   const rival=(S.bots||[]).find(bot=>bot===attacker||bot.name===(attacker.name||attacker));
   if(rival)unlockRivalContact(rival,'rival_attack');
   const result = FACTION_CAMPAIGN.onAttack(S.life, attacker.name || attacker, S.day);
@@ -7986,8 +8065,28 @@ function storyProgressHTML(L) {
   return rows.length||circleRow?`<div class="story-progress-list"><div class="hub-title">📖 이어지는 인물 이야기</div>${circleRow}${rows.slice(0,5).join('')}</div>`:'';
 }
 
+function mainSystemsUnlocked(L=S.life){
+  if(!L)return false;
+  const prologue=L.prologue||(L.prologue={});
+  const faction=L.faction||{};
+  const businessOwned=!!(L.business&&Array.isArray(L.business.owned)&&L.business.owned.length);
+  const progressed=!!(
+    prologue.mainGameStarted||
+    (faction.storyStage&&faction.storyStage!=='locked')||
+    (faction.level||0)>0||
+    businessOwned
+  );
+  if(progressed&&!prologue.mainGameStarted){
+    prologue.mainGameStarted=true;
+    prologue.mainGameStartedDay=prologue.mainGameStartedDay||S.day;
+    prologue.stage='main';
+  }
+  return progressed;
+}
+
 function lifeHubHTML() {
   const L = S.life, R = D.RELATIONSHIP;
+  const mainUnlocked=mainSystemsUnlocked(L);
   const relationGroup=RELATIONSHIPS.ensure(L).relationshipGroup;
   const relationshipMembers=RELATIONSHIPS.consensualMembers(L);
   LOAN.ensure(L);
@@ -8144,19 +8243,17 @@ function lifeHubHTML() {
   const mentor=investmentMentorState(L);
   const shutInOuting=!freeOutingUnlocked(L);
   const weekLabel = actionLeft > 0 ? `${actionUsed + 1}주차 일정 선택` : '이번 달 일정 완료';
-  const quickBtns=`<button class="life-btn daily-choice home" data-act="home-life">🏠 집에서 보내기 <small>휴식·게임·공부</small></button><button class="life-btn daily-choice outing" data-act="date">🌆 목적을 정해 외출하기 <small>장소·취미·약속을 먼저 선택</small></button><button class="life-btn daily-choice earning" data-act="income-work">💵 이번 주 돈 벌기 <small>시장 조사·단기 의뢰·현장 일당</small></button>`;
+  const quickBtns=`<button class="life-btn daily-choice home" data-act="home-life">🏠 집에서 보내기 <small>${mainUnlocked?'휴식·길드 게임·운영 공부':'휴식·온라인 게임·마음 정리'}</small></button><button class="life-btn daily-choice outing" data-act="date">🌆 ${shutInOuting?'현관 밖으로 나가 보기':'목적을 정해 외출하기'} <small>${shutInOuting?'혼자 어렵다면 게임 길드·나래 상담에서 계기를 만든다':'장소·취미·약속을 먼저 선택'}</small></button><button class="life-btn daily-choice earning" data-act="income-work">💵 이번 주 돈 벌기 <small>시장 조사·단기 의뢰·현장 일당</small></button>`;
   const workspaceLaunchers=`<div class="life-workspace-launchers">
     <button data-life-window="wellbeing"><span>🌿</span><b>생활·건강</b><small>외부 취미·검진·관계 약속</small></button>
     <button data-life-window="social"><span>👨‍👩‍👧</span><b>가족·인맥</b><small>가족·친구·개인 이야기</small></button>
-    <button data-life-window="power"><span>⚔️</span><b>세력·법정</b><small>조직·라이벌·진행 사건</small></button>
     <button data-life-window="investment"><span>📘</span><b>투자 컨설팅</b><small>나래의 분석 노트 · ${mentor.skill>=70?'통찰':mentor.skill>=45?'분석':mentor.skill>=20?'기초':'입문'}</small></button>
-    <button data-life-window="career"><span>📈</span><b>운영 역량</b><small>사업·세력 관리 교육</small></button>
     <button data-life-window="housing"><span>🏠</span><b>거주지</b><small>월세·전세·매매</small></button>
-    <button data-life-window="assets"><span>🏢</span><b>자산·사업</b><small>부동산·사업체·직원 모집</small></button>
+    ${mainUnlocked?'<button data-life-window="power"><span>⚔️</span><b>세력·법정</b><small>조직·라이벌·진행 사건</small></button><button data-life-window="career"><span>📈</span><b>운영 역량</b><small>사업·세력 관리 교육</small></button><button data-life-window="assets"><span>🏢</span><b>자산·사업</b><small>부동산·사업체·직원 모집</small></button>':''}
   </div>`;
   const lifeWorkspaces=`<div class="life-workspace-layer" hidden>
     <section class="life-workspace-window" data-life-panel="wellbeing" hidden><header><div><span>🌿</span><b>생활·건강</b><small>밖에서 하는 취미, 건강관리, 관계 약속</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('health')}" alt="생활과 건강 관리"><div class="workspace-content"><div class="hub-note">게임과 자기계발은 집에서, 운동·외식·여행은 이곳에서 일정을 잡습니다.</div><div class="workspace-card-grid">${hobbyBtns}<button class="life-btn" data-act="checkup">🏥 건강검진 <small>500,000</small></button><button class="life-btn" data-act="treat" ${treatment?'':'disabled'}>💊 ${treatment?`${treatment.name} 치료 · ${won(treatment.cost)}`:'현재 필요한 치료 없음'}</button>${relBtns}</div></div></section>
-    <section class="life-workspace-window" data-life-panel="social" hidden><header><div><span>👨‍👩‍👧</span><b>가족·인맥</b><small>가까운 사람과 보내는 시간</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('network')}" alt="가족과 인맥 모임"><div class="workspace-content"><div class="workspace-card-grid">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👨 아버지 돌봄 <small>1,500,000</small></button><button class="life-btn" data-act="contact-meet">🍽️ 일반 업계 모임 <small>주요 인맥 연락처 만들기</small></button><button class="life-btn hot" data-act="industry-gathering">🥂 사교 모임 등급 <small>실적·평판을 쌓아 특별 책임자 소개받기</small></button>${specialMeetBtns}${personalBtns}${contactBtns}</div></div></section>
+    <section class="life-workspace-window" data-life-panel="social" hidden><header><div><span>👨‍👩‍👧</span><b>가족·인맥</b><small>${mainUnlocked?'가까운 사람과 보내는 시간':'지금 연락할 수 있는 가족과 친구'}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${lifeSceneImage('network')}" alt="가족과 인맥 모임"><div class="workspace-content"><div class="workspace-card-grid">${planBtns}${childBtns}<button class="life-btn" data-act="parent-care">👨 아버지 돌봄 <small>1,500,000</small></button>${mainUnlocked?'<button class="life-btn" data-act="contact-meet">🍽️ 일반 업계 모임 <small>주요 인맥 연락처 만들기</small></button><button class="life-btn hot" data-act="industry-gathering">🥂 사교 모임 등급 <small>실적·평판을 쌓아 특별 책임자 소개받기</small></button>':''}${specialMeetBtns}${personalBtns}${contactBtns}</div></div></section>
     <section class="life-workspace-window" data-life-panel="power" hidden><header><div><span>⚔️</span><b>세력·라이벌·법정</b><small>${justice.case?'진행 중인 사건 있음':'조직 운영과 경쟁 대응'}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="${justice.case?lifeSceneImage('court'):lifeSceneImage('faction')}" alt="${justice.case?'법정 심리':'세력 작전실'}"><div class="workspace-content">${factionBox}<div class="route-sep">경쟁 세력 선택</div>${rivalSelect}<div class="workspace-card-grid">${rivalBtns}${courtBtns}</div></div></section>
     <section class="life-workspace-window" data-life-panel="investment" hidden><header><div><span>📘</span><b>나래의 투자 컨설팅</b><small>${shutInOuting?'센터가 잡아 둔 대면 일정':'시장 화면을 함께 읽는 정기 상담'}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="./assets/life-guide.png" alt="나래의 투자 컨설팅"><div class="workspace-content"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래 · 투자교육 매니저</strong><br><span class="muted">“${shutInOuting?'또 화상으로 바꾸려고 했죠? 현관까지만 나오세요. 제가 1층에 있을게요.':'정답을 찍어드리진 않아요. 대신 무엇을 먼저 봐야 하는지는 알려드릴게요.'}”</span></div></div><div class="home-life-summary"><b>투자 감각 · ${mentor.skill>=70?'통찰':mentor.skill>=45?'분석':mentor.skill>=20?'기초':'입문'}</b><small>상담 ${mentor.sessions}회${mentor.escortedSessions?` · 나래가 마중 나온 날 ${mentor.escortedSessions}회`:''} · 배운 항목 ${mentor.unlocks.length?mentor.unlocks.join(' · '):'기초 화면 읽기'}</small></div>${investmentInsightHTML()}<div class="workspace-card-grid"><button class="life-btn" data-act="investment-consult">📚 ${shutInOuting?'센터 현장 상담에 출석한다':'월간 컨설팅 받기'} <small>500,000 · 이번 달 역량 행동 사용</small></button></div></div></section>
     <section class="life-workspace-window" data-life-panel="career" hidden><header><div><span>📈</span><b>운영 역량</b><small>${CAREER.rank(L)} · 운영력 ${Math.round(career.skill||0)}</small></div><button data-life-window-close aria-label="닫기">×</button></header><img class="hub-scene-banner" src="./assets/life-career.png" alt="사업과 세력 운영 교육 장면"><div class="workspace-content"><div class="hub-note">관리 교육은 사업 매출·비용과 세력 수익·방어에 직접 보정을 줍니다. 직업과 이직은 더 이상 사용하지 않습니다.</div><div class="workspace-card-grid">${certBtns}</div></div></section>
@@ -8169,10 +8266,11 @@ function lifeHubHTML() {
       <div class="life-time-progress" aria-label="이번 달 자유시간 사용 현황">${Array.from({length:LIFE_ACTIONS_PER_MONTH},(_,i)=>`<span class="${i<actionUsed?'used':i===actionUsed?'available current':'available'}">${i<actionUsed?'✓':i+1+'주차'}</span>`).join('')}</div>
       <div class="hub-quick">${quickBtns}</div>
       ${workspaceLaunchers}
+      ${mainUnlocked?'':`<div class="important-event-detail">아직 가진 것은 작은 계좌와 원본 장부뿐입니다. 사업·운영·세력 메뉴는 지금의 생활에서 보이지 않습니다. 시장에 복귀한 주문 기록이 충분히 쌓이면, 장부를 찾는 쪽이 먼저 움직이면서 본편이 시작됩니다.</div>`}
       <div class="hub-note">한 달에 자유시간 4회를 사용하며 같은 행동도 다시 선택할 수 있습니다. 돈이 부족하면 시장 조사·단기 의뢰·현장 일당으로 현금을 먼저 만들 수 있고, 같은 수입 행동을 반복하면 피로 때문에 보수가 조금씩 줄어듭니다.</div>
       ${storyProgressHTML(L)}
-      ${assetPortfolioStrip}
-      <div class="month-action-status">${['데이트','취미','휴식','수입','경력','인맥','사업','가족','라이벌'].map(g=>{const count=monthActionCount(g),label=g==='경력'?'역량':g;return`<span class="${count?'done':''}">${count?`×${count}`:'○'} ${label}</span>`;}).join('')}</div>
+      ${mainUnlocked?assetPortfolioStrip:''}
+      <div class="month-action-status">${(mainUnlocked?['데이트','취미','휴식','수입','경력','인맥','사업','가족','라이벌']:['데이트','취미','휴식','수입','인맥','가족']).map(g=>{const count=monthActionCount(g),label=g==='경력'?'역량':g;return`<span class="${count?'done':''}">${count?`×${count}`:'○'} ${label}</span>`;}).join('')}</div>
       ${lifeWorkspaces}
     </div>`;
 }

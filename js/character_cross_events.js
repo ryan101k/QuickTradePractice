@@ -5,7 +5,6 @@
 'use strict';
 
 const ACTIVE = new Set(['friend', 'casual', 'partner', 'lover', 'polycule']);
-const RETIRED_HEROINES = new Set(['하은','수아','다은','혜진','아린']);
 const met = (life, name) => (life.met || []).find(person => person.name === name);
 const active = (life, name) => {
   const person = met(life, name);
@@ -26,15 +25,15 @@ function freedomRevealed(life){
 
 const EVENTS = [
   {
-    id:'narae_hyejin_model', people:['나래','혜진'], icon:'📊', title:'검증되지 않은 확신',
+    id:'narae_mirae_simulation', people:['나래','미래'], icon:'📊', title:'정답처럼 보이는 시뮬레이션',
     scene:'./assets/event-narae-market-crash.png',
-    condition:life=>knows(life,['나래','혜진']),
-    desc:'나래가 교육 자료에 넣으려는 투자 모델을 혜진이 “표본이 부족하다”며 막았습니다. 두 사람 모두 당신에게 최종 판단을 맡깁니다.',
-    lines:{'나래':'실전에서는 완벽한 자료를 기다리다 기회를 놓쳐요.','혜진':'틀릴 수 있다는 표시조차 없는 자료는 교육이 아니라 선동이에요.'},
+    condition:life=>knows(life,['나래','미래']),
+    desc:'미래가 만든 투자 훈련 게임이 지나치게 높은 적중률을 보였습니다. 나래는 초보자에게 확신을 가르칠 수 있다며 공개를 막고, 미래는 실패 조건까지 플레이하게 만들자고 맞섭니다.',
+    lines:{'나래':'사람은 성공한 열 번보다 마지막으로 맞힌 한 번을 더 오래 기억해요. 이 화면은 그 착각을 키워요.','미래':'그러면 실패를 설명서에 쓰지 말고 직접 플레이하게 만들면 돼. 틀릴 수 없는 튜토리얼이 제일 나쁜 버그야.'},
     choices:[
-      {text:'혜진과 재검증한 뒤 공개한다',outcome:'며칠 늦어졌지만 반례까지 적힌 자료가 완성됐습니다. 나래도 결과를 보고 고집을 거뒀습니다.',people:{'나래':{trust:3},'혜진':{affection:5,trust:7}},life:{stress:2},flags:{marketModelVerified:true}},
-      {text:'나래의 실전 감각을 믿고 바로 쓴다',outcome:'반응은 뜨거웠지만 혜진은 오류가 나면 자신은 이름을 빼겠다고 선을 그었습니다.',people:{'나래':{affection:6,trust:5},'혜진':{affection:-4,trust:-7}},life:{charm:1}},
-      {text:'두 버전을 함께 공개한다',outcome:'결론과 반론을 한 화면에 둔 자료가 오히려 큰 호평을 받았습니다.',people:{'나래':{affection:4,trust:5},'혜진':{affection:4,trust:5}},life:{happy:3},cash:600000}
+      {text:'손실과 중도 포기까지 같은 비중으로 체험하게 한다',outcome:'훈련 게임은 덜 통쾌해졌지만, 사용자는 수익률보다 자기 판단 오류를 먼저 확인하게 됐습니다.',people:{'나래':{trust:7},'미래':{affection:5,trust:7}},life:{stress:-2},flags:{marketSimulationVerified:true}},
+      {text:'높은 적중률을 홍보하고 주의 문구만 붙인다',outcome:'접속자는 크게 늘었지만 나래는 교육이 아니라 유입 광고가 됐다며 이름을 뺐습니다.',people:{'나래':{affection:-6,trust:-8},'미래':{affection:4,trust:-2}},cash:1800000},
+      {text:'나래의 실제 손실 사례를 미래가 게임 분기로 만든다',outcome:'실패를 숨기지 않은 강의와 다시 선택할 수 있는 게임이 한 과정으로 묶였습니다.',people:{'나래':{affection:5,trust:6},'미래':{affection:5,trust:6}},life:{happy:4},cash:500000}
     ]
   },
   {
@@ -62,51 +61,51 @@ const EVENTS = [
     ]
   },
   {
-    id:'seoyeon_arin_credit', people:['서연','아린'], icon:'🎨', title:'누구의 문장이었나',
+    id:'seoyeon_haniseul_credit', people:['서연','한이슬'], icon:'🎨', title:'누구의 이름으로 공개할까',
     scene:'./assets/event-seoyeon-repair.png',
-    condition:life=>knows(life,['서연','아린']),
-    desc:'서연의 전시 포스터 핵심 문구가 아린의 미발표 원고와 닮았습니다. 영감을 주고받은 두 사람 사이에서 창작의 경계가 흐려졌습니다.',
-    lines:{'서연':'훔친 게 아니라, 우리 셋이 나눈 밤의 감정을 그린 거야.','아린':'내가 아직 세상에 내놓지 않은 문장을 먼저 꺼내 쓰면… 나는 어디에 남아?'},
+    condition:life=>knows(life,['서연','한이슬']),
+    desc:'서연이 밤새 살린 캠페인 시안이 회사 발표 자료에는 한이슬의 총괄 성과로만 적혔습니다. 이슬은 책임도 자신이 질 테니 직함으로 내보내야 한다고 말하지만, 서연은 이름 없는 보호를 원하지 않습니다.',
+    lines:{'서연':'문제가 생길 때만 내 이름을 숨기는 게 보호라면, 성공했을 때도 숨겨야 공평하겠네요.','한이슬':'내 이름으로 나가면 공격도 내가 받아요. 하지만 그게 당신의 이름을 지울 이유는 아니겠죠.'},
     choices:[
-      {text:'아린을 공동 창작자로 올린다',outcome:'전시는 공동 작업으로 다시 소개됐고, 아린은 처음으로 자신의 이름을 크게 걸었습니다.',people:{'서연':{trust:3},'아린':{affection:7,trust:8}},life:{charm:2},cash:500000},
-      {text:'서연의 독립 작품이라고 정리한다',outcome:'전시는 예정대로 열렸지만 아린은 다음 원고부터 당신에게도 보여주지 않았습니다.',people:{'서연':{affection:7},'아린':{affection:-7,trust:-8}},life:{stress:3}},
-      {text:'문구를 버리고 셋이 새로 만든다',outcome:'밤을 새운 끝에 누구의 것도 아니면서 셋 모두가 납득하는 문장이 나왔습니다.',people:{'서연':{affection:5,trust:5},'아린':{affection:5,trust:6}},life:{happy:4,stress:2}}
+      {text:'발표 전에 공동 책임자 표기를 요구한다',outcome:'성과와 책임이 두 사람 이름으로 함께 남았습니다. 이슬은 직함이 사람의 몫을 대신하지 못한다는 걸 인정했습니다.',people:{'서연':{affection:7,trust:8},'한이슬':{trust:7}},life:{charm:2},cash:600000},
+      {text:'이번만 이슬의 이름으로 내고 서연에게 따로 보상한다',outcome:'보상금은 들어왔지만 서연은 자신의 경력이 또 비공개 합의서 안으로 사라졌다고 느꼈습니다.',people:{'서연':{affection:-7,trust:-8},'한이슬':{affection:5}},cash:1600000},
+      {text:'발표를 미루고 기여 기록부터 다시 쓴다',outcome:'일정은 늦어졌지만 다음 프로젝트부터 이름과 책임을 기록하는 규칙이 생겼습니다.',people:{'서연':{trust:7},'한이슬':{trust:8}},life:{happy:3,stress:2},flags:{creativeCreditRule:true}}
     ]
   },
   {
-    id:'haeun_bora_care', people:['하은','보라'], icon:'💊', title:'돌보는 사람을 돌보는 법',
+    id:'bora_ohyerin_care', people:['보라','오혜린'], icon:'💊', title:'환자보다 먼저 쓰러진 사람',
     scene:'./assets/event-haeun-hospital.png',
-    condition:life=>knows(life,['하은','보라']),
-    desc:'야간 근무를 마친 하은이 쓰러질 듯 약국에 기대 섰습니다. 보라는 약보다 휴식이 먼저라며 하은의 부탁을 단호히 거절합니다.',
-    lines:{'하은':'오늘만 버티면 돼요. 병동에 사람이 없어요.','보라':'그 말을 매주 하는 사람에게 약을 더 주는 건 치료가 아니에요.'},
+    condition:life=>knows(life,['보라','오혜린']),
+    desc:'현장 사고를 수습하던 오혜린 책임자가 어지럼증을 숨긴 채 다시 출근하려 합니다. 보라는 약을 건네는 대신 교대표부터 보여 달라고 요구합니다.',
+    lines:{'보라':'쓰러진 뒤에 치료하는 것보다 오늘 책임자를 쉬게 하는 게 더 싸고 정확해요.','오혜린':'제가 빠지면 현장이 더 흔들려요. 사람을 살피는 책임자가 먼저 자리를 비울 수는 없어요.'},
     choices:[
-      {text:'하은의 대타를 구하고 쉬게 한다',outcome:'하은은 미안해했지만 열두 시간 만에 깊이 잠들었습니다. 보라는 당신이 말이 아닌 행동을 했다고 기억했습니다.',people:{'하은':{affection:7,trust:6},'보라':{affection:5,trust:6}},life:{health:3,stress:-7},cash:-400000},
-      {text:'하은의 선택을 존중해 병원에 데려다준다',outcome:'근무는 버텼지만 하은의 손이 계속 떨렸습니다. 보라는 다음에는 자신이 직접 막겠다고 했습니다.',people:{'하은':{trust:3},'보라':{affection:-3}},life:{stress:6}},
-      {text:'보라와 장기 교대표를 만든다',outcome:'한 번의 영웅적인 희생보다 지속 가능한 도움을 택했습니다.',people:{'하은':{trust:7},'보라':{trust:8}},life:{happy:3,stress:-4},flags:{careNetwork:true}}
+      {text:'대체 책임자를 세우고 혜린을 집으로 보낸다',outcome:'혜린은 일을 빼앗겼다고 항의했지만, 다음 날 직원 전원의 휴식 기준을 먼저 고쳐 왔습니다.',people:{'보라':{affection:5,trust:7},'오혜린':{affection:4,trust:7}},life:{health:3,stress:-7},cash:-500000},
+      {text:'혜린이 원하는 대로 현장에 데려다준다',outcome:'현장은 넘겼지만 혜린은 회의 도중 쓰러졌습니다. 보라는 책임을 존중한 게 아니라 방치했다고 말했습니다.',people:{'보라':{affection:-6,trust:-7},'오혜린':{trust:-3}},life:{stress:8}},
+      {text:'보라와 함께 현장 휴식 규칙을 사업 표준으로 만든다',outcome:'개인의 희생 대신 교대와 중단 권한이 남았습니다. 두 사람 모두 당신이 사람을 비용표 밖에서 봤다고 기억했습니다.',people:{'보라':{trust:8},'오혜린':{trust:9}},life:{happy:4,stress:-4},flags:{businessCareNetwork:true}}
     ]
   },
   {
-    id:'chaewon_yuna_photo', people:['채원','유나'], icon:'📸', title:'도착 게이트의 사진 한 장',
+    id:'chaewon_yuna_photo', people:['채원','유나'], icon:'📸', title:'단체방 밖으로 나갈 뻔한 사진',
     scene:'./assets/event-yuna-3.png',
     condition:life=>knows(life,['채원','유나']),
-    desc:'채원이 귀국한 날 유나와 함께 있던 사진이 찍혔습니다. 유나는 선제 공개를, 채원은 회사와 동료를 위해 침묵을 원합니다.',
-    lines:{'채원':'내가 설명하면 끝나는 일이 아니야. 같이 비행한 사람들까지 불려가.','유나':'숨으면 남들이 이야기를 완성해. 그게 더 잔인해.'},
+    desc:'게임 친구로 시작한 네 사람의 정모 사진이 유나의 지인 계정에 올라갈 뻔했습니다. 유나는 오해가 생기기 전에 관계를 설명하자고 하고, 채원은 아직 말하지 않기로 한 사람의 현실을 지워 달라고 합니다.',
+    lines:{'채원':'우리가 편해서 찍은 사진이지, 누구의 현실을 증명하려고 찍은 게 아니잖아.','유나':'숨기자는 말이 아니라 우리가 먼저 경계를 말하자는 거야. 남이 관계를 정하게 두기 싫어.'},
     choices:[
-      {text:'관계의 범위만 솔직히 공개한다',outcome:'추측은 줄었지만 세 사람의 관계가 공개적인 평가 대상이 됐습니다.',people:{'채원':{trust:2},'유나':{affection:6,trust:5}},life:{charm:3,stress:5},socialRep:5},
-      {text:'채원의 직장 보호를 우선한다',outcome:'유나는 자신이 또 숨겨지는 사람이 됐다며 돌아섰고, 채원은 조용히 고맙다고 했습니다.',people:{'채원':{affection:7,trust:7},'유나':{affection:-6,trust:-5}},socialRep:-2},
-      {text:'사진의 유통 경로부터 추적한다',outcome:'사진을 판 사람이 경쟁 세력과 연결돼 있다는 사실을 찾아냈습니다.',people:{'채원':{trust:6},'유나':{trust:7}},life:{stress:-2},flags:{mediaLeakTraced:true}}
+      {text:'사진을 내리고 네 사람 모두에게 공개 여부를 다시 묻는다',outcome:'사진은 사라졌지만 대화는 피하지 않았습니다. 아무도 다른 사람의 침묵을 대신 결정하지 않기로 했습니다.',people:{'채원':{trust:8},'유나':{trust:8}},life:{happy:4,stress:-3},flags:{freedomPhotoBoundary:true}},
+      {text:'얼굴만 가리고 게임 친구라고 먼저 공개한다',outcome:'추측은 줄었지만 채원은 동의를 묻기 전에 관계의 이름부터 정했다며 한동안 답장이 늦어졌습니다.',people:{'채원':{affection:-4,trust:-5},'유나':{affection:6,trust:4}},life:{charm:2,stress:4},socialRep:4},
+      {text:'누가 올리려 했는지 찾아 따로 경고한다',outcome:'유출은 막았지만 유나는 또 관계보다 가해자 통제가 먼저라며 불편해했습니다.',people:{'채원':{trust:4},'유나':{trust:-3}},life:{stress:2},flags:{mediaLeakTraced:true}}
     ]
   },
   {
-    id:'sua_daeun_children', people:['수아','다은'], icon:'🏫', title:'아이들을 위한 하루',
-    scene:'./assets/event-sua-classroom.png',
-    condition:life=>knows(life,['수아','다은']),
-    desc:'수아의 학생들을 위한 작은 진로 행사가 예산 부족으로 취소될 위기에 놓였습니다. 다은은 자신의 가게 준비를 미루고 디저트를 맡겠다고 합니다.',
-    lines:{'수아':'도와달라고 말하면 또 누군가의 시간을 빼앗는 것 같아.','다은':'꿈은 나중으로 미룬다고 없어지지 않아요. 대신 혼자 미루게 하진 마요.'},
+    id:'yerin_chaewon_departure', people:['예린','채원'], icon:'🗓️', title:'붙잡지 않은 약속',
+    scene:'./assets/event-freedom-tro-meeting.png',
+    condition:life=>knows(life,['예린','채원']),
+    desc:'채원이 갑작스러운 일정 변경으로 약속을 취소하자 예린은 대체 날짜 세 개를 보냈습니다. 채원은 부담을 주기 싫다며 모두 괜찮다고 답했지만, 실제로는 다시 만나자는 말을 기다리고 있었습니다.',
+    lines:{'예린':'선택지를 주는 건 통제가 아니야. 네가 원하는 날짜가 없으면 없다고 말하면 돼.','채원':'그렇게까지 맞춰 달라고 하면, 나중에 떠날 때 내가 더 미안해지잖아요.'},
     choices:[
-      {text:'행사 비용과 인력을 함께 댄다',outcome:'교실은 하루짜리 직업 박람회가 됐고 다은의 작은 디저트 부스가 가장 오래 기억됐습니다.',people:{'수아':{affection:7,trust:7},'다은':{affection:6,trust:6}},life:{happy:7},cash:-1200000,socialRep:7},
-      {text:'수아에게 이번에는 거절하는 법을 가르친다',outcome:'행사는 축소됐지만 수아는 모든 책임이 자신의 몫은 아니라는 말을 처음 받아들였습니다.',people:{'수아':{trust:8},'다은':{trust:2}},life:{stress:-5}},
-      {text:'다은의 가게에서 소규모로 연다',outcome:'학생 행사가 다은의 가게 시험 운영까지 겸하게 됐습니다.',people:{'수아':{affection:5},'다은':{affection:8,trust:5}},life:{happy:5},cash:700000,flags:{daeunPopUp:true}}
+      {text:'채원에게 내가 다시 만나고 싶다고 직접 말한다',outcome:'채원은 선택을 존중한다는 말 뒤에 숨지 않고 다음 쉬는 날을 먼저 알려 왔습니다.',people:{'예린':{trust:5},'채원':{affection:7,trust:8}},life:{happy:6}},
+      {text:'예린에게 일정 관리를 맡긴다',outcome:'약속은 잡혔지만 채원은 자신의 대답보다 완성된 일정표가 먼저 도착한 사실을 부담스러워했습니다.',people:{'예린':{affection:6,trust:4},'채원':{affection:-4,trust:-6}},life:{stress:3}},
+      {text:'이번 약속은 놓고 다음 접속에서 다시 묻는다',outcome:'누구도 억지로 붙잡지는 않았지만, 다음 게임에서 이유를 묻고 새 약속을 정했습니다.',people:{'예린':{trust:6},'채원':{trust:7}},life:{stress:-3},flags:{freedomAskedBeforeLeaving:true}}
     ]
   },
   {
@@ -122,15 +121,15 @@ const EVENTS = [
     ]
   },
   {
-    id:'mirae_daeun_launch', people:['미래','다은'], icon:'🎮', title:'게임 속 빵집, 현실의 가게',
+    id:'mirae_sohee_voice', people:['미래','소희'], icon:'🎮', title:'듣고 있던 목소리',
     scene:'./assets/event-mirae-launch.png',
-    condition:life=>knows(life,['미래','다은']),
-    desc:'미래가 다은의 디저트를 소재로 작은 경영 게임을 만들자고 제안했습니다. 다은은 자신의 꿈이 숫자로만 평가될까 두렵습니다.',
-    lines:{'미래':'실패해도 데이터가 남아. 다음 빌드가 더 좋아지는 거지.','다은':'내 가게는 업데이트로 고치면 되는 맵이 아니잖아요.'},
+    condition:life=>knows(life,['미래','소희']),
+    desc:'미래가 길드 음성 채팅에서 들은 소희의 짧은 허밍을 게임 임시 음악으로 넣었습니다. 반응은 좋았지만, 소희는 자신의 현실 이름이 알려질까 봐 아무 설명 없이 접속을 줄였습니다.',
+    lines:{'미래':'좋아서 넣었는데, 허락보다 결과가 먼저 나온 건 내 잘못이야. 지우는 것도 소희가 정해야 해.','소희':'싫다고 말하면 분위기를 망칠 것 같아서… 그냥 내가 없어지는 게 빠르다고 생각했어요.'},
     choices:[
-      {text:'다은의 이야기를 중심에 둔다',outcome:'매출 최적화보다 손님의 기억을 모으는 게임이 됐고, 예상 밖의 팬층이 생겼습니다.',people:{'미래':{affection:6,trust:5},'다은':{affection:7,trust:7}},life:{happy:5},cash:1200000},
-      {text:'수익 모델을 먼저 검증한다',outcome:'지표는 좋았지만 다은은 자신의 꿈이 광고 단가표가 됐다고 느꼈습니다.',people:{'미래':{affection:7},'다은':{affection:-5,trust:-5}},cash:2200000},
-      {text:'아주 작은 체험판만 만든다',outcome:'둘 다 감당할 수 있는 크기로 시작했고 다음 선택을 위한 실제 반응을 얻었습니다.',people:{'미래':{trust:7},'다은':{trust:7}},cash:500000,flags:{bakeryGameDemo:true}}
+      {text:'음원을 내리고 소희가 직접 사용 범위를 정하게 한다',outcome:'소희는 사라지는 대신 짧은 사용 조건을 직접 적었습니다. 미래도 다음 빌드부터 확인 버튼을 먼저 만들었습니다.',people:{'미래':{trust:8},'소희':{affection:6,trust:9}},life:{happy:4},flags:{soheeVoiceConsent:true}},
+      {text:'익명 음원이라 괜찮다며 그대로 출시한다',outcome:'게임은 화제가 됐지만 소희는 길드 음성 채팅에서도 마이크를 켜지 않았습니다.',people:{'미래':{affection:5,trust:-4},'소희':{affection:-8,trust:-9}},cash:2200000},
+      {text:'소희가 직접 새 곡을 완성할 때까지 출시를 미룬다',outcome:'일정은 밀렸지만 소희는 자신의 이름을 숨길지 밝힐지까지 직접 결정했습니다.',people:{'미래':{trust:7},'소희':{affection:7,trust:8}},life:{stress:2},cash:900000}
     ]
   },
   {
@@ -262,13 +261,13 @@ function materialize(life,event){
   return variant?{...event,...variant}:event;
 }
 function get(id,life) {
-  const event=EVENTS.find(item => item.id === id&&!item.people.some(name=>RETIRED_HEROINES.has(name))) || null;
+  const event=EVENTS.find(item => item.id === id) || null;
   return materialize(life,event);
 }
 function monthly(life) {
   const state = ensure(life);
   if (state.pending) return get(state.pending,life);
-  const available=event=>!event.people.some(name=>RETIRED_HEROINES.has(name))&&
+  const available=event=>
     (!root.QT_FREEDOM_TRIO||!event.people.some(name=>FREEDOM_NAMES.includes(name))||root.QT_FREEDOM_TRIO.revealed(life))&&
     !state.seen[event.id]&&event.condition(life);
   const bridge=EVENTS.find(event=>event.storyBridge&&available(event));

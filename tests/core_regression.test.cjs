@@ -869,11 +869,24 @@ for (const file of [
   const retired=['하은','수아','다은','혜진','아린'];
   assert.equal(retired.some(name=>context.QT_CHARACTER_ROSTER.CHARACTERS.some(person=>person.name===name)),false,'미구현 세트 인물은 연애 조우 풀에서 빠져야 한다');
   assert.equal(context.QT_CHARACTER_ROSTER.SPECIAL_CHARACTERS.narae.name,'나래','나래는 독립 히로인으로 유지해야 한다');
+  const crossEvents=context.QT_CHARACTER_CROSS_EVENTS.EVENTS;
+  assert.equal(crossEvents.some(event=>event.people.some(name=>retired.includes(name))),false,'은퇴 히로인을 필터로 숨기지 말고 교차 연애 사건 데이터 자체에서 제거해야 한다');
+  for(const id of ['narae_mirae_simulation','seoyeon_haniseul_credit','bora_ohyerin_care','yerin_chaewon_departure','mirae_sohee_voice']){
+    assert.ok(crossEvents.some(event=>event.id===id),`${id} 활성 인물 교차 사건이 죽은 사건 자리를 대체해야 한다`);
+  }
+  const voiceSource=fs.readFileSync(path.join(root,'js/character_voices.js'),'utf8');
   retired.forEach(name=>{
     const npc=context.QT_CHARACTER_ROSTER.WORLD_FACTION_NPCS.find(person=>person.name===name);
     assert.equal(!!npc&&npc.recruitable,true,`${name} 초상화와 인물은 세력 네임드 직원으로 재사용해야 한다`);
     assert.equal(context.QT_CHARACTER_STORIES.get(name),null,`${name}의 연애 개인 사건은 비활성화돼야 한다`);
+    assert.equal(Object.prototype.hasOwnProperty.call(context.QT_CHARACTER_STORIES.ARCS,name),false,`${name}의 죽은 연애 ARCS 데이터도 제거해야 한다`);
+    assert.equal(Object.prototype.hasOwnProperty.call(context.QT_CHARACTER_TRAITS.SYSTEMS,name),false,`${name}의 죽은 연애 고유 수치도 제거해야 한다`);
+    assert.doesNotMatch(voiceSource,new RegExp(`^\\s*${name}:\\s*\\{`,'m'),`${name}의 CHARACTER_VOICES 연애 말투도 제거해야 한다`);
   });
+  const appSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  assert.match(appSource,/name:'prologue-guild'/,'첫 장 마감 흐름에는 자유인 길드 독백 전용 단계가 있어야 한다');
+  assert.match(appSource,/mainGameStarted/,'첫 피습을 프롤로그 종료와 본편 시작 상태로 기록해야 한다');
+  assert.match(appSource,/mainUnlocked\?'<button data-life-window="power"/,'첫 공격 전 세력·사업 실행 창은 잠금 카드가 아니라 렌더링 자체를 생략해야 한다');
 }
 
 {
@@ -1567,6 +1580,11 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
     month:4, totalWealth:30000000, monthlyProfit:0, rank:5,
   });
   assert.equal(unlocked.unlocked, true);
+  const tracedOrder = context.QT_CAMPAIGN.attackStatus({
+    month:4, totalWealth:5000000, monthlyProfit:-1000000, rank:8,
+  });
+  assert.equal(tracedOrder.unlocked,true,'4개월차에는 수익이 낮아도 과거 장부와 같은 주문 습관 때문에 첫 공격이 시작돼야 한다');
+  assert.match(tracedOrder.reason,/원본 장부/);
 }
 
 {
