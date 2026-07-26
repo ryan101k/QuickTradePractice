@@ -15,13 +15,15 @@ const bondActive=(life,id)=>{
 };
 function ensure(life){
   if(!life.romanceRoutes||typeof life.romanceRoutes!=='object'){
-    life.romanceRoutes={version:2,active:null,center:null,centerSince:null,completed:{},failed:{},declined:{},crossSeen:{},history:[]};
+    life.romanceRoutes={version:3,active:null,center:null,centerSince:null,completed:{},failed:{},declined:{},romanceLocked:{},confessions:{},crossSeen:{},history:[]};
   }
   const state=life.romanceRoutes;
-  state.version=2;
+  state.version=3;
   state.completed=state.completed||{};
   state.failed=state.failed||{};
   state.declined=state.declined||{};
+  state.romanceLocked=state.romanceLocked||{};
+  state.confessions=state.confessions||{};
   state.crossSeen=state.crossSeen||{};
   if(!Array.isArray(state.history))state.history=[];
   if(!Array.isArray(state.centerHistory))state.centerHistory=[];
@@ -127,6 +129,28 @@ function markCross(life,id){
 }
 function activeGroups(life){return ORDER.filter(id=>bondActive(life,id));}
 function memberGroup(name){return ORDER.find(id=>META[id].members.includes(name))||null;}
+function lockRomance(life,id,reason){
+  const state=ensure(life);
+  if(!META[id])return{ok:false,reason:'unknown',state};
+  if(!state.romanceLocked[id]){
+    state.romanceLocked[id]={reason:reason||'romance_declined',day:life.day||0};
+    state.history.push({type:'romance-lock',id,reason:reason||'romance_declined',day:life.day||0});
+  }
+  state.confessions[id]={status:'rejected',reason:reason||'romance_declined',day:life.day||0};
+  return{ok:true,state,locked:state.romanceLocked[id]};
+}
+function romanceAvailable(life,id){
+  const state=ensure(life);
+  return !!META[id]&&!state.romanceLocked[id];
+}
+function setConfession(life,id,status){
+  const state=ensure(life);
+  if(!META[id])return null;
+  state.confessions[id]={status:status||'queued',day:life.day||0};
+  state.history.push({type:'confession',id,status:status||'queued',day:life.day||0});
+  return state.confessions[id];
+}
+function confession(life,id){return ensure(life).confessions[id]||null;}
 function preserveMembers(life,names){
   const poly=life.polycule||(life.polycule={active:false,members:[],trust:0});
   const existing=[life.partner,...(poly.members||[])].filter(Boolean);
@@ -138,5 +162,5 @@ function preserveMembers(life,names){
   return poly;
 }
 
-root.QT_ROMANCE_ROUTES={ORDER,META,ensure,engage,decline,engaged,fallbackReady,center,begin,complete,canStart,markCross,activeGroups,memberGroup,preserveMembers};
+root.QT_ROMANCE_ROUTES={ORDER,META,ensure,engage,decline,engaged,fallbackReady,center,begin,complete,canStart,markCross,activeGroups,memberGroup,lockRomance,romanceAvailable,setConfession,confession,preserveMembers};
 })(window);

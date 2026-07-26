@@ -186,7 +186,7 @@ const QUARTET_CHAPTERS=[
       {id:'counterdeal',text:'서윤의 역인수안과 이슬의 여론전을 승인한다',preview:'현금 +300만 · 시너지 상승, 경계 하락',effects:{cash:3000000,synergy:13,governance:6,boundary:-5,affectionEach:6,trustEach:3},outcome:'상대의 계약과 평판을 동시에 무너뜨렸습니다. 완벽한 승리였지만 네 사람과 당신 사이의 결탁은 더 짙어졌습니다.'},
     ]},
   {id:'after_hours_rules',title:'제3장 · 직급이 사라진 뒤의 네 이름',icon:'🌃',scene:'./assets/event-business-quartet-afterhours.png',
-    desc:'위기를 넘긴 밤, 다섯 사람만 남은 사무실에서 업무 보고가 사적인 고백으로 바뀌었습니다. 이제 회사와 관계의 경계를 정해야 합니다.',
+    desc:'위기를 넘긴 밤, 다섯 사람만 남은 사무실에서 업무 보고가 서로의 사적인 경계를 확인하는 대화로 바뀌었습니다. 고백은 모든 개인사와 공동 이사회가 끝난 뒤에만 따로 묻기로 합니다.',
     dialogues:[
       ['한이슬','회사에서는 대표님. 여기서는 그냥 이름으로 부르면 안 돼?'],
       ['박지수','좋아요. 대신 서운한 일을 인사평가처럼 쌓아두지는 않기.'],
@@ -298,7 +298,8 @@ function chaerinAccess(life){
   const close=chaerin&&['friend','casual','partner','lover','polycule'].includes(chaerin.status);
   const shared=!!(life.dangerousTrioBond&&life.dangerousTrioBond.active)
     ||!!(life.relationshipGroup&&Array.isArray(life.relationshipGroup.members)&&life.relationshipGroup.members.some(member=>(typeof member==='string'?member:member&&member.name)==='한채린'));
-  return!!(close||shared);
+  const freedomComplete=!!(root.QT_FREEDOM_TRIO&&root.QT_FREEDOM_TRIO.storyComplete(life));
+  return freedomComplete&&!!(close||shared);
 }
 function introduce(life,id){
   const state=ensure(life),s=state.staff[id],p=profile(id);if(!s||!p)return null;
@@ -350,12 +351,20 @@ function nextPersonal(life,ctx){
 }
 function nextQuartetChapter(life,ctx,allOwned){
   const state=ensure(life),index=state.quartet.chapter||0,chapter=QUARTET_CHAPTERS[index];
+  const freedomComplete=!!(root.QT_FREEDOM_TRIO&&root.QT_FREEDOM_TRIO.storyComplete(life));
+  const partnerNames=ctx.partnerNames||[];
+  const sharedLiving=!!((life.dangerousTrioBond&&life.dangerousTrioBond.active)||(life.freedomTrioBond&&life.freedomTrioBond.active)||
+    (life.relationshipGroup&&life.relationshipGroup.agreement&&life.relationshipGroup.agreement.cohabiting&&(life.relationshipGroup.members||[]).length>1));
+  const relationshipOpen=partnerNames.length===0||sharedLiving;
+  const owned=(ctx.businessState&&ctx.businessState.owned)||[];
+  const totalProfit=owned.reduce((sum,item)=>sum+(item.totalProfit||0),0);
+  const profitable=owned.filter(item=>(item.lastNet||0)>0).length;
+  const stable=owned.length>=4&&owned.filter(item=>(item.level||1)>=2).length>=3&&profitable>=3&&totalProfit>=15000000;
   const guard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'business');
   if(guard&&!guard.ok&&!(root.QT_ROMANCE_ROUTES.ensure(life).active==='business'))return null;
-  if(!chapter||!allOwned||!IDS.every(id=>state.staff[id].revealed&&state.staff[id].storyChapter>=1))return null;
+  if(!chapter||!freedomComplete||!relationshipOpen||!stable||!allOwned||!IDS.every(id=>state.staff[id].revealed&&state.staff[id].storyChapter>=1))return null;
   const records=IDS.map(id=>(ctx.met||[]).find(person=>person.name===PROFILES[id].name));
   if(records.some(rec=>!rec||rec.status==='ex'))return null;
-  const totalProfit=((ctx.businessState&&ctx.businessState.owned)||[]).reduce((sum,item)=>sum+(item.totalProfit||0),0);
   if(index===1&&totalProfit<25000000)return null;
   if(index===2&&records.some(rec=>(rec.affection||0)<42||(rec.trust||0)<20))return null;
   if(index===3&&IDS.some(id=>state.staff[id].storyChapter<2))return null;
@@ -364,6 +373,7 @@ function nextQuartetChapter(life,ctx,allOwned){
 }
 function monthly(life,context){
   const state=ensure(life),ctx=context||{},day=Math.max(1,Math.floor(finite(ctx.day,1)));
+  resolveUnavailable(life);
   const owned=ownedIds(ctx.businessState);
   IDS.forEach(id=>{
     if(!owned.has(id))return;
@@ -420,6 +430,9 @@ function monthly(life,context){
 
   const personalEvent=nextPersonal(life,{...ctx,day});
   if(personalEvent){state.lastEventDay=day;return personalEvent;}
+
+  const quartetEvent=nextQuartetChapter(life,{...ctx,day},IDS.every(id=>owned.has(id)));
+  if(quartetEvent){state.lastEventDay=day;return quartetEvent;}
 
   const solo=IDS.find(id=>{
     const s=state.staff[id],rec=(ctx.met||[]).find(person=>person.name===PROFILES[id].name);
@@ -668,6 +681,36 @@ function progressSummary(life){
   return{personal,total:IDS.length*3,chapter:state.rivalChapter,chapters:3,
     synergy:Math.round(q.synergy),governance:Math.round(q.governance),boundary:Math.round(q.boundary)};
 }
+function storyComplete(life){
+  const state=ensure(life);
+  return !!state.quartet.closed||(state.quartet.chapter>=QUARTET_CHAPTERS.length&&IDS.every(id=>(state.staff[id].storyChapter||0)>=(PERSONAL_STORIES[id]||[]).length));
+}
+function resolveUnavailable(life){
+  const state=ensure(life);
+  if(state.quartet.closed||state.quartet.chapter>=QUARTET_CHAPTERS.length)return false;
+  if(!root.QT_FREEDOM_TRIO||!root.QT_FREEDOM_TRIO.storyComplete(life))return false;
+  const rows=IDS.map(id=>{
+    const staff=state.staff[id],person=(life.met||[]).find(rec=>rec.name===PROFILES[id].name);
+    const unavailable=!!staff.supportOnly||!!(person&&['ex','deceased'].includes(person.status));
+    const resolved=unavailable||(staff.storyChapter||0)>=(PERSONAL_STORIES[id]||[]).length;
+    return{staff,person,unavailable,resolved};
+  });
+  if(!rows.every(row=>row.staff.introduced&&row.staff.hired&&row.resolved)||!rows.some(row=>row.unavailable))return false;
+  state.quartet.closed={id:'professional_alliance',day:life.day||0};
+  state.quartet.chapter=QUARTET_CHAPTERS.length;
+  if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'business','professional_alliance','good');
+  return true;
+}
+function confessionReady(life){
+  const routes=root.QT_ROMANCE_ROUTES;
+  const partnerNames=[];
+  const add=name=>{if(name&&!partnerNames.includes(name))partnerNames.push(name);};
+  if(life.partner)add(life.partner.name);
+  ((life.relationshipGroup&&life.relationshipGroup.members)||[]).forEach(member=>add(typeof member==='string'?member:member&&member.name));
+  const sharedLiving=!!((life.dangerousTrioBond&&life.dangerousTrioBond.active)||(life.freedomTrioBond&&life.freedomTrioBond.active)||
+    (life.relationshipGroup&&life.relationshipGroup.agreement&&life.relationshipGroup.agreement.cohabiting&&(life.relationshipGroup.members||[]).length>1));
+  return (partnerNames.length===0||sharedLiving)&&storyComplete(life)&&(!routes||routes.romanceAvailable(life,'business'));
+}
 
-root.QT_BUSINESS_ROMANCE={PROFILES,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,ownedIds,chaerinAccess,introduce,recruit,canRomance,applyDecision,monthly,view,resolve,endingSummary,progressSummary};
+root.QT_BUSINESS_ROMANCE={PROFILES,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,ownedIds,chaerinAccess,introduce,recruit,canRomance,applyDecision,monthly,view,resolve,endingSummary,progressSummary,storyComplete,resolveUnavailable,confessionReady};
 })(window);

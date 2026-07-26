@@ -225,20 +225,43 @@ function progress(life){
   const active=!!r&&!['ex','deceased'].includes(r.status);
   const chapter=state?state.chapter:0,total=story?story.chapters.length:0;
   const completed=legacyCompleted||!!(state&&state.completed),ending=legacyEnding||state&&state.ending;
-  return{name,met:!!r,active,chapter,total,route,ready:active&&!!state&&completed&&accepted,
-   need:!r?'아직 만나지 못함':!active?`현재 관계: ${r.status||'지인'} · 관계가 끊김`:!state||!completed?`개인 스토리 ${chapter}/${total} 진행`:accepted?`전용 결핍 엔딩 · ${ending.title}`:`현재 엔딩(${ending&&ending.title||'미정'})은 결핍 공생 조건과 다름`};
+  return{name,met:!!r,active,chapter,total,route,accepted,resolved:!!r&&(!active||completed),ready:!!r&&(!active||completed),
+   need:!r?'아직 만나지 못함':!active?`현재 관계: ${r.status||'지인'} · 개인 인연 종료`:!state||!completed?`개인 스토리 ${chapter}/${total} 진행`:`개인 이야기 완료 · ${ending&&ending.title||'결말 확인'}`};
  });
  return rows;
 }
+function relationshipNames(life){
+ const names=[];const add=name=>{if(name&&!names.includes(name))names.push(name);};
+ if(life.partner)add(life.partner.name);
+ ((life.relationshipGroup&&life.relationshipGroup.members)||[]).forEach(person=>add(typeof person==='string'?person:person.name));
+ ((life.polycule&&life.polycule.members)||[]).forEach(person=>add(typeof person==='string'?person:person.name));
+ return names;
+}
+function storyComplete(life){return !!ensure(life).ending;}
+function resolveUnavailable(life){
+ const state=ensure(life),rows=progress(life);
+ if(state.ending||!rows.every(row=>row.resolved)||!rows.some(row=>!row.active))return false;
+ state.active=false;state.queued=false;state.encountered=true;
+ state.ending={id:'members_parted',title:'같은 방에 모이지 않은 세 사람',tone:'neutral',scene:'./assets/event-trio-647.png',text:'각자의 개인 이야기는 끝났지만 한 사람 이상이 인연을 끊었습니다. 남은 사람들은 친구와 악우로 각자의 자리에서 살고, 공동생활 고백은 오지 않습니다.'};
+ if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'dangerous',state.ending.id,'good');
+ return true;
+}
+function confessionReady(life){
+ const state=ensure(life),routes=root.QT_ROMANCE_ROUTES;
+ const names=relationshipNames(life),relationshipOpen=names.length===0||names.every(name=>NAMES.includes(name));
+ return !!(relationshipOpen&&state.ending&&state.ending.tone==='good'&&(!routes||routes.romanceAvailable(life,'dangerous')));
+}
 function eligibility(life){
- const state=ensure(life),rows=progress(life),partner=!!life.partner&&NAMES.includes(life.partner.name);
+ const state=ensure(life),rows=progress(life),relationshipNamesNow=relationshipNames(life);
+ const partner=relationshipNamesNow.some(name=>NAMES.includes(name));
+ const relationshipOpen=relationshipNamesNow.length===0||relationshipNamesNow.every(name=>NAMES.includes(name));
  const poly=life.polycule||{},outsiders=(poly.members||[]).filter(person=>!NAMES.includes(person.name));
  const clean=!outsiders.length;
  const sera=rec(life,'윤세라');
  const legacyHome=life.seraHousing==null&&sera&&sera.pickedUpAfterRuin;
  const seraHome=(life.seraHousing==='cohabit'||legacyHome)&&!state.lockedOut;
  const guard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'dangerous');
- return{ok:!!((!guard||guard.ok)&&!state.encountered&&!state.active&&!state.ending&&state.badFriendsFormed&&partner&&clean&&seraHome&&rows.every(row=>row.ready)),partner,clean,seraHome,badFriendsFormed:!!state.badFriendsFormed,outsiders,rows,guard};
+ return{ok:!!((!guard||guard.ok)&&!state.encountered&&!state.active&&!state.ending&&state.badFriendsFormed&&relationshipOpen&&clean&&seraHome&&rows.every(row=>row.ready)),partner,relationshipOpen,clean,seraHome,badFriendsFormed:!!state.badFriendsFormed,outsiders,rows,guard};
 }
 function queue(life){
  const check=eligibility(life),state=ensure(life);
@@ -266,7 +289,7 @@ function endingFor(state,finalChoice){
     ?'공동생활을 시작하기도 전에 한 사람만 고르겠다는 말이 세 사람의 마지막 규칙을 깨뜨렸습니다. 눈을 뜬 방에는 누가 이겼는지 알려 주는 이름조차 없고, 세 겹의 잠금장치만 남았습니다.'
     :'열쇠와 계좌와 일정을 전부 넘기는 순간 공동생활은 합의가 아니라 세 겹의 감금이 됐습니다. 세 사람은 서로를 믿지 못해 교대로 문을 지켰고, 당신에게는 다시 선택할 시간이 남지 않았습니다.'};
  }
- return{id:'bad_friends',title:'네 번째 열쇠',tone:'good',scene:'./assets/event-trio-meeting-5.png',text:'세 사람은 끝내 서로를 좋아한다고 말하지 않았습니다. 그러나 각자의 권한과 거절선을 인정하는 악우가 되어, 좁은 자취방에서 위험한 공동생활을 시작했습니다.'};
+ return{id:'bad_friends',title:'네 번째 열쇠를 두고 간 밤',tone:'good',scene:'./assets/event-trio-meeting-5.png',text:'세 사람은 각자의 권한과 거절선을 인정하는 악우가 됐습니다. 누구도 관계를 기정사실로 만들지 않고, 좁은 자취방에 네 번째 열쇠만 두고 돌아갔습니다. 이제 먼저 대답을 요구할 사람은 세 사람 쪽입니다.'};
 }
 function apply(life,choiceId){
  const state=ensure(life),chapter=next(life);if(!chapter)return null;const choice=chapter.choices.find(c=>c.id===choiceId);if(!choice)return null;
@@ -297,5 +320,5 @@ function applyAftermath(life,choiceId){
 }
 function compatibleCandidate(){return false;}
 
-root.QT_DANGEROUS_TRIO={NAMES,PRELUDES,CHAPTERS,AFTERMATH,ensure,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
+root.QT_DANGEROUS_TRIO={NAMES,PRELUDES,CHAPTERS,AFTERMATH,ensure,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,storyComplete,resolveUnavailable,confessionReady,eligibility,queue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
 })(window);

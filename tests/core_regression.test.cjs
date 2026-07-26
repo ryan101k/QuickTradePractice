@@ -171,6 +171,10 @@ for (const file of [
   assert.equal(routes.canStart(life,'freedom').ok,true,'앞 그룹을 완료하면 다음 그룹 루트를 진행할 수 있어야 한다');
   assert.equal(routes.begin(life,'freedom').ok,true);
   routes.complete(life,'freedom','small_days','good');
+  routes.lockRomance(life,'freedom','test_rejection');
+  assert.equal(routes.romanceAvailable(life,'freedom'),false,'그룹 고백 거절은 해당 그룹의 연애만 영구 닫아야 한다');
+  assert.equal(!!routes.ensure(life).completed.freedom,true,'연애를 닫아도 이미 끝낸 그룹 이야기는 지워지면 안 된다');
+  assert.equal(!!routes.ensure(life).declined.freedom,false,'연애 거절을 그룹 자체 삭제와 같은 상태로 취급하면 안 된다');
   life.partner={name:'강유진'};life.polycule.members=[{name:'한채린'},{name:'윤세라'}];
   routes.preserveMembers(life,[{name:'채원'},{name:'유나'},{name:'소희'}]);
   assert.deepEqual(Array.from(life.polycule.members,x=>x.name).sort(),['소희','윤세라','유나','채원','한채린'].sort(),'후속 그룹이 성립해도 기존 그룹 구성원을 덮어쓰면 안 된다');
@@ -229,6 +233,11 @@ for (const file of [
   assert.match(appSource,/function resolveFreedomRevealHomecoming\(choiceId,cast\)/,'귀가 뒤 설명·질투·경계 선택이 실제 관계에 반영돼야 한다');
   assert.match(appSource,/if\(event\.storyBridge\)return 78/,'후속 그룹 첫 대면은 정식 그룹 루트 시작보다 먼저 보여야 한다');
   assert.match(appSource,/while\(event&&!routeEventAllowed\(event\)\)event=queue\.shift\(\)/,'조건이 사라진 그룹 사건은 중요 사건 큐에서 건너뛰어야 한다');
+  assert.match(appSource,/function showGroupConfession\(event\)/,'그룹의 모든 이야기가 끝난 뒤 별도 선고백 알림을 보여줘야 한다');
+  assert.match(appSource,/player_confessed_before_group_story_complete/,'그룹 사건 도중 성급한 개인 고백은 해당 그룹 연애를 영구 마감해야 한다');
+  assert.match(appSource,/incoming_group_confession_rejected/,'그룹 쪽 고백 거절은 다시 열리지 않는 선택으로 기록돼야 한다');
+  assert.match(appSource,/t:'freedom-rumor'/,'장중 인물발 주식 소문은 자유인 3인조에게 모아야 한다');
+  assert.doesNotMatch(appSource,/t: 'acq'/,'일반 지인이 무작위 종목 팁을 주는 기존 경로를 다시 열면 안 된다');
   assert.doesNotMatch(appSource,/data-act="character-story"/,'행동창에 개인 스토리 직접 실행 버튼을 다시 만들면 안 된다');
   assert.doesNotMatch(appSource,/장 진행 가능/,'개인 스토리는 진행 버튼 대신 다음 중요 사건 대기로 안내해야 한다');
   assert.doesNotMatch(appSource,/친구가 알려준 초보 투자지원 프로그램의 담당자입니다/,'첫 만남 장면에 개발자 시점의 나래 관계 설명을 노출하면 안 된다');
@@ -437,8 +446,15 @@ for (const file of [
 
 {
   assert.equal(context.QT_BUSINESS_ROMANCE.introduce({},'office'),null,'한채린과 친구·연인·공동생활 관계가 아니면 사업 4인조 소개를 직접 열 수 없어야 한다');
-  const life={met:[{name:'한채린',status:'friend'}]};
+  const life={met:[{name:'한채린',status:'friend'},...context.QT_FREEDOM_TRIO.NAMES.map(name=>({name,status:'friend',affection:70,trust:50}))]};
   const romance=context.QT_BUSINESS_ROMANCE,state=romance.ensure(life);
+  assert.equal(romance.introduce(life,'office'),null,'자유인 3인조의 장이 끝나기 전에는 한채린과 가까워도 사업 4인조 소개가 열리면 안 된다');
+  const freedomState=context.QT_FREEDOM_TRIO.ensure(life);
+  freedomState.guildStage=context.QT_FREEDOM_TRIO.GUILD_EVENTS.length;
+  freedomState.firstOuting='seen';
+  context.QT_FREEDOM_TRIO.COUNSELING_EVENTS.forEach(event=>freedomState.counseling[event.id]='seen');
+  Object.keys(context.QT_FREEDOM_TRIO.PERSONAL_EVENTS).forEach(id=>freedomState.personal[id]='seen');
+  freedomState.ending={id:'small_days',tone:'good'};
   assert.equal(context.QT_BUSINESS_ROMANCE.identity(life,'office').displayName,'박 매니저','공개 전에는 실명 대신 직함을 보여야 한다');
   romance.introduce(life,'office');
   assert.equal(romance.identity(life,'office').displayName,'박 매니저','소개 뒤에도 역할 붕괴 사건 전에는 직함과 가린 얼굴을 유지해야 한다');
@@ -475,7 +491,13 @@ for (const file of [
   const blocked=context.QT_SOCIAL.attendIndustry(socialLife,'lounge',()=>0);
   assert.equal(blocked.introduced,null,'한채린과 친구가 되기 전에는 사업 4인조를 정식 소개받으면 안 된다');
   assert.equal(blocked.chaerinRequired,true,'가려진 책임자를 봐도 한채린의 소개가 필요하다는 상태를 반환해야 한다');
-  socialLife.met=[{name:'한채린',status:'friend'}];
+  socialLife.met=[{name:'한채린',status:'friend'},...context.QT_FREEDOM_TRIO.NAMES.map(name=>({name,status:'friend',affection:70,trust:50}))];
+  const freedomState=context.QT_FREEDOM_TRIO.ensure(socialLife);
+  freedomState.guildStage=context.QT_FREEDOM_TRIO.GUILD_EVENTS.length;
+  freedomState.firstOuting='seen';
+  context.QT_FREEDOM_TRIO.COUNSELING_EVENTS.forEach(event=>freedomState.counseling[event.id]='seen');
+  Object.keys(context.QT_FREEDOM_TRIO.PERSONAL_EVENTS).forEach(id=>freedomState.personal[id]='seen');
+  freedomState.ending={id:'small_days',tone:'good'};
   const lounge=context.QT_SOCIAL.attendIndustry(socialLife,'lounge',()=>0);
   assert.equal(lounge.introduced,'office','등급을 올린 업계 모임은 특별 책임자를 소개해야 한다');
   assert.equal(context.QT_SOCIAL.ensure(socialLife).industry.standing,5);
@@ -543,14 +565,32 @@ for (const file of [
   const badManagement=romance.resolve(life,collapse,'romance_first',20000000);
   assert.equal(badManagement.managementBadEnding,true,'사업 4인조의 배드엔딩은 불륜 폭로가 아니라 사업관리 실패여야 한다');
 
+  const chapterLife={day:20,met:[
+    ...romance.IDS.map(id=>({name:romance.profile(id).name,status:'friend',affection:40,trust:20})),
+    ...context.QT_FREEDOM_TRIO.NAMES.map(name=>({name,status:'friend',affection:70,trust:50})),
+  ]};
+  const freedomState=context.QT_FREEDOM_TRIO.ensure(chapterLife);
+  freedomState.guildStage=context.QT_FREEDOM_TRIO.GUILD_EVENTS.length;freedomState.firstOuting='seen';freedomState.ending={id:'small_days',tone:'good'};
+  context.QT_FREEDOM_TRIO.COUNSELING_EVENTS.forEach(event=>freedomState.counseling[event.id]='seen');
+  Object.keys(context.QT_FREEDOM_TRIO.PERSONAL_EVENTS).forEach(id=>freedomState.personal[id]='seen');
+  const chapterState=romance.ensure(chapterLife);chapterState.chaerinBoardSeen=true;
+  romance.IDS.forEach(id=>Object.assign(chapterState.staff[id],{introduced:true,hired:true,revealed:true,storyChapter:1,bond:40,trust:30}));
+  const stableBusinesses={owned:romance.IDS.map((id,index)=>({
+    id:`biz-${id}`,typeId:romance.profile(id).businessId,managerId:id,specialManagerId:id,months:8,level:2,lastNet:1500000,totalProfit:4000000,reputation:70,morale:70,
+  }))};
+  const firstQuartetChapter=romance.monthly(chapterLife,{day:20,businessState:stableBusinesses,partnerNames:[],met:chapterLife.met});
+  assert.equal(firstQuartetChapter.kind,'quartet-story','자유인 장 완료와 안정된 사업 조건 뒤에만 사업 4인조 제1장이 자동 예약돼야 한다');
+
   const quartetLife={day:12,met:romance.IDS.map(id=>({name:romance.profile(id).name,status:'friend',affection:85,trust:70}))};
   const quartetState=romance.ensure(quartetLife);
   romance.IDS.forEach(id=>Object.assign(quartetState.staff[id],{introduced:true,hired:true,revealed:true,storyChapter:3,bond:70,trust:60,romanticRival:true}));
   quartetState.quartet.chapter=romance.QUARTET_CHAPTERS.length-1;
   const finalChapter=romance.QUARTET_CHAPTERS[romance.QUARTET_CHAPTERS.length-1];
   const quartetResult=romance.resolve(quartetLife,{kind:'quartet-story',chapterId:finalChapter.id,day:12},finalChapter.choices[0].id,50000000);
-  assert.equal(quartetResult.quartet,true,'사업 4인조 마지막 공동 이야기는 실제 전원 하렘 성립 신호를 반환해야 한다');
-  assert.ok(context.QT_ROMANCE_ROUTES.ensure(quartetLife).completed.business,'사업 4인조 하렘 완성은 공통 그룹 장부에 기록돼야 한다');
+  assert.equal(quartetResult.quartet,true,'사업 4인조 마지막 공동 이야기는 전원 고백 대기 신호를 반환해야 한다');
+  assert.equal(romance.storyComplete(quartetLife),true,'네 개인사와 공동 이사회가 끝나야 사업 4인조 장 완료로 판정해야 한다');
+  assert.equal(romance.confessionReady(quartetLife),true,'사업 4인조 장 완료 뒤에만 네 사람 쪽 고백이 열려야 한다');
+  assert.ok(context.QT_ROMANCE_ROUTES.ensure(quartetLife).completed.business,'사업 4인조 이야기 완성은 공통 그룹 장부에 기록돼야 한다');
 }
 
 {
@@ -599,11 +639,28 @@ for (const file of [
   exclusiveLife.met.push({name:'나래',status:'partner',affection:80,trust:70});
   assert.equal(freedom.relationshipMode(exclusiveLife).exclusive,true,'단독 연인이 있으면 관계 상태를 독점 연애로 판정해야 한다');
   assert.equal(freedom.eligibility(exclusiveLife).ok,false,'단독 연인이 있을 때 자유인 3인조는 친구로만 남아야 한다');
+  const dangerousPendingLife=JSON.parse(JSON.stringify(life));
+  dangerousPendingLife.seraHousing='cohabit';
+  dangerousPendingLife.dangerousTrio={badFriendsFormed:true};
+  assert.equal(freedom.eligibility(dangerousPendingLife).dangerousPriority,true,'위험한 3인조의 중심 사건이 남아 있으면 자유인 공동 결말이 먼저 열리면 안 된다');
+  dangerousPendingLife.dangerousTrioBond={active:true};
+  assert.equal(freedom.relationshipMode(dangerousPendingLife).canAdvance,true,'위험한 3인조 공동생활이 성립하면 자유인 3인조가 아치에너미이자 다음 장으로 진전할 수 있어야 한다');
   assert.equal(freedom.start(life).ok,true);
   for(const choiceId of ['honest','boundaries','threeletters','home']){
     assert.ok(freedom.apply(life,choiceId),'힐링 루트의 네 장 선택을 모두 처리할 수 있어야 한다');
   }
   assert.equal(state.ending.tone,'good');
+  assert.equal(freedom.storyComplete(life),true,'상담·개인사·공동 사건을 모두 끝내야 자유인 장 완료로 판정해야 한다');
+  assert.equal(freedom.confessionReady(life),true,'좋은 공동 결말 뒤에만 자유인 쪽 고백이 열려야 한다');
+  assert.equal(freedom.marketRumorAvailable(life),true,'자유인과 친구 또는 연인으로 남으면 장 완료 뒤 주식 소문을 제공해야 한다');
+  const closedLife={met:freedom.NAMES.map((name,index)=>({name,status:index===0?'ex':'friend',affection:70,trust:45}))};
+  const closedState=freedom.ensure(closedLife);
+  closedState.guildStage=freedom.GUILD_EVENTS.length;closedState.firstOuting='seen';
+  freedom.COUNSELING_EVENTS.forEach(event=>closedState.counseling[event.id]='seen');
+  Object.keys(freedom.PERSONAL_EVENTS).forEach(id=>closedState.personal[id]='seen');
+  assert.equal(freedom.resolveUnavailable(closedLife),true,'한 사람이 인연을 정리해도 끝낸 개인사는 장 완료로 정리돼 다음 그룹을 막지 않아야 한다');
+  assert.equal(freedom.storyComplete(closedLife),true);
+  assert.equal(freedom.confessionReady(closedLife),false,'구성원이 떠난 그룹에서는 전원 고백이 오면 안 된다');
   assert.ok(['bright_home','small_days'].includes(state.ending.id),'좋은 결말은 화려한 직업과 소박한 생활을 함께 유지해야 한다');
   assert.equal(state.rest>=75,true,'따뜻한 선택은 안식감을 실제 수치로 쌓아야 한다');
   const recovery=freedom.recovery(life);
