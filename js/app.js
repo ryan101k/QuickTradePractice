@@ -21,6 +21,7 @@ const ROMANCE = window.QT_ROMANCE;
 const STORIES = window.QT_CHARACTER_STORIES;
 const CHAR_TRAITS = window.QT_CHARACTER_TRAITS;
 const CROSS_EVENTS = window.QT_CHARACTER_CROSS_EVENTS;
+const CHEMISTRY = window.QT_CHARACTER_CHEMISTRY;
 const ROMANCE_ROUTES = window.QT_ROMANCE_ROUTES;
 const DANGEROUS_TRIO = window.QT_DANGEROUS_TRIO;
 const FREEDOM_TRIO = window.QT_FREEDOM_TRIO;
@@ -245,6 +246,7 @@ function newLife() {
     affection: 0,
     memories: [],
     crossEvents: { seen:{}, cooldown:0, history:[] },
+    relationshipChemistry: { seen:{}, pending:null, cooldown:0, history:[], totalDrain:0, actionCount:0 },
     seraLoop: null,
     monthActions: {},         // 월별 행동 횟수 { "day:action": count } (구버전 true는 1회로 읽음)
   };
@@ -2412,11 +2414,12 @@ function importantEventPriority(event) {
   if(event.type==='debt'||event.type==='incident'||event.dangerousHeroineEvent)return 85;
   if(event.yujinInvestigation)return 80;
   if(event.storyBridge)return 78;
+  if(event.chemistryEventId&&event.urgent)return 79;
   if(event.groupConfession)return 76;
   if(event.groupChatEvent)return 72;
   if(event.relationshipSocialEvent)return 74;
   if(event.childhoodCircleEvent||event.dangerousTrioPrelude||event.dangerousTrioStart||event.freedomTrioStart||event.freedomGuildEvent||event.freedomCounselingEvent||event.freedomFirstOuting||event.freedomDangerousDisclosure)return 75;
-  if(event.crossEventId||event.story||event.bondEncounter)return 55;
+  if(event.crossEventId||event.chemistryEventId||event.story||event.bondEncounter)return 55;
   if(event.businessRomanceEvent)return 45;
   if(event.businessEvent)return 40;
   if(event.monthlyMessage)return event.targetType==='rival'?30:event.targetType==='subordinate'?25:20;
@@ -2432,6 +2435,7 @@ function importantEventKey(event) {
   if(event.freedomDangerousDisclosure)return'freedom:dangerous-disclosure';
   if(event.groupConfession)return`group-confession:${event.groupId}`;
   if(event.groupChatEvent)return`group-chat:${event.eventId}`;
+  if(event.chemistryEventId)return`chemistry:${event.chemistryEventId}`;
   if(event.crossEventId)return`cross:${event.crossEventId}`;
   if(event.monthlyMessage)return`message:${event.targetType}:${event.targetId!=null?event.targetId:event.personName||''}`;
   if(event.businessEvent)return`business:${event.businessId}:${event.eventId}`;
@@ -2538,6 +2542,7 @@ function showNextImportantEvent(resumeCurrent = false) {
   if (event.monthlyMessage) { prepareLifeEventOverlay(true); showMonthlyMessagePopup(event); return; }
   if (event.bondEncounter) { showBondEncounter(event); return; }
   if (event.dangerousHeroineEvent) { showDangerousHeroineEvent(event.dangerousHeroineEvent); return; }
+  if (event.chemistryEventId) { showCharacterChemistryEvent(event.chemistryEventId); return; }
   if (event.crossEventId) { showCrossCharacterEvent(event.crossEventId); return; }
   if (event.story && event.personName) {
     const rec = metRecord(S.life, event.personName);
@@ -3099,6 +3104,69 @@ function resolveCrossCharacterEvent(choiceIndex) {
   $('cross-event-confirm').addEventListener('click', () => {
     host.style.display = 'none'; host.innerHTML = ''; S._crossEvent = null;
     renderCapital(); renderLifePanel(); autoSave(); showNextImportantEvent();
+  });
+}
+
+function showCharacterChemistryEvent(eventId) {
+  const event=CHEMISTRY&&CHEMISTRY.get(eventId,S.life),host=$('life-event');
+  if(!event||!host||!CHEMISTRY.eligible(S.life,event,S.day)){
+    if(CHEMISTRY)CHEMISTRY.clearPending(S.life,eventId);
+    showNextImportantEvent();return;
+  }
+  const people=(event.people||[]).map(name=>metRecord(S.life,name)).filter(Boolean);
+  const cast=people.map(person=>{
+    const line=event.lines&&event.lines[person.name];
+    return`<div class="cross-person"><img src="${characterPortrait(person)}" alt="${person.name}"><div><b>${person.name}</b><small>${relationTag(S.life,person.name)}</small>${line?`<p>“${line}”</p>`:''}</div></div>`;
+  }).join('');
+  S._chemistryEvent=event;
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window cross-event-window chemistry-event-window">
+    <div class="title-bar event-bar"><div class="title-bar-text">${event.icon||'💬'} 관계 생활 사건 · 선택 필요</div></div>
+    <div class="window-body">
+      <div class="event-title">${event.icon||'💬'} ${event.title}</div>
+      ${cast?`<div class="cross-cast">${cast}</div>`:'<div class="important-event-detail">당신의 관계를 곁에서 지켜보던 사람이 조심스럽게 말을 꺼냈습니다.</div>'}
+      <div class="event-desc">${event.desc}</div>
+      <div class="important-event-detail">현재 체력 ${Math.round(S.life.health||0)}/100 · 누적 관계 피로 ${Math.round(CHEMISTRY.ensure(S.life).totalDrain||0)}</div>
+      <div class="event-options">${event.choices.map((choice,index)=>`<button class="event-opt" data-chemistry-choice="${index}">${choice.text}</button>`).join('')}</div>
+      <div class="event-outcome" id="chemistry-event-outcome"></div>
+    </div>
+  </div>`;
+  host.querySelectorAll('[data-chemistry-choice]').forEach(button=>button.addEventListener('click',()=>resolveCharacterChemistryEvent(+button.dataset.chemistryChoice)));
+}
+
+function resolveCharacterChemistryEvent(choiceIndex){
+  const event=S._chemistryEvent,choice=event&&event.choices[choiceIndex],host=$('life-event');
+  if(!event||!choice||!host||!CHEMISTRY)return;
+  const changes=[];
+  Object.entries(choice.people||{}).forEach(([name,effects])=>{
+    const rec=metRecord(S.life,name);if(!rec)return;
+    ['affection','trust','obsession'].forEach(key=>{
+      const delta=effects[key];if(delta==null)return;
+      if(key==='obsession'&&!isDangerousHeroine(rec))return;
+      rec[key]=clamp((rec[key]||0)+delta,0,100);
+      const label=key==='affection'?'호감':key==='trust'?'신뢰':dangerousRiskMeta(rec).label;
+      changes.push(`${name} ${label} ${delta>=0?'+':''}${delta}`);
+    });
+  });
+  Object.entries(choice.life||{}).forEach(([key,delta])=>{
+    const label={happy:'행복',stress:'스트레스',charm:'매력',morality:'도덕성'}[key]||key;
+    if(key==='morality')changeMorality(delta);
+    else S.life[key]=clamp((S.life[key]||0)+delta,0,key==='charm'?999:100);
+    changes.push(`${label} ${delta>=0?'+':''}${delta}`);
+  });
+  if(choice.stamina){
+    CHEMISTRY.noteStamina(S.life,choice.stamina);
+    changes.push(`체력 ${choice.stamina>=0?'+':''}${choice.stamina}`);
+  }
+  if(choice.flags)Object.assign(S.life,choice.flags);
+  CHEMISTRY.resolved(S.life,event.id,choice.text,S.day);
+  addNews(`${event.icon||'💬'} ${event.title} · 체력 ${Math.round(S.life.health||0)}/100`,choice.stamina<0?'bad':'neutral');
+  const options=host.querySelector('.event-options');if(options)options.innerHTML='';
+  const out=$('chemistry-event-outcome');
+  out.innerHTML=`<div class="oc-text">${choice.outcome}</div>${changes.length?`<div class="oc-changes">${changes.join(' · ')}</div>`:''}<button id="chemistry-event-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
+  $('chemistry-event-confirm').addEventListener('click',()=>{
+    host.style.display='none';host.innerHTML='';S._chemistryEvent=null;
+    renderCapital();renderLifePanel();autoSave();showNextImportantEvent();
   });
 }
 
@@ -5277,6 +5345,8 @@ function updateRelationships(L) {
   monthlyChildhoodForeshadow(L);
   const crossEvent = CROSS_EVENTS && CROSS_EVENTS.monthly(L);
   if (crossEvent) queueImportantEvent({ crossEventId:crossEvent.id, storyBridge:!!crossEvent.storyBridge });
+  const chemistryEvent=CHEMISTRY&&CHEMISTRY.monthly(L,S.day);
+  if(chemistryEvent)queueImportantEvent({chemistryEventId:chemistryEvent.id,urgent:!!chemistryEvent.urgent});
   queueNaturalDangerousEvents(L);
   queueNaturalFreedomEvents(L);
   queueNaturalGroupChatEvent(L);
@@ -7956,17 +8026,23 @@ function dangerousTrioFollowsOuting(group){
   names.forEach(name=>{const r=metRecord(L,name);if(r)pushPersonMessage(L,r,name==='강유진'?'순찰 동선이 겹친 것뿐이에요. 끝나면 같이 가요.':name==='한채린'?'경호팀이 여기로 오라길래 왔어. 네 일정 때문은 아니야.':`나도 여기 올 생각이었어요. 믿어줘요. 이번에는 진짜로.`,false);});
   flashToast(`🦂 이번 외출에는 ${names.join('·')} 동행`,'neutral');
 }
-function applyDangerousTrioLivingFatigue(group){
-  const L=S.life,bond=L&&L.dangerousTrioBond;if(!bond||!bond.active||!group)return;
-  const outside=['데이트','취미','경력','인맥','사업','라이벌'].includes(group);
-  const drain=outside?4:group==='휴식'?1:2;
-  L.health=clamp((L.health||0)-drain,0,100);
-  bond.totalHealthDrain=(bond.totalHealthDrain||0)+drain;
+function applyRelationshipGroupFatigue(group){
+  const L=S.life;if(!L||!group)return;
+  if(CHEMISTRY){
+    const result=CHEMISTRY.applyActionFatigue(L,group,S.day);
+    if(!result.drain)return;
+    if(L.dangerousTrioBond&&L.dangerousTrioBond.active)L.dangerousTrioBond.totalHealthDrain=(L.dangerousTrioBond.totalHealthDrain||0)+result.drain;
+    addNews(`💞 ${result.sources.join(' · ')} 때문에 체력 -${result.drain}`,'neutral');
+    return;
+  }
+  const bond=L.dangerousTrioBond;if(!bond||!bond.active)return;
+  const outside=['데이트','취미','경력','인맥','사업','라이벌'].includes(group),drain=outside?4:group==='휴식'?1:2;
+  L.health=clamp((L.health||0)-drain,0,100);bond.totalHealthDrain=(bond.totalHealthDrain||0)+drain;
   addNews(`🦂 공동생활 일정 조율${outside?'과 동행':' 때문에'} 체력 -${drain}`,'neutral');
 }
 function afterLifeAction(monthlyGroup) {
   markMonthAction(monthlyGroup);
-  applyDangerousTrioLivingFatigue(monthlyGroup);
+  applyRelationshipGroupFatigue(monthlyGroup);
   dangerousTrioFollowsOuting(monthlyGroup);
   maybeSeraIntrusion(monthlyGroup);
   renderCapital(); renderLifePanel(); checkAchievements(); autoSave();
