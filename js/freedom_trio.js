@@ -95,65 +95,6 @@ const PERSONAL_EVENTS={
   },
 };
 
-const CHAPTERS=[
-  {
-    title:'마지막 탑승구에서 집으로',icon:'🛫',scene:'./assets/event-chaewon-7.png',
-    desc:'채원의 귀국편, 유나의 해외 촬영 귀환, 소희의 객원 공연 도착이 같은 탑승구에서 겹쳤습니다. 세 사람 모두 화려한 차림이지만 너무 지쳐 누구도 먼저 웃지 못합니다. 당신이 준비한 것은 꽃다발이 아니라 보온병과 집으로 가는 차 한 대입니다.',
-    speakers:[
-      {name:'채원',line:'환영회 없어도 돼요. 구두부터 벗고 싶어요.'},
-      {name:'유나',line:'지금 얼굴 찍으면 고소할 거예요. 대신 따뜻한 건 좀 줘요.'},
-      {name:'소희',line:'오늘은 누구 무대가 더 컸는지 말하지 않아도 되죠?'},
-    ],
-    choices:[
-      {id:'honest',tag:'freedom',text:'세 사람을 집으로 데려가 국을 데우고 먼저 재운다',preview:'설명보다 휴식이 먼저인 밤을 만든다',harmony:13,trust:8,rest:10,happy:7,stress:-8,result:'세 사람은 소파와 침대와 바닥에 제각각 쓰러졌습니다. 아침에 눈을 뜬 뒤에야 서로를 처음으로 편한 얼굴로 소개했습니다.'},
-      {id:'crew',tag:'career',text:'짐과 이동만 정리하고 일정 이야기는 내일로 미룬다',preview:'유능함을 귀가를 돕는 데만 사용한다',harmony:9,trust:5,rest:7,happy:4,stress:-5,result:'가방은 현관에 가지런히 놓였고 업무 알림은 모두 꺼졌습니다. 아무도 대표나 모델이나 연주자가 아닌 밤이 됐습니다.'},
-      {id:'choose',tag:'control',text:'오늘 가장 보고 싶었던 한 사람만 차에 태운다',preview:'지친 세 사람을 다시 비교한다',harmony:-13,trust:-7,rest:-8,happy:-7,stress:11,result:'선택받은 사람도 차에 타지 않았습니다. 셋은 각자 택시를 잡으며 처음으로 같은 표정을 지었습니다.'},
-    ],
-  },
-  {
-    title:'기사보다 작은 일요일',icon:'🧺',scene:'./assets/event-yuna-2.png',
-    desc:'유나의 열애설과 채원·소희의 목격 사진이 같은 날 퍼졌습니다. 밖에서는 세 사람을 경쟁자로 떠들지만, 정작 네 사람은 시장에서 살 감자와 세탁 세제 목록을 두고 더 오래 고민합니다.',
-    speakers:[
-      {name:'유나',line:'해명문보다 장바구니가 더 급해요. 집에 먹을 게 하나도 없잖아.'},
-      {name:'채원',line:'모자 쓰면 알아보는 사람 없어요. 오늘만 평범하게 걸어요.'},
-      {name:'소희',line:'감자 세 개면 충분한가요? 네 사람이니까 네 개가 맞나.'},
-    ],
-    choices:[
-      {id:'boundaries',tag:'freedom',text:'휴대전화를 끄고 네 사람이 동네 장을 본다',preview:'세상의 설명보다 오늘 먹을 저녁을 고른다',harmony:15,trust:9,rest:11,happy:8,stress:-8,result:'기사는 하루 종일 갱신됐지만 네 사람은 처음 만든 감자국이 싱겁다는 문제로 더 오래 웃었습니다.'},
-      {id:'campaign',tag:'career',text:'필요한 해명만 맡기고 집에서는 기사 이야기를 금지한다',preview:'직업을 처리하되 생활까지 침범하게 두지 않는다',harmony:10,trust:6,rest:7,happy:4,stress:-5,result:'유나는 짧은 입장만 남기고 돌아왔습니다. 현관을 닫는 순간부터 아무도 기사를 다시 열지 않았습니다.'},
-      {id:'deny',tag:'control',text:'유나 혼자 모든 관계를 부정하게 한다',preview:'집에서도 한 사람에게 가면을 씌운다',harmony:-16,trust:-9,rest:-10,happy:-8,stress:12,result:'유나는 완벽하게 웃으며 해명했습니다. 카메라가 꺼진 뒤에는 당신에게도 같은 표정만 남겼습니다.'},
-    ],
-  },
-  {
-    title:'세 개의 도시에서 온 귀가 문자',icon:'💬',scene:'./assets/event-yuna-5.png',
-    desc:'채원은 장거리 노선, 유나는 해외 촬영, 소희는 객원 공연으로 같은 날 떠납니다. 예전 같으면 누구를 따라갈지 골라야 했겠지만, 이제 중요한 것은 떠나는 장면보다 지친 뒤 돌아와 쉴 집입니다.',
-    speakers:[
-      {name:'채원',line:'배웅은 됐어요. 대신 냉장고에 우유는 남겨 둬요.'},
-      {name:'유나',line:'영상 통화할 때 화장하라고 하지 마요. 진짜 피곤할 거니까.'},
-      {name:'소희',line:'집 화분에 물만 주세요. 돌아오면 제가 저녁을 만들게요.'},
-    ],
-    choices:[
-      {id:'threeletters',tag:'freedom',text:'각자 좋아하는 반찬을 작은 도시락에 담아 보낸다',preview:'같은 약속보다 사소한 취향을 기억한다',harmony:16,trust:10,rest:10,happy:7,stress:-7,result:'세 도시에 도착한 사진에는 풍경보다 반쯤 비운 도시락이 먼저 찍혀 있었습니다. 귀가 문자는 모두 “집에 가고 싶다”로 끝났습니다.'},
-      {id:'follow',tag:'career',text:'따라가지 않고 집을 정리하며 귀가를 기다린다',preview:'모든 무대를 쫓지 않아도 사라지지 않는 관계',harmony:12,trust:8,rest:8,happy:5,stress:-6,result:'당신은 세 도시의 시간을 외우는 대신 현관 전구와 침구를 바꿨습니다. 돌아온 세 사람은 그 변화부터 알아봤습니다.'},
-      {id:'ground',tag:'control',text:'관계를 유지하려면 셋 모두 일정을 포기하라고 한다',preview:'쉴 집을 떠날 수 없는 곳으로 만든다',harmony:-22,trust:-12,rest:-14,happy:-10,stress:15,result:'세 사람은 처음으로 같은 편이 됐습니다. 당신을 설득하기 위해서가 아니라, 각자의 표를 지키기 위해서였습니다.'},
-    ],
-  },
-  {
-    title:'화려한 하루가 끝나는 집',icon:'🏠',scene:'./assets/event-freedom-tro-meeting.png',
-    desc:'현관에는 여행가방, 옷걸이에는 촬영 의상, 창가에는 바이올린이 놓였습니다. 밖에서 누구보다 화려한 세 사람이 이 집에서는 잘 보일 필요도, 잘할 필요도 없는 생활을 시작하려 합니다.',
-    speakers:[
-      {name:'채원',line:'늦게 돌아오면 밥만 남겨 둬요. 기다리다 지치지는 말고.'},
-      {name:'유나',line:'여기서는 예쁘지 않아도 된다고 매일 말해 줘요.'},
-      {name:'소희',line:'연주하지 않는 날에도 제가 쓸모 있는 사람인 것처럼 대해 주세요.'},
-    ],
-    choices:[
-      {id:'home',tag:'freedom',text:'한 달에 하루는 네 사람 모두 아무 역할도 하지 않는다',preview:'성과 없이 함께 있는 것이 관계의 중심이 된다',harmony:20,trust:11,rest:16,happy:10,stress:-10,result:'그날은 배달 음식과 낮잠과 서툰 집안일만 남았습니다. 누구도 멋지지 않았지만 네 사람 모두 가장 편하게 웃었습니다.'},
-      {id:'worldstage',tag:'career',text:'각자의 일은 밖에 두고 귀가 뒤에는 서로를 돌본다',preview:'화려한 직업과 소박한 생활을 분리한다',harmony:16,trust:9,rest:12,happy:8,stress:-8,result:'세 사람의 일정은 여전히 바빴지만 현관을 닫으면 직함도 기사도 박수도 끝났습니다. 집은 네 사람의 회복실이 됐습니다.'},
-      {id:'rules',tag:'control',text:'외박·촬영·공연을 모두 허락제로 관리한다',preview:'돌아올 곳을 떠날 수 없는 곳으로 바꾼다',harmony:-28,trust:-15,rest:-18,happy:-12,stress:18,result:'세 사람은 열쇠를 테이블에 내려놓았습니다. 붙잡으려고 만든 규칙이 누구도 돌아오지 않는 이유가 됐습니다.'},
-    ],
-  },
-];
-
 const AFTERMATH=[
   {
     id:'same_party_night',title:'공동 관계 1개월 · 세 집의 같은 밤',icon:'🎧',scene:'./assets/event-freedom-shared-voice-night.png',
