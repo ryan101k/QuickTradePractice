@@ -4920,7 +4920,7 @@ const DANGEROUS_FRIEND_LINES={
   '윤세라':['오늘은 어디 갔어요? 답장 천천히 해도 돼요. 그냥 무사한지만 궁금해서.','편의점에 새 디저트 나왔어요. 친구끼리 하나씩 먹어보는 건 평범한 일이죠?','잠이 안 오면 연락해요. 나도 대개 깨어 있으니까 부담 갖지 말고.']
 };
 const DANGEROUS_AFFECTION_EVENTS={
-  yujin_friend:{name:'강유진',kind:'friend',min:20,scene:'./assets/event-yujin-riverside-date.png',icon:'☂️',title:'강유진 · 순찰이 끝난 강변',desc:'비가 내리는 강변에서 유진이 순찰 우산을 기울였습니다. 신고도 사건도 없는 약속은 처음이라며, 친구로서 당신의 하루를 듣고 싶다고 합니다.',choices:[
+  yujin_friend:{name:'강유진',kind:'friend',min:20,scene:'./assets/event-yujin-riverside-date.png',icon:'🌃',title:'강유진 · 사건 없는 밤의 안부',desc:'야간 근무를 마친 유진이 처음으로 사건 파일을 덮어두고 당신을 불렀습니다. 구겨진 옷깃을 무심히 매만지며, 신고도 조서도 없는 날에도 경찰이 아니라 친구로서 당신 하루가 어땠는지 듣고 싶다고 합니다.',choices:[
     {text:'오늘 있었던 일을 솔직하게 털어놓는다',result:'유진은 해결책보다 먼저 끝까지 이야기를 들었습니다. “이건 구조가 아니라 친구 노릇이에요.”',affection:7,trust:10},
     {text:'유진도 힘든 일이 없는지 묻는다',result:'늘 남을 구하던 유진이 처음으로 자기 피로를 말했습니다. 두 사람의 관계가 조금 더 평평해졌습니다.',affection:5,trust:13}
   ]},
@@ -4932,7 +4932,7 @@ const DANGEROUS_AFFECTION_EVENTS={
     {text:'먼저 다음 약속 날짜를 정한다',result:'세라는 몇 번이나 달력을 확인했지만 더 묻지는 않았습니다. 먼저 돌아올 약속이 있다는 사실만으로 충분해 보였습니다.',affection:8,trust:8},
     {text:'연락이 늦어도 불안해하지 말라고 약속한다',result:'세라는 쉬운 약속처럼 듣지 않았습니다. 대신 “노력해볼게요”라고 작게 대답했습니다.',affection:5,trust:12}
   ]},
-  yujin_warning:{name:'강유진',kind:'friend',min:35,after:'yujin_friend',scene:'./assets/event-yujin-night-call.png',icon:'📍',title:'강유진 · 신고하지 않은 위치 확인',desc:'유진이 “근처 순찰 중”이라며 나타났지만, 오늘 순찰 구역은 반대편이었습니다. 당신이 늦게 귀가한다는 말을 기억해 일부러 동선을 바꾼 모양입니다.',choices:[
+  yujin_warning:{name:'강유진',kind:'friend',min:35,after:'yujin_friend',scene:'./assets/event-yujin-night-call.png',icon:'📍',title:'강유진 · 신고하지 않은 위치 확인',desc:'밤늦게 유진에게서 전화가 왔습니다. “근처 순찰 중이라 그냥” 걸었다지만, 오늘 순찰 구역은 반대편입니다. 당신이 늦게 귀가한다는 말을 기억해 일부러 전화를 건 모양입니다.',choices:[
     {text:'걱정은 고맙지만 내 일정을 확인하지 말라고 한다',result:'유진은 입술을 깨물고 고개를 끄덕였습니다. “보호와 감시는 다르죠. 기록해둘게요.”',affection:2,trust:8,danger:-5},
     {text:'앞으로도 늦을 때 데리러 와달라고 한다',result:'유진은 바로 당신의 귀가 시간표를 만들었습니다. 안도한 표정이 이상하리만큼 진지합니다.',affection:7,trust:2,danger:10}
   ]},
@@ -5101,6 +5101,27 @@ function queueNaturalDangerousEvents(L){
       r.dangerEvents[id]='queued';
       queueImportantEvent({dangerousHeroineEvent:id});
     }
+  });
+  queueSpecialHeroineOutreach(L);
+}
+/* 첫 조우 다음 달, 그쪽에서 먼저 연락해 플레이어가 후속 만남을 찾아가게 만든다(한 번만).
+ * 강유진: 각성 전까지는 정상적인 경찰 — 흥미가 아니라 윤세라 사건 참고인 명목으로만 연락한다.
+ * 한채린: 처음부터 도발에 흥미를 느끼는 성격이라, 계약서를 찢은 플레이어에게 직접 연락한다. */
+function queueSpecialHeroineOutreach(L){
+  const seraKnown=!!metRecord(L,'윤세라');
+  const outreach=[
+    {name:'강유진',when:()=>seraKnown,text:'윤세라 씨 사건으로 참고인 진술이 한 번 더 필요합니다. 동거 중이시면 그쪽 근황도 확인할 겸, 편한 시간에 연락 주세요.'},
+    {name:'한채린',when:()=>true,text:'그날 내 계약서를 찢던 표정, 아직 기억나. 심심하면 위층으로 와. 두 번은 안 청해.'}
+  ];
+  outreach.forEach(({name,when,text})=>{
+    const r=metRecord(L,name);
+    if(!r||r.status!=='acquaintance'||hasPersonalContact(r))return;
+    if(r.specialFollowupInterest!=='open'||r.followupOutreachSent)return;
+    if((r.firstDay||S.day)>=S.day)return;   // 만난 그 달에는 보내지 않는다(다음 달부터)
+    if(!when())return;
+    r.followupOutreachSent=true;
+    pushPersonMessage(L,r,text,false);
+    queueImportantEvent({monthlyMessage:true,targetType:'person',personName:name,text});
   });
 }
 function queueNaturalFreedomEvents(L){
@@ -6945,7 +6966,9 @@ function showDangerousTrioPrelude(eventId){
   const host=$('life-event'),event=DANGEROUS_TRIO.nextPrelude(S.life);
   if(!host||!event||event.id!==eventId){
     DANGEROUS_TRIO.deferPrelude(S.life,0);
-    closeLifeEvent();showNextImportantEvent();return;
+    if(S.monthCloseContext)S.monthCloseContext.currentImportantEvent=null;
+    if(host){host.style.display='none';host.innerHTML='';}
+    showNextImportantEvent();return;
   }
   const state=DANGEROUS_TRIO.ensure(S.life),witness=firstSubordinateWitness();
   const phase=['서로 경계함','서로의 결핍을 알아챔','싸우면서 편들기 시작함'][state.preludeStage]||'악우가 됨';
@@ -6956,7 +6979,7 @@ function showDangerousTrioPrelude(eventId){
   host.style.display='block';
   host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">${event.icon} ${event.title}</div><div class="title-bar-controls"><button aria-label="Close" id="trio-prelude-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${event.scene}" alt="${event.title} 사건"><div class="trio-meter"><span>세 사람의 현재 거리</span><b class="${state.stability<30?'down':'up'}">${phase}</b></div><div class="event-desc">${event.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${event.choices.map(choice=>`<button class="event-opt" data-trio-prelude-choice="${choice.id}">${choice.text}</button>`).join('')}<button class="event-opt" id="trio-prelude-later">오늘은 회의를 끝낸다</button></div><div class="event-outcome" id="trio-prelude-outcome"></div></div></div>`;
   host.querySelectorAll('[data-trio-prelude-choice]').forEach(button=>button.addEventListener('click',()=>resolveDangerousTrioPrelude(button.dataset.trioPreludeChoice)));
-  [$('trio-prelude-x'),$('trio-prelude-later')].forEach(button=>button.addEventListener('click',()=>{DANGEROUS_TRIO.deferPrelude(S.life,S.day);closeLifeEvent();autoSave();}));
+  [$('trio-prelude-x'),$('trio-prelude-later')].forEach(button=>button.addEventListener('click',()=>{DANGEROUS_TRIO.deferPrelude(S.life,S.day);const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}if(S.monthCloseContext)S.monthCloseContext.currentImportantEvent=null;autoSave();showNextImportantEvent();}));
 }
 function resolveDangerousTrioPrelude(choiceId){
   const result=DANGEROUS_TRIO.applyPrelude(S.life,choiceId);if(!result)return;
@@ -6964,7 +6987,7 @@ function resolveDangerousTrioPrelude(choiceId){
   const host=$('life-event'),options=host&&host.querySelector('.event-options');if(options)options.innerHTML='';
   $('trio-prelude-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">세 사람의 공조 ${result.choice.stability>=0?'+':''}${result.choice.stability} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust}</div>${result.complete?'<div class="important-event-detail up">셋은 끝내 친해졌다는 말을 하지 않았습니다. 대신 서로의 잘못을 가장 먼저 지적하고, 외부가 한 사람을 건드리면 나머지 둘이 먼저 움직이는 악우가 됐습니다.</div>':''}<button id="trio-prelude-confirm" class="session-btn opening">회의를 마친다</button>`;
   addNews(`${result.event.icon} 강유진·한채린·윤세라 · ${result.event.title}`,result.choice.stability<0?'bad':'neutral');
-  $('trio-prelude-confirm').addEventListener('click',()=>{closeLifeEvent();renderLifePanel();showNextImportantEvent();});
+  $('trio-prelude-confirm').addEventListener('click',()=>{const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}if(S.monthCloseContext)S.monthCloseContext.currentImportantEvent=null;renderLifePanel();showNextImportantEvent();});
   renderLifePanel();autoSave();
 }
 function dangerousTrioCast(){
@@ -6991,7 +7014,7 @@ function startDangerousTrioRoute(auto){
   autoSave();showDangerousTrioStory();
 }
 function showDangerousTrioStory(){
-  const chapter=DANGEROUS_TRIO.next(S.life),host=$('life-event');if(!chapter||!host){closeLifeEvent();showNextImportantEvent();return;}
+  const chapter=DANGEROUS_TRIO.next(S.life),host=$('life-event');if(!chapter||!host){if(host){host.style.display='none';host.innerHTML='';}if(S.monthCloseContext)S.monthCloseContext.currentImportantEvent=null;showNextImportantEvent();return;}
   const state=DANGEROUS_TRIO.ensure(S.life),witness=trioWitness();
   const carry=chapter.focus&&DANGEROUS_TRIO.personalCarry?DANGEROUS_TRIO.personalCarry(S.life,chapter.focus):null;
   const speakers=chapter.speakers.map(s=>{
