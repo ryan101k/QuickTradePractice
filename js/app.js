@@ -3938,7 +3938,7 @@ function showIndustryGatherings(){
   const social=SOCIAL.ensure(S.life),introduced=BUSINESS_ROMANCE?BUSINESS_ROMANCE.ensure(S.life).staff:{};
   const businessAccess=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.chaerinAccess(S.life);
   const naraeGuide=social.industry.meetings===0
-    ?'“사교모임은 비싼 사람을 바로 만나는 곳이 아니에요. 처음 두어 번은 누가 누구에게 먼저 인사하고, 어떤 명함을 끝까지 남기는지만 보세요.”'
+    ?'“사교모임은 비싼 사람을 바로 만나는 곳이 아니에요. 오늘은 명함 욕심 내지 말고 분위기만 보세요. 대신 끝나도 바로 가지 말고 제 신호를 기다려요 — 위층에 당신이 꼭 봐 둬야 할 사람이 있거든요.”'
     :social.industry.meetings===1
       ?'“오늘은 이름을 팔려고 하지 말고 지난번에 본 얼굴 하나만 기억해 보세요. 인맥은 명함 수보다 다시 알아보는 데서 시작해요.”'
       :social.industry.meetings===2
@@ -3968,7 +3968,7 @@ function attendIndustryGathering(id){
   flashToast(result.introduced?`새 업계 인물을 소개받았습니다: ${BUSINESS_ROMANCE.identity(S.life,result.introduced).displayName}`:message,result.chaerinRequired?'neutral':'good');
   const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
   const chaerin=metRecord(S.life,'한채린');
-  if(!chaerin&&gathering.tier>=1&&SOCIAL.ensure(S.life).industry.meetings>=3&&S.life.chaerinLeadLastDay!==S.day){
+  if(!chaerin&&gathering.tier>=1&&SOCIAL.ensure(S.life).industry.meetings>=1&&S.life.chaerinLeadLastDay!==S.day){
     showNaraeChaerinLead(gathering,result.introduced);
     return;
   }
@@ -4306,15 +4306,15 @@ function showYujinInvestigation(manual){
   const seraPartner=!!(sera&&RELATIONSHIPS.isPartner(L,'윤세라'));
   S._yujinInvestigation={manual:!!manual,c,sera,housing};
   const scene=cohabit
-    ?`<div class="investigation-door-cast"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="강유진"><div><strong>강유진 · 담당 수사관</strong><br><span class="muted">차명계좌·정산금 유용 사건</span></div></div><div class="date-profile"><img class="char-thumb" src="${characterPortrait(sera)}" alt="윤세라"><div><strong>윤세라 · 현재 동거인</strong><br><span class="muted">피해자이자 내부 송금 기록 제보자</span></div></div></div><div class="story-dialogue"><b>강유진</b> “윤세라 씨 주소를 확인하러 왔는데, 왜 당신 집이 나옵니까?”</div><div class="story-dialogue"><b>윤세라</b> “갈 곳이 없어서 같이 사는 건데요. 경찰한테 허락도 받아야 해요?”</div><div class="story-dialogue"><b>강유진</b> “허락 문제가 아닙니다. 두 분은 동거인입니까? 아니면… 애인입니까?”</div>`
+    ?`<div class="investigation-door-cast"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="강유진"><div><strong>강유진 · 담당 수사관</strong><br><span class="muted">주가조작·개미 투자자 피해 사건</span></div></div><div class="date-profile"><img class="char-thumb" src="${characterPortrait(sera)}" alt="윤세라"><div><strong>윤세라 · 현재 동거인</strong><br><span class="muted">피해자이자 내부 송금 기록 제보자</span></div></div></div><div class="story-dialogue"><b>강유진</b> “참고인 주소를 확인하러 왔는데, 하필 그 세력 거래에 이름이 겹치는 분 집이 나오네요.”</div><div class="story-dialogue"><b>윤세라</b> “갈 곳이 없어서 같이 사는 거예요. 이 사람은 절 도와준 거고요.”</div><div class="story-dialogue"><b>강유진</b> “그건 조사해 보면 알겠죠. 피해자를 돕는 사람인지, 곁에 두고 뭘 얻으려는 사람인지.”</div>`
     :separate
-      ?`<div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="강유진"><div><strong>강유진 · 담당 수사관</strong><br><span class="muted">차명계좌·정산금 유용 사건</span></div></div><div class="story-dialogue"><b>강유진</b> “윤세라 씨가 임시 숙소의 비상 연락처로 당신 번호를 적었습니다. 같이 살지는 않는다면서, 무슨 관계입니까?”</div>`
-      :`<div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="강유진"><div><strong>강유진 · 담당 수사관</strong><br><span class="muted">실종 피해자·차명계좌 확인</span></div></div><div class="story-dialogue"><b>강유진</b> “폐작업실에서 윤세라 씨를 마지막으로 본 사람이 당신입니다. 지원 연락처만 두고 왔다고 했죠. 그 뒤로 연락은 없었습니까?”</div>`;
+      ?`<div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="강유진"><div><strong>강유진 · 담당 수사관</strong><br><span class="muted">주가조작·개미 투자자 피해 사건</span></div></div><div class="story-dialogue"><b>강유진</b> “윤세라 씨가 임시 숙소 비상 연락처에 당신 번호를 남겼습니다. 그런데 그 세력 피해자 명단에 당신 거래 기록도 걸려 있고요. 두 가지가 우연입니까?”</div>`
+      :`<div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="강유진"><div><strong>강유진 · 담당 수사관</strong><br><span class="muted">주가조작·개미 투자자 피해 사건</span></div></div><div class="story-dialogue"><b>강유진</b> “폐작업실에서 윤세라 씨를 마지막으로 본 사람이 당신입니다. 게다가 그 세력 거래에 이름까지 겹쳐요. 참고인으로 몇 가지 확인하겠습니다.”</div>`;
   const choices=cohabit
-    ?`<button class="event-opt" data-yujin-first="plain"><b>“지금은 동거인입니다. 갈 곳이 없어서 데려왔어요.”</b><span>관계를 부풀리지 않고 사실과 사건 기록을 넘깁니다.</span></button><button class="event-opt" data-yujin-first="protect"><b>“친구고, 제가 책임지고 보호하고 있습니다.”</b><span>세라를 다시 조사 대상처럼 다루지 말라고 선을 긋습니다.</span></button><button class="event-opt" data-yujin-first="challenge"><b>“${seraPartner?'애인 맞습니다.':'애인이라면'} 수사가 달라집니까?”</b><span>유진이 굳이 관계를 확인한 이유를 되묻습니다.</span></button>`
-    :`<button class="event-opt" data-yujin-first="plain"><b>알고 있는 송금 기록과 마지막 행적을 전부 말한다</b><span>피해자이자 참고인으로 정식 조사에 협조합니다.</span></button><button class="event-opt" data-yujin-first="protect"><b>세라가 다시 이용당하지 않게 먼저 보호해 달라고 한다</b><span>수사보다 피해자 안전을 우선해 달라고 요구합니다.</span></button><button class="event-opt" data-yujin-first="challenge"><b>내가 왜 의심받는지부터 설명하라고 한다</b><span>담당 수사관의 의도와 확보한 증거를 확인합니다.</span></button>`;
+    ?`<button class="event-opt" data-yujin-first="plain"><b>“거래 기록이든 뭐든 전부 열어 드리겠습니다. 확인하세요.”</b><span>의심을 풀 수 있게 사건 조사에 전면 협조합니다.</span></button><button class="event-opt" data-yujin-first="protect"><b>“저를 의심하는 건 좋은데, 세라를 다시 사건 취급하진 마세요.”</b><span>피해자 보호를 먼저 요구하며 선을 긋습니다.</span></button><button class="event-opt" data-yujin-first="challenge"><b>“제가 그 세력 수혜자로 보입니까? 근거부터 말씀하시죠.”</b><span>의심의 근거와 확보한 증거를 따져 묻습니다.</span></button>`
+    :`<button class="event-opt" data-yujin-first="plain"><b>알고 있는 거래·송금 기록과 마지막 행적을 전부 말한다</b><span>참고인으로 정식 조사에 전면 협조합니다.</span></button><button class="event-opt" data-yujin-first="protect"><b>세라가 다시 이용당하지 않게 먼저 보호해 달라고 한다</b><span>수사보다 피해자 안전을 우선해 달라고 요구합니다.</span></button><button class="event-opt" data-yujin-first="challenge"><b>내가 왜 수혜자로 의심받는지부터 설명하라고 한다</b><span>담당 수사관의 의심 근거와 증거를 확인합니다.</span></button>`;
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window yujin-investigation-window"><div class="title-bar event-bar"><div class="title-bar-text">👮‍♀️ 경쟁 세력 피해 수사 · 주거지 확인</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-yujin-rain-rescue.png" alt="사건 수사를 위해 찾아온 강유진"><div class="event-title">${cohabit?'현관문은 세라가 먼저 열었습니다.':'담당 수사관이 당신을 참고인으로 찾았습니다.'}</div><div class="event-desc">${L.yujinInvestigation&&L.yujinInvestigation.attacker||'경쟁 세력'}의 차명계좌를 조사하던 강유진이 정산금 피해자 명단과 당신의 거래 기록이 겹친 것을 발견했습니다. 신고하러 찾아간 만남이 아니라, 수사가 먼저 집 앞까지 온 순간입니다.</div>${scene}<div class="event-options">${choices}</div><div id="yujin-investigation-outcome" class="event-outcome"></div></div></div>`;
+  host.innerHTML=`<div class="window event-window yujin-investigation-window"><div class="title-bar event-bar"><div class="title-bar-text">👮‍♀️ 경쟁 세력 피해 수사 · 주거지 확인</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-yujin-rain-rescue.png" alt="사건 수사를 위해 찾아온 강유진"><div class="event-title">${cohabit?'현관문은 세라가 먼저 열었습니다.':'담당 수사관이 당신을 참고인으로 찾았습니다.'}</div><div class="event-desc">${L.yujinInvestigation&&L.yujinInvestigation.attacker||'경쟁 세력'}는 주가조작으로 일반 개미 투자자들의 돈을 빨아들이던 세력입니다. 그 차명계좌를 쫓던 강유진은 피해자 명단과 당신의 거래 기록이 겹친 것, 그리고 당신이 피해자 윤세라를 데려간 것을 확인했습니다. 신고하러 간 만남이 아니라, 수사가 먼저 당신을 참고인으로 지목한 순간입니다.</div>${scene}<div class="event-options">${choices}</div><div id="yujin-investigation-outcome" class="event-outcome"></div></div></div>`;
   host.querySelectorAll('[data-yujin-first]').forEach(button=>button.addEventListener('click',()=>resolveYujinInvestigation(button.dataset.yujinFirst)));
 }
 
@@ -4322,9 +4322,9 @@ function resolveYujinInvestigation(choice){
   const pending=S._yujinInvestigation,host=$('life-event'),L=S.life;if(!pending||!host)return;
   const rec=rememberPerson(pending.c,'acquaintance'),sera=pending.sera,cohabit=!!(sera&&pending.housing==='cohabit');
   const effects={
-    plain:{affection:4,trust:7,danger:-2,line:'기록은 확인했습니다. 당분간은 업무용 번호로만 연락하죠. 다음 조사 때는 경찰서 밖에서 이야기할 수도 있고요.'},
-    protect:{affection:6,trust:5,danger:2,line:'본인도 피해자인데 다른 사람부터 지키겠다는 겁니까? 그런 사람일수록 어느 순간 혼자 무너집니다. 다음 연락은 꼭 받으세요.'},
-    challenge:{affection:7,trust:3,danger:4,line:'수사는 달라지지 않습니다. 다만 누가 누구를 보호하는지는 알아야 하니까요. 지금 대답하기 싫으면 다음 조사에서 다시 묻겠습니다.'},
+    plain:{affection:2,trust:7,danger:-1,line:'기록은… 일단 깨끗하네요. 의심을 완전히 거둔 건 아니지만, 협조한 건 기억하죠. 당분간은 업무용 번호로만 연락합니다.'},
+    protect:{affection:1,trust:4,danger:1,line:'본인도 참고인인데 다른 사람부터 지키겠다는 겁니까. …그런 사람이 제일 먼저 혼자 무너지더군요. 다음 연락은 꼭 받으세요.'},
+    challenge:{affection:1,trust:2,danger:2,line:'근거요? 당신 거래 타이밍이 그 세력 작전과 몇 번 겹칩니다. 아직은 우연으로 보고 있고요. 다음엔 변호사를 부르셔도 좋습니다.'},
   };
   const effect=effects[choice]||effects.plain;
   rec.affection=clamp(Math.max(rec.affection||0,effect.affection),0,100);
@@ -4336,14 +4336,13 @@ function resolveYujinInvestigation(choice){
   if(cohabit){
     L.dangerousBadFriendsEncounters=(L.dangerousBadFriendsEncounters||0)+1;
     rec.dangerousBadFriendsSeed=true;sera.dangerousBadFriendsSeed=true;
-    if(choice==='protect'){sera.affection=clamp((sera.affection||0)+3,0,100);sera.obsession=clamp((sera.obsession||0)+3,0,100);}
-    else if(choice==='challenge'){sera.affection=clamp((sera.affection||0)+5,0,100);sera.obsession=clamp((sera.obsession||0)+5,0,100);}
+    if(choice==='protect'){sera.affection=clamp((sera.affection||0)+3,0,100);sera.trust=clamp((sera.trust||0)+2,0,100);}
     else sera.trust=clamp((sera.trust||0)+2,0,100);
   }
   L.yujinInvestigationSeen=true;
   if(L.yujinInvestigation)L.yujinInvestigation.ready=false;
   addNews(`👮‍♀️ 강유진이 경쟁 세력 피해 사건의 담당 수사관으로 나타났습니다${cohabit?' · 윤세라 동거 확인':''}`,'neutral');
-  const seraReply=cohabit?`<div class="story-dialogue"><b>윤세라</b> “경찰님, 다음에는 영장 없으면 남의 애인 여부부터 묻지 마세요.”</div><div class="story-dialogue"><b>강유진</b> “세라 씨도 다음에는 남의 말을 대신 정하지 말고요. 그리고 아직 애인이라고 답한 적 없습니다.”</div>`:'';
+  const seraReply=cohabit?`<div class="story-dialogue"><b>윤세라</b> “경찰님, 이 사람 의심할 시간에 저 돈 떼먹은 사람들부터 잡으세요.”</div><div class="story-dialogue"><b>강유진</b> “그래서 여기까지 온 겁니다, 세라 씨. 이 사람이 그쪽 편인지 아닌지 가리는 것도 그 일의 일부고요.”</div>`:'';
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
   $('yujin-investigation-outcome').innerHTML=`<div class="story-dialogue"><b>강유진</b> “${effect.line}”</div>${seraReply}<div class="oc-changes">강유진 · 공식 사건 연락만 가능 · 호감 ${effect.affection} · 신뢰 ${effect.trust}<br>개인 연락처는 후속 수사와 사적인 대화를 거쳐야 열립니다.</div><button id="yujin-investigation-confirm" class="session-btn opening">업무용 명함을 받아 둔다</button>`;
   $('yujin-investigation-confirm').addEventListener('click',()=>{
@@ -4596,9 +4595,16 @@ function showPersonRequest(name) {
   [$('request-x'),$('request-close')].forEach(b=>{if(b)b.addEventListener('click',closePersonRequest);});
 }
 function closePersonRequest(){const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}S._requestPerson=null;}
+/* 위험 히로인은 성격에 맞는 부탁일 때 겉으론 툴툴대도 호감이 오른다.
+ * 강유진(구원 강박): 자신에게 매달리고 의존할수록 / 한채린(도발 선호): 굽신대지 않고 막 대할수록 */
+const DANGEROUS_REQUEST_FIT={
+  '강유진':{money:{aff:6,line:'“돈은 못 줘요. 그런데 급할 때 나부터 찾은 건… 싫지 않네요. 다음에도 먼저 연락해요.”'},help:{aff:6,line:'“이건 규정 밖이에요. 당신이니까 이번만 알아봐 주는 거예요.”'},advice:{aff:5,line:'“그런 얘긴 아무한테나 하지 말고 나한테만 해요.”'},secret:{aff:5,line:'“기록으로 남기진 않을게요. 대신 다음에도 나한테 먼저 와요.”'},celebrate:{aff:1},gift:{aff:-1,line:'“이런 데 돈 쓸 거면 끼니나 제대로 챙겨요.”'},boundary:{aff:-6,line:'“선을 긋는 건 좋은데… 위험할 때 아무도 못 부르는 건 내가 못 참아요.”'}},
+  '한채린':{gift:{aff:-4,line:'“돈으로 살 수 있는 걸 나한테 줘? 시시하네.”'},celebrate:{aff:-2,line:'“축하 같은 건 아래층에서 받고 와.”'},advice:{aff:0},money:{aff:5,line:'“내 돈을 그렇게 당당히 뜯어? …그 배짱은 인정할게.”'},help:{aff:2},secret:{aff:2},boundary:{aff:6,line:'“조건을 걸 줄도 아네. 굽신대는 것보다 훨씬 재미있어.”'},alibi:{aff:3,line:'“위험한 부탁을 눈 하나 깜짝 안 하고 하네. 그 뻔뻔함, 마음에 들어.”'}}
+};
 function resolvePersonRequest(kind) {
   const r=S._requestPerson;if(!r)return;const per=D.PERSONALITIES[r.personality]||{};
   let text='',tone='neutral';const closeness=(r.affection||0)+(r.trust||0);
+  const affBefore=r.affection||0,cashBefore=S.capital;let fitApplied=false;
   if(kind==='celebrate'){
     r.affection=Math.min(100,(r.affection||0)+7);r.trust=Math.min(100,(r.trust||0)+5);S.life.happy=clamp(S.life.happy+4,0,100);text='서로의 최근 좋은 일을 축하하며 편안한 시간을 보냈습니다.';tone='good';
   } else if(kind==='gift'){
@@ -4624,11 +4630,17 @@ function resolvePersonRequest(kind) {
     else if(closeness>=65||isDangerousHeroine(r)){r.trust=Math.max(0,(r.trust||0)-12);if(r.name==='윤세라')r.obsession=(r.obsession||0)+16;else if(isDangerousHeroine(r))r.dangerLevel=(r.dangerLevel||0)+12;changeMorality(-14,'타인에게 거짓 알리바이를 요구했습니다');text='요구를 받아들였지만, 두 사람 사이에 위험한 비밀과 의존이 생겼습니다.';tone='bad';}
     else{r.affection=Math.max(0,(r.affection||0)-18);text='선을 넘었다며 거절했습니다. 관계가 크게 멀어졌습니다.';tone='bad';}
   }
+  const fit=DANGEROUS_REQUEST_FIT[r.name]&&DANGEROUS_REQUEST_FIT[r.name][kind];
+  if(fit){
+    r.affection=clamp(affBefore+(fit.aff||0),0,100);
+    if(fit.line){const gained=S.capital-cashBefore;text=`${fit.line}${gained>0?` (${won(gained)}원을 건네받았습니다.)`:''}`;fitApplied=true;}
+    tone=(fit.aff||0)>0&&kind!=='alibi'?'good':(fit.aff||0)<0?'bad':tone;
+  }
   addBondInteraction(r,`request-${kind}`);
   if(isDangerousHeroine(r)&&r.name==='윤세라'&&!['alibi','boundary'].includes(kind))r.obsession=Math.min(100,(r.obsession||0)+(kind==='money'?5:3));
   const requestScene=kind==='boundary'?'boundary':tone==='bad'?'requestBad':tone==='good'?'requestGood':'brief';
   const requestVoice=window.QT_CHARACTER_DIALOGUE&&QT_CHARACTER_DIALOGUE.line(r,requestScene);
-  if(requestVoice)text=`“${requestVoice}” ${text}`;
+  if(requestVoice&&!fitApplied)text=`“${requestVoice}” ${text}`;
   addNews(`🙏 ${r.name}에게 한 요구: ${text}`,tone);flashToast(text,tone);
   closePersonRequest();afterLifeAction('인맥');
 }
@@ -7006,7 +7018,11 @@ function resolveDangerousTrioStory(choiceId){
   $('trio-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">공생 안정도 ${result.choice.stability>=0?'+':''}${result.choice.stability} · 세 사람 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}${result.choice.obsession?` · 집착 +${result.choice.obsession}`:''}</div>${ending}${success}${retry}<button id="trio-confirm" class="session-btn ${result.ending&&result.ending.tone==='bad'?'':'opening'}">${result.ending?'엔딩 확인':'이번 사건을 마친다'}</button>`;
   addNews(`${result.chapter.icon} 위험한 세 사람 · ${result.chapter.title}`,result.choice.tag==='fracture'?'bad':'neutral');
   const retryBtn=$('trio-retry');if(retryBtn)retryBtn.addEventListener('click',retryDangerousTrioChoice);
-  $('trio-confirm').addEventListener('click',()=>{closeLifeEvent();renderLifePanel();if(!result.ending)showNextImportantEvent();});
+  $('trio-confirm').addEventListener('click',()=>{
+    closeLifeEvent();
+    renderLifePanel();
+    showNextImportantEvent();
+  });
   renderLifePanel();autoSave();
 }
 function retryDangerousTrioChoice(){

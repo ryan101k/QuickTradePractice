@@ -50,7 +50,7 @@ function personalCarry(life,name){
 const PRELUDES=[
  {
   id:'three_ends_one_ledger',title:'악우 형성 1 · 한 장부의 세 끝',icon:'📒',scene:'./assets/event-trio-647.png',
-  desc:'유진이 가져온 차명계좌 수사자료, 채린이 회수한 계열사 결재선, 세라가 숨겨 둔 원본 장부가 같은 테이블 위에서 맞물립니다. 셋은 서로 처음 제대로 마주친 자리에서 인사보다 먼저 “누가 이 일을 키웠는가”부터 따집니다.',
+  desc:'세 사람 다 당신에게 마음이 기운 뒤에야, 서로의 존재를 처음으로 정면에서 확인했습니다. 유진의 차명계좌 수사자료, 채린의 계열사 결재선, 세라가 숨겨 둔 원본 장부는 핑계일 뿐 — 같은 테이블에 앉은 진짜 이유는 “이 사람 옆에 누가 설 자격이 있는가”입니다. 셋은 인사 대신 서로의 방식부터 헐뜯으며 견제합니다.',
   speakers:[
    {name:'강유진',line:'한 대표 계열사에서 피해자 주소를 샀고, 세라 씨는 그 명단을 불법으로 빼냈어요. 둘 다 조사 대상이에요.'},
    {name:'한채린',line:'내가 모르는 계열사까지 내 죄라면 경찰이 놓친 범죄는 전부 당신 죄겠네요. 원본부터 내놔요, 윤세라.'},
@@ -267,15 +267,20 @@ function ensure(life){
  }
  return s;
 }
+const PRELUDE_AFFECTION=45;
 function preludeEligibility(life){
  const state=ensure(life),people=NAMES.map(name=>rec(life,name));
  const allKnown=people.every(person=>person&&!['ex','deceased'].includes(person.status));
+ // 세 사람이 전부 플레이어에게 마음이 기운 뒤에야 서로를 견제하는 첫 충돌이 벌어진다.
+ // (예전에는 세라 동거를 강제했지만, 이제 셋의 호감이 방아쇠다)
+ const affections=people.map(person=>person?person.affection||0:0);
+ const allHighAffection=people.every(person=>person&&(person.affection||0)>=PRELUDE_AFFECTION);
  const sera=rec(life,'윤세라'),legacyHome=life.seraHousing==null&&sera&&sera.pickedUpAfterRuin;
  const seraHome=(life.seraHousing==='cohabit'||legacyHome)&&!state.lockedOut;
  const faction=life.faction||{},subordinateReady=(faction.level||0)>0&&Array.isArray(faction.members)&&faction.members.length>0;
  const caseLinked=!!life.yujinInvestigationSeen||!!(rec(life,'강유진')||{}).officialContact;
  const guard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'dangerous');
- return{ok:(!guard||guard.ok)&&!state.active&&!state.encountered&&!state.ending&&!state.badFriendsFormed&&allKnown&&seraHome&&subordinateReady&&caseLinked,allKnown,seraHome,subordinateReady,caseLinked,guard};
+ return{ok:(!guard||guard.ok)&&!state.active&&!state.encountered&&!state.ending&&!state.badFriendsFormed&&allKnown&&allHighAffection&&subordinateReady&&caseLinked,allKnown,allHighAffection,minAffection:Math.min(...affections),seraHome,subordinateReady,caseLinked,guard};
 }
 function nextPrelude(life){
  const state=ensure(life);
