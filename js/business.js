@@ -41,6 +41,12 @@ const STRATEGIES={
 
 const TYPES=[
   {
+    id:'rental',name:'임대 운영사',icon:'🏙️',managerId:'corporate',specialManagerEligible:false,
+    cost:150000000,resaleRate:.88,baseSales:5200000,fixedCost:1700000,variance:.08,
+    desc:'보유 공간의 임차 계약과 유지보수를 하나의 사업으로 관리합니다. 기존 투자 부동산도 이 사업 장부로 통합됩니다.',
+    phase:{boom:1.12,overheating:1.08,recovery:1.05,tightening:.96,recession:.90,crisis:.82,stimulus:1.06},
+  },
+  {
     id:'vending',name:'무인 판매망',icon:'🥤',managerId:'office',specialManagerEligible:false,
     cost:25000000,resaleRate:.79,baseSales:3600000,fixedCost:1250000,variance:.22,
     desc:'자판기 위치와 상품 구성을 직접 관리하는 소형 사업입니다. 직원·확장·운영 방침에 따라 수익이 달라지며 특별 책임자 계약 대상에서는 제외됩니다.',
@@ -353,9 +359,10 @@ function expand(life,id){
 function resaleValue(life,id){
   const item=owned(life,id),type=item&&typeOf(item.typeId);
   if(!item||!type)return 0;
+  const baseValue=Math.max(type.cost,finite(item.legacyEquity,0));
   const expansionValue=type.cost*(item.level-1)*.34;
   const reputationMul=.82+item.reputation/500;
-  return Math.max(0,Math.round((type.cost+expansionValue)*type.resaleRate*reputationMul));
+  return Math.max(0,Math.round((baseValue+expansionValue)*type.resaleRate*reputationMul));
 }
 function close(life,id){
   const state=ensure(life),index=state.owned.findIndex(item=>item.id===id||item.typeId===id);
@@ -386,6 +393,22 @@ function migrateLegacyPassive(life,day){
   };
   return{converted,refunded,refund};
 }
+function migrateLegacyProperties(life,day){
+  const properties=Array.isArray(life.properties)?life.properties:[];
+  if(!properties.length)return{converted:0,refunded:0,refund:0};
+  const totalValue=properties.reduce((sum,item)=>sum+Math.max(0,finite(item&&item.value,0)),0);
+  const totalRent=properties.reduce((sum,item)=>sum+Math.max(0,finite(item&&item.rent,0)),0);
+  life.properties=[];
+  const existing=owned(life,'rental');
+  if(existing)return{converted:0,refunded:properties.length,refund:totalValue};
+  const result=start(life,'rental',day);
+  if(!result.ok)return{converted:0,refunded:properties.length,refund:totalValue};
+  const rental=typeOf('rental');
+  result.business.legacyEquity=Math.max(rental.cost,totalValue);
+  result.business.legacyRent=totalRent;
+  result.business.level=clamp(Math.max(1,Math.ceil(totalValue/rental.cost)),1,5);
+  return{converted:properties.length,refunded:0,refund:0,business:result.business};
+}
 function projected(item,phaseId,life){
   const type=typeOf(item.typeId);if(!type)return{sales:0,cost:0,net:0};
   const strategy=strategyOf(item.strategy);
@@ -396,7 +419,8 @@ function projected(item,phaseId,life){
   const staff=staffEffect(item);
   const staffSales=1+staff.salesBonus;
   const management=root.QT_CAREER&&life?root.QT_CAREER.businessEffects(life):{salesMultiplier:1,costMultiplier:1};
-  const sales=Math.round(type.baseSales*levelMul*phaseMul*qualityMul*moraleMul*(1+item.momentum)*staffSales*strategy.sales*management.salesMultiplier);
+  const calculatedSales=type.baseSales*levelMul*phaseMul*qualityMul*moraleMul*(1+item.momentum)*staffSales*strategy.sales*management.salesMultiplier;
+  const sales=Math.round(item.typeId==='rental'?Math.max(calculatedSales,finite(item.legacyRent,0)*phaseMul):calculatedSales);
   const cost=Math.round((type.fixedCost*(1+(item.level-1)*.37)+staff.wages)*strategy.cost*management.costMultiplier);
   return{sales,cost,net:sales-cost,strategy};
 }
@@ -481,7 +505,7 @@ function resolveEvent(life,payload,choiceId){
 
 root.QT_BUSINESS={
   STAFF,STRATEGIES,TYPES,EVENTS,MANAGER_EVENTS,ensure,typeOf,staffOf,strategyOf,portraitPath,owned,start,expand,expansionCost,
-  resaleValue,close,assetValue,migrateLegacyPassive,projected,monthly,eventView,resolveEvent,
+  resaleValue,close,assetValue,migrateLegacyPassive,migrateLegacyProperties,projected,monthly,eventView,resolveEvent,
   staffCapacity,hireCost,staffProfile,staffEffect,hire,setStrategy,
   compatibleManager,assignSpecialManager,
 };

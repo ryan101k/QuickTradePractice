@@ -271,30 +271,7 @@ const HOBBIES = [
   { id: 'game',   emoji: '🎮', name: '게임',       cost: 200000,  happy: 8,  charm: 0 },
   { id: 'food',   emoji: '🍽️', name: '맛집 탐방',   cost: 150000,  happy: 7,  charm: 1 },
   { id: 'gym',    emoji: '🏋️', name: '헬스',       cost: 300000,  happy: 6,  charm: 3 },
-  { id: 'study',  emoji: '📚', name: '자기계발',   cost: 500000,  happy: 3,  charm: 2 },
   { id: 'travel', emoji: '✈️', name: '여행',       cost: 1000000, happy: 20, charm: 5 },
-];
-
-// 부동산: 매입가(price)만큼 현금 지불, 매달 월세(rent) 수입, 매달 조금씩 시세 상승
-const PROPERTIES = [
-  { id: 'oneroom',  emoji: '🏠', name: '원룸',       price: 50000000,   rent: 700000 },
-  { id: 'parking',  emoji: '🅿️', name: '소형 주차장', price: 90000000, rent: 1200000 },
-  { id: 'officetel',emoji: '🏨', name: '오피스텔',   price: 150000000,  rent: 1800000 },
-  { id: 'warehouse',emoji: '📦', name: '도심 창고', price: 220000000, rent: 2800000 },
-  { id: 'apart',    emoji: '🏬', name: '아파트',     price: 300000000,  rent: 3200000 },
-  { id: 'clinic',   emoji: '🏥', name: '병원 상가', price: 420000000, rent: 5200000 },
-  { id: 'store',    emoji: '🏪', name: '상가',       price: 500000000,  rent: 6500000 },
-  { id: 'hotel',    emoji: '🏨', name: '소형 호텔', price: 900000000, rent: 13000000 },
-  { id: 'factory',  emoji: '🏭', name: '산업단지 공장', price: 1300000000, rent: 18000000 },
-  { id: 'building', emoji: '🏢', name: '꼬마빌딩',   price: 2000000000, rent: 28000000 },
-];
-
-// 주식과 별개로 매달 현금흐름을 만드는 자산. 수익률이 높을수록 변동·유지비 위험도 크다.
-const PASSIVE_ASSETS = [
-  { id:'deposit', emoji:'🏦', name:'정기예금', price:10000000, monthlyIncome:70000, variance:0, maintenance:0, resaleRate:1, desc:'원금 보전형 · 기준금리에 따라 이자 변동' },
-  { id:'bond', emoji:'📜', name:'우량 회사채 묶음', price:30000000, monthlyIncome:240000, variance:.12, maintenance:0, resaleRate:.97, desc:'안정적인 이자 · 경기 침체 때 소폭 감액 가능' },
-  { id:'solar', emoji:'☀️', name:'소형 태양광 지분', price:70000000, monthlyIncome:1400000, variance:.18, maintenance:100000, resaleRate:.82, desc:'발전 수익 · 날씨와 정비 상태 영향' },
-  { id:'royalty', emoji:'🎼', name:'콘텐츠 저작권 지분', price:150000000, monthlyIncome:3500000, variance:.55, maintenance:100000, resaleRate:.65, desc:'흥행하면 크지만 수입 편차와 원금 손실 위험' },
 ];
 
 // 개인 대출: 프리셋 금액 (매달 이자 LIFE_LOAN_INTEREST 만큼 빚 증가)
@@ -313,8 +290,7 @@ const RELATIONSHIP = {
 // 인생 관련 업적
 const LIFE_ACHIEVEMENTS = [
   { id: 'got_job',   icon: '💼', name: '사회초년생',   desc: '직업을 가진다',              check: c => c.hasJob },
-  { id: 'first_home',icon: '🏠', name: '내 집 마련',    desc: '부동산을 처음 매입',          check: c => c.propCount >= 1 },
-  { id: 'landlord',  icon: '🏢', name: '건물주',        desc: '부동산 3채 이상 보유',        check: c => c.propCount >= 3 },
+  { id: 'first_home',icon: '🏙️', name: '임대업 진출',    desc: '임대 운영사를 처음 인수',     check: c => c.propCount >= 1 },
   { id: 'in_love',   icon: '💕', name: '연애 시작',     desc: '누군가와 사귀게 된다',        check: c => c.relationship !== 'single' },
   { id: 'married',   icon: '💍', name: '결혼',          desc: '결혼에 골인한다',            check: c => c.relationship === 'married' },
   { id: 'happy',     icon: '😄', name: '인생 만족',     desc: '행복도 90 이상 달성',         check: c => c.happy >= 90 },
@@ -326,19 +302,19 @@ window.QT_DATA = {
   EVENTS_COMPANY_GOOD, EVENTS_COMPANY_BAD, EVENTS_SECTOR,
   EVENTS_MARKET, EVENTS_NONE, ACHIEVEMENTS,
   EXPERTS, EXPERT_BULL, EXPERT_BEAR,
-  JOBS, HOBBIES, PROPERTIES, PASSIVE_ASSETS, LOAN_OPTIONS, RELATIONSHIP, LIFE_ACHIEVEMENTS,
+  JOBS, HOBBIES, LOAN_OPTIONS, RELATIONSHIP, LIFE_ACHIEVEMENTS,
   CHARACTERS, WORLD_MALE_NPCS, WORLD_FACTION_NPCS, FACTION_SUPPORT_NPCS, SPECIAL_CHARACTERS, PERSONALITIES, DATE_APPROACHES, DATE_ROUTES,   // js/characters.js
   CHARACTER_NAME_MIGRATIONS, GENDER_LABEL,
   // 장면 묘사·호감도 단계는 js/character_voices.js 에서 (없으면 구버전 DATE_LINES 로 폴백)
   DATE_LINES: (window.QT_VOICES && QT_VOICES.SCENE_LINES) || DATE_LINES,
   AFFECTION_STAGES: (window.QT_VOICES && QT_VOICES.AFFECTION_STAGES) || [],
-  LIFE_EVENTS, ROMANCE_EVENTS: QT_ROMANCE.ROMANCE_EVENTS, CAREER_EVENTS: QT_CAREER_EVENTS,
+  LIFE_EVENTS, ROMANCE_EVENTS: QT_ROMANCE.ROMANCE_EVENTS,
 };
 
 /* 이벤트 파일은 계속 덧붙게 되므로 id 중복을 개발 중에 바로 알아채도록 경고만 남긴다 */
 (function warnDuplicateEventIds() {
   const ids = window.QT_DATA.LIFE_EVENTS
-    .concat(window.QT_DATA.ROMANCE_EVENTS, window.QT_DATA.CAREER_EVENTS)
+    .concat(window.QT_DATA.ROMANCE_EVENTS)
     .map(e => e.id);
   const dupes = [...new Set(ids.filter((v, i) => ids.indexOf(v) !== i))];
   if (dupes.length) console.warn('[QuickTrade] 이벤트 id 중복:', dupes.join(', '));

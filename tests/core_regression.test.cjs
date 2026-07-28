@@ -98,7 +98,6 @@ vm.createContext(context);
 
 for (const file of [
   'js/characters.js',
-  'js/interaction_profiles.js',
   'js/origin_story.js',
   'js/core/trading.js',
   'js/core/time.js',
@@ -256,9 +255,7 @@ for (const file of [
   assert.equal('trioBaseUpkeep' in legacyPayLife.faction.members[0],false,'복구 뒤 임시 급여 표식도 제거해야 한다');
   const appSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
   const indexSource=fs.readFileSync(path.join(root,'index.html'),'utf8');
-  assert.ok(indexSource.indexOf('js/interaction_profiles.js')<indexSource.indexOf('js/app.js'),'상호작용 프로필은 app.js보다 먼저 로드돼야 한다');
-  assert.match(appSource,/INTERACTION_PROFILES\.dateChoices/,'외출 선택지는 성향별 프로필 모듈에서 받아야 한다');
-  assert.match(appSource,/INTERACTION_PROFILES\.requestOptions/,'부탁 선택지는 친밀도와 성향에 맞춰 구성해야 한다');
+  assert.doesNotMatch(indexSource,/interaction_profiles\.js/,'삭제한 범용 데이트·부탁 프로필 모듈을 다시 로드하면 안 된다');
   assert.match(appSource,/function relationshipBGM\(text\)/,'화면의 관계 그룹을 전용 BGM으로 분류해야 한다');
   for(const track of ['group_business','group_freedom','group_childhood','group_dangerous','narae']){
     assert.match(appSource,new RegExp(`return '${track}'`),`${track} 전용 분위기가 실제 장면 선택에 연결돼야 한다`);
@@ -363,8 +360,8 @@ for (const file of [
   assert.ok(yujinStory.chapters.slice(0,3).every(chapter=>chapter.phase==='friend')&&yujinStory.chapters.slice(3).every(chapter=>chapter.requiresRelationship),'강유진은 3장까지 친구 이야기이고 이후는 실제 연인 전용이어야 한다');
   assert.ok(seraStory.chapters.slice(0,3).every(chapter=>chapter.phase==='friend')&&seraStory.chapters.slice(3).every(chapter=>chapter.requiresRelationship),'윤세라는 잠긴 작업실까지 친구 이야기이고 이후는 실제 연인 전용이어야 한다');
   assert.ok(chaerinStory.chapters.slice(0,4).every(chapter=>chapter.phase==='friend')&&chaerinStory.chapters.slice(4).every(chapter=>chapter.requiresRelationship),'한채린은 화해의 갈림길까지 친구 이야기이고 이후는 실제 연인 전용이어야 한다');
-  assert.match(yujinStory.chapters[0].desc,/순찰 구역을 벗어나[\s\S]*귀가 시간을 확인했던 전화/,'강유진 개인 1장은 앞서 발생한 위치 확인 위험 신호에서 이어져야 한다');
-  assert.match(chaerinStory.chapters[0].desc,/법인카드 사건 뒤/,'한채린 개인 1장은 앞서 통제권을 넘긴 법인카드 위험 신호에서 이어져야 한다');
+  assert.match(yujinStory.chapters[0].desc,/두 번의 방문 조사[\s\S]*품에 기대/,'강유진 개인 1장은 실제 수사와 플레이어가 처음 기대는 각성 신호에서 이어져야 한다');
+  assert.match(chaerinStory.chapters[0].desc,/공개된 자리의 충돌[\s\S]*개인실/,'한채린 개인 1장은 공개된 뺨 사건 뒤 잠기지 않은 개인실에서 이어져야 한다');
   assert.equal(seraStory.chapters[0].title,'열두 통을 지운 밤','윤세라 개인 1장은 외출 해금 뒤의 절제 시도로 이어져야 한다');
   assert.match(seraStory.chapters[0].desc,/함께 편의점까지 걸었던 날[\s\S]*몰래 찍은 사진을 지운 사건 뒤/,'윤세라 개인 1장은 문밖 외출과 사진 위험 신호를 모두 기억해야 한다');
   assert.doesNotMatch(seraStory.chapters[0].desc,/아직 모릅니다/,'윤세라가 이미 들은 플레이어의 바깥 공포를 다시 모르는 것으로 되돌리면 안 된다');
@@ -372,7 +369,7 @@ for (const file of [
     assert.ok(yujinStory.chapters.some(chapter=>chapter.scene===scene),`강유진 추가 일러 ${scene}가 개인 스토리에 배치돼야 한다`);
     assert.ok(fs.existsSync(path.join(root,'assets',scene)),`강유진 추가 일러 ${scene} 파일이 있어야 한다`);
   }
-  for(const scene of ['event-chaerin-1.png','event-chaerin-2.png','event-chaerin-4.png','event-chaerin-5.png','event-chaerin-8.png','event-chaerin-9.png','event-chaerin-10.png']){
+  for(const scene of ['event-chaerin-2.png','event-chaerin-4.png','event-chaerin-5.png','event-chaerin-8.png','event-chaerin-9.png','event-chaerin-10.png']){
     assert.ok(chaerinStory.chapters.some(chapter=>chapter.scene===scene),`한채린 추가 일러 ${scene}가 개인 스토리에 배치돼야 한다`);
     assert.ok(fs.existsSync(path.join(root,'assets',scene)),`한채린 추가 일러 ${scene} 파일이 있어야 한다`);
   }
@@ -385,7 +382,7 @@ for (const file of [
     if(stories.ROMANCE_BRANCH_SCENES[name])stories.chooseRomancePath(rec,'pure');
     const chapterCount=stories.get(name).chapters.length;
     for(let chapter=0;chapter<chapterCount;chapter++){
-      const choice=name==='한채린'?routeChoice:chapter===0?'support':routeChoice;
+      const choice=routeChoice;
       const result=context.QT_CHARACTER_STORIES.apply(rec,choice);
       assert.ok(result,`${name} ${chapter+1}장이 진행돼야 한다`);
     }
@@ -397,9 +394,9 @@ for (const file of [
   assert.equal(finish('한채린','equal').chaerinEndingRoute,'equal','한채린과 같은 자리를 고르면 대등한 순애 엔딩이어야 한다');
   const gated={name:'강유진',status:'friend',affection:100,trust:50,dangerEvents:{}};
   assert.equal(stories.next(gated),null,'광기 3인 개인 아크는 친구 호감 컷씬과 첫 위험 신호를 건너뛰고 시작하면 안 된다');
-  gated.dangerEvents.yujin_warning='seen';
+  gated.dangerEvents.yujin_embrace='seen';
   assert.ok(stories.next(gated),'첫 위험 신호를 확인한 뒤에는 중복 컷씬 대신 정식 개인 아크가 이어져야 한다');
-  for(const choice of ['support','boundary','boundary'])assert.ok(stories.apply(gated,choice),'강유진의 친구 구간 세 장은 연애 전에도 진행돼야 한다');
+  for(const choice of ['depend','boundary','boundary'])assert.ok(stories.apply(gated,choice),'강유진의 친구 구간 세 장은 연애 전에도 진행돼야 한다');
   assert.equal(stories.next(gated),null,'강유진의 친구 구간이 끝나면 관계 노선을 정하기 전까지 후반부가 진행되면 안 된다');
   assert.equal(stories.availability(gated).reason,'romance-branch','친구 구간 완료 뒤에는 순애·공동 관계 분기를 먼저 제시해야 한다');
   stories.chooseRomancePath(gated,'group');
@@ -528,10 +525,10 @@ for (const file of [
   const life={career:{jobId:'office',months:4,level:1,skill:50,reputation:40,performance:60,certifications:['finance','security']},job:'office'};
   career.ensure(life);
   assert.equal(life.job,'office','상태 조회만으로 외부 마이그레이션 전의 life.job을 임의 변경하지 않아야 한다');
-  assert.equal(life.career.jobId,'none','구버전 직업 경력 id는 운영 역량 상태로 정규화돼야 한다');
+  assert.equal(life.career.jobId,undefined,'구버전 직업 경력 id는 제거돼야 한다');
   assert.ok(career.businessEffects(life).salesMultiplier>1,'운영 역량은 사업 매출에 실제 보정을 줘야 한다');
-  assert.ok(career.businessEffects(life).costMultiplier<1,'사업 회계 교육은 사업 비용을 실제로 줄여야 한다');
-  assert.ok(career.factionEffects(life).defenseBonus>=.12,'위기관리 교육은 세력 방어에 실제 보정을 줘야 한다');
+  assert.ok(career.businessEffects(life).costMultiplier<1,'실제 운영 경험은 사업 비용을 줄여야 한다');
+  assert.ok(career.factionEffects(life).defenseBonus>0,'실제 운영 경험은 세력 방어에 보정을 줘야 한다');
 }
 
 {
@@ -557,46 +554,6 @@ for (const file of [
 }
 
 {
-  const profiles=context.QT_INTERACTION_PROFILES;
-  const approaches=['sincere','listen','humor','plan','vulnerable','direct','flex','push']
-    .map(key=>({key,label:key,emoji:'·',mod:0,cost:0}));
-  const frugal=profiles.dateChoices({name:'미래',personality:'frugal'},'outing',approaches,{trust:8});
-  const free=profiles.dateChoices({name:'유나',personality:'free'},'outing',approaches,{trust:8});
-  assert.equal(frugal.length,4,'성향별 외출은 네 가지 선택지를 유지해야 한다');
-  assert.notDeepEqual(Array.from(frugal,x=>x.label),Array.from(free,x=>x.label),'알뜰형과 자유형에게 같은 외출 선택지를 보여주면 안 된다');
-  assert.ok(frugal.every(choice=>choice.profileFit),'성향별 외출에는 인물 적합도 표식이 있어야 한다');
-
-  const calmYujin={name:'강유진',personality:'caring',status:'partner',dangerAwakened:true,story:{traits:{}}};
-  const awakenedYujin={...calmYujin,story:{traits:{depend:2}}};
-  assert.equal(profiles.awakeningState(calmYujin).awakened,false,'연애 시작만으로 강유진의 구원 강박이 각성하면 안 된다');
-  assert.equal(profiles.awakeningState(awakenedYujin).awakened,true,'의존 선택이 누적되면 강유진의 구원 강박 외출이 열려야 한다');
-  assert.notDeepEqual(
-    Array.from(profiles.dateChoices(calmYujin,'date',approaches,{trust:40}),x=>x.label),
-    Array.from(profiles.dateChoices(awakenedYujin,'date',approaches,{trust:40}),x=>x.label),
-    '강유진의 각성 전후 외출 선택지는 달라야 한다'
-  );
-  assert.notEqual(
-    profiles.requestOptions(calmYujin,{closeness:80,trust:50,risk:{value:50},morality:60})[0].label,
-    profiles.requestOptions(awakenedYujin,{closeness:80,trust:50,risk:{value:50},morality:60})[0].label,
-    '강유진의 각성 전후 부탁 문구도 달라야 한다'
-  );
-  assert.equal(profiles.awakeningState({name:'한채린',dangerAwakened:true,story:{traits:{}}}).awakened,false,'일반 연애만으로 한채린의 굴복 욕구가 각성하면 안 된다');
-  assert.equal(profiles.awakeningState({name:'한채린',status:'friend',chaerinSubmissionAwakened:true}).awakened,false,'한채린의 각성 사건이 있어도 친구 상태에서는 연인용 상호작용을 열면 안 된다');
-  assert.equal(profiles.awakeningState({name:'한채린',status:'partner',chaerinSubmissionAwakened:true}).awakened,true,'한채린의 명시적 각성 사건과 연인 관계가 함께 성립하면 전용 상호작용을 열어야 한다');
-  assert.equal(profiles.awakeningState({name:'윤세라',dangerAwakened:true,story:{traits:{}}}).awakened,false,'일반 연애만으로 윤세라의 극단 상호작용이 열리면 안 된다');
-  assert.equal(profiles.awakeningState({name:'윤세라',spentNight:true}).awakened,true,'윤세라의 명시적 밤 사건 뒤에는 각성 상호작용이 열려야 한다');
-
-  const earlyKinds=profiles.requestOptions({name:'서연',personality:'caring'},{closeness:12,trust:4,morality:60}).map(x=>x.kind);
-  assert.deepEqual(Array.from(earlyKinds),['celebrate','gift','advice'],'낮은 친분에는 일상적인 부탁만 보여야 한다');
-  const closeKinds=profiles.requestOptions({name:'미래',personality:'frugal',moneyStyle:'support'},{closeness:70,trust:55,morality:60}).map(x=>x.kind);
-  assert.ok(closeKinds.includes('help')&&closeKinds.includes('secret')&&closeKinds.includes('money'),'신뢰가 쌓인 지원형 인물에게만 깊은 부탁이 열려야 한다');
-  const policeKinds=profiles.requestOptions({name:'강유진',personality:'caring',special:'police'},{closeness:100,trust:80,morality:10}).map(x=>x.kind);
-  assert.ok(!policeKinds.includes('alibi')&&!policeKinds.includes('money'),'강유진에게 불법 알리바이나 개인 돈 부탁을 기본 메뉴로 보여주면 안 된다');
-  const darkKinds=profiles.requestOptions({name:'한채린',personality:'ambitious',special:'heiress'},{closeness:100,trust:80,morality:10}).map(x=>x.kind);
-  assert.ok(darkKinds.includes('alibi'),'낮은 도덕성과 높은 신뢰가 함께 있을 때만 위험한 부탁이 열려야 한다');
-}
-
-{
   const mealOptions=context.QT_CHAT.replyOptions({name:'테스트'},'밥은 챙겨 먹었어?');
   assert.match(mealOptions.find(option=>option.id==='warm').text,/먹|식사/,'식사 안부에는 식사에 맞는 답을 해야 한다');
   const inviteOptions=context.QT_CHAT.replyOptions({name:'테스트'},'이번 주에 커피 마시러 갈래?');
@@ -606,7 +563,8 @@ for (const file of [
   const earlyIncoming=context.QT_CHAT.incoming(earlyPerson,{tag:'친구',earlyContact:true,personality:'caring'});
   assert.notEqual(earlyIncoming,'처음부터 당신이 보고 싶고 사랑해요.','낮은 친분에서는 인물별 호감 대사를 바로 쓰면 안 된다');
   assert.doesNotMatch(earlyIncoming,/사랑|보고 싶|기대/,'연락처를 막 받은 단계의 선연락은 정중한 안부여야 한다');
-  assert.equal(context.QT_CHAT.incoming({name:'윤세라',status:'friend'},{tag:'친구',earlyContact:true}),'처음부터 당신이 보고 싶고 사랑해요.','윤세라는 초반부터 과한 선연락을 하는 예외여야 한다');
+  assert.doesNotMatch(context.QT_CHAT.incoming({name:'윤세라',status:'friend',seraObsessionAwakened:false},{tag:'친구',earlyContact:true}),/사랑|사라지|어디 가/,'각성 전 윤세라는 평범한 안부를 보내야 한다');
+  assert.equal(context.QT_CHAT.incoming({name:'윤세라',status:'friend',seraObsessionAwakened:true},{tag:'친구',earlyContact:true}),'처음부터 당신이 보고 싶고 사랑해요.','첫 공격 뒤 집착이 깨어난 윤세라는 전용 연락 말투를 사용해야 한다');
   assert.match(context.QT_CHAT.partnerAnswer(earlyPerson,'warm',{earlyContact:true}),/감사|다음/,'초기 답장 반응도 연애 대사가 아니라 정중한 말투여야 한다');
   delete context.QT_CHARACTER_DIALOGUE;
   const parent={role:'mother'};
@@ -797,12 +755,11 @@ const finishFreedomForBusiness=life=>{
   assert.equal(context.QT_SOCIAL.attendIndustry(socialLife,'lounge').ok,false,'사교 실적 없이 상위 모임에 바로 갈 수 없어야 한다');
   context.QT_SOCIAL.attendIndustry(socialLife,'open',()=>0);
   const blocked=context.QT_SOCIAL.attendIndustry(socialLife,'lounge',()=>0);
-  assert.equal(blocked.introduced,null,'한채린과 친구가 되기 전에는 사업 4인조를 정식 소개받으면 안 된다');
-  assert.equal(blocked.chaerinRequired,true,'가려진 책임자를 봐도 한채린의 소개가 필요하다는 상태를 반환해야 한다');
+  assert.equal(blocked.introduced,undefined,'사교 모임 자체가 특별 책임자를 자동 소개하면 안 된다');
+  assert.equal(blocked.chaerinRequired,undefined,'한채린 전용 소개 관문을 일반 사교 모임에 남기면 안 된다');
   socialLife.met=[{name:'한채린',status:'friend'}];
   const lounge=context.QT_SOCIAL.attendIndustry(socialLife,'lounge',()=>0);
-  assert.equal(lounge.introduced,'office','한채린과 연결된 상위 업계 모임은 초반에도 가명 특별 직원을 소개할 수 있어야 한다');
-  assert.equal(context.QT_BUSINESS_ROMANCE.identity(socialLife,'office').portrait,null,'초반 업계 소개만으로 특별 직원 얼굴이 공개되면 안 된다');
+  assert.equal(lounge.introduced,undefined,'한채린과 친구여도 일반 사교 모임이 특별 직원을 자동 소개하면 안 된다');
 }
 
 {
@@ -1260,7 +1217,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   const business = context.QT_BUSINESS;
   const legacyState = business.ensure(life);
   assert.deepEqual(Array.from(legacyState.owned), [], '사업 데이터가 없는 구버전 세이브도 빈 장부로 복원해야 한다');
-  assert.equal(business.TYPES.length,13,'담당자별 12개 업종과 소형 무인 판매망을 운영할 수 있어야 한다');
+  assert.equal(business.TYPES.length,14,'기존 업종과 소형 무인 판매망·임대 운영사를 운영할 수 있어야 한다');
   for(const managerId of Object.keys(business.STAFF).filter(id=>id!=='internal')){
     assert.equal(business.TYPES.filter(type=>type.managerId===managerId&&type.specialManagerEligible!==false).length,3,`${managerId} 담당자는 세 전문 업종을 관리해야 한다`);
   }
@@ -1289,9 +1246,9 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.equal(business.assetValue(life) > 0, true, '사업체 매각가치는 총재산에 포함할 수 있어야 한다');
 
   const assignedPortraits = [...new Set(business.TYPES.map(type => business.staffOf(type.managerId).portrait))];
-  assert.deepEqual(Array.from(assignedPortraits), [
+  assert.deepEqual(Array.from(assignedPortraits).sort(), [
     'mob-office-neutral.png','mob-creative-neutral.png','mob-corporate.png','mob-medical.png',
-  ]);
+  ].sort());
   for (const portrait of assignedPortraits) {
     assert.equal(fs.existsSync(path.join(root, 'assets', 'characters', portrait)), true, `${portrait} 모브 이미지가 실제로 존재해야 한다`);
   }
@@ -1575,10 +1532,11 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /if\(SOCIAL\.isSubordinate&&SOCIAL\.isSubordinate\(c\)\)return/,'부하는 일반 친구 월간 연락 추첨에서 제외돼야 한다');
   assert.match(appSource, /targetType:'subordinate'/,'부하 보고는 일반 인맥이 아니라 전용 연락 유형으로 큐에 들어가야 한다');
   assert.match(appSource, /const subordinateRows=subordinateContacts\.map\(contactRow\)/,'휴대폰 연락처에서 부하와 사적인 친구를 별도 그룹으로 나눠야 한다');
-  assert.match(appSource, /social\.contacts\.filter\(c=>!SOCIAL\.isSubordinate/,'가족·인맥 행동창에 부하를 일반 친구처럼 만나거나 부탁하는 버튼으로 노출하면 안 된다');
-  assert.match(socialNetworkSource, /ROLES\.filter\(r=>!r\.personal&&!r\.faction\)/,'일반 업계 인맥 추첨에서 세력 부하 역할을 뽑으면 안 된다');
+  assert.doesNotMatch(appSource,/data-act="contact-nurture"|data-act="contact-ask"/,'일반 친구 만나기·부탁 버튼을 중복 노출하면 안 된다');
+  assert.match(appSource,/social\.contacts\.filter\(c=>c\.freeRecruit&&!c\.recruitedTo\)/,'시작 친구의 무료 합류 연결만 남겨야 한다');
+  assert.doesNotMatch(socialNetworkSource, /function meet\(/,'범용 업계 인맥 무작위 추첨 기능은 없어야 한다');
   assert.match(appSource, /message:\$\{event\.targetType\}:\$\{event\.targetId!=null/,'같은 상대의 월말 연락이 문구만 달리해 두 번 큐에 쌓이면 안 된다');
-  assert.match(appSource, /person\.name==='나래'\|\|person\.special==='tutorial'/,'나래는 일반 성향 판정으로 하렘에 편입되면 안 된다');
+  assert.doesNotMatch(appSource, /polyculeCandidateFits|relationshipGroupTone|data-act="polycule"/,'범용 다자연애 성향 판정과 제안 버튼은 없어야 한다');
   assert.match(appSource, /function retryBusinessManagementEnding\(\)/,'사업관리 배드엔딩에도 직전 선택으로 돌아가는 경로가 있어야 한다');
   assert.match(appSource, /const CONTACT_RULES=\{affection:12,trust:6,interactions:2,months:1\}/, '일반 인물은 호감·신뢰·교류·기간을 채워야 연락처를 줘야 한다');
   assert.match(appSource, /const people=knownPeople\.filter\(r=>r\.status!=='ex'&&hasPersonalContact\(r\)\)/, '한 번 본 사람은 연락처 목록에 바로 나타나면 안 된다');
@@ -1621,7 +1579,11 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(yujinInvestigationSource,/rec\.officialContact=true/,'첫 조사에서는 강유진의 업무용 연락만 열려야 한다');
   assert.doesNotMatch(yujinInvestigationSource,/unlockPersonalContact\(rec\)/,'강유진 첫 조사에서 개인 연락처를 바로 주면 안 된다');
   assert.match(appSource,/rec\.officialContact=false;rec\.personalContactReason='후속 수사 뒤 사적인 번호 교환'/,'후속 수사를 거친 뒤에만 강유진의 개인 번호로 전환돼야 한다');
-  assert.match(fs.readFileSync(path.join(root,'js/character_stories.js'),'utf8'),/동거인 확인서의 빈칸/,'강유진 첫 개인 이야기는 윤세라 동거 확인 조사에서 자연스럽게 이어져야 한다');
+  assert.match(fs.readFileSync(path.join(root,'js/character_stories.js'),'utf8'),/조사실에서 무너진 어깨/,'강유진 첫 개인 이야기는 두 차례의 실제 수사와 처음 기대는 각성 장면에서 이어져야 한다');
+  assert.match(appSource,/event-chaerin-public-provocation\.png/,'한채린 공개 도발 장면에는 추가된 전용 컷신을 사용해야 한다');
+  assert.match(appSource,/event-chaerin-public-slap\.png/,'한채린 뺨 사건 결과에는 추가된 전용 컷신을 사용해야 한다');
+  assert.match(appSource,/chaerinPrivateRoomUnlocked=true/,'한채린 뺨 사건 뒤에는 개인실 후속 서사가 열려야 한다');
+  assert.match(appSource,/yujinRescueCompulsionAwakened=true/,'강유진에게 처음 기대는 선택은 구원 강박 각성 상태를 남겨야 한다');
   assert.doesNotMatch(appSource, /첫인사를 나누고 연락처를 저장했습니다/, '첫 조우가 자동 연락처 저장으로 처리되면 안 된다');
   assert.doesNotMatch(appSource, /data-ameet="casual"/, '활동 중 첫 만남에서 곧바로 가벼운 관계를 제안하면 안 된다');
   assert.match(appSource, /room\.lastIncomingDay=S\.day/, '상대가 실제로 먼저 연락한 날짜를 기록해야 한다');

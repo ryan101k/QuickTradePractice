@@ -61,7 +61,6 @@
         obsessionIntrudedDay: Number.isFinite(state._obsessionIntrudedDay) ? state._obsessionIntrudedDay : null,
       },
       awaitingNextDay: state.awaitingNextDay,
-      pendingOrders: state.pendingOrders,
       limitOrders: state.limitOrders,
       companyNews: (state.companyNews || []).slice(0, 60),
       life: state.life,

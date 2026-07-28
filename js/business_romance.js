@@ -383,7 +383,7 @@ function introduce(life,id){
 function recruit(life,id,businessId){
   const state=ensure(life),s=state.staff[id],p=profile(id);
   if(!s||!p)return{ok:false,message:'소개받지 못한 책임자입니다.'};
-  if(!s.introduced)return{ok:false,message:'사교 모임에서 먼저 정식 소개를 받아야 합니다.'};
+  if(!s.introduced)return{ok:false,message:'관련 사업·인물 사건에서 먼저 연결되어야 합니다.'};
   s.hired=true;s.assignedBusinessId=businessId||null;s.rival=true;
   return{ok:true,staffId:id,profile:p};
 }

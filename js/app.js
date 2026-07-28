@@ -3946,15 +3946,6 @@ function doFamilyPlan(method) {
   flashToast(`👶 ${result.plan.method} 계획을 시작했습니다`, 'good'); afterLifeAction('가족');
 }
 
-function doRelationshipPublicity(mode){
-  const L=S.life,result=RELATIONSHIPS.setPublicity(L,mode,S.day);if(!result)return;
-  const social=SOCIAL.ensure(L);social.reputation=clamp(social.reputation+(result.reputationDelta||0),0,100);
-  const names=RELATIONSHIPS.summary(L);
-  addNews(mode==='public'?`📣 ${names}님과 관계를 당사자 합의로 공개했습니다`:`🔒 ${names}님과 관계를 비공개 합의로 전환했습니다`,mode==='public'?'good':'neutral');
-  flashToast(mode==='public'?'📣 관계를 직접 공개했습니다':'🔒 관계를 비공개로 전환했습니다',mode==='public'?'good':'neutral');
-  renderLifePanel();autoSave();if(S.phase==='closed'&&$('market-close')&&$('market-close').style.display==='block')renderCloseReport(S.day);
-}
-
 function doChildEducation(id) {
   const cost=1000000;if(S.capital<cost){flashToast('💸 교육비 1,000,000원 부족','bad');return;}
   const child=FAMILY.educate(S.life,id,cost);if(!child)return;S.capital-=cost;
@@ -4131,19 +4122,6 @@ const CONTACT_LINES={
   reporter:['"시장은 소문 반, 사실 반이에요."','"고급 정보는 늘 사람에게서 나와요."'],
   lawyer:['"위험은 미리 대비하는 게 최선이에요."','"서류는 반드시 남겨두세요."'],
 };
-function nurtureContact(id){
-  const cost=300000;
-  if(S.capital<cost){flashToast('💸 만남 비용 300,000원 부족','bad');return;}
-  const c=SOCIAL.nurture(S.life,id);
-  if(!c)return;
-  S.capital-=cost;
-  const role=SOCIAL.role(c);
-  const line=pick(CONTACT_LINES[c.role]||['"만나서 반가워요."']);
-  showHelpCard(Object.assign({},c,{emoji:role.icon}), `${role.icon} <b>${c.name}</b> <span class="muted">· ${role.name}</span><br>"${line}" <span class="up">(신뢰 ${c.trust} · 호의 ${c.favor})</span>`);
-  afterLifeAction('인맥');
-}
-function askContact(id){const r=SOCIAL.ask(S.life,id);if(!r.ok){flashToast(r.message,'neutral');return;}const e=r.effect;if(e.cash)S.capital+=e.cash;if(e.credit)S.life.creditScore=clamp(S.life.creditScore+e.credit,300,950);if(e.careerSkill)CAREER.ensure(S.life).skill+=e.careerSkill;if(e.reputation)SOCIAL.ensure(S.life).reputation+=e.reputation;if(e.familyBond)S.life.familyBond=clamp((S.life.familyBond||0)+e.familyBond,0,100);if(e.recordShield)S.life.legalShield=(S.life.legalShield||0)+e.recordShield;addNews(`${SOCIAL.role(r.contact).icon} ${r.contact.name}: ${e.text}`,'good');flashToast(e.text,'good');afterLifeAction('인맥');}
-
 function showOriginAllyPlacement(contactId){
   const contact=(SOCIAL.ensure(S.life).contacts||[]).find(c=>c.id===contactId),npc=contact&&(D.WORLD_MALE_NPCS||[]).find(n=>n.id===contact.worldNpcId),host=$('life-event');
   if(!contact||!npc||!host||contact.recruitedTo)return;
@@ -4507,7 +4485,7 @@ function showChaerinGatheringFollowup(c,rec,gathering){
   };
   if(count>=3){
     host.style.display='block';
-    host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">👑 한채린 · 세 번째 모임의 끝</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-chaerin-4.png" alt="처음으로 표정을 잃은 한채린"><div class="event-title">이번에는 웃음이 먼저 멈췄습니다.</div><div class="event-desc">모임이 끝난 뒤에도 채린은 사람들 앞에서 당신의 실패를 하나씩 늘어놓습니다. 돌아서려는 손목까지 붙잡고 “계약을 찢을 때는 멋있더니 이 정도도 못 버티냐”고 낮게 웃습니다. 억눌렀던 화가 올라오지만, 아직 멈출 수 있습니다.</div><div class="event-options"><button class="event-opt" data-chaerin-break="leave"><b>아무 말 없이 손을 빼고 떠난다</b><span>다시는 비서실의 초대에 응하지 않습니다.</span></button><button class="event-opt" data-chaerin-break="endure"><b>끝까지 손을 내리고 다시는 사람들 앞에서 시험하지 말라고 한다</b><span>분노는 참되 관계의 선을 직접 정합니다.</span></button><button class="event-opt bad" data-chaerin-break="strike"><b>손목을 뿌리치다 실수로 뺨을 때린다</b><span>둘 다 넘지 말았어야 할 선을 넘습니다.</span></button></div><div id="chaerin-break-outcome" class="event-outcome"></div></div></div>`;
+    host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">👑 한채린 · 세 번째 모임의 끝</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-chaerin-public-provocation.png" alt="공개된 자리에서 플레이어를 몰아붙이는 한채린"><div class="event-title">이번에는 웃음이 먼저 멈췄습니다.</div><div class="event-desc">모임이 끝난 뒤에도 채린은 나래와 참석자들이 보는 앞에서 당신의 실패를 하나씩 늘어놓습니다. 돌아서려는 손목까지 붙잡고 “계약을 찢을 때는 멋있더니 이 정도도 못 버티냐”고 낮게 웃습니다. 주변의 웃음이 불편한 침묵으로 바뀌고, 나래가 끼어들려는 순간 억눌렀던 화가 올라옵니다. 아직 멈출 수 있습니다.</div><div class="event-options"><button class="event-opt" data-chaerin-break="leave"><b>아무 말 없이 손을 빼고 떠난다</b><span>다시는 비서실의 초대에 응하지 않습니다.</span></button><button class="event-opt" data-chaerin-break="endure"><b>끝까지 손을 내리고 다시는 사람들 앞에서 시험하지 말라고 한다</b><span>분노는 참되 관계의 선을 직접 정합니다.</span></button><button class="event-opt bad" data-chaerin-break="strike"><b>손목을 뿌리치다 실수로 뺨을 때린다</b><span>둘 다 넘지 말았어야 할 선을 넘습니다.</span></button></div><div id="chaerin-break-outcome" class="event-outcome"></div></div></div>`;
     host.querySelectorAll('[data-chaerin-break]').forEach(button=>button.addEventListener('click',()=>resolveChaerinGatheringBreak(button.dataset.chaerinBreak)));
     return;
   }
@@ -4562,7 +4540,7 @@ function resolveChaerinGatheringBreak(kind){
     rec.affection=clamp((rec.affection||0)+2,0,100);rec.trust=clamp((rec.trust||0)-4,0,100);
     rec.dangerLevel=clamp((rec.dangerLevel||0)+22,0,100);rec.chaerinDefiance=(rec.chaerinDefiance||0)+4;
     unlockPersonalContact(rec);if(CHAR_TRAITS)CHAR_TRAITS.change(rec,22);
-    result='<div class="story-dialogue"><b>한채린</b> “……다 나가.”</div><div class="event-desc">실수였다는 말도 사과도 늦었습니다. 채린은 경호원과 수행원을 모두 내보낸 뒤 붉어진 뺨을 감싼 채, 화를 내야 한다는 말을 혼잣말처럼 되풀이합니다. 이 선택은 잘못된 선을 넘었고 둘의 관계에도 위험한 흔적을 남겼습니다.</div>';
+    result='<img class="life-scene-banner" src="./assets/event-chaerin-public-slap.png" alt="공개된 자리에서 뺨을 맞고 눈을 크게 뜬 한채린"><div class="story-dialogue"><b>한채린</b> “……다 나가.”</div><div class="story-dialogue"><b>나래</b> “지금 무슨 짓을 한 거예요? 채린 씨, 정말 죄송합니다. 이 사람부터 데리고 나갈게요.”</div><div class="event-desc">주변에서 이름과 회사가 동시에 웅성거립니다. 당신이 “이래야 할 것 같았다”고 답하자 나래는 당신이 정신이 나갔다며 팔을 잡아 끕니다. 그러나 채린은 경호원과 수행원을 모두 내보낸 뒤 붉어진 뺨을 감싼 채, 화를 내야 한다는 말만 혼잣말처럼 되풀이합니다. 이 선택은 잘못된 선을 넘었고 둘의 관계에도 위험한 흔적을 남겼습니다.</div>';
     addNews('⚠️ 한채린과의 세 번째 동행에서 넘지 말아야 할 선을 넘었습니다','bad');tone='bad';
   }
   host.querySelector('.event-options').innerHTML='';
@@ -4573,7 +4551,8 @@ function resolveChaerinGatheringBreak(kind){
 
 function showChaerinAwakening(rec){
   const host=$('life-event');if(!host)return;
-  host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">👑 한채린 · 화가 나야 하는데</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-chaerin-5.png" alt="처음 느낀 감정에 혼란스러운 한채린"><div class="event-title">엘리베이터 문이 열리기 전에 채린이 다시 당신을 부릅니다.</div><div class="story-dialogue"><b>한채린</b> “잘못한 건 너야. 당장 내보내야 하는데… 왜 네가 한 말만 계속 남지? 사과는 하지 마. 지금 들으면 진짜 재미없어질 것 같으니까.”</div><div class="event-desc">채린은 계약서 대신 자기 휴대폰을 내밉니다. 굴복하고 싶은 욕구를 애정으로 착각하기 시작한 순간이며, 두 사람 모두 그 위험을 모른 척할 수 없습니다.</div><button id="chaerin-awakening-confirm" class="session-btn opening">개인 번호를 저장한다</button></div></div>`;
+  rec.chaerinPrivateRoomUnlocked=true;
+  host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">👑 한채린 · 잠기지 않은 개인실</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-chaerin-5.png" alt="개인실에서 처음 느낀 욕망을 부정하는 한채린"><div class="event-title">나래에게 끌려 나가기 직전, 채린이 개인실 문을 열고 당신만 다시 부릅니다.</div><div class="story-dialogue"><b>한채린</b> “문 닫아. 아니, 잠그지는 마. 잘못한 건 너야. 당장 내보내야 하는데… 왜 네가 한 말만 계속 남지? 사과는 하지 마. 지금 들으면 진짜 재미없어질 것 같으니까.”</div><div class="event-desc">채린은 명령하듯 당신을 세워 두고는, 정작 자신이 어디에 앉아야 하는지 묻습니다. 밖에서는 모두의 선택지를 좁히던 사람이 둘만 남자 자기 욕망을 명령문 뒤에 숨깁니다. 이 방에서는 고분고분 숙이는 답보다, 멈출 선을 직접 정하면서도 채린의 명령을 다시 꺾는 답이 관계를 움직입니다.</div><button id="chaerin-awakening-confirm" class="session-btn opening">개인 번호를 저장하고 방의 규칙은 다음에 정한다</button></div></div>`;
   $('chaerin-awakening-confirm').addEventListener('click',()=>{
     pushPersonMessage(S.life,rec,'내일 연락해. 오늘 일은 없던 일로 하지 말고, 네가 왜 화났는지 처음부터 전부 말해.',false);
     addNews('📱 한채린이 비서실을 거치지 않은 개인 번호를 건넸습니다','neutral');
@@ -4597,8 +4576,8 @@ function showSpecialFollowupMeet(id,c,rec){
   let intro='',interruption='';
   if(id==='yujin'){
     intro=count===1
-      ? '유진은 추가 진술을 받겠다며 경찰서 정문이 아니라 사건 현장 맞은편의 조용한 카페를 골랐습니다. 서류에는 차명계좌와 윤세라의 거처가 적혀 있지만, 질문은 당신이 공격 뒤에도 혼자 버티고 있는지에 더 오래 머뭅니다.'
-      : '수사에 필요한 진술은 이미 끝났습니다. 그런데도 유진은 업무용 명함 뒤에 다음 시간을 적어 왔습니다. 사건이 없어도 다시 만날 수 있는지, 보호할 이유가 없어도 곁에 있고 싶은지를 처음으로 구분하려 합니다.';
+      ? '유진은 추가 진술을 받겠다며 경찰서 조사실로 불렀습니다. 첫 두 번만큼은 차명계좌, 윤세라의 피해 기록, 당신을 공격한 세력의 이동 경로를 정확히 확인합니다. 다만 조사가 끝난 뒤에도 식사는 했는지, 혼자 귀가해도 괜찮은지를 묻는 목소리만은 기록용이 아닙니다.'
+      : '사건에 필요한 진술은 이미 끝났습니다. 그런데도 유진은 비어 있는 조사실에 새 사건철을 올려두고 당신을 다시 불렀습니다. 표지에는 “추가 피해 예방”이라고 적혀 있지만 안에는 식사 여부와 귀가 시간, 필요한 생활비가 빼곡합니다. 보호할 명분이 없어지면 자신도 필요 없어질까 봐 사건을 끝내지 못하고 있습니다.';
     interruption=seraAtHome
       ? '<div class="hub-note bad-friends-note"><b>세라와 동거 중</b><br>카페 밖에는 세라가 먼저 와 있었습니다. 유진이 “참고인 조사를 따라오는 동거인은 처음 보네요”라고 하자 세라는 “애인인지 두 번이나 물어보는 담당 경찰도 처음 봤어요”라고 받아칩니다. 유진은 사적인 질문이 아니었다고 부정하면서도 귀가할 때까지 두 사람을 따라옵니다.</div>'
       : '';
@@ -4617,7 +4596,7 @@ function showSpecialFollowupMeet(id,c,rec){
   const name=id==='yujin'?'강유진':'한채린';
   const progress=contactReadiness(rec);
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${c.emoji} ${name} · ${count}번째 후속 약속</div><div class="title-bar-controls"><button aria-label="Close" id="special-followup-close"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="${name}"><div><strong>${name} · ${id==='yujin'?'업무용 연락만 가능':'비서실 연락만 가능'}</strong><br><span class="muted">${progress.missing.join(' · ')||'조금 더 솔직한 대화가 필요합니다'}</span></div></div><div class="event-desc">${intro}</div>${interruption}<div class="event-options"><button class="event-opt" data-special-followup="open">${id==='yujin'?'조사가 끝난 뒤에도 다시 만나자고 한다':'“번호 줄 거면 주고, 시험할 거면 그만 불러”라고 말을 끊는다'}</button><button class="event-opt" data-special-followup="practical">${id==='yujin'?'공식 신고와 개인 비상연락의 선을 함께 정한다':'계열사 차명계좌 원장부터 내놓으라고 요구한다'}</button><button class="event-opt" data-special-followup="formal">${id==='yujin'?'오늘은 사건 이야기만 하고 돌아간다':'비서실을 칭찬하며 채린의 결정에 따르겠다고 한다'}</button><button class="event-opt" id="special-followup-cancel">다음으로 미룬다</button></div></div></div>`;
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${c.emoji} ${name} · ${count}번째 후속 약속</div><div class="title-bar-controls"><button aria-label="Close" id="special-followup-close"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="${name}"><div><strong>${name} · ${id==='yujin'?'업무용 연락만 가능':'비서실 연락만 가능'}</strong><br><span class="muted">${progress.missing.join(' · ')||'조금 더 솔직한 대화가 필요합니다'}</span></div></div><div class="event-desc">${intro}</div>${interruption}<div class="event-options"><button class="event-opt" data-special-followup="open">${id==='yujin'?(count===1?'조사가 끝난 뒤 긴장이 풀려 유진에게 잠시 기댄다':'사건이 없어도 내가 먼저 부를 테니 더는 조사 명목을 만들지 말라고 한다'):'“번호 줄 거면 주고, 시험할 거면 그만 불러”라고 말을 끊는다'}</button><button class="event-opt" data-special-followup="practical">${id==='yujin'?'공식 신고와 개인 비상연락의 선을 함께 정한다':'계열사 차명계좌 원장부터 내놓으라고 요구한다'}</button><button class="event-opt" data-special-followup="formal">${id==='yujin'?'도움은 필요 없다며 사건 이야기만 하고 돌아간다':'비서실을 칭찬하며 채린의 결정에 따르겠다고 한다'}</button><button class="event-opt" id="special-followup-cancel">다음으로 미룬다</button></div></div></div>`;
   host.querySelectorAll('[data-special-followup]').forEach(b=>b.addEventListener('click',()=>resolveSpecialFollowupMeet(b.dataset.specialFollowup)));
   [$('special-followup-close'),$('special-followup-cancel')].forEach(b=>{if(b)b.addEventListener('click',closeSpecialFollowupMeet);});
 }
@@ -4633,6 +4612,14 @@ function resolveSpecialFollowupMeet(kind){
     :kind==='open'?{affection:6,trust:4}:kind==='practical'?{affection:4,trust:5}:{affection:3,trust:3};
   rec.affection=clamp((rec.affection||0)+gain.affection,0,100);
   rec.trust=clamp((rec.trust||0)+gain.trust,0,100);
+  if(id==='yujin'&&kind==='open'&&(rec.specialFollowupCount||0)===0){
+    rec.dangerEvents=rec.dangerEvents||{};
+    rec.dangerEvents.yujin_embrace='seen';
+    rec.yujinRescueCompulsionAwakened=true;
+    awakenDangerousHeroine(rec,'embrace');
+    rec.dangerLevel=clamp((rec.dangerLevel||0)+10,0,100);
+    pushPersonMessage(S.life,rec,'아까 기댄 건 잊으라고 하지 마요. 다음에도 힘들면 조사 같은 명분 없이 그냥 나부터 불러요.',false);
+  }
   if(id==='chaerin'){
     rec.chaerinDefiance=(rec.chaerinDefiance||0)+(gain.defiance||0);
     if(CHAR_TRAITS)CHAR_TRAITS.change(rec,gain.signature||0);
@@ -4668,10 +4655,25 @@ function showPersonRequest(name) {
   const host=$('life-event');if(!host)return;S._requestPerson=rec;
   const risk=dangerousRiskMeta(rec);
   const closeness=(rec.affection||0)+(rec.trust||0);
-  const requests=INTERACTION_PROFILES
-    ?INTERACTION_PROFILES.requestOptions(rec,{closeness,trust:rec.trust||0,risk,morality:S.life.morality})
-    :['celebrate','gift','advice','help','secret'].map(kind=>({kind,label:kind}));
-  const awakening=INTERACTION_PROFILES&&INTERACTION_PROFILES.awakeningState(rec);
+  const dangerousAwakened=!!(rec.dangerAwakened||rec.chaerinSubmissionAwakened||rec.dangerEvents&&rec.dangerEvents.yujin_embrace==='seen');
+  const requests=rec.name==='강유진'&&dangerousAwakened
+    ?[
+      {kind:'lean',label:'오늘만은 해결책보다 안아 달라고 한다'},
+      {kind:'money',label:'이번 달 생활비가 부족하다며 돈을 부탁한다'},
+      {kind:'help',label:'경쟁 세력 문제를 대신 조사해 달라고 한다'},
+      {kind:'refuse_help',label:'이제 도움은 필요 없으니 신경 끄라고 한다'},
+      {kind:'boundary',label:'도움은 내가 요청할 때만 받겠다고 선을 정한다'},
+    ]
+    :rec.name==='한채린'&&dangerousAwakened
+      ?[
+        {kind:'command',label:'앉아서 내 말을 끝까지 들으라고 명령한다'},
+        {kind:'refuse_gift',label:'돈과 선물로 내 선택을 사지 말라고 거절한다'},
+        {kind:'placate',label:'채린의 비위를 맞추며 원하는 대로 따르겠다고 한다'},
+        {kind:'help',label:'계열사 문제를 자기 이름으로 정리하라고 지시한다'},
+        {kind:'boundary',label:'둘만의 규칙과 중단 신호를 다시 확인한다'},
+      ]
+      :['celebrate','gift','advice','help','secret'].map(kind=>({kind,label:{celebrate:'좋은 일을 함께 축하한다',gift:'작은 선물을 건넨다',advice:'고민을 털어놓고 조언을 구한다',help:'상대의 전문적인 도움을 부탁한다',secret:'아무에게도 못 한 비밀을 말한다'}[kind]}));
+  const awakening={awakened:dangerousAwakened};
   const requestButtons=requests.map(option=>`<button class="event-opt" data-request="${option.kind}">${option.label}</button>`).join('');
   host.style.display='block';host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🙏 ${rec.name}에게 부탁하기</div><div class="title-bar-controls"><button aria-label="Close" id="request-x"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(rec)}" alt="${rec.name}"><div><strong>${rec.name} · ${relationTag(S.life,rec.name)}</strong><br><span class="muted">호감 ${Math.round(rec.affection||0)} · 신뢰 ${Math.round(rec.trust||0)}${risk?` · ${risk.icon}${risk.label} ${Math.round(risk.value)}`:''}${awakening&&awakening.awakened?' · 🔥 각성 이후':''}</span></div></div><div class="event-desc">${awakening&&awakening.awakened?'개인 이야기의 갈림길 이후, 이 인물은 이전과 다른 방식으로 관계를 받아들이고 있습니다.':'현재 친밀도와 상대의 성격·직업 안에서 자연스럽게 꺼낼 수 있는 이야기만 보입니다.'}</div><div class="event-options">${requestButtons}<button class="event-opt" id="request-close">닫기</button></div></div></div>`;
   host.querySelectorAll('[data-request]').forEach(b=>b.addEventListener('click',()=>resolvePersonRequest(b.dataset.request)));
@@ -4679,14 +4681,24 @@ function showPersonRequest(name) {
 }
 function closePersonRequest(){const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}S._requestPerson=null;}
 /* 특수 인물도 각성 전에는 직업과 일상 성격을 유지한다.
- * 극단적인 문구는 interaction_profiles의 명시적 각성 조건 뒤에만 열린다. */
+ * 각성 뒤에는 각자의 결핍이 드러나는 개인 부탁만 열린다. */
 const DANGEROUS_REQUEST_FIT={
-  '강유진':{help:{aff:3},advice:{aff:3},secret:{aff:2},celebrate:{aff:2},gift:{aff:1},boundary:{aff:3}},
-  '한채린':{gift:{aff:2},celebrate:{aff:2},advice:{aff:3},money:{aff:1},help:{aff:3},secret:{aff:2},boundary:{aff:3}}
+  '강유진':{
+    lean:{aff:10,line:'유진은 해결책을 꺼내려다 멈추고 당신을 품에 안았습니다. “오늘은 아무것도 해결하지 않아도 돼요. 대신 필요하다고 한 번만 더 말해줘요.”'},
+    money:{aff:8,line:'유진은 상환 날짜부터 묻지 않고 자기 생활비를 쪼개 건넸습니다. 도움을 받는 당신보다, 자신을 먼저 찾았다는 사실에 더 안도한 얼굴입니다.'},
+    help:{aff:7},refuse_help:{aff:-9,line:'유진은 웃으며 물러났지만, 자신이 필요 없다는 말을 사건 종결보다 더 무겁게 받아들였습니다.'},
+    boundary:{aff:4}
+  },
+  '한채린':{
+    command:{aff:11,line:'채린은 불쾌한 표정을 지으면서도 상석에서 내려와 당신이 가리킨 의자에 앉았습니다. “명령한 건 너야. 내가 원해서 따른 건 아니고.”'},
+    refuse_gift:{aff:9,line:'채린은 준비한 송금 화면을 껐습니다. 거절당해 화가 난 척했지만, 돈 없이도 자신을 상대해 준다는 사실을 숨기지 못했습니다.'},
+    placate:{aff:-10,line:'채린은 턱을 괴고 한숨을 쉬었습니다. “내가 시키는 대로 할 거면 비서가 낫지. 고개 숙인 모습을 보려고 너를 부른 게 아니야.”'},
+    help:{aff:7},boundary:{aff:6}
+  }
 };
 function resolvePersonRequest(kind) {
   const r=S._requestPerson;if(!r)return;const per=D.PERSONALITIES[r.personality]||{};
-  const profileReaction=INTERACTION_PROFILES&&INTERACTION_PROFILES.requestReaction(r,kind);
+  const profileReaction='';
   let text='',tone='neutral';const closeness=(r.affection||0)+(r.trust||0);
   const affBefore=r.affection||0,cashBefore=S.capital;let fitApplied=false;
   if(kind==='celebrate'){
@@ -4696,8 +4708,8 @@ function resolvePersonRequest(kind) {
   } else if(kind==='advice'){
     S.life.stress=clamp(S.life.stress-8,0,100);r.trust=Math.min(100,(r.trust||0)+6);text=profileReaction||'판단하지 않고 이야기를 들어주어 마음이 한결 가벼워졌습니다.';tone='good';
   } else if(kind==='money'){
-    const willing=r.moneyStyle==='support'||r.special==='heiress';const ok=willing&&closeness>=35;
-    if(ok){const amt=r.special==='heiress'?5000000:Math.max(300000,Math.round((r.income||2000000)*.35));S.capital+=amt;r.trust=Math.max(0,(r.trust||0)-8);text=`${profileReaction||'상환 계획을 확인한 뒤 필요한 돈을 빌려줬습니다.'} (${won(amt)}원)`;tone='good';}
+    const willing=r.name==='강유진'||r.moneyStyle==='support'||r.special==='heiress';const ok=willing&&closeness>=35;
+    if(ok){const amt=r.special==='heiress'?5000000:r.name==='강유진'?1200000:Math.max(300000,Math.round((r.income||2000000)*.35));S.capital+=amt;r.trust=Math.max(0,(r.trust||0)-(r.name==='강유진'?2:8));text=`${profileReaction||'상환 계획을 확인한 뒤 필요한 돈을 빌려줬습니다.'} (${won(amt)}원)`;tone='good';}
     else{r.affection=Math.max(0,(r.affection||0)-(r.personality==='frugal'?10:6));text='“우리 사이와 돈 문제는 별개였으면 해요.” 부탁을 거절했습니다.';tone='bad';}
   } else if(kind==='help'){
     if(closeness>=28){const c=CAREER.ensure(S.life);c.skill=Math.min(100,c.skill+5);c.reputation=Math.min(100,c.reputation+3);r.trust=(r.trust||0)+4;text=profileReaction||`${r.job}으로서 아는 정보와 사람을 연결해 줬습니다. 직무능력과 평판이 올랐습니다.`;tone='good';}
@@ -4709,6 +4721,16 @@ function resolvePersonRequest(kind) {
     if(r.name==='윤세라')r.obsession=Math.max(0,(r.obsession||0)-(high?18:10));else r.dangerLevel=Math.max(0,(r.dangerLevel||0)-(high?18:10));
     r.trust=Math.min(100,(r.trust||0)+5);r.affection=Math.max(0,(r.affection||0)-(r.name==='윤세라'?8:1));
     text=profileReaction||(high?`처음에는 격하게 반발했지만 구체적인 규칙을 합의했습니다. ${risk.label}이 위험 단계에서 조금 내려갔습니다.`:'서로 가능한 연락과 불가능한 요구를 분명하게 합의했습니다.');tone='good';
+  } else if(kind==='lean'){
+    S.life.stress=clamp((S.life.stress||0)-14,0,100);r.trust=clamp((r.trust||0)+5,0,100);r.dangerLevel=clamp((r.dangerLevel||0)+7,0,100);text='유진에게 몸을 기댄 채 한동안 아무 말도 하지 않았습니다.';tone='good';
+  } else if(kind==='refuse_help'){
+    r.trust=clamp((r.trust||0)-3,0,100);r.dangerLevel=clamp((r.dangerLevel||0)+5,0,100);text='혼자 해결하겠다는 말에 유진이 억지로 한 걸음 물러났습니다.';tone='bad';
+  } else if(kind==='command'){
+    r.trust=clamp((r.trust||0)+3,0,100);r.dangerLevel=clamp((r.dangerLevel||0)+8,0,100);text='채린에게 직함도 돈도 내려놓고 지시를 들으라고 했습니다.';tone='good';
+  } else if(kind==='refuse_gift'){
+    r.trust=clamp((r.trust||0)+6,0,100);r.dangerLevel=clamp((r.dangerLevel||0)+5,0,100);text='선물과 지원을 돌려주고 사람 대 사람으로 다시 말하라고 요구했습니다.';tone='good';
+  } else if(kind==='placate'){
+    r.trust=clamp((r.trust||0)-5,0,100);r.dangerLevel=clamp((r.dangerLevel||0)-3,0,100);text='채린의 비위를 맞추며 모든 결정을 따르겠다고 했습니다.';tone='bad';
   } else {
     if(r.special==='police'){r.affection=Math.max(0,(r.affection||0)-25);r.trust=Math.max(0,(r.trust||0)-30);changeMorality(-18,'거짓 알리바이를 요구했습니다');JUSTICE.openCase(S.life,'위증 교사 미수',.35,0,3000000);text='“지금 나한테 범죄를 부탁한 거예요?” 유진은 대화를 기록하고 자리를 떠났습니다.';tone='bad';}
     else if(closeness>=65||isDangerousHeroine(r)){r.trust=Math.max(0,(r.trust||0)-12);if(r.name==='윤세라')r.obsession=(r.obsession||0)+16;else if(isDangerousHeroine(r))r.dangerLevel=(r.dangerLevel||0)+12;changeMorality(-14,'타인에게 거짓 알리바이를 요구했습니다');text='요구를 받아들였지만, 두 사람 사이에 위험한 비밀과 의존이 생겼습니다.';tone='bad';}
@@ -6659,14 +6681,8 @@ function resolveDate(i) {
         ?`<br>🏢 <b class="down">${c.name}님은 기존 연인을 알고도 물러서지 않았습니다. 비밀 연인으로 숨지 않고 사업 4인조 공동 경쟁 후보로 남습니다.</b>`
         :`<br>📋 <span class="muted">${c.name}님은 거절을 업무 불이익으로 돌리지 않고 다음 이사회에서 다시 보자며 물러났습니다.</span>`;
     } else if(poly.active&&!alreadyPoly&&proposal.attempted){
-      if(poly.mode==='dangerous_trio'&&DANGEROUS_TRIO&&!DANGEROUS_TRIO.compatibleCandidate(c.name)){
-        rec.trust=Math.max(0,(rec.trust||0)-3);
-        extra+=`<br>🦂 <span class="muted">${c.name}님은 세 사람 사이의 날 선 침묵을 살피다 더 가까이 오지 않기로 했습니다.</span>`;
-      }else{
-      const accepts=polyculeCandidateFits(L,c)&&(rec.trust||0)>=35&&(poly.trust||0)>=40;
-      if(accepts){const member={name:c.name,job:c.job,personality:c.personality,age:c.age,emoji:c.emoji,gender:c.gender,portrait:c.portrait};poly.members.push(member);poly.trust=Math.min(100,(poly.trust||0)+5);rec.status='polycule';RELATIONSHIPS.addMember(L,rec,S.day);extra+=`<br>🌈 <b class="up">${c.name}님은 기존 구성원과 같은 <b>${groupToneLabel(relationshipGroupTone(c))}</b> 결이어서 동등한 관계 구성원으로 합류했습니다.</b>`;}
-      else{rec.trust=Math.max(0,(rec.trust||0)-3);extra+=`<br>🛑 <span class="muted">${c.name}님은 테이블에 앉아 있던 사람들의 표정을 확인한 뒤 조용히 자리를 떴습니다.</span>`;}
-      }
+      rec.trust=Math.max(0,(rec.trust||0)-3);
+      extra+=`<br>🛑 <span class="muted">${c.name}님은 이미 합의된 관계 밖에서 혼자 끼어들 수 없다며 자리를 떴습니다. 새 구성원은 각 그룹의 정식 사건에서만 합의할 수 있습니다.</span>`;
     } else if(alreadyPoly){
       extra+=`<br>🌈 <span class="up">${c.name}님과 합의된 관계 안에서 데이트했습니다.</span>`;
     } else if (!alreadyLover && proposal.attempted && proposal.accepted) {
@@ -7080,35 +7096,6 @@ function doMarriage() {
   setTimeout(() => celebrate({ angle: 60, origin: { x: 0 } }), 250);
   setTimeout(() => celebrate({ angle: 120, origin: { x: 1 } }), 400);
   playSound('buy'); afterLifeAction('가족');
-}
-
-function relationshipGroupTone(person){
-  if(!person)return'exclusive';
-  if(person.name==='나래'||person.special==='tutorial'||person.personality==='obsessive'||person.special==='obsessive')return'exclusive';
-  if(['free','lavish'].includes(person.personality))return'freedom';
-  if(['cold','ambitious'].includes(person.personality))return'independent';
-  return'home';
-}
-function groupToneLabel(tone){return{freedom:'자유·비독점',independent:'독립·거리 존중',home:'생활 공동체',exclusive:'독점 관계'}[tone]||tone;}
-function groupToneCompatible(a,b){return a===b||(a==='freedom'&&b==='independent')||(a==='independent'&&b==='freedom');}
-function polyculeCandidateFits(L,candidate){
-  const tone=relationshipGroupTone(candidate),existing=RELATIONSHIPS.consensualMembers(L);
-  if(tone==='exclusive'||!existing.length)return false;
-  return existing.every(person=>groupToneCompatible(relationshipGroupTone(person),tone));
-}
-function showPolyculeProposal(){
-  const L=S.life,members=RELATIONSHIPS.consensualMembers(L),p=members[0];if(!p)return;const poly=ensurePolycule(L),host=$('life-event');if(!host)return;
-  const tones=members.map(relationshipGroupTone),tone=tones[0],records=members.map(person=>metRecord(L,person.name)).filter(Boolean);
-  const ready=tones.every(value=>value!=='exclusive'&&groupToneCompatible(tone,value))&&(L.affection||0)>=60&&records.every(rec=>(rec.trust||0)>=35);
-  host.style.display='block';host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🌈 한 식탁의 대화</div><div class="title-bar-controls"><button aria-label="Close" id="poly-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="./assets/relationship-polycule.png" alt="여러 사람이 한 식탁에 앉아 대화하는 장면"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(p,'neutral')}" alt="${RELATIONSHIPS.joinNames(members)}"><div><strong>${RELATIONSHIPS.joinNames(members)}</strong><br><span class="muted">${groupToneLabel(tone)}</span></div></div><div class="event-desc">지금 곁에 있는 사람들은 서로의 자리를 어떻게 받아들이고 있는지 처음으로 한 식탁에서 이야기합니다.</div><div class="important-event-detail">${ready?'누구도 말을 피하지 않았습니다. 이제 각자의 뜻을 직접 확인할 차례입니다.':'대화는 몇 번이나 끊겼습니다. 오늘은 결론을 내리지 않는 편이 나아 보입니다.'}</div><div class="event-options"><button class="event-opt" id="poly-go" ${ready?'':'disabled'}>서로의 뜻을 끝까지 듣는다</button><button class="event-opt" id="poly-cancel">오늘은 여기까지 이야기한다</button></div><div class="event-outcome" id="poly-outcome"></div></div></div>`;
-  $('poly-go').addEventListener('click',resolvePolyculeProposal);[$('poly-x'),$('poly-cancel')].forEach(b=>b.addEventListener('click',closeLifeEvent));
-}
-function resolvePolyculeProposal(){
-  const L=S.life,members=RELATIONSHIPS.consensualMembers(L),poly=ensurePolycule(L),tone=relationshipGroupTone(members[0]),records=members.map(person=>metRecord(L,person.name)).filter(Boolean),ok=members.length&&members.every(person=>groupToneCompatible(tone,relationshipGroupTone(person))&&relationshipGroupTone(person)!=='exclusive')&&(L.affection||0)>=60&&records.every(rec=>(rec.trust||0)>=35);
-  const opts=$('poly-outcome').parentElement.querySelector('.event-options');if(opts)opts.innerHTML='';
-  if(ok){poly.active=true;poly.mode='compatibility';poly.tone=tone;poly.trust=55;$('poly-outcome').innerHTML=`<div class="oc-text up">${RELATIONSHIPS.joinNames(members)}님은 누구도 대신 대답하지 않은 채 각자의 자리를 인정했습니다.</div><button id="poly-confirm">확인</button>`;addNews(`🌈 ${RELATIONSHIPS.joinNames(members)}님과 서로의 관계를 솔직하게 이야기했습니다`,'good');}
-  else{$('poly-outcome').innerHTML=`<div class="oc-text down">몇 사람은 침묵했고, 몇 사람은 먼저 자리를 떴습니다. 오늘은 관계를 바꾸지 않기로 했습니다.</div><button id="poly-confirm">확인</button>`;addNews('🌈 식탁의 대화가 결론 없이 끝났습니다','neutral');}
-  $('poly-confirm').addEventListener('click',closeLifeEvent);markMonthAction('데이트');renderLifePanel();autoSave();
 }
 
 function showDangerousTrioAftermath(){
@@ -8753,18 +8740,11 @@ function lifeHubHTML() {
       ? `<span class="up">🎮 같은 파티의 연인 · 채원·유나·소희 전원 연인 · 각자의 집에서 연락 유지 · 회복한 스트레스 ${Math.round(freedomBond.totalStressRecovered||0)}</span>`
     : childhoodBond&&childhoodBond.active
       ? `<span class="${childhoodBond.route==='never_graduate'?'down':'up'}">🎓 ${childhoodBond.route==='never_graduate'?'끝나지 않은 졸업식 · 보호 계획이 다시 일상을 잠그는 중':'처음이 아닌 첫날 · 다섯이 책임을 인정하고 현재의 경계를 지키는 중'} · 예린·보라·서연·나영·미래 전원 연인</span>`
-    : relationshipMembers.length===1&&!poly.active
-      ? `<button class="life-btn" data-act="polycule">🌈 일반 다자연애 제안</button>`
-      : poly.active?`<span class="up">🌈 합의형 관계 진행 중 · 추가 구성원 ${poly.members.length}명 · 신뢰 ${poly.trust}</span>`:'';
-  const publicityBtns=relationshipMembers.length>1
-    ? relationGroup.agreement.publicity==='public'
-      ? `<button class="life-btn" data-act="relationship-publicity" data-mode="private">🔒 관계를 비공개 합의로 전환</button>`
-      : `<button class="life-btn hot" data-act="relationship-publicity" data-mode="public">📣 관계를 직접 공개 <small>소문보다 먼저 알리고 안정도 회복</small></button>`
-    :'';
+    : poly.active?`<span class="up">🌈 그룹 관계 진행 중 · 추가 구성원 ${poly.members.length}명 · 신뢰 ${poly.trust}</span>`:'';
   const commitment=relationGroup.status==='committed'?`<span class="up">🏠 ${RELATIONSHIPS.joinNames(relationshipMembers)} 공동생활 서약 중</span>`:'';
   const relBtns = partnerTag+commitment+`<button class="life-btn" data-act="date">🚶 외출·사람 만나기 <small>${won(R.DATE_COST)}</small></button>`+
     (canCommit?`<button class="life-btn hot" data-act="marry">🏠 공동생활 서약 <small>${won(R.WEDDING_COST)} · 다인 관계는 누구도 주연인으로 지정하지 않음</small></button>`:'')+
-    polyBtn+publicityBtns;
+    polyBtn;
   const faction=FACTION_CAMPAIGN?FACTION_CAMPAIGN.ensure(L):RIVALS.ensureFaction(L);
   const myRankWorth=netWorthClean();
   const rivalValues=S.bots.map((b,i)=>{
@@ -8817,7 +8797,7 @@ function lifeHubHTML() {
   const insuranceBtns = LIFE_FINANCE.POLICIES.map(p => finance.policies.includes(p.id)
     ? `<button class="life-btn hot" data-act="insurance-cancel" data-policy="${p.id}">${p.icon} ${p.name} 해지 <small>월 ${won(p.premium)}</small></button>`
     : `<button class="life-btn" data-act="insurance" data-policy="${p.id}">${p.icon} ${p.name} <small>${p.desc} · 월 ${won(p.premium)}</small></button>`).join('');
-  const contactBtns = social.contacts.filter(c=>!SOCIAL.isSubordinate||!SOCIAL.isSubordinate(c)).map(c=>{const r=SOCIAL.role(c);const ready=c.trust>=30&&c.favor>=1;return `<button class="life-btn" data-act="contact-nurture" data-contact="${c.id}">${r.icon} ${c.name} 만나기 <small>신뢰 ${c.trust}/30 · 호의 ${c.favor} · 300,000</small></button><button class="life-btn ${ready?'hot':''}" data-act="contact-ask" data-contact="${c.id}" ${ready?'':'disabled'}>🙏 ${r.benefit} 부탁 <small>${ready?'가능':'신뢰30·호의1 필요'}</small></button>${c.freeRecruit&&!c.recruitedTo?`<button class="life-btn hot" data-act="origin-ally" data-contact="${c.id}">🎒 ${c.name}에게 합류 제안 <small>사업체·세력 영입비 0원</small></button>`:''}`}).join('');
+  const contactBtns = social.contacts.filter(c=>c.freeRecruit&&!c.recruitedTo).map(c=>`<button class="life-btn hot" data-act="origin-ally" data-contact="${c.id}">🎒 ${c.name}에게 합류 제안 <small>사업체·세력 영입비 0원</small></button>`).join('');
   const specialMet = id => ensureMet(L).some(m => m.special === id);
   const specialRecord=id=>ensureMet(L).find(m=>m.special===id);
   const canSpecialFollowup=rec=>!!(rec&&rec.status==='acquaintance'&&!hasPersonalContact(rec)&&rec.lastSpecialFollowupDay!==S.day);
@@ -8935,8 +8915,6 @@ function wireLifeHub(host) {
     else if (act === 'insurance-cancel') cancelInsurance(b.dataset.policy);
     else if (act === 'contact-meet') meetContact();
     else if (act === 'industry-gathering') showIndustryGatherings();
-    else if (act === 'contact-nurture') nurtureContact(b.dataset.contact);
-    else if (act === 'contact-ask') askContact(b.dataset.contact);
     else if (act === 'origin-ally') showOriginAllyPlacement(b.dataset.contact);
     else if (act === 'meet-special') meetSpecialPerson(b.dataset.special);
     else if (act === 'person-request') showPersonRequest(b.dataset.person);
@@ -8948,8 +8926,6 @@ function wireLifeHub(host) {
     else if (act === 'faction-entrust') entrustFaction(+b.dataset.amt);
     else if (act === 'date') doDate();
     else if (act === 'marry') doMarriage();
-    else if (act === 'relationship-publicity') doRelationshipPublicity(b.dataset.mode);
-    else if (act === 'polycule') showPolyculeProposal();
   }));
   // 월말 창에는 좌우 이동 transform이 있어 그 안의 fixed 요소도 620px 폭에 갇힌다.
   // 모든 핸들러를 연결한 뒤 관리 레이어만 body로 올려 큰 화면을 온전히 사용한다.

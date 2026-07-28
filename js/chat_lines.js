@@ -193,6 +193,13 @@
       '오늘은 몇 시에 자요? 잠들 때까지 얘기하고 싶어요.',
     ],
   };
+  const SERA_BEFORE_OBSESSION = [
+    '오늘은 조금 괜찮았어요. 같이 지내는 사람이 있다는 게 아직 어색하지만요.',
+    '상담은 잘 끝났어요? 답장은 나중에 해도 돼요. 그냥 물어보고 싶었어요.',
+    '냉장고에 먹을 것 조금 넣어뒀어요. 제 몫까지 신경 쓰지는 않아도 돼요.',
+    '저도 다시 일을 조금씩 알아보려고요. 당신만 밖으로 나가게 둘 수는 없으니까.',
+    '집에 오는 시간은 말하지 않아도 돼요. 오늘은 그냥 기다려볼게요.',
+  ];
 
   /* ------------------------------------------------- 투자/시장 테마 (게임 감성, 재미 요소) */
   const INVESTING = {
@@ -232,14 +239,16 @@
     const special = ctx.special || person && person.special;
     const early=!!ctx.earlyContact||tier==='acquaintance';
     const sera=person&&person.name==='윤세라';
+    const seraAwakened=!!(sera&&person.seraObsessionAwakened);
+    if(sera&&!seraAwakened)return pick(SERA_BEFORE_OBSESSION);
     // 개별 대사는 친분이 생긴 뒤에만 쓴다. 윤세라만 첫 연락부터 예외다.
     const authored = root.QT_CHARACTER_DIALOGUE && root.QT_CHARACTER_DIALOGUE.line(person, 'incoming');
-    if (authored&&(!early||sera)) return authored;
+    if (authored&&(!early||seraAwakened)) return authored;
 
     // 집착이 높으면 통제형 메시지가 우선한다
-    if ((!early||sera)&&obs >= 90 && OBSESSION.extreme.length && Math.random() < 0.8) return pick(OBSESSION.extreme);
-    if ((!early||sera)&&obs >= 70 && Math.random() < 0.7) return pick(OBSESSION.high);
-    if ((!early||sera)&&obs >= 45 && Math.random() < 0.5) return pick(OBSESSION.mid);
+    if ((!early||seraAwakened)&&obs >= 90 && OBSESSION.extreme.length && Math.random() < 0.8) return pick(OBSESSION.extreme);
+    if ((!early||seraAwakened)&&obs >= 70 && Math.random() < 0.7) return pick(OBSESSION.high);
+    if ((!early||seraAwakened)&&obs >= 45 && Math.random() < 0.5) return pick(OBSESSION.mid);
 
     // 후보 풀을 가중치로 합쳐 하나 뽑는다
     const bag = [];
@@ -400,6 +409,40 @@
       };
       return pick(earlyAnswers[kind]||earlyAnswers.brief);
     }
+    const intent=messageIntent(ctx&&ctx.incoming);
+    const contextual={
+      food:{
+        warm:'챙겨 먹었다니 다행이에요. 저도 이제 식사할게요.',
+        brief:'확인했어요. 다음 끼니도 거르지는 마요.',
+        boundary:'알겠어요. 식사 여부를 답장 의무처럼 확인하지는 않을게요.',
+      },
+      invite:{
+        warm:'좋아요. 서로 가능한 시간을 확인해서 다시 보낼게요.',
+        brief:'일정 정리되면 가능한 날만 짧게 보낼게요.',
+        boundary:'알겠어요. 갑자기 찾아가지 않고 먼저 약속부터 물을게요.',
+      },
+      whereabouts:{
+        warm:person&&person.name==='강유진'?'무사한 것 확인했어요. 이제 순찰 핑계로 더 묻지는 않을게요.':person&&person.name==='윤세라'?'돌아왔다는 말이면 됐어요. 오늘은 더 확인하지 않을게요.':'무사히 도착했다니 다행이에요.',
+        brief:'확인했어요. 오늘은 이걸로 충분해요.',
+        boundary:'알겠어요. 걱정돼도 위치부터 묻지 않고 기다릴게요.',
+      },
+      work:{
+        warm:'확인해줘서 고마워요. 필요한 부분이 생기면 그때 이어서 이야기해요.',
+        brief:'알겠어요. 정리될 때까지 기다릴게요.',
+        boundary:'결정은 당신 몫으로 둘게요. 요청하기 전에는 더 관여하지 않겠습니다.',
+      },
+      wellbeing:{
+        warm:'괜찮다는 말을 직접 들으니 마음이 놓여요. 무리하지는 마요.',
+        brief:'알겠어요. 별일 생기면 그때 말해줘요.',
+        boundary:'걱정이 앞섰네요. 답이 늦어도 나쁜 결론부터 만들지 않을게요.',
+      },
+      affection:{
+        warm:'나만 먼저 생각한 게 아니라니 기뻐요. 오늘은 조금 더 이야기해요.',
+        brief:'알겠어요. 편해질 때 다시 이어서 말해요.',
+        boundary:'마음을 답장 속도로 확인하지 않을게요. 먼저 말해줘서 고마워요.',
+      },
+    };
+    if(intent!=='general'&&contextual[intent]&&contextual[intent][kind])return contextual[intent][kind];
     const authored = root.QT_CHARACTER_DIALOGUE && root.QT_CHARACTER_DIALOGUE.line(person, kind);
     if (authored) return authored;
     const set = ANSWER[kind] || ANSWER.brief;

@@ -35,8 +35,6 @@
             <section class="month-close-card">
               <h3>💼 수입</h3>
               ${row('아버지 생활비', r.salary, true)}
-              ${row('부동산 임대수익', r.propertyIncome, true)}
-              ${row('자동수입', r.passiveIncome, true)}
               ${row('사업 손익', r.businessIncome, (r.businessIncome || 0) >= 0)}
               ${row('세력·공동생활 순액', r.sharedIncome, (r.sharedIncome || 0) >= 0)}
               ${!r.totalIncome ? '<div class="month-close-empty">이번 달 별도 수입 없음</div>' : ''}
@@ -44,7 +42,6 @@
             <section class="month-close-card">
               <h3>🧾 지출·부채</h3>
               ${row('세금', r.tax)}
-              ${row('보험료', r.insurance)}
               ${row('대출·신용이자', r.loanInterest)}
               ${row('주거·생활비', r.livingCost)}
               ${row('직업 사고비', r.incidentCost)}

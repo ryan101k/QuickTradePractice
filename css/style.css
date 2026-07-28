@@ -414,13 +414,6 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
 .news-log li { cursor: default; }
 .leaderboard li { cursor: default; font-size: 13px; }
 .leaderboard li.me { background: #fffbcc; font-weight: bold; }
-.leaderboard li.bot-row { cursor: pointer; }
-.leaderboard li.bot-row:hover { background: #eef; }
-.bot-toggle { font-size: 11px; }
-.bot-detail { margin-top: 4px; }
-.bd-inner { background: #f6f8ff; border: 1px inset #808080; padding: 5px 7px; font-size: 11.5px; font-weight: normal; }
-.bd-title { font-weight: bold; margin: 3px 0 2px; }
-.bd-row { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; border-bottom: 1px dotted #ddd; }
 .ach-header { padding: 5px 7px; font-weight: bold; background: #ececec; font-size: 12px; }
 .ach { cursor: default; opacity: 0.55; }
 .ach.done { opacity: 1; background: #f0fff0; }

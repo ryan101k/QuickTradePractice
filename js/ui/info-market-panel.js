@@ -183,17 +183,7 @@
     el.innerHTML = model.players.map(player => `<li class="${player.rowClass}">
       ${player.medal} ${player.avatar || ''}<strong>${player.name}</strong>${player.faction ? ` <span class="muted">${player.faction}</span>` : ''}
       ${player.valueText}원 <span class="${player.profitClass}">(${player.rateText})</span>${player.tail || ''}
-      ${player.detailHTML ? `<div class="bot-detail" hidden>${player.detailHTML}</div>` : ''}
     </li>`).join('');
-    el.querySelectorAll('.bot-row').forEach(row => {
-      row.addEventListener('click', () => {
-        const detail = row.querySelector('.bot-detail');
-        if (!detail) return;
-        detail.hidden = !detail.hidden;
-        const toggle = row.querySelector('.bot-toggle');
-        if (toggle) toggle.textContent = detail.hidden ? '▼ 보유' : '▲ 접기';
-      });
-    });
     const feed = document.getElementById('rival-feed');
     if (!feed) return;
     feed.innerHTML = model.feed.length
