@@ -2046,7 +2046,7 @@ function assignStartingCareer(){
     firstGuildTutorialQueued:false,firstGuildTutorialChoice:null,firstGuildTutorialSeen:false,
     mainGameStarted:false,mainGameStartedDay:null,
   };
-  L.job='none';L.lifeView='origin';CAREER.switchJob(L,'none');L.started=true;
+  L.job='none';L.lifeView='origin';CAREER.ensure(L);L.started=true;
   const school=ORIGIN&&ORIGIN.school(L.schoolLife);
   const origin=L.originFriend,friend=origin&&SOCIAL.ensure(L).contacts.find(item=>item.id===origin.contactId);
   const host=$('life-modal');host.style.display='flex';host.className='life-modal-host';
@@ -2119,7 +2119,7 @@ function showDebtGameOver() {
 }
 
 function startMakjangLife(){
-  const L=S.life;LOAN.ensure(L);L.makjang=true;L.job='none';CAREER.switchJob(L,'none');L.creditScore=80;L.criminalRecord=(L.criminalRecord||0)+1;L.sharkMonths=0;L.collectionLevel=3;L.happy=12;L.health=Math.min(L.health,55);L.stress=95;
+  const L=S.life;LOAN.ensure(L);L.makjang=true;L.job='none';CAREER.ensure(L);L.creditScore=80;L.criminalRecord=(L.criminalRecord||0)+1;L.sharkMonths=0;L.collectionLevel=3;L.happy=12;L.health=Math.min(L.health,55);L.stress=95;
   L.loans=[{id:'taesik-'+Date.now(),providerId:'shark',name:'장태식의 목숨값',tier:'불법 사채',balance:150000000,monthlyRate:.10,illegal:true}];LOAN.sync(L);S.capital=30000000;S.phase='closed';S.paused=false;
   const taesik=rememberPerson(Object.assign({},D.SPECIAL_CHARACTERS.taesik),'friend');unlockPersonalContact(taesik);taesik.affection=Math.max(18,taesik.affection||0);taesik.trust=Math.max(0,taesik.trust||0);
   LEGACY.push(L,dateInfo(S.day).age,'🔥','장태식의 제안을 받아 막장 인생을 시작했다','justice');closeLifeModal();addNews('🔥 장태식의 제안을 받아들임 · 현금 3천만원, 사채 1억5천만원, 전과 1범','bad');flashToast('🔥 막장 인생이 시작됐습니다','bad');renderAll();renderMarketPhase();autoSave();

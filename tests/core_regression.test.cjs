@@ -2104,6 +2104,8 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(triggerAppSource,/\(D\.PASSIVE_ASSETS \|\| \[\]\)/,'fresh boot must tolerate removed passive-asset data');
   assert.match(triggerAppSource,/\(D\.PROPERTIES \|\| \[\]\)/,'fresh boot must tolerate removed investment-property data');
   assert.match(triggerAppSource,/typeof CAREER\.abilities==='function'/,'fresh boot must tolerate the removed career-ability API');
+  assert.doesNotMatch(triggerAppSource,/CAREER\.switchJob\(/,'fresh prologue must not call the removed career switch API');
+  assert.match(triggerAppSource,/L\.job='none';L\.lifeView='origin';CAREER\.ensure\(L\);L\.started=true/,'fresh prologue must initialize the current operation-career state before showing the friend message');
   const businessLife={};
   const businessState=context.QT_BUSINESS_ROMANCE.ensure(businessLife);
   businessState.retaliationSeen=true;
