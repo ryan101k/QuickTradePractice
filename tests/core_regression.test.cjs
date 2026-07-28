@@ -2106,6 +2106,8 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(triggerAppSource,/typeof CAREER\.abilities==='function'/,'fresh boot must tolerate the removed career-ability API');
   assert.doesNotMatch(triggerAppSource,/CAREER\.switchJob\(/,'fresh prologue must not call the removed career switch API');
   assert.match(triggerAppSource,/L\.job='none';L\.lifeView='origin';CAREER\.ensure\(L\);L\.started=true/,'fresh prologue must initialize the current operation-career state before showing the friend message');
+  assert.match(triggerAppSource,/else if \(!S\.life\.referralSeen\) showOpeningFriendMessage\(\)/,'an interrupted prologue save must reopen the first friend message before the market');
+  assert.match(triggerAppSource,/S\.life\.referralSeen\?showTutorial\(\):showOpeningFriendMessage\(\)/,'boot must recover a started save that never displayed the opening friend message');
   const businessLife={};
   const businessState=context.QT_BUSINESS_ROMANCE.ensure(businessLife);
   businessState.retaliationSeen=true;

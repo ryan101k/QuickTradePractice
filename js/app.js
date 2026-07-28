@@ -944,9 +944,11 @@ function openMarket() {
     flashToast('📋 이번 달 마감 절차를 먼저 완료하세요', 'neutral');
     return;
   }
-  if (!S.life || !S.life.started) {
+  if (!S.life || !S.life.started || !S.life.tutorialSeen) {
     flashToast('🌒 먼저 휴대전화에 도착한 친구의 메시지를 확인하세요', 'bad');
-    startLifeSetup();
+    if (!S.life || !S.life.started) startLifeSetup();
+    else if (!S.life.referralSeen) showOpeningFriendMessage();
+    else showOriginFriendReferral();
     return;
   }
   if (S.awaitingNextDay) S.day++;       // 마감 후 개장이면 다음 달로 넘어감
@@ -2047,11 +2049,15 @@ function assignStartingCareer(){
     mainGameStarted:false,mainGameStartedDay:null,
   };
   L.job='none';L.lifeView='origin';CAREER.ensure(L);L.started=true;
+  showOpeningFriendMessage(true);
+}
+function showOpeningFriendMessage(firstSetup=false){
+  const L=S.life;if(!L)return;
   const school=ORIGIN&&ORIGIN.school(L.schoolLife);
   const origin=L.originFriend,friend=origin&&SOCIAL.ensure(L).contacts.find(item=>item.id===origin.contactId);
   const host=$('life-modal');host.style.display='flex';host.className='life-modal-host';
   host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🌒 프롤로그 · 멈춘 방</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-family.png" alt="읽지 않은 메시지가 켜진 채 어두운 자취방에 놓인 휴대전화"><div class="event-title">졸업 뒤, 자취방의 문을 잠갔습니다.</div><div class="event-desc">생활경제연구회의 다섯 사람과 맺었던 관계는 서로를 지킨다는 명목 아래 망가졌고, 마지막 모의투자 대회에서는 후원사의 조작 장부까지 발견됐습니다. 당신은 누구와도 끝까지 이야기하지 못한 채 연락처를 차단하고 원본 장부만 들고 사라졌습니다.<br><br>아버지가 보내는 월 생활비로 버티던 어느 밤, 오랫동안 조용하던 휴대전화가 켜졌습니다.</div><div class="phone-shell prologue-phone"><div class="phone-status"><span>오전 11:42</span><span>●●● 38%</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">📱</span><span><b>${friend&&friend.name||'학교 친구'}</b><small>메시지 1개</small></span></header><div class="phone-chat-log"><div class="phone-bubble incoming">야, 살아 있냐? 돈 버는 법 알려 달라더니 답이 없네.</div></div></div></div><div class="important-event-detail">현재 · ${job.name} · 낡은 자취방 · 아버지 생활비 월 ${won(FATHER_MONTHLY_SUPPORT)}원<br>${school.icon} ${school.name}</div><button id="origin-start" class="session-btn opening">${friend&&friend.name||'친구'}의 메시지를 연다</button></div></div>`;
-  addNews(`🌒 은둔 생활 시작 · 무직 · 아버지가 매달 최소 생활비를 보냅니다`,'neutral');
+  if(firstSetup)addNews(`🌒 은둔 생활 시작 · 무직 · 아버지가 매달 최소 생활비를 보냅니다`,'neutral');
   $('origin-start').addEventListener('click',()=>{checkAchievements();renderMarketPhase();renderAll();showOriginFriendReferral();autoSave();});
   autoSave();
 }
@@ -10607,7 +10613,7 @@ function boot() {
     startLifeSetup();
     flashToast('🎬 문을 잠근 뒤 · 친구의 메시지에서 재기를 시작합니다', 'neutral');
   } else if(S.life.originNarrativeVersion>=2&&!S.life.tutorialSeen) {
-    S.life.referralSeen?showTutorial():showOriginFriendReferral();
+    S.life.referralSeen?showTutorial():showOpeningFriendMessage();
   } else if (loaded) {
     flashToast(S.phase === 'open'
       ? `💾 ${dateInfo(S.day).label} 장중 상태 복원 · 안전하게 일시정지됨`
