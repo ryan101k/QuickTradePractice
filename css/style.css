@@ -1205,15 +1205,14 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
   display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   border: 2px inset #fff;
   background: #171a28;
   image-rendering: auto;
 }
-.life-scene-banner { max-height: 230px; margin: 0 0 10px; }
-.life-scene-banner[src$="event-sera-8.png"] { object-position:center 26%; }
-.hub-scene-banner { max-height: 155px; margin: 6px 0 8px; }
+.life-scene-banner { max-height: 300px; margin: 0 0 10px; }
+.hub-scene-banner { max-height: 190px; margin: 6px 0 8px; }
 .important-event-detail {
   margin: 8px 0;
   padding: 8px 10px;
@@ -1338,8 +1337,8 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
   to { box-shadow:0 0 13px #e036a1; }
 }
 @media (max-width: 600px) {
-  .life-scene-banner { max-height: 180px; }
-  .hub-scene-banner { max-height: 125px; }
+  .life-scene-banner { max-height: 220px; }
+  .hub-scene-banner { max-height: 150px; }
   .date-picker-window .window-body, .date-focus-window .window-body { padding:8px; }
   .date-picker-window .dating-banner { max-height:105px; }
   .date-person-grid { grid-template-columns:1fr; }

@@ -1413,7 +1413,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/canSpecialFollowup\(yujinRecord\)/,'강유진은 첫 사건 조건이 사라져도 후속 약속이 다시 떠야 한다');
   assert.doesNotMatch(appSource,/한채린의 비서실 약속에 응한다/,'한채린 후속 이야기를 행동창의 전용 버튼으로 진행하면 안 된다');
   assert.match(appSource,/function showNaraeChaerinLead\(gathering,introducedId\)/,'나래가 사교모임 인맥 수업 뒤 한채린이 있는 자리로 안내해야 한다');
-  assert.match(appSource,/gathering\.tier>=1&&SOCIAL\.ensure\(S\.life\)\.industry\.meetings>=3/,'한채린은 첫 사교모임이 아니라 세 차례 이상 참석한 뒤 나래의 안내로 만나야 한다');
+  assert.match(appSource,/gathering\.tier>=1&&SOCIAL\.ensure\(S\.life\)\.industry\.meetings>=1/,'한채린은 난이도 조정상 첫 사교모임부터 나래의 안내로 만날 수 있어야 한다');
   assert.match(appSource,/function showChaerinIndustryEncounter\(gathering,introducedId\)/,'사교모임 안에 한채린 첫 조우 장면이 있어야 한다');
   assert.match(appSource,/data-chaerin-first="tear"/,'한채린의 계약서를 직접 찢는 선택지가 있어야 한다');
   assert.match(appSource,/if\(choice==='tear'\)\{\s*rec=rememberPerson/,'계약서를 찢은 경우에만 한채린을 실제 인연으로 기록해야 한다');

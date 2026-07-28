@@ -4306,7 +4306,7 @@ function showYujinInvestigation(manual){
   const seraPartner=!!(sera&&RELATIONSHIPS.isPartner(L,'윤세라'));
   S._yujinInvestigation={manual:!!manual,c,sera,housing};
   const scene=cohabit
-    ?`<div class="investigation-door-cast"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="강유진"><div><strong>강유진 · 담당 수사관</strong><br><span class="muted">주가조작·개미 투자자 피해 사건</span></div></div><div class="date-profile"><img class="char-thumb" src="${characterPortrait(sera)}" alt="윤세라"><div><strong>윤세라 · 현재 동거인</strong><br><span class="muted">피해자이자 내부 송금 기록 제보자</span></div></div></div><div class="story-dialogue"><b>강유진</b> “참고인 주소를 확인하러 왔는데, 하필 그 세력 거래에 이름이 겹치는 분 집이 나오네요.”</div><div class="story-dialogue"><b>윤세라</b> “갈 곳이 없어서 같이 사는 거예요. 이 사람은 절 도와준 거고요.”</div><div class="story-dialogue"><b>강유진</b> “그건 조사해 보면 알겠죠. 피해자를 돕는 사람인지, 곁에 두고 뭘 얻으려는 사람인지.”</div>`
+    ?`<div class="investigation-door-cast"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="강유진"><div><strong>강유진 · 담당 수사관</strong><br><span class="muted">주가조작·개미 투자자 피해 사건</span></div></div><div class="date-profile"><img class="char-thumb" src="${characterPortrait(sera)}" alt="윤세라"><div><strong>윤세라 · 현재 동거인</strong><br><span class="muted">피해자이자 내부 송금 기록 제보자</span></div></div></div><div class="story-dialogue"><b>강유진</b> “참고인 주소를 확인하러 왔는데, 하필 그 세력 거래에 이름이 겹치는 분 집이 나오네요. 두 분은 동거인입니까? 아니면… 애인입니까?”</div><div class="story-dialogue"><b>윤세라</b> “갈 곳이 없어서 같이 사는 거예요. 이 사람은 절 도와준 거고요.”</div><div class="story-dialogue"><b>강유진</b> “그건 조사해 보면 알겠죠. 피해자를 돕는 사람인지, 곁에 두고 뭘 얻으려는 사람인지.”</div>`
     :separate
       ?`<div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="강유진"><div><strong>강유진 · 담당 수사관</strong><br><span class="muted">주가조작·개미 투자자 피해 사건</span></div></div><div class="story-dialogue"><b>강유진</b> “윤세라 씨가 임시 숙소 비상 연락처에 당신 번호를 남겼습니다. 그런데 그 세력 피해자 명단에 당신 거래 기록도 걸려 있고요. 두 가지가 우연입니까?”</div>`
       :`<div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="강유진"><div><strong>강유진 · 담당 수사관</strong><br><span class="muted">주가조작·개미 투자자 피해 사건</span></div></div><div class="story-dialogue"><b>강유진</b> “폐작업실에서 윤세라 씨를 마지막으로 본 사람이 당신입니다. 게다가 그 세력 거래에 이름까지 겹쳐요. 참고인으로 몇 가지 확인하겠습니다.”</div>`;
@@ -4601,14 +4601,27 @@ const DANGEROUS_REQUEST_FIT={
   '강유진':{money:{aff:6,line:'“돈은 못 줘요. 그런데 급할 때 나부터 찾은 건… 싫지 않네요. 다음에도 먼저 연락해요.”'},help:{aff:6,line:'“이건 규정 밖이에요. 당신이니까 이번만 알아봐 주는 거예요.”'},advice:{aff:5,line:'“그런 얘긴 아무한테나 하지 말고 나한테만 해요.”'},secret:{aff:5,line:'“기록으로 남기진 않을게요. 대신 다음에도 나한테 먼저 와요.”'},celebrate:{aff:1},gift:{aff:-1,line:'“이런 데 돈 쓸 거면 끼니나 제대로 챙겨요.”'},boundary:{aff:-6,line:'“선을 긋는 건 좋은데… 위험할 때 아무도 못 부르는 건 내가 못 참아요.”'}},
   '한채린':{gift:{aff:-4,line:'“돈으로 살 수 있는 걸 나한테 줘? 시시하네.”'},celebrate:{aff:-2,line:'“축하 같은 건 아래층에서 받고 와.”'},advice:{aff:0},money:{aff:5,line:'“내 돈을 그렇게 당당히 뜯어? …그 배짱은 인정할게.”'},help:{aff:2},secret:{aff:2},boundary:{aff:6,line:'“조건을 걸 줄도 아네. 굽신대는 것보다 훨씬 재미있어.”'},alibi:{aff:3,line:'“위험한 부탁을 눈 하나 깜짝 안 하고 하네. 그 뻔뻔함, 마음에 들어.”'}}
 };
+/* 성격별 선물·함께 시간(외출) 반응 — 캐릭터마다 다르게 느껴지도록.
+ * 특별 히로인(강유진·한채린)은 DANGEROUS_REQUEST_FIT가 우선 적용된다. */
+const REQUEST_FLAVOR={
+  frugal:   {gift:{line:'비싼 걸 왜 샀냐고 걱정하면서도, 오래 쓸 자리부터 정해 뒀습니다.',aff:6}, celebrate:{line:'거창한 자리 대신 동네 한 바퀴로 충분하다며 편하게 웃었습니다.',aff:6}},
+  ambitious:{gift:{line:'실용적인지부터 따지더니, 결국 마음에 든 티를 숨기지 못했습니다.',aff:6}, celebrate:{line:'짧게 축하하고 다음 계획부터 물었지만, 그 시간을 비워 둔 건 처음이었습니다.',aff:6}},
+  homebody: {gift:{line:'집에서 같이 쓸 수 있는 거라며 제일 좋아했습니다.',aff:7}, celebrate:{line:'번화가보다 익숙한 자리에 오래 머무는 걸 더 편해했습니다.',aff:7}},
+  caring:   {gift:{line:'선물보다 골라 준 마음을 더 오래 들여다봤습니다.',aff:7}, celebrate:{line:'당신의 좋은 일을 자기 일처럼 기뻐하며 하루를 함께 보냈습니다.',aff:7}},
+  cold:     {gift:{line:'고맙다는 말은 짧았지만, 다음에 만났을 때도 그 물건을 지니고 있었습니다.',aff:5}, celebrate:{line:'말수는 적었어도 자리를 먼저 뜨지는 않았습니다.',aff:5}},
+  lavish:   {gift:{line:'포장부터 열어보며 다음엔 더 좋은 걸 기대한다고 즐거워했습니다.',aff:10}, celebrate:{line:'특별한 곳으로 자리를 옮기자며 분위기를 한껏 띄웠습니다.',aff:8}},
+  free:     {gift:{line:'물건보다 같이 고른 시간이 좋았다며 가볍게 받았습니다.',aff:6}, celebrate:{line:'계획 없이 발길 닿는 대로 걷는 걸 제일 즐거워했습니다.',aff:7}},
+  obsessive:{gift:{line:'“이건 절대 안 쓰고 그대로 둘 거예요.” 받은 걸 지나칠 만큼 소중히 여겼습니다.',aff:8}, celebrate:{line:'둘만 있는 시간이 끝나지 않았으면 좋겠다며 자꾸 시계를 확인했습니다.',aff:8}},
+};
 function resolvePersonRequest(kind) {
   const r=S._requestPerson;if(!r)return;const per=D.PERSONALITIES[r.personality]||{};
+  const flavor=REQUEST_FLAVOR[r.personality]||null;
   let text='',tone='neutral';const closeness=(r.affection||0)+(r.trust||0);
   const affBefore=r.affection||0,cashBefore=S.capital;let fitApplied=false;
   if(kind==='celebrate'){
-    r.affection=Math.min(100,(r.affection||0)+7);r.trust=Math.min(100,(r.trust||0)+5);S.life.happy=clamp(S.life.happy+4,0,100);text='서로의 최근 좋은 일을 축하하며 편안한 시간을 보냈습니다.';tone='good';
+    r.affection=Math.min(100,(r.affection||0)+(flavor?flavor.celebrate.aff:7));r.trust=Math.min(100,(r.trust||0)+5);S.life.happy=clamp(S.life.happy+4,0,100);text=flavor?flavor.celebrate.line:'서로의 최근 좋은 일을 축하하며 편안한 시간을 보냈습니다.';tone='good';
   } else if(kind==='gift'){
-    const cost=300000;if(S.capital<cost){flashToast('💸 선물 비용 300,000원이 필요합니다','bad');return;}S.capital-=cost;r.affection=Math.min(100,(r.affection||0)+(r.personality==='lavish'?10:6));text='취향을 기억해 고른 작은 선물에 상대가 환하게 웃었습니다.';tone='good';
+    const cost=300000;if(S.capital<cost){flashToast('💸 선물 비용 300,000원이 필요합니다','bad');return;}S.capital-=cost;r.affection=Math.min(100,(r.affection||0)+(flavor?flavor.gift.aff:(r.personality==='lavish'?10:6)));text=flavor?flavor.gift.line:'취향을 기억해 고른 작은 선물에 상대가 환하게 웃었습니다.';tone='good';
   } else if(kind==='advice'){
     S.life.stress=clamp(S.life.stress-8,0,100);r.trust=Math.min(100,(r.trust||0)+6);text='판단하지 않고 이야기를 들어주어 마음이 한결 가벼워졌습니다.';tone='good';
   } else if(kind==='money'){
@@ -4936,9 +4949,9 @@ const DANGEROUS_AFFECTION_EVENTS={
     {text:'걱정은 고맙지만 내 일정을 확인하지 말라고 한다',result:'유진은 입술을 깨물고 고개를 끄덕였습니다. “보호와 감시는 다르죠. 기록해둘게요.”',affection:2,trust:8,danger:-5},
     {text:'앞으로도 늦을 때 데리러 와달라고 한다',result:'유진은 바로 당신의 귀가 시간표를 만들었습니다. 안도한 표정이 이상하리만큼 진지합니다.',affection:7,trust:2,danger:10}
   ]},
-  chaerin_warning:{name:'한채린',kind:'friend',min:35,after:'chaerin_friend',scene:'./assets/event-chaerin-thrown-contract.png',icon:'💳',title:'한채린 · 부탁하지 않은 결제',desc:'채린이 당신의 취미 모임 회비와 이동비를 비서실 명의로 처리했습니다. “친구 시간 낭비를 줄여준 것뿐”이라지만 다음 일정까지 이미 알고 있습니다.',choices:[
-    {text:'영수증을 채린 앞에 던지고 내 일정에서 손 떼라고 한다',result:'채린은 불쾌한 표정으로 영수증을 구기면서도 비서에게 “앞으로는 반드시 물어봐. 저 사람이 또 화내야 하잖아”라고 지시했습니다.',affection:9,trust:8,danger:-3},
-    {text:'편하니 앞으로도 맡기겠다며 고맙다고 한다',result:'채린은 눈에 띄게 흥미를 잃었습니다. 예약과 결제는 계속됐지만 당신은 특별한 사람이 아니라 관리하기 쉬운 자산에 가까워졌습니다.',affection:-4,trust:1,danger:6}
+  chaerin_warning:{name:'한채린',kind:'friend',min:35,after:'chaerin_friend',scene:'./assets/event-chaerin-thrown-contract.png',icon:'💳',title:'한채린 · 넘겨준 법인카드',desc:'채린이 자기 법인카드와 다음 주 일정표를 당신 앞에 밀어 놓습니다. “내가 뭘 하고 뭘 살지 네가 정해. 내 결정은 시시하니까.” 세상을 다 가진 사람이 자기 통제권을 통째로 내려놓으려 합니다.',choices:[
+    {text:'카드를 돌려주고 네 일은 네가 정하라고 한다',result:'채린은 잠깐 실망했다가 웃었습니다. “안 받네. …그렇게 안 넘어와서 더 갖고 싶어져.” 자기 결정은 스스로 하되, 관계는 이어가기로 했습니다.',affection:5,trust:9,danger:-4},
+    {text:'기꺼이 받아 그녀의 하루를 대신 정해준다',result:'채린은 통제권을 넘기고도 편안해했습니다. 다만 당신 지시가 없으면 점심 메뉴조차 못 고르는 날이 늘기 시작했습니다.',affection:9,trust:1,danger:8}
   ]},
   sera_warning:{name:'윤세라',kind:'friend',min:35,after:'sera_friend',scene:'./assets/event-sera-doorstep.png',icon:'📱',title:'윤세라 · 보내지 않은 사진',desc:'세라의 휴대폰 앨범에 당신이 멀리서 찍힌 사진이 보였습니다. 우연히 마주쳤지만 말을 걸 용기가 없었다는 설명과 달리 날짜가 여러 날입니다.',choices:[
     {text:'사진을 지우고 우연을 가장하지 말라고 한다',result:'세라는 울먹이면서도 사진을 지웠습니다. “다음에는… 그냥 보고 싶었다고 말할게요.”',affection:1,trust:8,danger:-6},
@@ -5595,8 +5608,8 @@ function updateObsession(L) {
       ? 5+Math.floor((L.stress||0)/30)+Math.floor(sig/35)+((L.loan||0)>0?2:0)
       : 4+Math.floor(sig/35)+Math.min(4,r.chaerinDefiance||0)+((r.story&&r.story.traits&&r.story.traits.command)||0)+(S.capital<0?1:0);
     r.dangerLevel=clamp(before+pressure,0,100);
-    if(before<55&&r.dangerLevel>=55)queueImportantEvent({type:'love',scene:r.name==='강유진'?'./assets/event-yujin-night-call.png':'./assets/event-chaerin-thrown-contract.png',icon:r.name==='강유진'?'🚨':'👑',title:`${r.name} · 보호가 소유로 바뀌는 지점`,desc:r.name==='강유진'?'당신을 위험에서 떼어놓겠다는 유진의 계획이 직장과 연락처와 외출까지 포함하기 시작했습니다.':'채린의 지원이 계좌와 집과 일정의 결정권까지 가져가기 시작했습니다.',detail:'도움을 받는 동안 당신이 직접 결정할 수 있는 일이 눈에 띄게 줄었습니다.',tone:'bad'});
-    if(before<78&&r.dangerLevel>=78)queueImportantEvent({type:'love',scene:r.name==='강유진'?'./assets/event-yujin-safehouse-ending.png':'./assets/event-chaerin-golden-cage-ending.png',icon:'🔐',title:`${r.name} · 출구가 줄어든다`,desc:r.name==='강유진'?'유진이 마련한 보호 숙소의 출입 기록에 당신 이름만 남았습니다.':'채린이 마련한 펜트하우스에서 당신 명의의 카드와 열쇠가 하나씩 작동을 멈췄습니다.',detail:'잠긴 문과 멈춘 카드가 더 늘어나기 전에 관계의 선을 다시 세워야 합니다.',tone:'bad'});
+    if(before<55&&r.dangerLevel>=55)queueImportantEvent({type:'love',scene:r.name==='강유진'?'./assets/event-yujin-night-call.png':'./assets/event-chaerin-thrown-contract.png',icon:r.name==='강유진'?'🚨':'👑',title:`${r.name} · ${r.name==='강유진'?'보호가 소유로 바뀌는 지점':'스스로를 당신 손에 내려놓는다'}`,desc:r.name==='강유진'?'당신을 위험에서 떼어놓겠다는 유진의 계획이 직장과 연락처와 외출까지 포함하기 시작했습니다.':'채린이 자기 계좌·집·일정의 결정권을 전부 당신 앞으로 돌리고, 당신 허락 없이는 아무것도 정하지 않으려 합니다.',detail:r.name==='강유진'?'도움을 받는 동안 당신이 직접 결정할 수 있는 일이 눈에 띄게 줄었습니다.':'세상 누구에게도 지지 않던 사람이 당신 앞에서만 스스로를 지워갑니다. 원하는 굴복으로 받아줄지, 당신이 먼저 선을 세울지 정해야 합니다.',tone:'bad'});
+    if(before<78&&r.dangerLevel>=78)queueImportantEvent({type:'love',scene:r.name==='강유진'?'./assets/event-yujin-safehouse-ending.png':'./assets/event-chaerin-golden-cage-ending.png',icon:'🔐',title:`${r.name} · ${r.name==='강유진'?'출구가 줄어든다':'스스로 잠근 황금 새장'}`,desc:r.name==='강유진'?'유진이 마련한 보호 숙소의 출입 기록에 당신 이름만 남았습니다.':'채린이 회사·집·카드를 전부 당신 명의로 넘기고, 당신이 멈추라 하지 않으면 스스로를 멈추지 못합니다.',detail:r.name==='강유진'?'잠긴 문과 멈춘 카드가 더 늘어나기 전에 관계의 선을 다시 세워야 합니다.':'채린의 자기 예속이 위험 단계입니다. 관계의 선을 세우지 않으면 채린은 당신 앞에서 자신을 완전히 잃습니다.',tone:'bad'});
     if(r.dangerLevel>=95&&!L.captivityEnding){L.captivityEnding=true;captivity=r;}
   });
   return captivity;
