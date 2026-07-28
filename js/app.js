@@ -1553,7 +1553,7 @@ function wealthBreakdown() {
   LOAN.ensure(L);
   const propVal = L.properties.reduce((s, p) => s + p.value, 0);
   const passiveVal = (L.passiveAssets || []).reduce((s, a) => {
-    const item = D.PASSIVE_ASSETS.find(x => x.id === a.id);
+    const item = (D.PASSIVE_ASSETS || []).find(x => x.id === a.id);
     return s + (item ? Math.round(item.price * item.resaleRate) : 0);
   }, 0);
   const businessVal = BUSINESS ? BUSINESS.assetValue(L) : 0;
@@ -1665,7 +1665,7 @@ function settleMonth() {
 
   // 2-1) 주식 외 현금흐름 자산 정산. 예금은 기준금리, 사업형은 매출 변동을 반영한다.
   (L.passiveAssets || []).forEach(owned => {
-    const asset = D.PASSIVE_ASSETS.find(x => x.id === owned.id); if (!asset) return;
+    const asset = (D.PASSIVE_ASSETS || []).find(x => x.id === owned.id); if (!asset) return;
     let base = asset.monthlyIncome;
     if (asset.id === 'deposit') base = Math.max(asset.monthlyIncome,Math.round(asset.price * Math.max(.018, ECONOMY.ensure(S.economy).baseRate / 100) / 12 * 2));
     const gross = Math.max(0, Math.round(base * (1 + rand(-(asset.variance || 0), asset.variance || 0))));
@@ -1713,7 +1713,7 @@ function settleMonth() {
   }
 
   // 3) 금융사별 이자·신용등급·추심 단계 갱신
-  const passiveResaleValue = (L.passiveAssets || []).reduce((sum, owned) => { const a=D.PASSIVE_ASSETS.find(x=>x.id===owned.id); return sum+(a?Math.round(a.price*a.resaleRate):0); },0);
+  const passiveResaleValue = (L.passiveAssets || []).reduce((sum, owned) => { const a=(D.PASSIVE_ASSETS || []).find(x=>x.id===owned.id); return sum+(a?Math.round(a.price*a.resaleRate):0); },0);
   const businessResaleValue=BUSINESS?BUSINESS.assetValue(L):0;
   const assetValue = L.properties.reduce((sum, p) => sum + p.value, 0) + passiveResaleValue + businessResaleValue + Math.max(0, netWorthClean());
   const debtResult = LOAN.settleMonth(L, Math.max(0, b.salary + b.rent + b.passive + (b.businessNet||0) + (b.factionBiz||0) - (b.factionUpkeep||0)), assetValue, ECONOMY.loanMultiplier(S.economy));
@@ -3965,7 +3965,7 @@ function doParentCare() {
 }
 
 function doCertification(id) {
-  const cert=CAREER.CERTS.find(x=>x.id===id);if(!cert)return;
+  const cert=(CAREER.CERTS||[]).find(x=>x.id===id);if(!cert)return;
   if(CAREER.ensure(S.life).certifications.includes(id)){flashToast('이미 보유한 자격입니다','neutral');return;}
   if(S.capital<cert.cost){flashToast(`💸 응시·교육비 ${won(cert.cost)}원 부족`,'bad');return;}
   S.capital-=cert.cost;CAREER.certify(S.life,id);addNews(`${cert.icon} ${cert.name} 자격 취득`,'good');
@@ -7451,7 +7451,7 @@ function resolveFreedomTrioAftermath(choiceId){
 }
 
 function buyProperty(id) {
-  const p = D.PROPERTIES.find(x => x.id === id); if (!p) return;
+  const p = (D.PROPERTIES || []).find(x => x.id === id); if (!p) return;
   if (S.capital < p.price) { flashToast(`💸 현금 부족 (${won(p.price)}원 필요)`, 'bad'); playSound('error'); return; }
   S.capital -= p.price;
   S.life.properties.push({ id: p.id, name: p.name, emoji: p.emoji, value: p.price, rent: p.rent });
@@ -7461,7 +7461,7 @@ function buyProperty(id) {
 }
 
 function buyPassiveAsset(id) {
-  const asset = D.PASSIVE_ASSETS.find(x => x.id === id); if (!asset) return;
+  const asset = (D.PASSIVE_ASSETS || []).find(x => x.id === id); if (!asset) return;
   if (S.capital < asset.price) { flashToast(`💸 현금 부족 (${won(asset.price)}원 필요)`, 'bad'); return; }
   S.capital -= asset.price;
   if (!Array.isArray(S.life.passiveAssets)) S.life.passiveAssets = [];
@@ -7473,7 +7473,7 @@ function buyPassiveAsset(id) {
 
 function sellPassiveAsset(id) {
   const list = S.life.passiveAssets || [], index = list.findIndex(x => x.id === id);
-  const asset = D.PASSIVE_ASSETS.find(x => x.id === id); if (index < 0 || !asset) return;
+  const asset = (D.PASSIVE_ASSETS || []).find(x => x.id === id); if (index < 0 || !asset) return;
   const proceeds = Math.round(asset.price * asset.resaleRate);
   list.splice(index, 1); S.capital += proceeds;
   addNews(`${asset.emoji} ${asset.name} 매각 · ${won(proceeds)}원 회수`, 'neutral');
@@ -8530,7 +8530,7 @@ function renderLifePanel() {
   HOUSING.ensure(L);
   const businessState = BUSINESS ? BUSINESS.ensure(L) : {owned:[],lastNet:0};
   const finance = LIFE_FINANCE.ensure(L);
-  const activePolicies = LIFE_FINANCE.active(L);
+  const activePolicies = typeof LIFE_FINANCE.active === 'function' ? LIFE_FINANCE.active(L) : [];
   const social = SOCIAL.ensure(L);
   const justice = JUSTICE.ensure(L);
   const legacyState = LEGACY.ensure(L);
@@ -8542,7 +8542,7 @@ function renderLifePanel() {
   const hearts = '❤️'.repeat(Math.max(0, Math.round(L.happy / 20))) || '🖤';
   const propVal = L.properties.reduce((s, p) => s + p.value, 0);
   const passiveOwned = L.passiveAssets || [];
-  const passiveExpected = passiveOwned.reduce((sum, owned) => { const a=D.PASSIVE_ASSETS.find(x=>x.id===owned.id); return sum+(a?Math.max(0,a.monthlyIncome-a.maintenance):0); },0);
+  const passiveExpected = passiveOwned.reduce((sum, owned) => { const a=(D.PASSIVE_ASSETS || []).find(x=>x.id===owned.id); return sum+(a?Math.max(0,a.monthlyIncome-a.maintenance):0); },0);
   const businessValue=BUSINESS?BUSINESS.assetValue(L):0;
   const wealth=wealthBreakdown();
   const charmHint = L.relationship === 'single' ? `(연애까지 ${R.DATING_AT})`
@@ -8591,8 +8591,8 @@ function renderLifePanel() {
      ${APTITUDE?`<div class="life-stat"><span>운영 강점</span><strong>${APTITUDE.ranked(L).map(a=>`${a.icon}${a.value}`).join(' · ')}</strong></div>`:''}
      <div class="life-stat"><span>운영 단계</span><strong>📈 ${CAREER.rank(L)} · 관리 경험 ${CAREER.ensure(L).months}개월</strong></div>
      <div class="life-stat"><span>운영 역량</span><strong>${Math.round(CAREER.ensure(L).skill)} · 현장 대응 ${Math.round(CAREER.ensure(L).performance)} · 평판 ${Math.round(CAREER.ensure(L).reputation)}</strong></div>
-     ${CAREER.ensure(L).certifications.length?`<div class="life-stat"><span>관리 교육</span><strong>${CAREER.ensure(L).certifications.map(id=>(CAREER.CERTS.find(c=>c.id===id)||{}).icon+(CAREER.CERTS.find(c=>c.id===id)||{}).name).join(' · ')}</strong></div>`:''}
-     ${CAREER.abilities(L).length?`<div class="life-stat"><span>운영 특수능력</span><strong class="up">${CAREER.abilities(L).map(a=>a.icon+a.name).join(' · ')}</strong></div>`:''}
+     ${(CAREER.ensure(L).certifications||[]).length?`<div class="life-stat"><span>관리 교육</span><strong>${CAREER.ensure(L).certifications.map(id=>((CAREER.CERTS||[]).find(c=>c.id===id)||{}).icon+((CAREER.CERTS||[]).find(c=>c.id===id)||{}).name).join(' · ')}</strong></div>`:''}
+     ${typeof CAREER.abilities==='function'&&CAREER.abilities(L).length?`<div class="life-stat"><span>운영 특수능력</span><strong class="up">${CAREER.abilities(L).map(a=>a.icon+a.name).join(' · ')}</strong></div>`:''}
      <div class="life-stat"><span>아버지 생활비</span><strong class="${fatherSupportActive(L)?'up':'muted'}">${fatherSupportActive(L)?`월 ${won(FATHER_MONTHLY_SUPPORT)}원 · 순자산 ${won(FATHER_SUPPORT_WEALTH_LIMIT)}원까지`:`지원 종료${L.fatherSupportEndReason==='health'?' · 아버지 치료 우선':' · 경제적 자립'}`}</strong></div>
      <div class="life-stat"><span>행복도</span><strong>${hearts} ${Math.round(L.happy)}/100</strong></div>
      <div class="life-stat"><span>건강</span><strong class="${L.health < 35 ? 'down' : ''}">❤️ ${Math.round(L.health)}/100</strong></div>
@@ -8678,11 +8678,11 @@ function lifeHubHTML() {
   const social = SOCIAL.ensure(L);
   const justice = JUSTICE.ensure(L);
   const hobbyBtns = D.HOBBIES.filter(h=>!['game','study'].includes(h.id)).map(h => `<button class="life-btn" data-act="hobby" data-id="${h.id}">${h.emoji} ${h.name} <small>${won(h.cost)}</small></button>`).join('');
-  const propBtns = D.PROPERTIES.map(p => {
+  const propBtns = (D.PROPERTIES || []).map(p => {
     const annualYield=p.price>0?p.rent*12/p.price*100:0;
     return `<button class="life-btn asset-action" data-act="prop" data-id="${p.id}">${p.emoji} ${p.name}<small>매입 ${won(p.price)} · 월 임대 ${won(p.rent)} · 연 ${annualYield.toFixed(1)}%</small></button>`;
   }).join('');
-  const passiveBtns = D.PASSIVE_ASSETS.map(a => {
+  const passiveBtns = (D.PASSIVE_ASSETS || []).map(a => {
     const count=(L.passiveAssets||[]).filter(x=>x.id===a.id).length, net=Math.max(0,a.monthlyIncome-a.maintenance);
     return `<button class="life-btn asset-action" data-act="passive-buy" data-id="${a.id}">${a.emoji} ${a.name} 매입 <small>${won(a.price)} · 월 순수입 ${won(net)} · ${a.desc}</small></button>${count?`<button class="life-btn hot asset-action" data-act="passive-sell" data-id="${a.id}">${a.emoji} ${a.name} 1개 매각 <small>${count}개 보유 · ${won(Math.round(a.price*a.resaleRate))} 회수</small></button>`:''}`;
   }).join('');
@@ -8707,11 +8707,11 @@ function lifeHubHTML() {
   const propertyIncome=L.properties.reduce((sum,item)=>sum+(item.rent||0),0);
   const passiveOwned=L.passiveAssets||[];
   const passiveValue=passiveOwned.reduce((sum,owned)=>{
-    const asset=D.PASSIVE_ASSETS.find(item=>item.id===owned.id);
+    const asset=(D.PASSIVE_ASSETS || []).find(item=>item.id===owned.id);
     return sum+(asset?Math.round(asset.price*asset.resaleRate):0);
   },0);
   const passiveIncome=passiveOwned.reduce((sum,owned)=>{
-    const asset=D.PASSIVE_ASSETS.find(item=>item.id===owned.id);
+    const asset=(D.PASSIVE_ASSETS || []).find(item=>item.id===owned.id);
     return sum+(asset?Math.max(0,asset.monthlyIncome-asset.maintenance):0);
   },0);
   const businessValue=BUSINESS?BUSINESS.assetValue(L):0;
@@ -8791,7 +8791,7 @@ function lifeHubHTML() {
   const factionBox=`${campaignGoal}${motiveGoal}${factionStatus}${factionMembers?`<div class="faction-members">${factionMembers}</div>`:faction.level?'<div class="hub-note">구성원이 없어도 거점 기본 수입은 발생합니다. 인원을 모집하면 사업 수익과 방어력이 함께 늘어납니다.</div>':''}${factionControls}`;
   const planBtns = relationshipMembers.length&&relationGroup.agreement.cohabiting&&!L.familyPlan ? `<button class="life-btn" data-act="family-plan" data-method="birth">👶 공동양육 출산 계획 <small>5,000,000 · 현재 구성원 전원 양육자 등록</small></button><button class="life-btn" data-act="family-plan" data-method="adopt">🫶 공동양육 입양 신청 <small>12,000,000 · 현재 구성원 전원 양육자 등록</small></button>` : '';
   const childBtns = L.children.map(c=>`<button class="life-btn" data-act="child-bond" data-child="${c.id}">🫶 ${c.name}와 시간 보내기 <small>200,000</small></button><button class="life-btn" data-act="child-edu" data-child="${c.id}">📚 ${c.name} 교육 투자 <small>1,000,000</small></button>`).join('');
-  const certBtns = CAREER.CERTS.filter(c=>!CAREER.ensure(L).certifications.includes(c.id)).map(c=>`<button class="life-btn" data-act="cert" data-cert="${c.id}">${c.icon} ${c.name} <small>${won(c.cost)}</small></button>`).join('');
+  const certBtns = (CAREER.CERTS||[]).filter(c=>!(CAREER.ensure(L).certifications||[]).includes(c.id)).map(c=>`<button class="life-btn" data-act="cert" data-cert="${c.id}">${c.icon} ${c.name} <small>${won(c.cost)}</small></button>`).join('');
   const currentHousingRefund=Math.round(HOUSING.assetValue(L)*(L.housing.tenure==='owned'?.98:1));
   const housingBtns = HOUSING.HOMES.flatMap(h=>Object.values(HOUSING.TENURES).filter(t=>h.id!=='parents'||t.id==='monthly').map(t=>{const q=HOUSING.quote(h,t.id),current=h.id===L.housing.id&&t.id===L.housing.tenure,needed=Math.max(0,q.upfront-currentHousingRefund);return`<button class="life-btn ${current?'hot':''}" data-act="move" data-home="${h.id}" data-tenure="${t.id}" ${dangerousHomeLocked||current?'disabled':''}>${h.icon}${t.icon} ${h.name} · ${t.name} <small>${dangerousHomeLocked?(current?'세 사람의 요청으로 유지하는 중립 거점 · 월세 0원':'유진·채린·세라가 요청한 거점 합의로 이사 불가'):current?'현재 거주 중':`보증금·집값 교체 실부담 ${won(needed)} · 월 ${won(q.monthly)}`}</small></button>`;})).join('');
   const insuranceBtns = LIFE_FINANCE.POLICIES.map(p => finance.policies.includes(p.id)

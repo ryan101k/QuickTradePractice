@@ -2100,6 +2100,10 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(lifeEventSource,/id: 'life_moving'[\s\S]{0,500}housingMonths >= 12[\s\S]{0,200}lastHousingRenewalMonth/,'housing renewal must wait for a real lease renewal interval');
   assert.match(triggerAppSource,/housingTenure:housing\.tenure[\s\S]{0,300}lastHousingRenewalMonth:housing\.lastRenewalMonth/,'life event context must include lease timing');
   assert.match(triggerAppSource,/function dangerousTrioFatigueHTML\(\)[\s\S]{0,1200}공동생활 피로 · 체력 -/,'month-close life actions must explain dangerous trio cohabitation fatigue');
+  assert.match(triggerAppSource,/typeof LIFE_FINANCE\.active === 'function' \? LIFE_FINANCE\.active\(L\) : \[\]/,'fresh boot must tolerate the removed insurance API');
+  assert.match(triggerAppSource,/\(D\.PASSIVE_ASSETS \|\| \[\]\)/,'fresh boot must tolerate removed passive-asset data');
+  assert.match(triggerAppSource,/\(D\.PROPERTIES \|\| \[\]\)/,'fresh boot must tolerate removed investment-property data');
+  assert.match(triggerAppSource,/typeof CAREER\.abilities==='function'/,'fresh boot must tolerate the removed career-ability API');
   const businessLife={};
   const businessState=context.QT_BUSINESS_ROMANCE.ensure(businessLife);
   businessState.retaliationSeen=true;
