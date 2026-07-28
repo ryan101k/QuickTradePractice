@@ -53,40 +53,40 @@ const SPECIAL={
   ]}
  ],
  '강유진':[
-  {title:'동거인 확인서의 빈칸',min:18,scene:'event-yujin-rain-rescue.png',desc:'개인 번호를 교환한 뒤 유진이 비에 젖은 첫 방문 조사 기록의 수정본을 가져왔습니다. 윤세라의 거처와 사건 관계는 정리됐지만, 당신과 세라의 관계를 적는 칸만 비어 있습니다. 수사와 무관하다던 질문을 왜 두 번이나 했는지 이제는 업무 밖에서 물을 수 있습니다.',speaker:'그날 애인이냐고 물은 건 신변 보호 때문이었어요. 적어도 처음에는요. 그런데 왜 대답을 듣기가 싫었는지는… 경찰 보고서에 적을 수가 없네요.',choices:[
+  {title:'동거인 확인서의 빈칸',min:18,scene:'event-yujin-rain-rescue.png',desc:'친구로 개인 번호를 교환한 뒤 유진이 첫 방문 조사 기록의 수정본을 가져왔습니다. 윤세라의 거처와 사건 관계는 정리됐지만, 유진은 수사와 무관한 생활 정보까지 적으려다 빈칸으로 남겼습니다. 당신을 안전하게 만들고 싶은 마음이 어디까지 경찰의 책임인지 처음 묻는 자리입니다.',speaker:'두 분 관계까지 알아야 보호할 수 있다고 생각했어요. 그런데 그건 수사가 아니라, 내가 모르는 시간이 생기는 게 싫었던 것 같아요. 친구한테도 이러면 안 되는 거죠?',choices:[
    C('support','관계보다 먼저 세 사람의 경계를 직접 정하자고 한다','유진은 신고가 있을 때만 개입하고 세라의 사생활도 조사 기록에서 분리한다',10,13,-7,'good','좋아요. 부르면 가고, 부르지 않은 날에는 기다릴게요. 세라 씨한테도 같은 규칙을 요구하죠.',{}),
    C('lead','세라를 계속 감시해 달라고 부탁한다','안전을 얻는 대신 유진의 관심과 수사가 사적인 생활 안으로 들어온다',4,-3,7,'neutral','업무로 시작한 일이니까 할 수는 있어요. 하지만 내가 정말 세라 씨만 보고 있을 거라고 생각해요?',{}),
-   C('avoid','애인이라고 적으면 더 자주 와줄 거냐고 되묻는다','농담처럼 관계의 빈칸을 채우며 유진의 보호 욕구와 질투를 동시에 건드린다',7,1,10,'bad','그런 말 쉽게 하지 마요. 확인할 이유를 만들어 주면… 나는 정말 매일 올 수도 있으니까.',{})
+   C('avoid','내 사생활까지 확인해야 안심되냐고 되묻는다','유진이 안전 확인을 명분으로 친구의 생활까지 알고 싶어 했음을 직면한다',7,1,10,'bad','맞아요. 안심하려고 당신 정보를 더 가지려 했어요. 지키는 사람이라는 말 뒤에 숨으면 안 되겠네요.',{})
   ]},
-  {title:'사건기록보다 오래 남은 질문',min:30,scene:'event-yujin-1.png',desc:'야간 사무실에 들른 당신은 유진이 이미 끝난 사건기록을 다시 펼쳐 둔 모습을 봅니다. 당신이 위험한 인물이라서 확인하는 건지, 위험에 빠질 사람이라서 보고 있는 건지 묻자 유진은 서류보다 당신 얼굴을 오래 바라봅니다.',speaker:'사건은 종결됐는데 이상하죠. 기록을 덮으면 당신이 내 담당에서 사라지는 것 같아서… 자꾸 한 줄을 더 찾게 돼요.',choices:[
-   C('depend','“담당이 끝나도 계속 나를 봐줘”라고 솔직히 말한다','유진에게 사건 밖에서도 필요한 사람이 될 자리를 내준다',12,8,8,'neutral','그 말을 허락으로 알아들을 수도 있어요. 그래도… 지금은 모른 척할게요.',{},'depend'),
+  {title:'끝난 사건을 다시 여는 사람',min:30,scene:'event-yujin-1.png',desc:'유진은 종결된 사건에 “추가 피해 예방”이라는 제목의 안부 확인표를 붙였습니다. 식사, 귀가, 빚, 최근 공격까지 항목은 계속 늘어납니다. 당신이 위험해서 확인하는 것보다, 확인할 일이 사라지면 자신도 필요 없어질까 두려워 사건을 놓지 못하고 있습니다.',speaker:'당신이 괜찮아지면 좋은 일이어야 하잖아요. 그런데 확인할 게 하나씩 줄 때마다 내가 할 일도, 당신이 나를 부를 이유도 없어지는 기분이에요.',choices:[
+   C('depend','유진의 확인이 없으면 아직 불안하다고 솔직히 말한다','플레이어의 불안을 통해 유진에게 계속 필요한 사람의 자리를 내준다',12,8,8,'neutral','그럼 내가 확인할게요. 안심할 때까지요. …그 말에 안도한 내가 제일 위험한 것 같지만.',{},'depend'),
    C('boundary','사건기록은 덮고 비번 날에 다시 만나자고 한다','업무상 감시와 사적인 관심을 분리한다',10,14,-6,'good','그럼 다음에는 서류 없이 갈게요. 질문도 경찰이 아니라 내가 하고요.',{},'boundary'),
-   C('complicity','기록에 남기 곤란한 라이벌 정보를 따로 건넨다','둘만 아는 비공식 수사를 시작한다',6,-3,12,'bad','이걸 받으면 당신 사건은 끝나지 않아요. 나한테도, 당신한테도.',{morality:-4},'complicity')
+   C('complicity','새 라이벌 정보를 건네며 사건이 끝나지 않을 이유를 만든다','둘만 아는 비공식 수사로 유진의 역할을 계속 남긴다',6,-3,12,'bad','이걸 받으면 계속 당신 담당으로 남을 수 있겠네요. 그게 잘못된 이유인데도… 지금은 돌려주고 싶지 않아요.',{morality:-4},'complicity')
   ]},
   {title:'내부 비리 제보',min:42,scene:'event-yujin-night-call.png',desc:'빗소리가 큰 비상계단에서 유진이 동료의 증거 조작 정황을 털어놓습니다. 제보하면 조직에서 고립될 수 있고, 덮으면 승진은 지킬 수 있습니다. 공식 기록에 남기기 전 유진이 처음 건 전화는 감찰실이 아니라 당신에게였습니다.',speaker:'정의로운 척하고 싶어서가 아니에요. 내가 침묵하면 피해자는 평생 자기 말을 의심하게 될 거예요. 그런데 혼자 들어가기는… 조금 무서워요.',choices:[
    C('depend','통화가 끝날 때까지 곁에 있겠다며 모든 결정을 함께 하자고 한다','유진은 원칙보다 당신의 존재에 기대어 제보를 시작한다',12,10,7,'neutral','끊지 마요. 당신 목소리가 들리면 내가 틀리지 않았다는 생각이 드니까.',{morality:4},'depend'),
    C('boundary','증거를 복사하고 정식 감찰 절차와 보호 요청을 준비한다','유진의 판단을 존중하며 현실적인 안전망을 만든다',11,15,-5,'good','무작정 나서라고 하지 않고 살아남을 방법까지 찾아줘서 고마워요.',{morality:6},'boundary'),
    C('complicity','내 인맥으로 조작한 동료부터 조용히 밀어내겠다고 한다','비리를 다른 비공식 권력으로 덮는다',5,-6,13,'bad','싫다고 해야 하는데… 당신이 내 편을 드는 방식이 왜 이렇게 안심되는지 모르겠어요.',{morality:-7,guilt:3},'complicity')
   ]},
-  {title:'사진 뒷면의 이름',min:54,scene:'event-yujin-night-3.png',desc:'압수한 사진 더미 한가운데 당신의 최근 동선이 찍힌 사진이 섞여 있었습니다. 유진은 증거 봉투에 넣기 전 사진 뒷면에 발견 시각과 자기 이름을 적습니다. 사건 때문이라기에는 손에 쥔 시간이 너무 깁니다.',speaker:'누가 당신을 보고 있었다는 게 화나는 건지, 내가 먼저 발견하지 못했다는 게 화나는 건지 구분이 안 돼요.',choices:[
+  {title:'사진 뒷면의 이름',min:54,scene:'event-yujin-night-3.png',desc:'연인이 된 뒤 처음 맡은 새 사건에서, 압수 사진 사이에 당신의 최근 동선이 찍힌 사진이 나왔습니다. 유진은 신고보다 먼저 당신에게 전화했고, 증거 봉투 뒷면에는 발견 시각보다 “내가 먼저 알았어야 했다”는 문장이 진하게 남았습니다.',speaker:'친구였을 때도 지나쳤는데, 연인이 되고 나니 더 먼저 알아야 한다고 생각했어요. 누가 당신을 본 것보다 내가 놓쳤다는 사실이 더 화나는 게… 정상은 아니죠.',choices:[
    C('depend','다음부터는 유진이 먼저 찾아내 달라고 부탁한다','위험을 막는 일과 당신을 지켜보는 일을 같은 권한으로 건넨다',13,8,11,'neutral','그러면 숨지 마요. 내가 못 찾는 곳으로 가는 일도 없게 해줘요.',{},'depend'),
    C('boundary','사진은 증거로 넘기고 귀가 후 안부만 주고받기로 한다','불안을 인정하되 일상을 수사 대상으로 만들지 않는다',10,15,-7,'good','확인하고 싶은 충동이 들면 먼저 물을게요. 대답하지 않을 권리도 당신한테 있고요.',{},'boundary'),
    C('complicity','사진 속 장소를 역추적해 둘이 먼저 상대를 잡자고 한다','공식 수사보다 빠른 사적인 추적을 택한다',8,-4,15,'bad','좋아요. 대신 오늘부터 당신 동선은 내가 전부 알아야 해요. 놓치면 계획이 무너지니까.',{morality:-8},'complicity')
   ]},
-  {title:'제복을 정리하는 밤',min:64,scene:'event-yujin-2.png',desc:'감찰 조사를 마친 유진은 텅 빈 탈의실에서 제복을 천천히 벗어 사물함에 겁니다. 늘 누군가를 구하는 경찰이 아니라 징계 결과를 기다리는 한 사람으로 남자, 당신이 자신을 어떻게 볼지 처음으로 두려워합니다.',speaker:'제복을 입고 있으면 적어도 뭘 해야 하는지는 알았어요. 지금은… 당신 앞에서 어떤 얼굴을 해야 하는지도 모르겠네요.',choices:[
+  {title:'제복을 정리하는 밤',min:64,scene:'event-yujin-2.png',desc:'감찰 조사를 마친 유진은 텅 빈 탈의실에서 제복을 벗어 사물함에 겁니다. 늘 구조하는 쪽에 서야만 사랑받을 수 있다고 믿었던 사람은, 오늘만큼은 당신에게 해줄 일이 없습니다. 쓸모가 없는 밤에도 연인으로 남을 수 있는지 처음 묻습니다.',speaker:'제복도 사건도 없으면 내가 당신한테 뭘 해줄 수 있죠? 지켜줄 수 없는 날에도 나를 찾을 거라는 확신이 없어요.',choices:[
    C('depend','오늘만큼은 내가 지킬 테니 아무것도 하지 말고 기대라고 한다','보호받는 쪽에 서는 안도감을 유진에게 알려준다',14,12,10,'neutral','지켜지는 게 이렇게 편하면… 나 자꾸 약해지고 싶어질지도 몰라요.',{},'depend'),
-   C('boundary','제복과 상관없이 만나되 서로의 삶을 대신 살지는 말자고 한다','구원자 역할 밖에서도 남는 애정을 확인한다',12,17,-7,'good','그럼 사건이 없는 날에도 연락할게요. 그냥 보고 싶다는 말부터 연습하면서.',{},'boundary'),
+   C('boundary','해줄 일이 없어도 연인으로 만나면 된다고 말한다','구원자 역할 밖에서도 남는 애정을 확인한다',12,17,-7,'good','그럼 사건이 없는 날에도 연락할게요. 도와줄 일부터 찾지 않고, 그냥 보고 싶다고 말해볼게요.',{},'boundary'),
    C('complicity','경찰이 아니어도 내 세력의 방패가 되면 된다고 한다','공권력 대신 사적인 충성을 새 직업처럼 건넨다',9,-3,16,'bad','경찰이 아니어도 당신을 지킬 수 있다면 됐어요. 대신 이제 내 규칙은 당신 하나예요.',{morality:-8},'complicity')
   ]},
-  {title:'병실의 밤샘',min:74,scene:'event-yujin-14.png',desc:'라이벌의 보복으로 병원에 실려 온 뒤 눈을 뜨자 유진이 침대 옆 의자에서 팔짱을 낀 채 잠들어 있습니다. 비번도 아닌 사람이 밤새 자리를 지켰고, 벽에는 “사건은 잊어도 사람은 잊지 않는다”는 유진의 메모가 붙어 있습니다.',speaker:'깼어요? 다행이다. …보고서에는 순찰 중 확인이라고 썼어요. 사실은 당신이 눈을 뜨기 전에 집에 갈 수가 없었어요.',choices:[
-   C('depend','손을 잡고 다시 잠들 때까지 옆에 있어 달라고 한다','당신이 무너질수록 유진이 머물 이유가 선명해진다',15,10,12,'neutral','자요. 눈 뜨면 또 내가 있을게요. 몇 번이든 확인해도 돼요.',{},'depend'),
+  {title:'병실의 밤샘',min:74,scene:'event-yujin-14.png',desc:'라이벌의 보복으로 병원에 실려 온 뒤 눈을 뜨자 유진이 침대 옆 의자에서 잠들어 있습니다. 근무 교대도 거부하고 밤새 맥박과 문을 번갈아 확인했습니다. 당신이 눈을 뜨고 자기 이름부터 부르자, 지친 얼굴에 죄책감보다 먼저 안도가 번집니다.',speaker:'다쳐서 다행이라는 뜻은 아니에요. 그런데 당신이 약해진 순간 제 이름을 먼저 부른 게… 기뻤어요. 이제는 내가 왜 사람을 구하려 드는지 무서워요.',choices:[
+   C('depend','유진이 없으면 다시 잠들 수 없다고 손을 잡는다','당신이 무너질수록 유진이 머물 이유와 안도감이 선명해진다',15,10,12,'neutral','자요. 눈 뜨면 또 내가 있을게요. 나를 필요로 하는 동안은 절대 비우지 않을게요.',{},'depend'),
    C('boundary','고맙다고 말한 뒤 교대가 끝나면 반드시 쉬러 보내겠다고 한다','돌봄을 받으면서도 유진의 삶까지 소진시키지 않는다',12,17,-8,'good','쫓아내는 말인데 이상하게 안심되네요. 다음에는 쉬고 나서, 내 선택으로 올게요.',{},'boundary'),
    C('complicity','습격자의 병실 위치를 알아내 달라고 낮게 부탁한다','환자와 경찰이 같은 밤에 복수를 준비한다',9,-5,17,'bad','다친 채로 그런 말을 하면 거절할 수 없잖아요. 주소는 내가 알아올게요. 당신은 여기 있어요.',{morality:-10,guilt:4},'complicity')
   ]},
-  {title:'매듭을 고치는 손',min:82,scene:'event-yujin-riverside-date.png',desc:'퇴원 뒤 첫 증언을 앞두고 유진이 구겨진 당신의 넥타이를 직접 고쳐 맵니다. 손은 익숙하게 움직이지만 매듭을 놓지 못한 채, 사건이 끝나면 두 사람이 만날 이유도 사라지는지 묻습니다.',speaker:'이 매듭까지 고치면 내 일은 끝나요. 그런데 난 끝내고 싶지 않아요. 사건 없이도 당신 옆에 있을 명분을 하나만 줘요.',choices:[
-   C('depend','명분 대신 유진 없이는 아직 밖에 나가기 어렵다고 고백한다','회복을 서로가 필요한 이유로 바꾼다',15,10,12,'neutral','서두르지 마요. 혼자 괜찮아질 필요도 없어요. 내가 계속 같이 나가면 되니까.',{},'depend'),
-   C('boundary','증언이 끝난 뒤 사건이 아닌 첫 데이트를 약속한다','보호가 아니라 선택으로 다시 만난다',14,18,-8,'good','그 약속은 기록 안 할게요. 잊지 않으려고 확인할 필요도 없을 것 같아요.',{},'boundary'),
-   C('complicity','공식 진술과 다른 이야기는 둘만의 비밀로 남기자고 한다','사건이 끝나도 공유한 거짓말이 둘을 묶는다',10,-3,16,'bad','그럼 끝나지 않겠네요. 우리가 같은 거짓말을 기억하는 동안은.',{morality:-8},'complicity')
+  {title:'사건 없는 약속',min:82,scene:'event-yujin-riverside-date.png',desc:'연인이 된 뒤에도 만남은 조사, 귀가 확인, 병원처럼 당신이 위험한 날에만 이어졌습니다. 아무 사건도 없는 강변에서 유진은 다음 일정을 적으려다 수첩을 덮습니다. 누군가를 구하지 않는 날에도 사랑하는 법을 배울 수 있는지 묻습니다.',speaker:'당신이 괜찮은 날에는 내가 필요 없어진 것 같아 불안했어요. 연인이라면 위험할 때만 나타나는 사람이 아니라는 걸 아는데도요.',choices:[
+   C('depend','평온한 날에도 유진이 먼저 일정을 정해 달라고 한다','보호를 매일의 선택권까지 넓혀 서로가 필요한 이유를 유지한다',15,10,12,'neutral','그럼 내가 정할게요. 아픈 날도 괜찮은 날도, 당신 일정에 내가 빠지지 않게.',{},'depend'),
+   C('boundary','오늘은 아무도 구하지 말고 연인으로만 걷자고 한다','보호가 아니라 선택으로 함께 있는 법을 연습한다',14,18,-8,'good','좋아요. 오늘은 확인 질문도 기록도 없이 걸을게요. 그냥 당신 옆이 좋아서.',{},'boundary'),
+   C('complicity','사건이 없는 날에도 둘만의 비공식 보고를 계속하자고 한다','연애와 사적 감시를 하나의 생활 습관으로 묶는다',10,-3,16,'bad','그럼 매일 보고할 이유가 생기네요. 연인이라서인지 담당이라서인지 구분하지 않아도 되고요.',{morality:-8},'complicity')
   ]},
   {title:'기대도 되는 사람',min:88,scene:'event-yujin-5135.png',desc:'당신이 세력과 과거 이야기를 한꺼번에 털어놓다 말을 잇지 못하자 유진은 해결책부터 말하지 않고 품에 안습니다. 자신에게 완전히 기대는 순간을 기다려 온 안도와, 그걸 기뻐하는 자신에 대한 죄책감이 동시에 얼굴에 드러납니다.',speaker:'처음에는 시민을 지키는 일이라고 생각했어요. 그런데 당신이 나를 필요로 할 때마다… 내가 여기 있어야 할 이유가 생기는 게 좋았어요.',choices:[
    C('depend','유진이 필요하다는 말을 숨기지 않고 더 꽉 안는다','서로 번갈아 무너져도 놓지 않는 강한 의존을 받아들인다',17,12,15,'neutral','그 말 다시 해줘요. 내가 필요하다고. 오늘은 그게 잘못이어도 놓치고 싶지 않아요.',{},'depend'),
@@ -232,13 +232,20 @@ function get(personOrName){
  const name=typeof personOrName==='string'?personOrName:personOrName&&personOrName.name;
  const a=ARCS[name];if(!a)return null;const authored=authoredFor(personOrName);
  const titles=a.slice(0,3),chapterCount=authored?authored.length:3;
- return{name,theme:a[3],chapters:Array.from({length:chapterCount},(_,i)=>{
+ const variant=personOrName&&personOrName.childhoodFriend?'childhood':'adult';
+ const relationshipStart=relationshipStartIndex(name,chapterCount,variant);
+ const romancePath=personOrName&&personOrName.story&&personOrName.story.romancePath;
+ return{name,theme:a[3],relationshipStart,chapters:Array.from({length:chapterCount},(_,i)=>{
   const scene=authored&&authored[i],title=(scene&&scene.title)||titles[i]||`${i+1}장`;
-   return{index:i,title,min:scene&&scene.min!=null?scene.min:(MIN[i]||Math.min(96,68+(i-2)*10)),scene:scene&&scene.scene,
-   desc:scene&&scene.desc||[`‘${title}’에서 ${name}이(가) 남들에게 감춰온 사정을 처음 이야기합니다. ${a[3]} 아직은 해결보다 당신의 반응이 더 중요한 순간입니다.`,`‘${title}’가 현실의 문제로 번졌습니다. 첫 장에서 보여준 태도를 ${name}도 기억하고 있습니다. ${a[3]} 이번 선택은 말이 아니라 행동으로 남습니다.`,`‘${title}’ 앞에서 두 사람은 더는 결정을 미룰 수 없습니다. 지난 선택들이 만든 신뢰와 거리 위에서 ${a[3]} 어떤 관계로 남을지 정해야 합니다.`][i],
-   speaker:scene&&scene.speaker||['이 얘기를 누구에게 해야 할지 오래 망설였어요. 당신이라면 끝까지 들어줄 것 같았어요.','전에 했던 말, 아직 기억해요? 이번에는 말로만 끝나지 않을 것 같아요.','좋은 말 말고 솔직한 답을 듣고 싶어요. 우리는 앞으로 어떤 사이예요?'][i],
-   choices:scene&&scene.choices||baseChoices(i)};
- }),variant:personOrName&&personOrName.childhoodFriend?'childhood':'adult'};
+   const requiresRelationship=relationshipStart!=null&&i>=relationshipStart;
+   const phase=i===chapterCount-1&&requiresRelationship?'finale':requiresRelationship?(romancePath==='group'?'group':romancePath==='platonic'?'platonic':'lover'):'friend';
+   return{index:i,title,min:scene&&scene.min!=null?scene.min:(MIN[i]||Math.min(96,68+(i-2)*10)),scene:scene&&scene.scene,phase,requiresRelationship,
+   desc:pathCopy(scene&&scene.desc||[`‘${title}’에서 ${name}이(가) 남들에게 감춰온 사정을 처음 이야기합니다. ${a[3]} 아직은 해결보다 당신의 반응이 더 중요한 순간입니다.`,`‘${title}’가 현실의 문제로 번졌습니다. 첫 장에서 보여준 태도를 ${name}도 기억하고 있습니다. ${a[3]} 이번 선택은 말이 아니라 행동으로 남습니다.`,`‘${title}’ 앞에서 두 사람은 더는 결정을 미룰 수 없습니다. 지난 선택들이 만든 신뢰와 거리 위에서 ${a[3]} 어떤 관계로 남을지 정해야 합니다.`][i],requiresRelationship?romancePath:null),
+   speaker:pathCopy(scene&&scene.speaker||['이 얘기를 누구에게 해야 할지 오래 망설였어요. 당신이라면 끝까지 들어줄 것 같았어요.','전에 했던 말, 아직 기억해요? 이번에는 말로만 끝나지 않을 것 같아요.','좋은 말 말고 솔직한 답을 듣고 싶어요. 우리는 앞으로 어떤 사이예요?'][i],requiresRelationship?romancePath:null),
+   choices:(scene&&scene.choices||baseChoices(i)).map(choice=>requiresRelationship&&romancePath&&romancePath!=='pure'
+    ?{...choice,text:pathCopy(choice.text,romancePath),preview:pathCopy(choice.preview,romancePath),reaction:pathCopy(choice.reaction,romancePath)}
+    :choice)};
+ }),variant};
 }
 function ensure(rec){if(!rec.story)rec.story={chapter:0,completed:false,history:[],traits:{}};if(!Array.isArray(rec.story.history))rec.story.history=[];if(!rec.story.traits||typeof rec.story.traits!=='object')rec.story.traits={};const variant=rec.childhoodFriend?'childhood':'adult';if(rec.story.variant&&rec.story.variant!==variant&&(rec.story.chapter||0)===0){rec.story.history=[];rec.story.traits={};rec.story.completed=false;rec.story.ending=null;}rec.story.variant=variant;const expanded=(authoredFor(rec)||[]).length;if(rec.story.completed&&expanded>(rec.story.chapter||0)){rec.story.completed=false;rec.story.ending=null;rec.story.offeredChapter=Math.min(rec.story.offeredChapter==null?-1:rec.story.offeredChapter,(rec.story.chapter||0)-1);}return rec.story;}
 const DANGEROUS_ENTRY_EVENTS={'강유진':'yujin_warning','한채린':'chaerin_warning','윤세라':'sera_warning'};
@@ -248,7 +255,85 @@ function dangerousEntryReady(rec){
  if(rec.dangerEvents&&rec.dangerEvents[eventId]==='seen')return true;
  return !!(rec.dangerAwakened||rec.spentNight||['casual','partner','lover','polycule'].includes(rec.status));
 }
-function next(rec){const s=get(rec),state=ensure(rec);if(!s||state.completed||!dangerousEntryReady(rec))return null;const ch=s.chapters[state.chapter];return ch&&(rec.affection||0)>=ch.min?ch:null;}
+const RELATIONSHIP_START={'강유진':3,'윤세라':3,'한채린':4};
+const ROMANCE_BRANCH_SCENES={
+ '강유진':{
+  title:'사건이 끝난 뒤에도 부를 이름',
+  desc:'내부 비리 제보를 넘긴 뒤에도 유진은 전화를 끊지 않습니다. 경찰이라서 자신을 찾는 것과 강유진이라서 찾는 것은 다르다고, 이번에는 기록에 남길 수 없는 답을 요구합니다.',
+  speaker:'다른 두 사람도 당신을 자기 방식으로 지키고 있다는 걸 알아요. 그래도 지금 여기서… 나만 택할 건지, 셋 모두에게 솔직해질 건지 듣고 싶어요.',
+  pure:'유진 한 사람에게만 사건 없는 날에도 곁에 있어 달라고 한다',
+  group:'누구도 몰래 연인으로 만들지 않고 세 사람 모두와 답을 찾겠다고 한다',
+  defer:'지금은 친구의 신뢰를 깨지 않도록 대답을 미룬다'
+ },
+ '한채린':{
+  title:'계약서에 없는 단 하나의 자리',
+  desc:'화해를 끝낸 채린은 빈 계약서 세 장을 테이블에 놓습니다. 돈도 직함도 적히지 않은 종이 앞에서, 자신만 독점할지 세 사람 모두가 동의할 규칙을 만들지 선택하라고 합니다.',
+  speaker:'애매한 호의가 제일 값싸 보여. 나 하나를 고르면 지금 말해. 셋을 원한다면 더 어렵게, 누구도 속이지 않는 조건부터 가져와.',
+  pure:'채린만을 선택하고 둘만의 관계에 이름을 붙인다',
+  group:'세 사람 누구도 숨기지 않는 공동 합의부터 만들겠다고 한다',
+  defer:'감정을 계약처럼 밀어붙이지 말자며 친구로 시간을 더 갖는다'
+ },
+ '윤세라':{
+  title:'세 개의 열쇠와 열어 둔 문',
+  desc:'잠긴 작업실에서 나온 세라는 복사하지 않은 열쇠 세 개를 손바닥에 올립니다. 하나만 건네면 둘만의 집이 되고, 모두에게 보여주면 누구도 몰래 잠그지 않는 약속이 됩니다.',
+  speaker:'저만 고르면 문을 잠가도 되는 줄 착각할 것 같아요. 세 사람 모두라면… 싫어도 같이 규칙을 배워야겠죠. 어느 쪽으로 돌아올 거예요?',
+  pure:'세라의 열쇠 하나만 받아 둘만의 귀가 약속을 정한다',
+  group:'열쇠를 나누기 전에 세 사람 모두와 공개적으로 합의한다',
+  defer:'열쇠를 돌려주고 오늘은 친구로서 문을 열어 둔다'
+ }
+};
+const COMMITTED_STATUSES=new Set(['partner','lover','polycule']);
+function relationshipStartIndex(name,chapterCount,variant){
+ if(RELATIONSHIP_START[name]!=null)return RELATIONSHIP_START[name];
+ if(variant==='childhood'||WORLD_ARCS[name])return null;
+ return chapterCount>=3?chapterCount-1:null;
+}
+function committed(rec){return !!(rec&&COMMITTED_STATUSES.has(rec.status));}
+function relationshipReady(rec,story,state){
+ if(story&&state&&RELATIONSHIP_START[rec.name]!=null)return ['pure','group','platonic'].includes(state.romancePath);
+ return committed(rec);
+}
+function phaseLabel(phase){
+ return phase==='friend'?'🌱 친구 시기':phase==='group'?'💗 함께 답을 찾는 시기':phase==='platonic'?'🤝 친구로 남은 뒤':phase==='lover'?'💕 연인 시기':'📕 관계 완결';
+}
+function pathCopy(text,path){
+ if(!text||path==='pure'||!path)return text;
+ if(path==='group')return text
+  .replaceAll('연인이 된 뒤','서로의 마음을 숨기지 않기로 한 뒤')
+  .replaceAll('연인이 되고 나니','서로의 마음을 확인하고 나니')
+  .replaceAll('연인이라는','마음을 확인했다는')
+  .replaceAll('연인으로서','특별한 사람으로서')
+  .replaceAll('연인으로','특별한 사람으로')
+  .replaceAll('연인이자','마음을 나눈 사이이자')
+  .replaceAll('연인이','마음을 나눈 두 사람이')
+  .replaceAll('연인 관계','서로의 마음을 아는 관계')
+  .replaceAll('연인','마음을 나눈 사이');
+ return text
+  .replaceAll('연인이 된 뒤','친구로 남기로 한 뒤')
+  .replaceAll('연인이 되고 나니','친구로 선을 정하고 나니')
+  .replaceAll('연인이라는','오래 곁에 남을 친구라는')
+  .replaceAll('연인으로서','가까운 친구로서')
+  .replaceAll('연인으로','가까운 친구로')
+  .replaceAll('연인이자','친구이자')
+  .replaceAll('연인이','두 친구가')
+  .replaceAll('연인 관계','깊은 우정')
+  .replaceAll('연인','친구');
+}
+function availability(rec){
+ const story=get(rec),state=ensure(rec);
+ if(!story)return{ready:false,reason:'missing',story:null,state};
+ if(state.completed){
+  if(story.relationshipStart!=null&&!relationshipReady(rec,story,state))return{ready:false,reason:'relationship-complete',story,state};
+  return{ready:false,reason:'completed',story,state};
+ }
+ if(!dangerousEntryReady(rec))return{ready:false,reason:'danger-entry',story,state,chapter:story.chapters[state.chapter]};
+ const chapter=story.chapters[state.chapter];
+ if(!chapter)return{ready:false,reason:'missing-chapter',story,state};
+ if(chapter.requiresRelationship&&!relationshipReady(rec,story,state))return{ready:false,reason:ROMANCE_BRANCH_SCENES[rec.name]?'romance-branch':'relationship',story,state,chapter};
+ if((rec.affection||0)<chapter.min)return{ready:false,reason:'affection',story,state,chapter};
+ return{ready:true,reason:null,story,state,chapter};
+}
+function next(rec){const gate=availability(rec);return gate.ready?gate.chapter:null;}
 function context(rec,ch){const state=ensure(rec),prev=state.history[state.history.length-1];if(!prev)return'이번 장면이 두 사람의 첫 번째 갈림길입니다.';const labels={support:'그때 당신은 곁에 남아 함께 결정했습니다.',lead:'그때 당신은 문제를 대신 결정했습니다.',avoid:'그때 당신은 관계에서 한걸음 물러났습니다.',depend:'그때 당신은 혼자 버티지 않고 상대에게 매달렸습니다.',boundary:'그때 당신은 도움과 통제의 선을 분명히 했습니다.',complicity:'그때 당신은 원칙보다 서로를 먼저 택했습니다.',command:'그때 당신은 상대의 권력 앞에서도 거칠게 명령했습니다.',equal:'그때 당신은 힘겨루기 대신 같은 자리를 골랐습니다.',conspire:'그때 당신은 상대의 어두운 권력과 손을 잡았습니다.',anchor:'그때 당신은 기다림에 끝이 있는 약속을 만들었습니다.',fuse:'그때 당신은 여러 사람의 감시와 보호를 하나로 묶었습니다.',sever:'그때 당신은 관계를 끊어 불안을 끝내려 했습니다.'};return`${labels[prev.choice]||'이전 선택의 결과가 아직 두 사람 사이에 남아 있습니다.'} ${ch.index+1}장은 그 기억에서 이어집니다.`;}
 function withJosa(name,batchim,plain){const code=(name.charCodeAt(name.length-1)||0)-0xac00;return`${name}${code>=0&&code<=11171&&code%28?batchim:plain}`;}
 function endingFor(name,state){
@@ -259,18 +344,18 @@ function endingFor(name,state){
   return{route:'old_promise',title:`${name} · 다시 만나는 소꿉친구`,text:'서로의 흑역사와 약점을 알면서도 지금의 모습을 새로 묻기로 했습니다. 오래 알았다는 사실은 권리가 아니라 다시 믿어볼 이유가 됐습니다.'};
  }
  if(name==='강유진'){
-  if((traits.depend||0)>=4)return{route:'dangerous_dependence',title:'강유진 · 필요해지는 사람',text:'당신이 무너질 때마다 유진을 먼저 불렀고, 유진은 당신이 혼자 설 수 없도록 보호를 일상으로 만들었습니다. 다정한 구조와 의존의 경계가 흐려진 관계입니다.'};
-  if((traits.complicity||0)>=4)return{route:'accomplice',title:'강유진 · 제복 안의 공범',text:'법과 보호를 서로의 편의를 위해 비틀었습니다. 유진은 당신을 지키기 위해 자신이 지키던 선까지 함께 넘었습니다.'};
-  return{route:'equal',title:'강유진 · 불러주는 사람',text:'감시가 아니라 요청을 기다리는 법을 배웠습니다. 위기에는 가장 먼저 달려오되, 평온한 날에는 문 밖에서 기다리는 관계입니다.'};
+  if((traits.depend||0)>=4)return{route:'dangerous_dependence',title:'강유진 · 필요해지는 연인',text:'연인이 된 뒤 당신은 무너질 때마다 유진을 먼저 불렀고, 유진은 그 순간마다 자신이 필요하다는 안도에 더 깊이 빠졌습니다. 사랑은 이어지지만 당신의 회복이 곧 유진의 불안이 되는 위험한 의존 관계입니다.'};
+  if((traits.complicity||0)>=4)return{route:'accomplice',title:'강유진 · 제복 안의 연인',text:'두 사람은 연인이자 공범으로 법과 보호의 선을 함께 비틀었습니다. 유진은 당신을 구한다는 명분으로 자신의 원칙을 넘고, 당신은 그 일탈을 둘만의 결속으로 받아들였습니다.'};
+  return{route:'equal',title:'강유진 · 불러주는 연인',text:'두 사람은 사건이 없어도 만나는 연인이 됐습니다. 유진은 감시보다 요청을 기다리는 법을 배우고, 당신이 혼자 설 수 있는 날에도 버려진 것이 아니라는 사실을 믿기 시작했습니다.'};
  }
  if(name==='한채린'){
-  if((traits.command||0)>=5)return{route:'private_submission',title:'한채린 · 왕관을 내려놓는 방',text:'세상 모두가 떠받드는 채린에게 당신만은 비위를 맞추지 않았습니다. 두 사람은 위험한 시험을 반복하는 대신 동의와 중단의 선을 정했고, 채린은 오직 둘만 있는 곳에서 직함을 내려놓습니다.'};
-  if((traits.conspire||0)>=5)return{route:'boardroom_pair',title:'한채린 · 같은 테이블의 포식자',text:'서로의 약점을 쥔 채 같은 편이 됐습니다. 사랑과 거래의 경계는 흐리지만 누구도 상대를 값만으로 계산하지 못합니다.'};
-  return{route:'equal',title:'한채린 · 값을 매기지 않은 자리',text:'복종도 소유도 아닌 대등한 자리를 만들었습니다. 채린은 여전히 시험하지만, 당신의 대답을 돈으로 사지는 않습니다.'};
+  if((traits.command||0)>=5)return{route:'private_submission',title:'한채린 · 왕관을 내려놓는 연인',text:'연인이 된 뒤 두 사람은 위험한 시험을 반복하는 대신 동의와 중단의 선을 정했습니다. 세상 모두가 떠받드는 채린은 둘만 있는 곳에서만 직함을 내려놓되, 자기 삶의 결정권까지 잃지는 않습니다.'};
+  if((traits.conspire||0)>=5)return{route:'boardroom_pair',title:'한채린 · 같은 테이블의 연인',text:'두 사람은 서로의 약점을 쥔 연인이자 사업 동맹이 됐습니다. 사랑과 거래의 경계는 흐리지만 누구도 상대를 값만으로 계산하지 못합니다.'};
+  return{route:'equal',title:'한채린 · 값을 매기지 않은 연인',text:'두 사람은 복종도 소유도 아닌 대등한 연인 관계를 만들었습니다. 채린은 여전히 시험하고 도발하지만, 당신이 남는 이유를 돈이나 명령으로 사지는 않습니다.'};
  }
  if(name==='윤세라'){
-  if((traits.fuse||0)>=5)return{route:'mutual_captivity',title:'윤세라 · 서로 잠근 문',text:'세라가 당신을 가둔 것도, 당신이 세라를 붙든 것도 아닙니다. 두 사람은 바깥이 두려워 서로의 열쇠를 안쪽에 내려놓았습니다. 구원과 감금이 같은 모양이 된 다크 엔딩입니다.'};
-  if((traits.anchor||0)>=5)return{route:'mutual_salvation',title:'윤세라 · 문을 열어두는 사람',text:'세라는 당신이 돌아올 시간을 믿는 법을 배웠고, 당신은 세라가 기다리는 집을 핑계 삼아 다시 바깥으로 나가는 법을 배웠습니다. 어느 한쪽만 구한 사람이 없는 상호구원 순애입니다.'};
+  if((traits.fuse||0)>=5)return{route:'mutual_captivity',title:'윤세라 · 서로 잠근 연인',text:'연인이 된 두 사람은 바깥이 두려워 서로의 열쇠를 안쪽에 내려놓았습니다. 어느 한쪽이 일방적으로 가둔 것이 아니라 함께 출구를 포기한, 구원과 감금이 같은 모양의 다크 엔딩입니다.'};
+  if((traits.anchor||0)>=5)return{route:'mutual_salvation',title:'윤세라 · 문을 열어두는 연인',text:'연인이 된 세라는 당신이 돌아올 시간을 믿는 법을 배웠고, 당신은 세라가 기다리는 집을 핑계 삼아 다시 바깥으로 나가는 법을 배웠습니다. 어느 한쪽만 구한 사람이 없는 상호구원 순애입니다.'};
   if((traits.fuse||0)>=3)return{route:'shared_cage',title:'윤세라 · 문이 필요 없는 방',text:'열쇠보다 확실한 습관과 사람들로 서로를 묶었습니다. 문은 열려 있지만 세라는 당신이 떠날 가능성 자체를 생활에서 지워버렸습니다.'};
   if((traits.anchor||0)>=3)return{route:'anchored',title:'윤세라 · 돌아올 시간을 아는 사람',text:'세라는 불안을 숨기지 않고 기다릴 시간을 말하는 법을 배웠습니다. 위험은 사라지지 않았지만 약속을 확인하는 방식은 달라졌습니다.'};
   return{route:'distance',title:'윤세라 · 열어둔 문 너머',text:'당신은 세라를 혼자 구원할 수 없음을 인정했습니다. 세라는 따라가지 않겠다는 약속을 하루씩 지키기 시작합니다.'};
@@ -280,6 +365,17 @@ function endingFor(name,state){
  if(count.lead>=2)return{route:'control',title:`${withJosa(name,'과','와')} 기울어진 관계`,text:'위기마다 한 사람이 결정을 독점했습니다. 관계는 이어지지만 애정과 통제의 경계가 오래 흔들립니다.'};
  return{route:'distance',title:`${withJosa(name,'과','와')} 남은 거리`,text:'중요한 순간마다 거리를 두었습니다. 서로를 미워하지는 않지만, 깊어질 수 있었던 관계는 조심스러운 기억으로 남습니다.'};
 }
-function apply(rec,choiceId){const s=get(rec),state=ensure(rec),ch=s&&s.chapters[state.chapter];if(!ch)return null;const c=ch.choices.find(x=>x.id===choiceId);if(!c)return null;rec.affection=Math.max(0,Math.min(100,(rec.affection||0)+c.affection));rec.trust=Math.max(0,Math.min(100,(rec.trust||0)+c.trust));if(rec.name==='윤세라'){rec.obsession=Math.max(0,Math.min(100,(rec.obsession||0)+c.obsession));if(c.trait==='anchor')rec.mutualSalvation=(rec.mutualSalvation||0)+1;if(c.trait==='fuse')rec.mutualObsession=(rec.mutualObsession||0)+1;if(c.trait==='sever')rec.seraRupture=(rec.seraRupture||0)+1;}else if(['강유진','한채린'].includes(rec.name))rec.dangerLevel=Math.max(0,Math.min(100,(rec.dangerLevel||0)+c.obsession));else{rec.obsession=0;rec.obsessionGrowth=0;}if(c.trait)state.traits[c.trait]=(state.traits[c.trait]||0)+1;state.history.push({chapter:state.chapter,title:ch.title,choice:choiceId,trait:c.trait||null});state.chapter++;state.completed=state.chapter>=s.chapters.length;if(state.completed){state.ending=endingFor(rec.name,state);if(rec.name==='윤세라'){rec.seraEndingRoute=state.ending.route;if(state.ending.route==='mutual_captivity'){rec.mutualCaptivityReady=true;rec.hasHomeKey=true;}}else if(rec.name==='강유진')rec.yujinEndingRoute=state.ending.route;else if(rec.name==='한채린')rec.chaerinEndingRoute=state.ending.route;}return{story:s,chapter:ch,choice:c,completed:state.completed,ending:state.ending||null};}
-root.QT_CHARACTER_STORIES={ARCS,WORLD_ARCS,SPECIAL,DANGEROUS_ENTRY_EVENTS,get,ensure,dangerousEntryReady,next,context,apply};
+function chooseRomancePath(rec,path){
+ if(!rec||!ROMANCE_BRANCH_SCENES[rec.name]||!['pure','group','platonic'].includes(path))return null;
+ const state=ensure(rec);
+ state.romancePath=path;state.branchPending=false;
+ state.history.push({chapter:state.chapter,choice:`romance:${path}`,phase:'branch'});
+ return state;
+}
+function adaptEnding(ending,state){
+ if(!ending||!state||state.romancePath==='pure')return ending;
+ return{...ending,title:pathCopy(ending.title,state.romancePath),text:pathCopy(ending.text,state.romancePath)};
+}
+function apply(rec,choiceId){const gate=availability(rec);if(!gate.ready)return null;const s=gate.story,state=gate.state,ch=gate.chapter;const c=ch.choices.find(x=>x.id===choiceId);if(!c)return null;rec.affection=Math.max(0,Math.min(100,(rec.affection||0)+c.affection));rec.trust=Math.max(0,Math.min(100,(rec.trust||0)+c.trust));if(rec.name==='윤세라'){rec.obsession=Math.max(0,Math.min(100,(rec.obsession||0)+c.obsession));if(c.trait==='anchor')rec.mutualSalvation=(rec.mutualSalvation||0)+1;if(c.trait==='fuse')rec.mutualObsession=(rec.mutualObsession||0)+1;if(c.trait==='sever')rec.seraRupture=(rec.seraRupture||0)+1;}else if(['강유진','한채린'].includes(rec.name))rec.dangerLevel=Math.max(0,Math.min(100,(rec.dangerLevel||0)+c.obsession));else{rec.obsession=0;rec.obsessionGrowth=0;}if(c.trait)state.traits[c.trait]=(state.traits[c.trait]||0)+1;state.history.push({chapter:state.chapter,title:ch.title,choice:choiceId,trait:c.trait||null,phase:ch.phase});state.chapter++;if(s.relationshipStart!=null&&state.chapter===s.relationshipStart&&!state.romancePath)state.branchPending=true;state.completed=state.chapter>=s.chapters.length;if(state.completed){state.ending=adaptEnding(endingFor(rec.name,state),state);if(rec.name==='윤세라'){rec.seraEndingRoute=state.ending.route;if(state.ending.route==='mutual_captivity'){rec.mutualCaptivityReady=true;rec.hasHomeKey=true;}}else if(rec.name==='강유진')rec.yujinEndingRoute=state.ending.route;else if(rec.name==='한채린')rec.chaerinEndingRoute=state.ending.route;}return{story:s,chapter:ch,choice:c,completed:state.completed,ending:state.ending||null,branchPending:!!state.branchPending};}
+root.QT_CHARACTER_STORIES={ARCS,WORLD_ARCS,SPECIAL,DANGEROUS_ENTRY_EVENTS,RELATIONSHIP_START,ROMANCE_BRANCH_SCENES,get,ensure,dangerousEntryReady,relationshipStartIndex,committed,relationshipReady,phaseLabel,pathCopy,availability,next,context,chooseRomancePath,apply};
 })(window);

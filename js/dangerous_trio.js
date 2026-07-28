@@ -153,19 +153,71 @@ const CHAPTERS=[
  },
  {
   title:'네 번째 열쇠가 놓인 방',icon:'🌅',scene:'./assets/event-trio-meeting-3.png',
-  desc:'세 사람이 각자 넓고 안전한 집을 제안하지만, 결정은 당신 몫입니다. 유진은 비상연락표를, 채린은 새 집 계약서를, 세라는 복사한 열쇠를 꺼내 놓고 당신의 답을 기다립니다. 좁은 자취방에 셋을 들일지, 누구의 방식에 맞출지, 아니면 여기서 관계를 끝낼지 — 서로의 권한과 퇴로를 인정하지 못하면 공동생활은 시작되기도 전에 감금이나 쟁탈전으로 무너집니다.',
+   desc:'세 사람은 각자 더 넓고 안전한 집을 준비했지만, 누구의 집으로 들어가도 그 사람에게 열쇠와 생활의 주도권이 쏠린다는 사실을 인정합니다. 긴 말다툼 끝에 유진·채린·세라는 누구의 소유도 아닌 기존 자취방을 공동생활의 중립 거점으로 남겨 달라고 먼저 요청했습니다. 이 요청을 받아들이는 동안에는 네 사람 중 누구도 단독으로 이사를 결정하지 않으며, 관계를 끝낼 때만 거점 합의도 함께 해제됩니다.',
   speakers:[
    {name:'강유진',line:'나가도 돼요. 위험하면 가장 먼저 나를 부른다는 약속만 해요.'},
-   {name:'한채린',line:'집도 생활비도 내가 다 바꿔 줄 수 있어. 그래도 이 좁은 방을 고집할 거면, 적어도 내 돈은 받지 마.'},
-   {name:'윤세라',line:'문은 열어 둘게요. 대신 돌아온다는 말은 세 사람한테 전부 해줘요.'}
+    {name:'한채린',line:'내 집으로 가면 결국 내가 주인이 되겠지. 그건 싫어. 여기 그대로 살아. 대신 생활비로 소유권을 사려는 짓도 안 할게.'},
+    {name:'윤세라',line:'여기는 누구의 집도 아니어서 좋아요. 이사를 생각하면 우리 셋한테 먼저 말해 주세요. 세 사람 모두 놓아줄 때만 옮겨요.'}
   ],
   choices:[
-   {id:'badfriends',tag:'balance',text:'채린의 돈은 거절하고, 유진의 절차와 세라의 정보만 각자의 자리에서 돕게 한다',preview:'누구도 주인이 되지 않는 악우 공동생활',stability:18,trust:8,result:'당신은 채린의 새 집과 생활비를 정중히 돌려보냈습니다. 유진은 조직 밖에서 법과 절차를 맡고, 세라만 정보원으로 세력에 들어왔습니다. 세 사람은 불만을 쏟아내면서도 처음으로 서로의 자리를 침범하지 않았습니다.'},
+    {id:'badfriends',tag:'balance',text:'세 사람의 중립 거점 요청을 받아들이고 누구도 단독으로 집을 바꾸지 않기로 합의한다',preview:'세 사람의 요청으로 유지되는 악우 공동생활 거점',stability:18,trust:8,result:'당신은 세 사람이 먼저 내민 중립 거점 합의에 서명했습니다. 채린은 새 집과 생활비 제안을 거두고, 유진은 조직 밖에서 법과 절차를 맡으며, 세라만 정보원으로 세력에 들어왔습니다. 자취방을 고정한 것은 플레이어의 고집이 아니라 세 사람이 서로에게 요구한 안전장치가 됐습니다.'},
    {id:'goldencage',tag:'containment',text:'열쇠와 계좌와 일정을 세 사람에게 전부 맡긴다',preview:'공동생활이 아니라 세 겹의 감금이 된다',stability:-18,obsession:15,result:'합의할 규칙이 사라지자 세 사람은 당신을 지키는 방식만 놓고 충돌했습니다. 문은 열려 있었지만 누구의 허락으로 나가야 하는지조차 정할 수 없었습니다.'},
    {id:'chooseone',tag:'fracture',text:'오늘 여기서 한 사람만 선택하겠다고 선언한다',preview:'공동생활을 깨고 마지막 쟁탈전을 시작한다',stability:-25,obsession:10,result:'세 사람은 당신의 선택을 기다리지 않았습니다. 각자가 가진 권력과 기록과 기억으로, 나머지 둘을 먼저 밀어내기 시작했습니다.'}
   ]
  }
 ];
+function pureChapters(life){
+ const path=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.path(life,'dangerous');
+ const chosen=path&&path.name||'선택한 사람',friends=NAMES.filter(name=>name!==chosen);
+ return[
+  {
+   title:'한 사람을 고른 뒤의 첫 회의',icon:'💍',scene:'./assets/event-trio-647.png',
+   desc:`${chosen}과의 연애를 숨기지 않고 ${friends.join('과 ')}에게 직접 알렸습니다. 두 사람은 선택받지 못한 경쟁자처럼 남는 대신, 각자의 개인사를 끝까지 함께 정리한 친구로서 같은 자리에 앉았습니다.`,
+   speakers:[
+    {name:chosen,line:'우리 관계를 숨겨서 두 사람을 더 우습게 만들고 싶진 않아요. 연애와 동맹의 선은 여기서 분명히 해요.'},
+    {name:friends[0],line:'기분이 좋을 리는 없지. 그래도 네 선택을 뒤집으려고 도운 건 아니야.'},
+    {name:friends[1],line:'친구로 남는다고 마음까지 없던 일이 되진 않아요. 대신 몰래 문을 잠그지는 않을게요.'}
+   ],
+   choices:[
+    {id:'declare_boundaries',tag:'balance',text:'연인은 한 명이지만 세 사람 모두의 거절권과 비밀을 지키겠다고 한다',preview:'순애와 우정을 공개된 규칙으로 분리한다',stability:14,trust:7,result:'누구도 만족한 척하지 않았지만 관계를 숨기거나 시험하지 않겠다는 첫 규칙에는 모두 동의했습니다.'},
+    {id:'ask_silence',tag:'containment',text:'밖에서는 셋 모두와 애매한 사이인 척해 달라고 한다',preview:'순애를 지키기 위해 다시 비밀을 만든다',stability:-7,obsession:7,result:'선택한 연인은 불안해했고 두 친구는 자신들이 체면을 위한 가림막이 됐다고 느꼈습니다.'},
+    {id:'compare_feelings',tag:'fracture',text:'누가 더 오래 좋아했는지 지금 따져 보자고 한다',preview:'정리된 감정을 다시 경쟁으로 돌린다',stability:-12,obsession:9,result:'연애의 확정은 끝이 아니라 새 점수표가 됐고, 세 사람은 과거의 장면을 증거처럼 꺼내기 시작했습니다.'}
+   ]
+  },
+  {
+   title:'연인 한 명과 친구 둘의 공동작전',icon:'🦂',scene:'./assets/event-trio-emergency.png',
+   desc:'당신을 공격한 세력의 장부가 발견되자 세 사람은 다시 모였습니다. 선택한 연인의 보호는 사적인 약속으로, 두 친구의 도움은 빚이나 미련이 아닌 각자의 판단으로 분리해야 합니다.',
+   speakers:[
+    {name:'강유진',line:'연인 여부와 증거 절차는 별개예요. 내가 맡은 선을 넘으면 두 사람이 먼저 막아줘요.'},
+    {name:'한채린',line:'돈을 대가로 자리를 사지 않겠다고 했지. 대신 끊어야 할 자금줄은 정확히 말해.'},
+    {name:'윤세라',line:'친구도 돌아오지 않는 사람을 찾을 수 있잖아요. 이번에는 먼저 물어보고 움직일게요.'}
+   ],
+   choices:[
+    {id:'separate_roles',tag:'balance',text:'수사·자금·정보 역할을 나누고 연인에게만 지휘권을 주지 않는다',preview:'사랑과 협력을 같은 서열표에 올리지 않는다',stability:15,trust:8,result:'세 사람은 각자 맡은 일만 보고했고, 선택한 연인도 사적인 걱정을 작전 명령으로 바꾸지 않았습니다.'},
+    {id:'lover_commands',tag:'containment',text:`${chosen}에게 두 친구를 지휘하게 한다`,preview:'연애 관계를 작전의 상하관계로 확대한다',stability:-6,obsession:8,result:'명확한 지휘선은 생겼지만 두 친구는 도움을 호의가 아니라 복종 시험처럼 느끼기 시작했습니다.'},
+    {id:'use_jealousy',tag:'fracture',text:'가장 큰 성과를 낸 사람과 더 가까워지겠다고 자극한다',preview:'끝난 관계 분기를 다시 경쟁으로 만든다',stability:-15,obsession:12,result:'공동작전은 즉시 구애 경쟁으로 무너졌고 공격한 세력보다 서로의 실수를 먼저 찾기 시작했습니다.'}
+   ]
+  },
+  {
+   title:'둘만의 열쇠와 세 사람의 출입증',icon:'🗝️',scene:'./assets/event-trio-meeting-5.png',
+   desc:`${chosen}에게는 둘만의 귀가 약속을, ${friends.join('과 ')}에게는 필요할 때 찾아올 수 있는 친구의 출입증을 건넬 차례입니다. 같은 열쇠를 나눠 갖지 않아도 서로를 버린 것이 아니라는 결론이 필요합니다.`,
+   speakers:[
+    {name:chosen,line:'내가 연인이라는 이유로 두 사람의 삶까지 결정하진 않을게요. 대신 우리 약속은 애매하게 숨기지 말아요.'},
+    {name:friends[0],line:'특별대우를 못 받은 게 아니라 다른 자리를 고른 거라고 해. 그래야 나도 미련을 거래로 바꾸지 않지.'},
+    {name:friends[1],line:'문 밖에 있어도 부르면 올 수 있죠. 그 정도 거리는… 친구라면 견뎌볼게요.'}
+   ],
+   choices:[
+    {id:'pure_alliance',tag:'balance',text:`${chosen}과의 순애를 지키며 두 사람에게는 동등한 친구의 자리를 약속한다`,preview:'연애와 악우 동맹을 함께 유지한다',stability:18,trust:10,result:'둘만의 열쇠 하나와 친구용 출입증 두 장이 서로 다른 고리에 걸렸습니다. 누구의 자리도 다른 이름으로 속이지 않았습니다.'},
+    {id:'keep_backup',tag:'containment',text:'두 친구에게 언젠가 연인이 바뀔 수도 있다고 여지를 남긴다',preview:'순애 뒤에 예비 선택지를 숨긴다',stability:-13,obsession:13,result:'아무도 떠나지는 않았지만 친구라는 말은 대기 순번처럼 변했고 선택한 연인도 열쇠를 믿지 못했습니다.'},
+    {id:'close_door',tag:'fracture',text:'연인을 제외한 두 사람에게 이제 찾아오지 말라고 한다',preview:'순애를 고립으로 증명한다',stability:-18,trust:-8,result:'문은 조용해졌지만 공격에 맞서 함께 만든 신뢰도 문밖에 남았습니다. 연애는 이어져도 악우 동맹은 끝났습니다.'}
+   ]
+  }
+ ];
+}
+function chaptersFor(life){
+ const path=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.path(life,'dangerous');
+ return path&&path.path==='pure'?pureChapters(life):CHAPTERS;
+}
 const AFTERMATH=[
  {
   id:'replaced_frames',title:'공동생활 1개월 · 너무 좁은 첫 아침',icon:'☀️',scene:'./assets/event-trio-meeting-5.png',
@@ -380,14 +432,21 @@ function cancelQueue(life){
 function start(life){
  const check=eligibility(life);if(!check.ok)return{ok:false,check};
  if(root.QT_ROMANCE_ROUTES&&!root.QT_ROMANCE_ROUTES.begin(life,'dangerous').ok)return{ok:false,check:eligibility(life)};
- const state=ensure(life),rows=progress(life);state.active=true;state.queued=false;state.encountered=true;state.friendRoute=true;state.stage=Math.max(0,state.stage||0);state.stability=Math.max(50,state.stability||0);state.ending=null;
+ const routePath=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.path(life,'dangerous');
+ const state=ensure(life),rows=progress(life);state.active=true;state.queued=false;state.encountered=true;state.friendRoute=!!(routePath&&routePath.path==='pure');state.stage=Math.max(0,state.stage||0);state.stability=Math.max(50,state.stability||0);state.ending=null;
  state.individualRoutes=Object.fromEntries(rows.map(row=>[row.name,row.route||'unknown']));
  state.personalConcessions={};
- NAMES.forEach(name=>{const r=rec(life,name);if(r){r.status='friend';r.trust=clamp((r.trust||0)+4,0,100);}});
+ NAMES.forEach(name=>{const r=rec(life,name);if(r){if(!routePath||routePath.path!=='pure'||routePath.name!==name)r.status='friend';r.trust=clamp((r.trust||0)+4,0,100);}});
  return{ok:true,state,chapter:CHAPTERS[state.stage]};
 }
-function next(life){const state=ensure(life);return state.active&&!state.ending?CHAPTERS[state.stage]||null:null;}
-function endingFor(state,finalChoice){
+function next(life){const state=ensure(life);return state.active&&!state.ending?chaptersFor(life)[state.stage]||null:null;}
+function endingFor(state,finalChoice,life){
+ const path=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.path(life,'dangerous');
+ if(path&&path.path==='pure'){
+  if(finalChoice&&finalChoice.id==='pure_alliance')return{id:'pure_alliance',title:`${path.name}과의 순애, 세 사람과의 악우 동맹`,tone:'good',scene:'./assets/event-trio-meeting-5.png',text:`${path.name}과는 둘만의 연애를 이어가고, 나머지 두 사람과는 감정을 숨기지 않은 친구로 남았습니다. 사랑과 협력을 같은 서열로 만들지 않았기에 세 사람은 공격 앞에서 다시 모일 수 있습니다.`};
+  if(finalChoice&&finalChoice.id==='close_door')return{id:'pure_isolation',title:`${path.name}과 닫은 문`,tone:'neutral',scene:'./assets/event-trio-meeting-5.png',text:`${path.name}과의 연애는 지켰지만 다른 두 사람과 만든 악우 동맹은 끝났습니다. 이별은 없었으나 둘만의 안전을 택한 만큼 세력전에서 빌릴 수 있는 손도 줄었습니다.`};
+  return{id:'pure_unsettled',title:'순애 뒤에 남겨 둔 대기표',tone:'neutral',scene:'./assets/event-trio-meeting-5.png',text:`${path.name}과의 연애는 이어지지만 다른 두 사람에게 남긴 여지가 관계를 계속 흔듭니다. 누구도 이별하지 않았으나 친구와 예비 연인의 경계는 아직 정리되지 않았습니다.`};
+ }
  const a=state.axes||{};
  const concessions=state.personalConcessions||{};
  const formed=finalChoice&&finalChoice.id==='badfriends'
@@ -408,7 +467,7 @@ function apply(life,choiceId){
  state.stability=clamp((state.stability||0)+(choice.stability||0),0,100);state.axes[choice.tag]=(state.axes[choice.tag]||0)+1;state.history.push({stage:state.stage,choice:choice.id,tag:choice.tag,focus:chapter.focus||null});
  NAMES.forEach(name=>{const r=rec(life,name);if(!r)return;r.trust=clamp((r.trust||0)+(choice.trust||0),0,100);r.affection=clamp((r.affection||0)+(choice.tag==='fracture'?-2:3),0,100);if(choice.obsession){const key=name==='윤세라'?'obsession':'dangerLevel';r[key]=clamp((r[key]||0)+choice.obsession,0,100);}});
  if(chapter.focus)state.personalConcessions[chapter.focus]={choice:choice.id,tag:choice.tag,route:personalCarry(life,chapter.focus).route};
- state.stage++;if(state.stage>=CHAPTERS.length){state.ending=endingFor(state,choice);state.active=false;if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'dangerous',state.ending.id,state.ending.tone);}
+ state.stage++;if(state.stage>=chaptersFor(life).length){state.ending=endingFor(state,choice,life);state.active=false;if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'dangerous',state.ending.id,state.ending.tone);}
  return{chapter,choice,state,ending:state.ending};
 }
 function monthly(life){
@@ -433,5 +492,5 @@ function applyAftermath(life,choiceId){
 }
 function compatibleCandidate(){return false;}
 
-root.QT_DANGEROUS_TRIO={VERSION,NAMES,ROMANCE_ENDINGS,romanceEnding,PRELUDES,CHAPTERS,AFTERMATH,PERSONAL_ARC_LESSONS,personalCarry,ensure,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,storyComplete,resolveUnavailable,confessionReady,eligibility,queue,cancelQueue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
+root.QT_DANGEROUS_TRIO={VERSION,NAMES,ROMANCE_ENDINGS,romanceEnding,PRELUDES,CHAPTERS,pureChapters,chaptersFor,AFTERMATH,PERSONAL_ARC_LESSONS,personalCarry,ensure,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,storyComplete,resolveUnavailable,confessionReady,eligibility,queue,cancelQueue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
 })(window);

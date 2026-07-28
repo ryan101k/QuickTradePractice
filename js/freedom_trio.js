@@ -66,7 +66,7 @@ const PERSONAL_EVENTS={
   yuna_contract:{
     name:'유나',min:45,after:'yuna_offcamera',scene:'./assets/event-yuna-5.png',icon:'📰',
     title:'유나 · 공개 일정이 없는 일요일',
-    desc:'소속사가 내민 재계약서에는 유일하게 촬영과 게시 일정이 없는 일요일이 표시돼 있습니다. 유나는 그 하루만큼은 유명한 사람도, 관리받는 연인도 아닌 채 동네를 걷고 싶다고 합니다.',
+    desc:'소속사가 내민 재계약서에는 유일하게 촬영과 게시 일정이 없는 일요일이 표시돼 있습니다. 유나는 그 하루만큼은 유명인도, 관리되는 이미지도 아닌 자기 모습으로 동네를 걷고 싶다고 합니다.',
     choices:[
       {id:'truth',text:'모자만 쓰고 재래시장과 작은 서점을 걷는다',preview:'유명하지 않아도 되는 하루를 함께 보낸다',affection:11,trust:11,tag:'freedom',rest:10,happy:7,stress:-7,result:'아무도 알아보지 못한 오후, 유나는 값싼 머리끈 하나를 가장 오래 고르며 웃었습니다.'},
       {id:'studio',text:'사생활을 지킬 법률 검토만 지원하고 결정은 맡긴다',preview:'선택지는 만들되 평범한 휴일은 지킨다',affection:8,trust:9,cash:-2000000,tag:'career',rest:5,happy:3,stress:-4,result:'유나는 계약서를 변호사에게 넘긴 뒤 휴대전화를 껐습니다. 남은 일요일은 온전히 두 사람의 것이었습니다.'},
@@ -417,11 +417,14 @@ function ensure(life){
     life.freedomTrio={active:false,queued:false,encountered:false,stage:0,harmony:50,rest:45,axes:{freedom:0,career:0,control:0},history:[],personal:{},counseling:{},firstOuting:'locked',ending:null,aftermathIndex:0,gameSessions:0,guildStage:0,guildWarmth:0,guildJoined:false,guildName:GUILD_NAME,identityState:'hidden',entryOutcome:null,onlineOnlyComplete:false};
   }
   const state=life.freedomTrio;
-  if(state.groupArcVersion!==2){
+  if(state.groupArcVersion!==3){
     const settled=!!(life.freedomTrioBond&&life.freedomTrioBond.active);
-    state.groupArcVersion=2;
-    if(!settled&&!state.onlineOnlyComplete){
-      state.active=false;state.queued=false;state.encountered=false;state.stage=0;state.ending=null;
+    const previousStage=Math.max(0,Math.floor(finite(state.stage,0)));
+    state.groupArcVersion=3;
+    if(!settled&&!state.onlineOnlyComplete&&!state.ending&&previousStage>0){
+      state.reorderedFromStage=previousStage;
+      state.history=Array.isArray(state.history)?state.history:[];
+      state.history.push({type:'migration',id:'interleave-personal-with-group',fromStage:previousStage});
     }
   }
   if(state.aftermathVersion!==2){
@@ -441,6 +444,12 @@ function ensure(life){
   state.onlineOnlyComplete=!!state.onlineOnlyComplete;
   state.dangerousDisclosurePending=!!state.dangerousDisclosurePending;
   state.dangerousDisclosureComplete=!!state.dangerousDisclosureComplete;
+  if(!state.relationshipDisclosure&&state.dangerousDisclosureComplete)state.relationshipDisclosure='boundary';
+  if(['full','boundary','none'].includes(state.relationshipDisclosure)){
+    state.dangerousDisclosureComplete=true;
+    state.dangerousDisclosurePending=false;
+    state.privatePull=false;
+  }
   state.harmony=clamp(finite(state.harmony,50),0,100);
   state.rest=clamp(finite(state.rest,45),0,100);
   state.stage=clamp(Math.floor(finite(state.stage,0)),0,STORY_CHAPTERS.length);
@@ -604,6 +613,9 @@ function relationshipMode(life){
   const groupActive=!!(dangerousShared||(life.businessQuartetBond&&life.businessQuartetBond.active)||(life.childhoodCircleBond&&life.childhoodCircleBond.active)||(life.polycule&&life.polycule.active&&names.length>1));
   return{names,none:names.length===0,poly:groupActive||names.length>1,exclusive:names.length===1&&!groupActive,dangerousShared,canAdvance:names.length===0||dangerousShared};
 }
+function disclosureComplete(state){
+  return !!(state&&['full','boundary','none'].includes(state.relationshipDisclosure)&&!state.privatePull);
+}
 function storyMode(life){
   if((life.dangerousTrioBond&&life.dangerousTrioBond.active)||(life.dangerousTrio&&life.dangerousTrio.badFriendsFormed))return'guarded';
   if(!life.outsideFearResolved&&!life.freedomRescueComplete)return'rescue';
@@ -611,7 +623,7 @@ function storyMode(life){
 }
 function nextCounselingEvent(life){
   const state=ensure(life);
-  if(state.groupArcVersion===2)return null;
+  if(state.groupArcVersion>=2)return null;
   if(!revealed(life)||state.firstOuting!=='seen'||state.onlineOnlyComplete)return null;
   return COUNSELING_EVENTS.find(event=>state.counseling[event.id]!=='seen')||null;
 }
@@ -636,7 +648,7 @@ function applyCounseling(life,id,choiceId){
 }
 function counselingComplete(life){
   const state=ensure(life);
-  if(state.groupArcVersion===2)return true;
+  if(state.groupArcVersion>=2)return true;
   return COUNSELING_EVENTS.every(event=>state.counseling[event.id]==='seen');
 }
 function queueFirstOuting(life){
@@ -685,7 +697,6 @@ function applyFirstOuting(life){
 }
 function dangerousDisclosureReady(life){
   const state=ensure(life);
-  if(state.groupArcVersion===2)return false;
   return !!(state.dangerousDisclosurePending&&!state.dangerousDisclosureComplete&&revealed(life)&&counselingComplete(life));
 }
 function applyDangerousDisclosure(life,choiceId){
@@ -693,6 +704,8 @@ function applyDangerousDisclosure(life,choiceId){
   if(!choice||!dangerousDisclosureReady(life))return null;
   state.dangerousDisclosurePending=false;
   state.dangerousDisclosureComplete=true;
+  state.relationshipDisclosure=choice.id==='full'?'full':'boundary';
+  state.privatePull=false;
   state.guildWarmth=clamp(state.guildWarmth+(choice.warmth||0),0,100);
   NAMES.forEach(name=>{const person=rec(life,name);if(person)person.trust=clamp((person.trust||0)+(choice.trust||0),0,100);});
   state.history.push({type:'dangerous-disclosure',choice:choice.id});
@@ -700,14 +713,25 @@ function applyDangerousDisclosure(life,choiceId){
 }
 function nextPersonalEvent(life){
   const state=ensure(life);
-  if(state.groupArcVersion===2)return null;
-  if(!revealed(life)||state.firstOuting!=='seen')return null;
-  return Object.entries(PERSONAL_EVENTS).map(([id,event])=>({id,event})).find(({id,event})=>{
+  if(!state.active||!revealed(life)||state.firstOuting!=='seen')return null;
+  if(state.dangerousDisclosurePending&&!state.dangerousDisclosureComplete)return null;
+  const firstRound=['chaewon_layover','yuna_offcamera','sohee_emptyhall'];
+  const secondRound=['chaewon_transfer','yuna_contract','sohee_overseas'];
+  const available=state.stage===1?firstRound:state.stage>=2?[...firstRound,...secondRound]:[];
+  return available.map(id=>({id,event:PERSONAL_EVENTS[id]})).find(({id,event})=>{
     const person=rec(life,event.name);
     if(!person||['ex','deceased'].includes(person.status)||state.personal[id]==='seen')return false;
     if((person.affection||0)<event.min)return false;
     return !event.after||state.personal[event.after]==='seen';
   })||null;
+}
+function personalCheckpointComplete(life,stage=ensure(life).stage){
+  const state=ensure(life);
+  if(stage<=0)return true;
+  const required=stage===1
+    ?['chaewon_layover','yuna_offcamera','sohee_emptyhall']
+    :Object.keys(PERSONAL_EVENTS);
+  return required.every(id=>state.personal[id]==='seen');
 }
 function queuePersonal(life){
   const state=ensure(life),next=nextPersonalEvent(life);
@@ -727,7 +751,7 @@ function applyPersonal(life,id,choiceId){
   state.personal[id]='seen';
   state.axes[choice.tag]=(state.axes[choice.tag]||0)+1;
   state.history.push({type:'personal',id,choice:choice.id,tag:choice.tag});
-  return{event,choice,r:person,state};
+  return{event,choice,r:person,state,checkpointComplete:personalCheckpointComplete(life,state.stage),resumeStage:state.stage};
 }
 function progress(life){
   const isRevealed=revealed(life);
@@ -742,7 +766,6 @@ function progress(life){
 }
 function individualStoriesComplete(life){
   const state=ensure(life);
-  if(state.groupArcVersion===2)return true;
   return NAMES.every(name=>{
     const person=rec(life,name);
     if(!person)return false;
@@ -754,7 +777,6 @@ function individualStoriesComplete(life){
 function storyComplete(life){
   const state=ensure(life);
   if(state.onlineOnlyComplete)return true;
-  if(state.groupArcVersion===2)return revealed(life)&&state.firstOuting==='seen'&&!!state.ending;
   return revealed(life)&&counselingComplete(life)&&state.firstOuting==='seen'&&individualStoriesComplete(life)&&!!state.ending;
 }
 function resolveUnavailable(life){
@@ -783,7 +805,7 @@ function eligibility(life){
   const routeState=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.ensure(life);
   const dangerousPriority=!!(root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.engaged(life,'dangerous')&&
     !integratedDangerous&&!routeState.completed.dangerous&&!routeState.failed.dangerous&&!routeState.declined.dangerous);
-  const storyReady=state.groupArcVersion===2?revealed(life):rows.every(row=>row.ready);
+  const storyReady=revealed(life);
   return{ok:(!guard||guard.ok)&&!dangerousPriority&&!state.encountered&&!state.active&&!state.ending&&state.firstOuting==='seen'&&mode.canAdvance&&storyReady,partner:mode.names.length>0,friendOnly:mode.exclusive,relationshipMode:mode,dangerous:integratedDangerous,integratedDangerous,dangerousPriority,outsiders:[],rows,guard};
 }
 function queue(life){
@@ -807,7 +829,8 @@ function start(life){
 function next(life){
   const state=ensure(life);
   if(state.active&&!state.ending&&state.extensionActive)return extensionChapterFor(life,state.extensionStage||0);
-  return state.active&&!state.ending?chapterFor(life,state.stage):null;
+  if(!state.active||state.ending||!personalCheckpointComplete(life,state.stage))return null;
+  return chapterFor(life,state.stage);
 }
 function extensionChapterFor(life,index){
   const base=DANGEROUS_EXTENSION[index];if(!base)return null;
@@ -823,12 +846,20 @@ function chapterFor(life,index){
   }
   if(base.id==='relationship_reveal'){
     if(mode.dangerousShared){
-      chapter.desc='첫 외출 뒤, 플레이어는 강유진·한채린·윤세라와 합의된 공동생활 중이라는 사실을 직접 밝혔습니다. 세 사람은 이상했던 밤의 공백을 이제야 이해했지만, 이해와 동의는 같은 말이 아니었습니다.';
-      chapter.choices=[
-        {id:'disclose_all',tag:'freedom',text:'기존 관계와 공동생활 규칙을 숨김없이 설명한다',harmony:13,trust:11,rest:3,happy:1,stress:2,disclosure:'full',result:'채원은 왜 이제 말했는지 물었고, 유나는 한동안 입력 중인 채 멈췄으며, 소희는 끝까지 들었습니다. 충격은 남았지만 세 사람의 선택권은 돌아왔습니다.'},
-        {id:'disclose_boundary',tag:'career',text:'사적인 세부는 남기되 합의된 관계와 생활 제약은 분명히 말한다',harmony:8,trust:7,rest:3,happy:1,stress:1,disclosure:'boundary',result:'세 사람은 묻지 말아야 할 부분과 반드시 알아야 했던 부분을 나눴습니다. 유나는 “적어도 우리가 뭘 선택하는지는 알게 됐네요”라고 답했습니다.'},
-        {id:'conceal',tag:'control',text:'룸메이트일 뿐이라며 관계의 성격을 계속 숨긴다',harmony:-18,trust:-15,rest:-4,happy:-5,stress:9,disclosure:'concealed',privatePull:true,result:'유나는 설명보다 문장의 빈틈을 먼저 보았습니다. 채원은 더 묻지 않았고, 소희는 메시지를 줄였습니다. 세 사람은 아직 진실을 모르지만 이미 신뢰가 꺾였습니다.'},
-      ];
+      if(disclosureComplete(state)){
+        chapter.desc='첫 정모 직후 기존 공동생활과 관계를 이미 공개했습니다. 유나가 다시 묻는 것은 공개 여부가 아니라, 그 사실을 안 뒤에도 세 사람이 같은 선택권을 갖고 있는지 확인하기 위해서입니다.';
+        chapter.choices=[
+          {id:'confirm_disclosure',tag:'freedom',text:'이미 밝힌 관계와 생활 규칙을 바꾸지 않고 다시 확인한다',harmony:12,trust:10,rest:3,happy:2,stress:0,disclosure:state.relationshipDisclosure,result:'세 사람은 같은 설명을 다시 들은 뒤 더는 공개를 선행 조건처럼 요구하지 않았습니다. 이제 남은 것은 정보를 가진 상태에서 각자가 관계를 선택하는 일입니다.'},
+          {id:'clarify_boundaries',tag:'career',text:'공개한 사실 위에 각자의 연락·외출·거절권을 구체적으로 덧붙인다',harmony:10,trust:9,rest:4,happy:2,stress:-1,disclosure:state.relationshipDisclosure,result:'이미 공개된 관계를 반복 고백하는 대신, 네 사람이 앞으로 지킬 실제 규칙이 단체방에 남았습니다.'},
+        ];
+      }else{
+        chapter.desc='첫 외출 뒤, 플레이어는 강유진·한채린·윤세라와 합의된 공동생활 중이라는 사실을 직접 밝혔습니다. 세 사람은 이상했던 밤의 공백을 이제야 이해했지만, 이해와 동의는 같은 말이 아니었습니다.';
+        chapter.choices=[
+          {id:'disclose_all',tag:'freedom',text:'기존 관계와 공동생활 규칙을 숨김없이 설명한다',harmony:13,trust:11,rest:3,happy:1,stress:2,disclosure:'full',result:'채원은 왜 이제 말했는지 물었고, 유나는 한동안 입력 중인 채 멈췄으며, 소희는 끝까지 들었습니다. 충격은 남았지만 세 사람의 선택권은 돌아왔습니다.'},
+          {id:'disclose_boundary',tag:'career',text:'사적인 세부는 남기되 합의된 관계와 생활 제약은 분명히 말한다',harmony:8,trust:7,rest:3,happy:1,stress:1,disclosure:'boundary',result:'세 사람은 묻지 말아야 할 부분과 반드시 알아야 했던 부분을 나눴습니다. 유나는 “적어도 우리가 뭘 선택하는지는 알게 됐네요”라고 답했습니다.'},
+          {id:'conceal',tag:'control',text:'룸메이트일 뿐이라며 관계의 성격을 계속 숨긴다',harmony:-18,trust:-15,rest:-4,happy:-5,stress:9,disclosure:'concealed',privatePull:true,result:'유나는 설명보다 문장의 빈틈을 먼저 보았습니다. 채원은 더 묻지 않았고, 소희는 메시지를 줄였습니다. 세 사람은 아직 진실을 모르지만 이미 신뢰가 꺾였습니다.'},
+        ];
+      }
     }else{
       chapter.scene='./assets/event-freedom-tro-meeting.png';
       chapter.desc='첫 외출 뒤, 유나가 단체방에 플레이어의 현재 관계를 직접 물었습니다. 숨겨 둔 연인도 공동생활도 없다는 답에 세 사람은 잠깐 조용해졌다가, 생각보다 담담하게 다음 게임 이야기를 꺼냈습니다.';
@@ -852,7 +883,7 @@ function chapterFor(life,index){
         {id:'exclusive_confess',tag:'control',text:'기존 연인을 숨긴 채 자유인 3인에게 고백을 강행한다',harmony:-30,trust:-30,rest:-15,happy:-12,stress:20,badEnding:'other_promises',result:'기존 연인과 자유인 세 사람 모두가 다른 약속을 동시에 확인했습니다. 어느 관계에도 다시 설명할 기회가 남지 않았습니다.'},
       ];
     }else if(mode.dangerousShared){
-      const canNegotiate=state.relationshipDisclosure!=='concealed'&&!state.privatePull;
+      const canNegotiate=disclosureComplete(state);
       chapter.desc='광기 3인과의 공동생활은 그대로입니다. 자유인 세 사람은 그 집으로 들어가지 않습니다. 기존 생활을 숨기지 않고 각자의 집에서 연락을 이어 갈지, 한 사람만 몰래 빼내 관계를 다시 무너뜨릴지 마지막 선택이 남았습니다.';
       chapter.choices=[
         {id:'dangerous_shared',tag:'freedom',text:'세 사람의 제안을 받아들이되, 먼저 두 그룹 모두에게 공개하고 함께 결정하겠다고 답한다',harmony:12,trust:10,rest:2,happy:3,stress:2,startExtension:true,requiresDisclosure:true,disabled:!canNegotiate,result:canNegotiate?'자유인 세 사람은 플레이어 혼자 광기 3인에게 먼저 설명할 시간을 주었습니다. 집에 돌아가자 세 사람은 이미 생활의 변화를 눈치채고 기다리고 있었습니다.':'숨긴 관계와 개인 접촉이 남아 있어 공개 협의를 시작할 수 없습니다.'},
@@ -886,7 +917,7 @@ function finalEnding(life,state,choice){
 function apply(life,choiceId){
   const state=ensure(life),extension=!!state.extensionActive,chapter=next(life);if(!chapter)return null;
   const choice=chapter.choices.find(item=>item.id===choiceId);if(!choice)return null;
-  if(choice.disabled||choice.requiresDisclosure&&state.relationshipDisclosure==='concealed')return null;
+  if(choice.disabled||choice.requiresDisclosure&&!disclosureComplete(state))return null;
   state.harmony=clamp(state.harmony+(choice.harmony||0),0,100);
   state.rest=clamp(state.rest+(choice.rest||0),0,100);
   state.axes[choice.tag]=(state.axes[choice.tag]||0)+1;
@@ -896,6 +927,7 @@ function apply(life,choiceId){
     state.relationshipDisclosure=choice.disclosure;
     state.dangerousDisclosurePending=false;
     state.dangerousDisclosureComplete=choice.disclosure==='full'||choice.disclosure==='boundary';
+    if(state.dangerousDisclosureComplete||choice.disclosure==='none')state.privatePull=false;
   }
   if(choice.finalRoute){
     state.finalRoute=choice.finalRoute;
@@ -975,6 +1007,6 @@ function compatibleCandidate(name){return NAMES.includes(name);}
 root.QT_FREEDOM_TRIO={
   NAMES,GUILD_NAME,ROMANCE_ENDINGS,romanceEnding,GUILD_MEMBERS,GUILD_EVENTS,COUNSELING_EVENTS,FIRST_OUTING,DANGEROUS_DISCLOSURE,PERSONAL_EVENTS,CHAPTERS:STORY_CHAPTERS,AFTERMATH,ensure,playGuild,guildEvent,resolveGuild,
   chapterTwoUnlocked,revealed,canContact,canMeetOffline,relationshipMode,storyMode,nextCounselingEvent,queueCounseling,counselingEvent,applyCounseling,counselingComplete,queueFirstOuting,deferFirstOuting,applyFirstOuting,dangerousDisclosureReady,applyDangerousDisclosure,
-  nextPersonalEvent,queuePersonal,personalEvent,applyPersonal,progress,individualStoriesComplete,storyComplete,resolveUnavailable,confessionReady,marketRumorAvailable,eligibility,queue,cancelQueue,start,next,apply,monthly,nextAftermath,applyAftermath,recovery,compatibleCandidate,
+  disclosureComplete,nextPersonalEvent,personalCheckpointComplete,queuePersonal,personalEvent,applyPersonal,progress,individualStoriesComplete,storyComplete,resolveUnavailable,confessionReady,marketRumorAvailable,eligibility,queue,cancelQueue,start,next,apply,monthly,nextAftermath,applyAftermath,recovery,compatibleCandidate,
 };
 })(window);

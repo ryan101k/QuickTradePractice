@@ -140,7 +140,7 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
 .phone-chat-log { overflow-y:auto; height:calc(100% - 70px); padding:12px 11px 28px; }.phone-date-chip { width:max-content; margin:0 auto 14px; padding:4px 9px; border-radius:12px; color:#667085; background:#dce1ea; font-size:9px; }
 .phone-bubble { width:max-content; max-width:82%; margin:7px 0; padding:10px 12px; border-radius:16px; font:12px/1.5 sans-serif; box-shadow:0 1px 2px rgba(0,0,0,.1); animation:chat-bubble-in .35s ease both; }.phone-bubble.incoming { border-bottom-left-radius:4px; background:#fff; }.phone-bubble.mine { margin-left:auto; border-bottom-right-radius:4px; background:#ffe56b; animation-delay:.08s; }.phone-bubble.followup { animation-delay:.45s; }
 .phone-bubble > b,.phone-bubble > span { display:block; }.phone-bubble > b { margin-bottom:3px; color:#59657a; font-size:10px; }
-.freedom-main-chat-shell { width:min(520px,100%); }
+.freedom-main-chat-shell { width:min(390px,100%); }
 .freedom-story-chat-log { padding-bottom:42px; }
 .freedom-story-chat-log .phone-reply-options { margin-top:8px; }
 .freedom-story-chat-log .event-opt { border-radius:13px; }

@@ -15,17 +15,18 @@ const bondActive=(life,id)=>{
 };
 function ensure(life){
   if(!life.romanceRoutes||typeof life.romanceRoutes!=='object'){
-    life.romanceRoutes={version:4,active:null,center:null,centerSince:null,completed:{},failed:{},declined:{},romanceLocked:{},confessions:{},devotions:{},crossSeen:{},history:[]};
+    life.romanceRoutes={version:5,active:null,center:null,centerSince:null,completed:{},failed:{},declined:{},romanceLocked:{},confessions:{},devotions:{},paths:{},crossSeen:{},history:[]};
   }
   const state=life.romanceRoutes;
   const previousVersion=Number(state.version)||1;
-  state.version=4;
+  state.version=5;
   state.completed=state.completed||{};
   state.failed=state.failed||{};
   state.declined=state.declined||{};
   state.romanceLocked=state.romanceLocked||{};
   state.confessions=state.confessions||{};
   state.devotions=state.devotions||{};
+  state.paths=state.paths||{};
   state.crossSeen=state.crossSeen||{};
   if(!Array.isArray(state.history))state.history=[];
   if(!Array.isArray(state.centerHistory))state.centerHistory=[];
@@ -42,6 +43,16 @@ function ensure(life){
         state.history.push({type:'migration-unlock',id,reason:'player_confession_now_starts_pure_route',day:life.day||0});
       }
     });
+  }
+  if(previousVersion<5&&!state.paths.dangerous){
+    const devotion=state.devotions.dangerous;
+    const trioNames=META.dangerous.members;
+    const completed=trioNames.every(name=>{
+      const person=(life.met||[]).find(row=>row.name===name);
+      return !!(person&&person.story&&person.story.completed);
+    });
+    if(devotion&&devotion.active)state.paths.dangerous={path:'pure',name:devotion.name,since:devotion.since||life.day||0,reason:'legacy_devotion'};
+    else if(completed)state.paths.dangerous={path:'group',name:null,since:life.day||0,reason:'legacy_personal_stories'};
   }
   ORDER.forEach(id=>{if(bondActive(life,id))state.completed[id]=state.completed[id]||{ending:'legacy',day:life.day||0};});
   if(state.active&&(state.completed[state.active]||state.failed[state.active]))state.active=null;
@@ -183,6 +194,20 @@ function devotion(life,id){
   if(id)return state.devotions[id]||null;
   return ORDER.map(groupId=>state.devotions[groupId]).find(row=>row&&row.active)||null;
 }
+function setPath(life,id,path,name,reason){
+  const state=ensure(life);
+  if(!META[id]||!['pure','group'].includes(path))return{ok:false,reason:'invalid_path',state};
+  const existing=state.paths[id];
+  if(existing&&existing.path!==path)return{ok:false,reason:'path_locked',path:existing,state};
+  if(existing&&path==='pure'&&existing.name!==name)return{ok:false,reason:'pure_partner_locked',path:existing,state};
+  if(path==='pure'&&(!name||!META[id].members.includes(name)))return{ok:false,reason:'unknown_member',state};
+  const row=existing||{path,name:path==='pure'?name:null,since:life.day||0,reason:reason||'personal_story_branch'};
+  state.paths[id]=row;
+  engage(life,id,reason||'personal_story_branch');
+  if(!existing)state.history.push({type:'path-select',id,path,name:row.name,reason:row.reason,day:life.day||0});
+  return{ok:true,path:row,state};
+}
+function path(life,id){return ensure(life).paths[id]||null;}
 function groupConfessionAvailable(life,id){
   const state=ensure(life);
   return romanceAvailable(life,id)&&!state.devotions[id]&&(!state.active||state.active===id);
@@ -210,5 +235,5 @@ function preserveMembers(life,names){
   return poly;
 }
 
-root.QT_ROMANCE_ROUTES={ORDER,META,ensure,engage,decline,engaged,fallbackReady,center,begin,complete,canStart,markCross,activeGroups,memberGroup,lockRomance,romanceAvailable,setConfession,confession,beginDevotion,devotion,groupConfessionAvailable,clearQueuedConfession,endDevotion,preserveMembers};
+root.QT_ROMANCE_ROUTES={ORDER,META,ensure,engage,decline,engaged,fallbackReady,center,begin,complete,canStart,markCross,activeGroups,memberGroup,lockRomance,romanceAvailable,setConfession,confession,beginDevotion,devotion,setPath,path,groupConfessionAvailable,clearQueuedConfession,endDevotion,preserveMembers};
 })(window);

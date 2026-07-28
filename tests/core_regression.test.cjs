@@ -98,6 +98,7 @@ vm.createContext(context);
 
 for (const file of [
   'js/characters.js',
+  'js/interaction_profiles.js',
   'js/origin_story.js',
   'js/core/trading.js',
   'js/core/time.js',
@@ -191,6 +192,12 @@ for (const file of [
   assert.equal(routes.devotion(pureLife,'dangerous').name,'강유진','순애 루트의 상대를 그룹 진행 장부에서 찾을 수 있어야 한다');
   assert.equal(routes.groupConfessionAvailable(pureLife,'dangerous'),false,'개인 순애를 고르면 상대 측 공동 고백만 막혀야 한다');
   assert.equal(routes.romanceAvailable(pureLife,'dangerous'),true,'개인 순애는 그룹 전체의 인물 관계를 삭제하는 영구 연애 잠금과 달라야 한다');
+  assert.equal(routes.setPath(pureLife,'dangerous','pure','강유진','test_branch').ok,true,'개인서사 분기에서 순애 상대를 전역 노선으로 기록할 수 있어야 한다');
+  assert.equal(routes.path(pureLife,'dangerous').name,'강유진','순애 노선은 선택한 인물을 잃지 않아야 한다');
+  assert.equal(routes.setPath(pureLife,'dangerous','group',null,'conflict').ok,false,'한 번 정한 순애·공동 관계 노선을 다른 개인서사에서 덮어쓰면 안 된다');
+  const groupPathLife={day:8,met:[]};
+  assert.equal(routes.setPath(groupPathLife,'dangerous','group',null,'test_branch').ok,true,'하렘 선택은 특정 대표 연인 없이 공동 관계 노선으로 기록돼야 한다');
+  assert.equal(routes.path(groupPathLife,'dangerous').path,'group');
   const activeRouteLife={day:8,met:[]};
   routes.begin(activeRouteLife,'freedom');
   assert.equal(routes.groupConfessionAvailable(activeRouteLife,'dangerous'),false,'another active group must block an earlier group confession');
@@ -248,6 +255,10 @@ for (const file of [
   assert.equal(legacyPayLife.faction.members[0].upkeep,140000,'이전 버전에서 실제 반영된 위험수당은 원래 급여로 복구돼야 한다');
   assert.equal('trioBaseUpkeep' in legacyPayLife.faction.members[0],false,'복구 뒤 임시 급여 표식도 제거해야 한다');
   const appSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  const indexSource=fs.readFileSync(path.join(root,'index.html'),'utf8');
+  assert.ok(indexSource.indexOf('js/interaction_profiles.js')<indexSource.indexOf('js/app.js'),'상호작용 프로필은 app.js보다 먼저 로드돼야 한다');
+  assert.match(appSource,/INTERACTION_PROFILES\.dateChoices/,'외출 선택지는 성향별 프로필 모듈에서 받아야 한다');
+  assert.match(appSource,/INTERACTION_PROFILES\.requestOptions/,'부탁 선택지는 친밀도와 성향에 맞춰 구성해야 한다');
   assert.match(appSource,/function relationshipBGM\(text\)/,'화면의 관계 그룹을 전용 BGM으로 분류해야 한다');
   for(const track of ['group_business','group_freedom','group_childhood','group_dangerous','narae']){
     assert.match(appSource,new RegExp(`return '${track}'`),`${track} 전용 분위기가 실제 장면 선택에 연결돼야 한다`);
@@ -345,10 +356,13 @@ for (const file of [
 
 {
   const stories=context.QT_CHARACTER_STORIES;
-  const yujinStory=stories.get('강유진'),chaerinStory=stories.get('한채린');
+  const yujinStory=stories.get('강유진'),seraStory=stories.get('윤세라'),chaerinStory=stories.get('한채린');
   assert.equal(yujinStory.chapters.length,9,'강유진 개인 스토리는 추가 일러를 쓰는 9장 분량이어야 한다');
   assert.equal(chaerinStory.chapters.length,10,'한채린 개인 스토리는 첫 계약부터 왕관을 내려놓는 밤까지 10장 분량이어야 한다');
   assert.ok([...yujinStory.chapters,...chaerinStory.chapters].every(chapter=>Number.isFinite(chapter.min)&&chapter.scene),'강유진·한채린의 모든 장에는 조건과 컷신 자리가 있어야 한다');
+  assert.ok(yujinStory.chapters.slice(0,3).every(chapter=>chapter.phase==='friend')&&yujinStory.chapters.slice(3).every(chapter=>chapter.requiresRelationship),'강유진은 3장까지 친구 이야기이고 이후는 실제 연인 전용이어야 한다');
+  assert.ok(seraStory.chapters.slice(0,3).every(chapter=>chapter.phase==='friend')&&seraStory.chapters.slice(3).every(chapter=>chapter.requiresRelationship),'윤세라는 잠긴 작업실까지 친구 이야기이고 이후는 실제 연인 전용이어야 한다');
+  assert.ok(chaerinStory.chapters.slice(0,4).every(chapter=>chapter.phase==='friend')&&chaerinStory.chapters.slice(4).every(chapter=>chapter.requiresRelationship),'한채린은 화해의 갈림길까지 친구 이야기이고 이후는 실제 연인 전용이어야 한다');
   for(const scene of ['event-yujin-1.png','event-yujin-2.png','event-yujin-night-3.png','event-yujin-5135.png','event-yujin-14.png']){
     assert.ok(yujinStory.chapters.some(chapter=>chapter.scene===scene),`강유진 추가 일러 ${scene}가 개인 스토리에 배치돼야 한다`);
     assert.ok(fs.existsSync(path.join(root,'assets',scene)),`강유진 추가 일러 ${scene} 파일이 있어야 한다`);
@@ -359,8 +373,11 @@ for (const file of [
   }
   const storyAppSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
   assert.match(storyAppSource,/dangerous_dependence:'\.\/assets\/event-yujin-1111\.png'/,'강유진 위험한 의존 완결에는 전용 내면 독백 컷신을 써야 한다');
+  assert.match(yujinStory.chapters[1].speaker,/필요|부를 이유/,'강유진의 친구 구간부터 사건이 끝나 자신이 필요 없어지는 불안을 드러내야 한다');
+  assert.match(yujinStory.chapters[5].speaker,/기뻤|구하려/,'강유진의 연인 구간에는 플레이어가 자신을 필요로 할 때 안도하는 구원 강박 자각이 있어야 한다');
   const finish=(name,routeChoice)=>{
-    const rec={name,status:'friend',affection:100,trust:100,dangerLevel:0};
+    const rec={name,status:'partner',affection:100,trust:100,dangerLevel:0};
+    if(stories.ROMANCE_BRANCH_SCENES[name])stories.chooseRomancePath(rec,'pure');
     const chapterCount=stories.get(name).chapters.length;
     for(let chapter=0;chapter<chapterCount;chapter++){
       const choice=name==='한채린'?routeChoice:chapter===0?'support':routeChoice;
@@ -377,10 +394,54 @@ for (const file of [
   assert.equal(stories.next(gated),null,'광기 3인 개인 아크는 친구 호감 컷씬과 첫 위험 신호를 건너뛰고 시작하면 안 된다');
   gated.dangerEvents.yujin_warning='seen';
   assert.ok(stories.next(gated),'첫 위험 신호를 확인한 뒤에는 중복 컷씬 대신 정식 개인 아크가 이어져야 한다');
+  for(const choice of ['support','boundary','boundary'])assert.ok(stories.apply(gated,choice),'강유진의 친구 구간 세 장은 연애 전에도 진행돼야 한다');
+  assert.equal(stories.next(gated),null,'강유진의 친구 구간이 끝나면 관계 노선을 정하기 전까지 후반부가 진행되면 안 된다');
+  assert.equal(stories.availability(gated).reason,'romance-branch','친구 구간 완료 뒤에는 순애·공동 관계 분기를 먼저 제시해야 한다');
+  stories.chooseRomancePath(gated,'group');
+  assert.equal(stories.next(gated).phase,'group','공동 관계를 택하면 공식 연인이 아니어도 공통서사를 준비하는 후반부가 이어져야 한다');
+  assert.equal(gated.status,'friend','공동 관계 준비가 대표 연인 상태를 임의로 덮어쓰면 안 된다');
+  assert.doesNotMatch(stories.next(gated).desc,/연인이 된 뒤/,'공동 관계 후반부가 이미 둘만의 연인인 것처럼 서술되면 안 된다');
+
+  const pureYujin={name:'강유진',status:'partner',affection:100,trust:80,story:{chapter:3,completed:false,history:[],traits:{},variant:'adult',romancePath:'pure'}};
+  assert.equal(stories.next(pureYujin).phase,'lover','순애를 택한 인물에게만 실제 연인 후반부가 열려야 한다');
+  const platonicChaerin={name:'한채린',status:'friend',affection:100,trust:80,story:{chapter:4,completed:false,history:[],traits:{},variant:'adult',romancePath:'platonic'}};
+  assert.equal(stories.next(platonicChaerin).phase,'platonic','순애에서 선택받지 않은 세트 인물은 친구 후반부로 이어져야 한다');
+  assert.doesNotMatch(stories.next(platonicChaerin).desc,/연인이 된 뒤/,'친구 후반부에 연인 전용 문구가 남으면 안 된다');
+  for(const name of ['강유진','한채린','윤세라']){
+    for(const path of ['group','platonic']){
+      const rec={name,story:{romancePath:path,chapter:stories.RELATIONSHIP_START[name],history:[],traits:{}}};
+      const story=stories.get(rec),tail=story.chapters.slice(story.relationshipStart);
+      assert.doesNotMatch(JSON.stringify(tail),/연인/ ,`${name}의 ${path} 후반부 설명·대사·선택지에는 둘만의 연인 표현이 남으면 안 된다`);
+    }
+  }
+
+  const generalFriend={name:'서연',status:'friend',affection:100,trust:60};
+  assert.ok(stories.apply(generalFriend,'support'));
+  assert.ok(stories.apply(generalFriend,'support'));
+  assert.equal(stories.availability(generalFriend).reason,'relationship','일반 개인 스토리 완결도 친구 상태에서 연인 결말처럼 진행되면 안 된다');
+  generalFriend.status='partner';
+  assert.equal(stories.next(generalFriend).phase,'finale','일반 개인 스토리 마지막 장은 연인 관계 뒤에 열려야 한다');
+  const legacyFriend={name:'강유진',status:'friend',affection:100,story:{chapter:9,completed:true,history:[],traits:{depend:5},variant:'adult',ending:{route:'dangerous_dependence'}}};
+  assert.equal(stories.availability(legacyFriend).reason,'relationship-complete','구버전 친구 상태의 연인 완결은 삭제하지 말고 관계 성립까지 확정을 보류해야 한다');
+  stories.chooseRomancePath(legacyFriend,'group');
+  assert.equal(stories.availability(legacyFriend).reason,'completed','구버전 완결 기록도 관계 노선을 이관하면 정상 완결로 인정해야 한다');
 }
 
 {
   const trio=context.QT_DANGEROUS_TRIO;
+  const pureRouteLife={
+    day:8,seraHousing:'cohabit',partner:{name:'강유진'},polycule:{active:false,members:[]},
+    met:['강유진','한채린','윤세라'].map(name=>({name,status:name==='강유진'?'partner':'friend',affection:90,trust:80,story:{chapter:10,completed:true,history:[],traits:{},romancePath:name==='강유진'?'pure':'platonic',ending:{route:name==='강유진'?'equal':name==='한채린'?'equal':'anchored'}}}))
+  };
+  context.QT_ROMANCE_ROUTES.setPath(pureRouteLife,'dangerous','pure','강유진','test_story_branch');
+  const pureChapters=trio.chaptersFor(pureRouteLife);
+  assert.equal(pureChapters.length,3,'순애 노선의 공통서사는 하렘 공동생활 6장을 그대로 재생하지 않고 별도 악우 동맹 3장으로 진행돼야 한다');
+  assert.match(pureChapters[0].desc,/강유진과의 연애/,'순애 공통서사는 선택한 연인을 명확히 표시해야 한다');
+  assert.match(pureChapters[2].choices[0].text,/순애를 지키며/,'순애 공통서사의 결론은 연애와 친구 동맹을 분리해야 한다');
+  trio.ensure(pureRouteLife).badFriendsFormed=true;
+  assert.equal(trio.eligibility(pureRouteLife).ok,true,'순애 선택 뒤에도 세 사람의 악우 공통서사는 교착 없이 시작할 수 있어야 한다');
+  assert.equal(trio.start(pureRouteLife).ok,true);
+  assert.equal(pureRouteLife.met.find(person=>person.name==='강유진').status,'partner','순애 공통서사가 선택한 연인을 친구 상태로 되돌리면 안 된다');
   assert.match(trio.romanceEnding('cohabitation_refusal').title,/공동생활 배드엔딩/,'위험한 3인조가 공동생활 거절 엔딩을 직접 소유해야 한다');
   assert.match(trio.romanceEnding('pure_affair').detail,/불륜 시도/,'위험한 3인조가 순애 위반 엔딩을 직접 소유해야 한다');
   const endings={강유진:'dangerous_dependence',한채린:'private_submission',윤세라:'anchored'};
@@ -393,6 +454,9 @@ for (const file of [
   assert.equal(trio.PRELUDES.length,2,'위험 3인조의 취향 폭로와 잘잘못 재판은 중복 없이 한 악우 사건으로 합쳐져야 한다');
   assert.equal(trio.CHAPTERS.length,6,'위험 3인조 그룹 본편은 공조·개인 결말 양보 3장·위기·공동생활 합의의 6장이어야 한다');
   assert.deepEqual(trio.CHAPTERS.filter(chapter=>chapter.focus).map(chapter=>chapter.focus),trio.NAMES,'각 개인 아크의 결론이 그룹 안의 인물별 양보 장면으로 한 번씩 이어져야 한다');
+  const sharedHomeChapter=trio.CHAPTERS.at(-1);
+  assert.match(sharedHomeChapter.desc,/유진·채린·세라.*먼저 요청/,'공동생활 거점 고정은 플레이어의 고집이 아니라 세 사람의 공동 요청이어야 한다');
+  assert.match(sharedHomeChapter.choices.find(choice=>choice.id==='badfriends').result,/플레이어의 고집이 아니라 세 사람이 서로에게 요구한 안전장치/,'공동생활 성립 결과에도 집 고정의 주체를 명확히 남겨야 한다');
   assert.equal(trio.AFTERMATH.length,5,'공동생활 후일담은 규칙뿐 아니라 돌봄과 자발적 귀가까지 5개월을 다뤄야 한다');
   const blockedPreludeLife=JSON.parse(JSON.stringify(life));
   context.QT_ROMANCE_ROUTES.begin(blockedPreludeLife,'freedom');
@@ -474,6 +538,9 @@ for (const file of [
   life.dangerousTrioBond={active:true};
   assert.equal(context.QT_HOUSING.monthly(life,1).expense,0,'위험 3인조 공동생활이 성립한 자취방은 월세가 사라져야 한다');
   assert.equal(context.QT_HOUSING.move(life,'premium','owned'),null,'공동생활 중에는 다른 집으로 이사할 수 없어야 한다');
+  const housingAppSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  assert.match(housingAppSource,/trioLockReason:'dangerous-trio-request'/,'저장 상태에도 세 사람의 요청으로 집이 고정됐다는 사유를 기록해야 한다');
+  assert.match(housingAppSource,/유진·채린·세라가 요청한 거점 합의로 이사 불가/,'주택 UI가 플레이어 선택이 아니라 세 사람의 요청 때문에 잠겼다고 설명해야 한다');
 }
 
 {
@@ -482,6 +549,46 @@ for (const file of [
   for(let month=0;month<9;month++)context.QT_FAMILY.monthly(life);
   assert.equal(life.familyRouteLock,'dangerous','공동생활에서 아이가 생기면 위험 3인조 가족 루트로 고정돼야 한다');
   assert.equal(context.QT_ROMANCE_ROUTES.canStart(life,'freedom').reason,'family_route_locked','아이 출생 뒤 다른 관계 그룹은 새로 편입될 수 없어야 한다');
+}
+
+{
+  const profiles=context.QT_INTERACTION_PROFILES;
+  const approaches=['sincere','listen','humor','plan','vulnerable','direct','flex','push']
+    .map(key=>({key,label:key,emoji:'·',mod:0,cost:0}));
+  const frugal=profiles.dateChoices({name:'미래',personality:'frugal'},'outing',approaches,{trust:8});
+  const free=profiles.dateChoices({name:'유나',personality:'free'},'outing',approaches,{trust:8});
+  assert.equal(frugal.length,4,'성향별 외출은 네 가지 선택지를 유지해야 한다');
+  assert.notDeepEqual(Array.from(frugal,x=>x.label),Array.from(free,x=>x.label),'알뜰형과 자유형에게 같은 외출 선택지를 보여주면 안 된다');
+  assert.ok(frugal.every(choice=>choice.profileFit),'성향별 외출에는 인물 적합도 표식이 있어야 한다');
+
+  const calmYujin={name:'강유진',personality:'caring',status:'partner',dangerAwakened:true,story:{traits:{}}};
+  const awakenedYujin={...calmYujin,story:{traits:{depend:2}}};
+  assert.equal(profiles.awakeningState(calmYujin).awakened,false,'연애 시작만으로 강유진의 구원 강박이 각성하면 안 된다');
+  assert.equal(profiles.awakeningState(awakenedYujin).awakened,true,'의존 선택이 누적되면 강유진의 구원 강박 외출이 열려야 한다');
+  assert.notDeepEqual(
+    Array.from(profiles.dateChoices(calmYujin,'date',approaches,{trust:40}),x=>x.label),
+    Array.from(profiles.dateChoices(awakenedYujin,'date',approaches,{trust:40}),x=>x.label),
+    '강유진의 각성 전후 외출 선택지는 달라야 한다'
+  );
+  assert.notEqual(
+    profiles.requestOptions(calmYujin,{closeness:80,trust:50,risk:{value:50},morality:60})[0].label,
+    profiles.requestOptions(awakenedYujin,{closeness:80,trust:50,risk:{value:50},morality:60})[0].label,
+    '강유진의 각성 전후 부탁 문구도 달라야 한다'
+  );
+  assert.equal(profiles.awakeningState({name:'한채린',dangerAwakened:true,story:{traits:{}}}).awakened,false,'일반 연애만으로 한채린의 굴복 욕구가 각성하면 안 된다');
+  assert.equal(profiles.awakeningState({name:'한채린',status:'friend',chaerinSubmissionAwakened:true}).awakened,false,'한채린의 각성 사건이 있어도 친구 상태에서는 연인용 상호작용을 열면 안 된다');
+  assert.equal(profiles.awakeningState({name:'한채린',status:'partner',chaerinSubmissionAwakened:true}).awakened,true,'한채린의 명시적 각성 사건과 연인 관계가 함께 성립하면 전용 상호작용을 열어야 한다');
+  assert.equal(profiles.awakeningState({name:'윤세라',dangerAwakened:true,story:{traits:{}}}).awakened,false,'일반 연애만으로 윤세라의 극단 상호작용이 열리면 안 된다');
+  assert.equal(profiles.awakeningState({name:'윤세라',spentNight:true}).awakened,true,'윤세라의 명시적 밤 사건 뒤에는 각성 상호작용이 열려야 한다');
+
+  const earlyKinds=profiles.requestOptions({name:'서연',personality:'caring'},{closeness:12,trust:4,morality:60}).map(x=>x.kind);
+  assert.deepEqual(Array.from(earlyKinds),['celebrate','gift','advice'],'낮은 친분에는 일상적인 부탁만 보여야 한다');
+  const closeKinds=profiles.requestOptions({name:'미래',personality:'frugal',moneyStyle:'support'},{closeness:70,trust:55,morality:60}).map(x=>x.kind);
+  assert.ok(closeKinds.includes('help')&&closeKinds.includes('secret')&&closeKinds.includes('money'),'신뢰가 쌓인 지원형 인물에게만 깊은 부탁이 열려야 한다');
+  const policeKinds=profiles.requestOptions({name:'강유진',personality:'caring',special:'police'},{closeness:100,trust:80,morality:10}).map(x=>x.kind);
+  assert.ok(!policeKinds.includes('alibi')&&!policeKinds.includes('money'),'강유진에게 불법 알리바이나 개인 돈 부탁을 기본 메뉴로 보여주면 안 된다');
+  const darkKinds=profiles.requestOptions({name:'한채린',personality:'ambitious',special:'heiress'},{closeness:100,trust:80,morality:10}).map(x=>x.kind);
+  assert.ok(darkKinds.includes('alibi'),'낮은 도덕성과 높은 신뢰가 함께 있을 때만 위험한 부탁이 열려야 한다');
 }
 
 {
@@ -524,10 +631,12 @@ for (const file of [
   assert.equal(context.QT_CHARACTER_STORIES.get({name:'나영'}).variant,'adult','같은 인물의 성인 초면 이야기는 별도 변형을 유지해야 한다');
   const stories=context.QT_CHARACTER_STORIES;
   const salvationSera={name:'윤세라',status:'partner',affection:100,trust:60,obsession:55};
+  stories.chooseRomancePath(salvationSera,'pure');
   assert.equal(stories.get(salvationSera).chapters.length,8,'윤세라 개인 루트는 다른 인물 분량의 기준이 되는 8장이어야 한다');
   while(stories.next(salvationSera))stories.apply(salvationSera,'anchor');
   assert.equal(salvationSera.story.ending.route,'mutual_salvation','열린 문을 반복해 고르면 윤세라 상호구원 순애가 완성돼야 한다');
   const mutualSera={name:'윤세라',status:'partner',affection:100,trust:60,obsession:20};
+  stories.chooseRomancePath(mutualSera,'pure');
   while(stories.next(mutualSera))stories.apply(mutualSera,'fuse');
   assert.equal(mutualSera.story.ending.route,'mutual_captivity','서로의 폐쇄를 반복해 고르면 상호감금 결말이 준비돼야 한다');
   assert.ok(mutualSera.mutualObsession>=5&&mutualSera.mutualCaptivityReady,'상호감금은 플레이어의 역집착 누적과 열쇠 상태를 남겨야 한다');
@@ -623,21 +732,33 @@ for (const file of [
   assert.match(fs.readFileSync(path.join(root,'index.html'),'utf8'),/js\/relationship_social\.js/,'관계 사회 반응 모듈이 앱보다 먼저 로드돼야 한다');
 }
 
+const finishFreedomForBusiness=life=>{
+  life.freedomTrio={onlineOnlyComplete:true};
+  return life;
+};
+
 {
   assert.equal(context.QT_BUSINESS_ROMANCE.introduce({},'office'),null,'한채린과 친구·연인·공동생활 관계가 아니면 사업 4인조 소개를 직접 열 수 없어야 한다');
   const independentLife={met:[],faction:{level:3},business:{owned:[]}};
-  assert.ok(context.QT_BUSINESS_ROMANCE.introduce(independentLife,'office'),'충분한 독립 세력을 만든 플레이어는 한채린 없이도 업계 소개를 받아야 한다');
+  assert.ok(context.QT_BUSINESS_ROMANCE.introduce(independentLife,'office'),'충분한 독립 세력을 만든 플레이어는 자유인 결말 전에도 가명 특별 직원을 배치할 수 있어야 한다');
   const life={met:[{name:'한채린',status:'friend'}]};
   const romance=context.QT_BUSINESS_ROMANCE,state=romance.ensure(life);
-  assert.ok(romance.introduce(life,'office'),'한채린과 가까워지면 자유인 3인조 진행 여부와 무관하게 사업 책임자 소개가 열려야 한다');
-  assert.equal(context.QT_BUSINESS_ROMANCE.identity(life,'office').displayName,'박 매니저','공개 전에는 실명 대신 직함을 보여야 한다');
-  assert.equal(romance.identity(life,'office').displayName,'박 매니저','소개 뒤에도 역할 붕괴 사건 전에는 직함과 가린 얼굴을 유지해야 한다');
+  assert.ok(romance.introduce(life,'office'),'한채린과 가까워지면 초반 보상으로 사업 책임자 소개가 열려야 한다');
+  assert.equal(romance.identity(life,'office').displayName,'박 매니저','자유인 결말 전에는 소개받은 직원도 가명만 보여야 한다');
+  assert.equal(romance.identity(life,'office').portrait,null,'자유인 결말 전에는 소개받은 직원의 얼굴을 보여주면 안 된다');
+  state.staff.office.revealed=true;
+  assert.equal(romance.identity(life,'office').portrait,null,'잘못 저장된 조기 공개 상태가 있어도 자유인 결말 전에는 얼굴을 가려야 한다');
+  state.staff.office.revealed=false;
   assert.equal(romance.recruit(life,'office','commerce').ok,true);
   state.staff.office.bond=30;
   state.staff.office.humanFirstCount=1;
   const businesses={owned:[{id:'commerce',typeId:'commerce',managerId:'office',specialManagerId:'office',months:6,level:2,lastNet:1000000,totalProfit:10000000,reputation:70}]};
-  assert.equal(romance.monthly(life,{day:1,businessState:businesses,partnerNames:[],met:[]}),null);
-  const reveal=romance.monthly(life,{day:2,businessState:businesses,partnerNames:[],met:[]});
+  assert.equal(romance.monthly(life,{day:1,businessState:businesses,partnerNames:[],met:[]}),null,'사업체와 특별 직원은 있어도 자유인 결말 전에는 얼굴 공개 사건이 나오면 안 된다');
+  assert.equal(romance.monthly(life,{day:2,businessState:businesses,partnerNames:[],met:[]}),null,'자유인 결말 전에는 사업 4인조 개인·공통 사건을 계속 막아야 한다');
+  finishFreedomForBusiness(life);
+  assert.equal(context.QT_BUSINESS_ROMANCE.identity(life,'office').displayName,'박 매니저','공개 전에는 실명 대신 직함을 보여야 한다');
+  assert.equal(romance.identity(life,'office').displayName,'박 매니저','소개 뒤에도 역할 붕괴 사건 전에는 직함과 가린 얼굴을 유지해야 한다');
+  const reveal=romance.monthly(life,{day:3,businessState:businesses,partnerNames:[],met:[]});
   assert.equal(reveal.kind,'reveal','사람을 우선한 위기 대응과 연속 흑자 뒤 얼굴 공개 이벤트가 발생해야 한다');
   const revealed=romance.resolve(life,reveal,'meet',100000000);
   assert.equal(revealed.revealed,true);
@@ -645,17 +766,22 @@ for (const file of [
   state.staff.office.storyChapter=3;
   assert.equal(romance.canRomance(life,'박지수'),false,'연인이 없는 플레이어에게 사업 4인조 연애가 열리면 안 된다');
   assert.equal(context.QT_ROMANCE_ROUTES.engaged(life,'business'),false,'싱글 플레이어의 특별 책임자 고용·정체 공개는 연애 그룹 진입으로 기록되면 안 된다');
+  const businessAppSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  assert.match(businessAppSource,/managerPortrait=identity&&identity\.introduced\?\(identity\.portrait\|\|identity\.maskedScene\):null/,'가명 특별 직원에게는 얼굴 대신 가림 이미지를 선택해야 한다');
+  assert.match(businessAppSource,/identity\?managerPortrait:BUSINESS\.portraitPath/,'특별 직원의 사업 카드가 일반 직원 초상화 대체 경로로 얼굴을 노출하면 안 된다');
+  assert.match(businessAppSource,/managerScene=managerIdentity&&managerIdentity\.revealed\?managerIdentity\.scene:''/,'일반 사업 보고에서도 정체 공개 전 전신 장면으로 얼굴을 노출하면 안 된다');
+  assert.match(businessAppSource,/function showBusinessRomanceEvent\(event\)\{\s*if\(!BUSINESS_ROMANCE\|\|!BUSINESS_ROMANCE\.prerequisiteComplete\(S\.life\)\)/,'이전 저장에 대기 중인 사업 4인조 사건도 자유인 결말 전에는 화면에 열리면 안 된다');
 }
 
 {
   const romance=context.QT_BUSINESS_ROMANCE;
-  const life={met:[]},state=romance.ensure(life);
+  const life=finishFreedomForBusiness({met:[]}),state=romance.ensure(life);
   ['office','creative','corporate'].forEach(id=>Object.assign(state.staff[id],{introduced:true,hired:true}));
   const retaliation=romance.monthly(life,{day:1,businessState:{owned:[]},partnerNames:[],met:[],rivalName:'테스트 적대 세력'});
   assert.equal(retaliation.kind,'market-retaliation','유능한 책임자 셋 이상을 고용하면 경쟁 세력이 경제 보복해야 한다');
   const counter=romance.resolve(life,retaliation,'counter',10000000);
   assert.equal(counter.rivalCounter,true);
-  const chaerinLife={met:[]},chaerinState=romance.ensure(chaerinLife);
+  const chaerinLife=finishFreedomForBusiness({met:[]}),chaerinState=romance.ensure(chaerinLife);
   ['office','creative'].forEach(id=>Object.assign(chaerinState.staff[id],{introduced:true,hired:true,revealed:true}));
   const chaerinEvent=romance.monthly(chaerinLife,{day:1,businessState:{owned:[]},partnerNames:[],met:chaerinLife.met});
   assert.equal(chaerinEvent.kind,'chaerin-board','한채린을 모르더라도 책임자가 둘 이상이면 이름과 스카우트 방식만 먼저 드러나야 한다');
@@ -670,13 +796,13 @@ for (const file of [
   assert.equal(blocked.chaerinRequired,true,'가려진 책임자를 봐도 한채린의 소개가 필요하다는 상태를 반환해야 한다');
   socialLife.met=[{name:'한채린',status:'friend'}];
   const lounge=context.QT_SOCIAL.attendIndustry(socialLife,'lounge',()=>0);
-  assert.equal(lounge.introduced,'office','한채린과 연결된 상위 업계 모임은 자유인 3인조 완료 없이 특별 책임자를 소개해야 한다');
-  assert.equal(context.QT_SOCIAL.ensure(socialLife).industry.standing,5);
+  assert.equal(lounge.introduced,'office','한채린과 연결된 상위 업계 모임은 초반에도 가명 특별 직원을 소개할 수 있어야 한다');
+  assert.equal(context.QT_BUSINESS_ROMANCE.identity(socialLife,'office').portrait,null,'초반 업계 소개만으로 특별 직원 얼굴이 공개되면 안 된다');
 }
 
 {
   const romance=context.QT_BUSINESS_ROMANCE;
-  const life={met:[{name:'박지수',status:'friend',affection:45,trust:25}]};
+  const life=finishFreedomForBusiness({met:[{name:'박지수',status:'friend',affection:45,trust:25}]});
   const state=romance.ensure(life);
   Object.assign(state.staff.office,{introduced:true,hired:true,revealed:true,bond:35});
   const businesses={owned:[{
@@ -699,7 +825,7 @@ for (const file of [
 
 {
   const romance=context.QT_BUSINESS_ROMANCE;
-  const life={met:romance.IDS.map(id=>({name:romance.profile(id).name,status:'friend',affection:80,trust:60}))};
+  const life=finishFreedomForBusiness({met:romance.IDS.map(id=>({name:romance.profile(id).name,status:'friend',affection:80,trust:60}))});
   const state=romance.ensure(life);
   romance.IDS.forEach(id=>Object.assign(state.staff[id],{introduced:true,hired:true,revealed:true,storyChapter:3,bond:50}));
   assert.equal(romance.canRomance(life,'박지수'),false,'사업 4인조는 연인이 없는 플레이어에게 연애 후보가 되면 안 된다');
@@ -719,7 +845,7 @@ for (const file of [
   assert.equal(state.staff.creative.secretAffair,true);
   assert.equal(suitor.rivalTakeover,undefined,'사업 담당자가 기존 연인의 자리를 강제로 빼앗으면 안 된다');
   assert.equal(romance.canRomance(life,'한이슬'),true,'비밀 관계를 수락한 담당자만 기존 연인이 있을 때 연애 진행이 가능해야 한다');
-  const pureLife={met:[{name:'나래',status:'partner'}]},pureState=romance.ensure(pureLife);
+  const pureLife=finishFreedomForBusiness({met:[{name:'나래',status:'partner'}]}),pureState=romance.ensure(pureLife);
   pureLife.partner={name:'나래'};
   assert.match(romance.romanceEnding('cohabitation_refusal').detail,/경영권.*상실/,'사업 4인조가 공동 관계 거절 엔딩을 직접 소유해야 한다');
   assert.match(romance.romanceEnding('pure_affair').detail,/대표 해임/,'사업 4인조가 순애 위반 엔딩을 직접 소유해야 한다');
@@ -745,6 +871,7 @@ for (const file of [
     ...romance.IDS.map(id=>({name:romance.profile(id).name,status:'friend',affection:85,trust:70})),
     {name:'강유진',status:'partner',affection:80,trust:60},
   ]};
+  finishFreedomForBusiness(chapterLife);
   chapterLife.partner={name:'강유진'};
   const chapterState=romance.ensure(chapterLife);chapterState.chaerinBoardSeen=true;
   chapterState.retaliationSeen=true;
@@ -781,6 +908,7 @@ for (const file of [
     {name:'나래',status:'partner',affection:80,trust:70},
     {name:'박지수',status:'friend',affection:90,trust:70},
   ]};
+  finishFreedomForBusiness(turncoatLife);
   const turncoatState=romance.ensure(turncoatLife);
   Object.assign(turncoatState,{retaliationSeen:true,chaerinBoardSeen:true});
   Object.assign(turncoatState.staff.office,{introduced:true,hired:true,revealed:true,storyChapter:3,bond:75,trust:65,secretAffair:true,temptationSeen:true});
@@ -814,6 +942,21 @@ for (const file of [
 
 {
   const freedom=context.QT_FREEDOM_TRIO;
+  const freedomAppSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  const styleSource=fs.readFileSync(path.join(root,'css/style.css'),'utf8');
+  const freedomQueueBody=freedomAppSource.match(/function queueNaturalFreedomEvents\(L\)\{[\s\S]*?\n\}/)[0];
+  assert.ok(freedomQueueBody.indexOf('dangerousDisclosureReady')<freedomQueueBody.indexOf('FREEDOM_TRIO.queue(L)')&&freedomQueueBody.indexOf('FREEDOM_TRIO.queue(L)')<freedomQueueBody.indexOf('queuePersonal'),'자유인 큐는 관계 공개 → 공통 도입 → 개인사 교차 진행 순서여야 한다');
+  assert.match(freedomAppSource,/if\(freedomPersonalStoryManaged\(m,L\)\)return/,'자유인 전용 개인사가 열린 뒤 일반 캐릭터 개인서사를 동시에 큐에 넣으면 안 된다');
+  assert.match(freedomAppSource,/function showFreedomGuildEvent[\s\S]*?phone-notification-stage freedom-guild-stage/,'자유인 온라인 길드 사건도 공통 휴대폰 UI를 사용해야 한다');
+  assert.match(freedomAppSource,/function showFirstCloseGuildTutorial[\s\S]*?phone-chat-screen open/,'첫 자유인 접속 장면도 공통 휴대폰 대화 화면을 사용해야 한다');
+  assert.match(freedomAppSource,/function showOriginFriendReferral[\s\S]*?phone-notification-stage origin-referral-stage/,'초반 친구 메시지를 열었을 때도 자유인과 같은 전체 휴대폰 UI를 사용해야 한다');
+  assert.doesNotMatch(freedomAppSource,/speaker==='플레이어'\?'outgoing':'incoming'/,'초반 휴대폰 발신 말풍선은 다른 클래스명을 사용하면 안 된다');
+  assert.match(styleSource,/\.freedom-main-chat-shell\s*\{\s*width:min\(390px,100%\)/,'자유인 본편 휴대폰 폭은 다른 휴대폰과 같아야 한다');
+  assert.match(freedomAppSource,/querySelector\('\.event-options,\.phone-reply-options'\)/,'자유인 본편 답장 뒤에는 휴대폰 선택지도 닫혀야 한다');
+  const playFreedomPersonalCheckpoint=life=>{
+    let next;
+    while((next=freedom.nextPersonalEvent(life)))assert.ok(freedom.applyPersonal(life,next.id,next.event.choices[0].id),`${next.event.name} 개인사를 공통 본편 전에 완료할 수 있어야 한다`);
+  };
   const guildLife={met:[]};
   assert.equal(freedom.canMeetOffline(guildLife,'채원'),false,'게임 정체 공개 전에는 자유인 3인조를 오프라인에서 만날 수 없어야 한다');
   assert.equal(freedom.canContact(guildLife,'채원'),false,'정모 전에는 실명 연락처가 열리면 안 된다');
@@ -851,7 +994,7 @@ for (const file of [
   assert.equal(freedom.canContact(guildLife,'채원'),true,'첫 정모 뒤에는 현실 연락처가 열려야 한다');
   assert.equal(freedom.canMeetOffline(guildLife,'채원'),true,'첫 정모 뒤에는 현실 친구로 만날 수 있어야 한다');
   assert.equal(freedom.queueCounseling(guildLife),null,'새 그룹 본편에서는 구버전 개인 상담이 별도 팝업으로 끼어들면 안 된다');
-  assert.equal(freedom.nextPersonalEvent(guildLife),null,'공항·촬영·공연 중심 구버전 개인 사건이 새 단체 줄기보다 먼저 열리면 안 된다');
+  assert.equal(freedom.nextPersonalEvent(guildLife),null,'첫 정모 뒤에는 공통 1장으로 네 사람의 현실 관계를 먼저 연결해야 한다');
   assert.equal(freedom.counselingComplete(guildLife),true,'새 그룹 본편은 단체방 장면 자체가 일상 연락을 포함해야 한다');
   assert.deepEqual(Array.from(freedom.GUILD_MEMBERS.map(member=>member.nickname)),['막차요정','무보정','쉼표']);
   const cohabitChapterLife={met:[],faction:{level:1},seraHousing:'cohabit'};
@@ -888,6 +1031,17 @@ for (const file of [
   assert.ok(takeoverResult.room.messages.some(message=>/세라니/.test(message.text)),'유나는 세라가 대신 친 문장을 알아채고 역으로 물어야 한다');
   assert.equal(storyChatLife.freedomTrio.phoneBoundarySet,true,'플레이어가 휴대폰을 되찾으면 이후 직접 답장 경계를 저장해야 한다');
 
+  const legacyOrderLife={met:freedom.NAMES.map(name=>({name,status:'friend',affection:70,trust:50})),freedomTrio:{groupArcVersion:2,active:true,encountered:true,stage:3,firstOuting:'seen',identityState:'revealed',history:[],personal:{}}};
+  const migratedOrder=freedom.ensure(legacyOrderLife);
+  assert.equal(migratedOrder.groupArcVersion,3);
+  assert.equal(migratedOrder.active,true,'구버전에서 이미 시작한 공통 본편은 진행 기록을 잃지 않아야 한다');
+  assert.equal(migratedOrder.stage,3,'구버전 공통 진행도는 유지하되 다음 장 전에 빠진 개인사를 삽입해야 한다');
+  assert.equal(migratedOrder.reorderedFromStage,3,'이관 전 공통 진행도는 진단용으로 보존해야 한다');
+  assert.equal(freedom.next(legacyOrderLife),null,'빠진 개인사를 마치기 전에는 구버전 공통 다음 장이 재생되면 안 된다');
+  playFreedomPersonalCheckpoint(legacyOrderLife);
+  assert.equal(freedom.individualStoriesComplete(legacyOrderLife),true);
+  assert.ok(freedom.next(legacyOrderLife),'개인사를 보충한 뒤 저장된 공통 진행도에서 이어져야 한다');
+
   const onlineLife={met:[{name:'나래',status:'partner',affection:80,trust:70}],partner:{name:'나래'},faction:{level:1},seraHousing:'reject',outsideFearResolved:true};
   const onlineState=freedom.ensure(onlineLife);
   onlineState.guildStage=2;onlineState.gameSessions=6;onlineState.guildJoined=true;
@@ -919,7 +1073,9 @@ for (const file of [
   assert.equal(sharedInvite.meetupQueued,true,'광기 3인 공동생활 중에는 자유인 3인 정모가 허용돼야 한다');
   assert.equal(freedom.applyFirstOuting(sharedLife).reveal,true);
   freedom.NAMES.forEach(name=>sharedLife.met.push({name,status:'friend',affection:40,trust:30}));
-  assert.equal(freedom.dangerousDisclosureReady(sharedLife),false,'공동생활 사실은 첫 정모 직후 별도 팝업으로 성급하게 공개되면 안 된다');
+  assert.equal(freedom.dangerousDisclosureReady(sharedLife),true,'공동생활 사실은 개인 감정이 깊어지기 전에 첫 정모 직후 직접 공개해야 한다');
+  assert.ok(freedom.applyDangerousDisclosure(sharedLife,'full'),'첫 정모 뒤 공개 선택이 실제 관계 공개 상태로 저장돼야 한다');
+  assert.equal(sharedState.relationshipDisclosure,'full');
 
   const life={
     met:freedom.NAMES.map(name=>({name,status:'friend',affection:70,trust:45})),
@@ -931,7 +1087,7 @@ for (const file of [
   state.entryOutcome='offline';
   state.identityState='revealed';
   state.firstOuting='seen';
-  assert.equal(freedom.eligibility(life).ok,true,'연인이 없는 상태에서는 첫 정모 뒤 새 단체방 본편이 바로 열려야 한다');
+  assert.equal(freedom.eligibility(life).ok,true,'첫 정모 뒤에는 네 사람을 연결하는 공통 1장이 먼저 열려야 한다');
   const exclusiveLife=JSON.parse(JSON.stringify(life));
   exclusiveLife.met.push({name:'나래',status:'partner',affection:80,trust:70});
   context.QT_RELATIONSHIPS.startRelationship(exclusiveLife,exclusiveLife.met.at(-1));
@@ -944,9 +1100,15 @@ for (const file of [
   dangerousPendingLife.dangerousTrioBond={active:true};
   assert.equal(freedom.relationshipMode(dangerousPendingLife).canAdvance,true,'위험한 3인조 공동생활이 성립하면 자유인 3인조가 아치에너미이자 다음 장으로 진전할 수 있어야 한다');
   assert.equal(freedom.start(life).ok,true);
-  for(const choiceId of ['same_names','resume_later','three_promises','no_pressure','ask_and_wait','hear_everyone','shared_party']){
-    assert.ok(freedom.apply(life,choiceId),'자유인 3인의 새 7장 선택을 모두 처리할 수 있어야 한다');
-  }
+  assert.ok(freedom.apply(life,'same_names'));
+  assert.equal(freedom.next(life),null,'공통 1장 뒤에는 세 사람의 1차 개인사를 먼저 봐야 한다');
+  playFreedomPersonalCheckpoint(life);
+  assert.equal(freedom.personalCheckpointComplete(life,1),true);
+  assert.ok(freedom.apply(life,'resume_later'));
+  assert.equal(freedom.next(life),null,'공통 2장 뒤에는 세 사람의 2차 개인사를 먼저 봐야 한다');
+  playFreedomPersonalCheckpoint(life);
+  assert.equal(freedom.individualStoriesComplete(life),true);
+  for(const choiceId of ['three_promises','no_pressure','ask_and_wait','hear_everyone','shared_party'])assert.ok(freedom.apply(life,choiceId),'개인사와 연결된 자유인 공통 결론을 처리할 수 있어야 한다');
   assert.equal(state.ending.tone,'good');
   assert.equal(freedom.storyComplete(life),true,'단체방·일상 공유·짧은 약속·이탈·최종 제안을 끝내야 자유인 장 완료로 판정해야 한다');
   assert.equal(freedom.confessionReady(life),true,'좋은 공동 결말 뒤에만 자유인 쪽 고백이 열려야 한다');
@@ -954,6 +1116,7 @@ for (const file of [
   const closedLife={met:freedom.NAMES.map((name,index)=>({name,status:index===0?'ex':'friend',affection:70,trust:45}))};
   const closedState=freedom.ensure(closedLife);
   closedState.guildStage=freedom.GUILD_EVENTS.length;closedState.firstOuting='seen';closedState.identityState='revealed';closedState.entryOutcome='offline';
+  Object.keys(freedom.PERSONAL_EVENTS).forEach(id=>{closedState.personal[id]='seen';});
   assert.equal(freedom.resolveUnavailable(closedLife),true,'한 사람이 인연을 정리해도 끝낸 개인사는 장 완료로 정리돼 다음 그룹을 막지 않아야 한다');
   assert.equal(freedom.storyComplete(closedLife),true);
   assert.equal(freedom.confessionReady(closedLife),false,'구성원이 떠난 그룹에서는 전원 고백이 오면 안 된다');
@@ -976,10 +1139,13 @@ for (const file of [
 
   sharedState.identityState='revealed';sharedState.firstOuting='seen';sharedState.entryOutcome='offline';
   assert.equal(freedom.start(sharedLife).ok,true,'광기 3인 공동생활 중에도 자유인 단체 본편이 시작돼야 한다');
-  for(const choiceId of ['same_names','home_busy','three_promises','disclose_all','ask_and_wait','hear_everyone','dangerous_shared']){
-    assert.ok(freedom.apply(sharedLife,choiceId),`광기 공동생활 분기 ${choiceId} 선택을 처리해야 한다`);
-  }
-  assert.equal(sharedState.dangerousDisclosureComplete,true,'4장에서 기존 공동생활을 전부 공개해야 두 그룹의 직접 대치가 열려야 한다');
+  assert.ok(freedom.apply(sharedLife,'same_names'));playFreedomPersonalCheckpoint(sharedLife);
+  assert.ok(freedom.apply(sharedLife,'home_busy'));playFreedomPersonalCheckpoint(sharedLife);
+  for(const choiceId of ['three_promises','confirm_disclosure','ask_and_wait','hear_everyone'])assert.ok(freedom.apply(sharedLife,choiceId),`광기 공동생활 분기 ${choiceId} 선택을 처리해야 한다`);
+  const publicFinalChoice=freedom.next(sharedLife).choices.find(choice=>choice.id==='dangerous_shared');
+  assert.equal(publicFinalChoice.disabled,false,'이미 공개한 저장 상태에서 마지막 공동 선택에 공개 요구 잠금이 다시 걸리면 안 된다');
+  assert.ok(freedom.apply(sharedLife,'dangerous_shared'));
+  assert.equal(sharedState.dangerousDisclosureComplete,true,'첫 정모 뒤 공개 기록이 본편 4장과 마지막 공동 선택까지 유지돼야 한다');
   assert.equal(sharedState.extensionActive,true,'공개 협의 선택은 즉시 엔딩이 아니라 광기 3인의 심문으로 이어져야 한다');
   for(const choiceId of ['sit_down','truth_was_full','decide_together','ask_then_release','endure_month','accept_trial','return_and_tell','accept_six_rules']){
     assert.ok(freedom.apply(sharedLife,choiceId),`여섯 사람 확장장 ${choiceId} 선택을 처리해야 한다`);
@@ -999,8 +1165,12 @@ for (const file of [
   const betrayalLife={met:freedom.NAMES.map(name=>({name,status:'friend',affection:70,trust:45})),dangerousTrioBond:{active:true}};
   const betrayalState=freedom.ensure(betrayalLife);
   betrayalState.firstOuting='seen';betrayalState.identityState='revealed';betrayalState.entryOutcome='offline';
+  betrayalState.dangerousDisclosurePending=true;
+  assert.ok(freedom.applyDangerousDisclosure(betrayalLife,'full'));
   assert.equal(freedom.start(betrayalLife).ok,true);
-  for(const choiceId of ['same_names','home_busy','three_promises','disclose_all','ask_and_wait','hear_everyone'])assert.ok(freedom.apply(betrayalLife,choiceId));
+  assert.ok(freedom.apply(betrayalLife,'same_names'));playFreedomPersonalCheckpoint(betrayalLife);
+  assert.ok(freedom.apply(betrayalLife,'home_busy'));playFreedomPersonalCheckpoint(betrayalLife);
+  for(const choiceId of ['three_promises','confirm_disclosure','ask_and_wait','hear_everyone'])assert.ok(freedom.apply(betrayalLife,choiceId));
   const betrayal=freedom.apply(betrayalLife,'dangerous_secret');
   assert.equal(betrayal.ending.id,'octopus_fall','공동생활을 숨기고 한 사람만 고르면 문어다리 배드엔딩으로 끝나야 한다');
 }

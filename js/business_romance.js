@@ -334,14 +334,19 @@ function ensure(life){
 }
 function profile(id){return PROFILES[id]||null;}
 function staffState(life,id){return ensure(life).staff[id]||null;}
+function prerequisiteComplete(life){
+  const freedom=root.QT_FREEDOM_TRIO;
+  return !!(freedom&&typeof freedom.storyComplete==='function'&&freedom.storyComplete(life));
+}
 function identity(life,id){
   const p=profile(id),s=p&&staffState(life,id);
   if(!p)return null;
+  const revealAllowed=prerequisiteComplete(life)&&!!s.revealed;
   return{
-    ...p,revealed:!!s.revealed,introduced:!!s.introduced,hired:!!s.hired,rival:!!s.rival,
-    displayName:s.revealed?p.name:p.alias,
-    listName:s.revealed?p.name:p.hiddenName,
-    portrait:s.revealed?`./assets/characters/${p.portrait}`:null,
+    ...p,revealed:revealAllowed,introduced:!!s.introduced,hired:!!s.hired,rival:!!s.rival,
+    displayName:revealAllowed?p.name:p.alias,
+    listName:revealAllowed?p.name:p.hiddenName,
+    portrait:revealAllowed?`./assets/characters/${p.portrait}`:null,
     bond:Math.round(s.bond),trust:Math.round(s.trust),
   };
 }
@@ -395,7 +400,7 @@ function canRomance(life,nameOrId){
   const id=IDS.includes(nameOrId)?nameOrId:IDS.find(key=>PROFILES[key].name===nameOrId);
   const staff=id&&state.staff[id];
   const outside=activePartnerNames(life).some(name=>!IDS.some(key=>PROFILES[key].name===name));
-  return !!(outside&&staff&&staff.hired&&staff.revealed&&staff.storyChapter>=3&&staff.secretAffair&&!staff.affairRefused);
+  return !!(prerequisiteComplete(life)&&outside&&staff&&staff.hired&&staff.revealed&&staff.storyChapter>=3&&staff.secretAffair&&!staff.affairRefused);
 }
 function applyDecision(life,id,effects){
   const s=staffState(life,id);if(!s)return null;
@@ -472,7 +477,6 @@ function nextQuartetChapter(life,ctx,allOwned){
 }
 function monthly(life,context){
   const state=ensure(life),ctx=context||{},day=Math.max(1,Math.floor(finite(ctx.day,1)));
-  resolveUnavailable(life);
   const owned=ownedIds(ctx.businessState);
   IDS.forEach(id=>{
     if(!owned.has(id))return;
@@ -486,6 +490,8 @@ function monthly(life,context){
     const s=state.staff[id],item=((ctx.businessState&&ctx.businessState.owned)||[]).find(x=>(x.specialManagerId||x.managerId)===id);
     s.profitStreak=item&&item.lastNet>0?Math.max(0,finite(s.profitStreak,0))+1:0;
   });
+  if(!prerequisiteComplete(life))return null;
+  resolveUnavailable(life);
   if(day-state.lastEventDay<1)return null;
   const hiredCount=IDS.filter(id=>state.staff[id].hired).length;
   const revealedCount=IDS.filter(id=>state.staff[id].revealed).length;
@@ -864,5 +870,5 @@ function confessionReady(life){
     ['quartet_only','disclosure'].includes(state.quartet.route)&&(!routes||routes.romanceAvailable(life,'business'));
 }
 
-root.QT_BUSINESS_ROMANCE={PROFILES,ROMANCE_ENDINGS,romanceEnding,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,ownedIds,chaerinAccess,introduce,recruit,canRomance,applyDecision,monthly,releaseReservation,view,resolve,endingSummary,progressSummary,storyComplete,resolveUnavailable,confessionReady,activePartnerNames};
+root.QT_BUSINESS_ROMANCE={PROFILES,ROMANCE_ENDINGS,romanceEnding,PERSONAL_STORIES,QUARTET_CHAPTERS,IDS,ensure,profile,staffState,identity,asCharacter,ownedIds,prerequisiteComplete,chaerinAccess,introduce,recruit,canRomance,applyDecision,monthly,releaseReservation,view,resolve,endingSummary,progressSummary,storyComplete,resolveUnavailable,confessionReady,activePartnerNames};
 })(window);
