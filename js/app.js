@@ -64,6 +64,7 @@ if (!MONTH_CLOSE_VIEWS['life-action']) {
         <div class="window-body month-flow-body">
           ${api.progress()}
           <div class="life-action-overview">${api.overview()}</div>
+          ${api.cohabitationFatigue()}
           ${api.lifeHubHTML()}
           <div class="close-actions">
             <button class="session-btn opening" data-month-close-next ${remaining>0?'disabled':''}>${remaining>0 ? `일정 ${remaining}회 더 선택해야 진행할 수 있습니다` : '4주 일정 완료 · 주요 사건 확인'}</button>
@@ -170,6 +171,7 @@ const LIFE = {
   EVENT_PROB: 0.72,          // 장 마감 때 선택지 이벤트가 뜰 확률
 };
 const FATHER_MONTHLY_SUPPORT = 1000000;
+const FATHER_SUPPORT_WEALTH_LIMIT = 30000000;
 
 function newLife() {
   return {
@@ -204,7 +206,8 @@ function newLife() {
     childhoodCircle: { anchor:null, schoolId:null, stage:'dormant', pressure:0, trust:0, seen:{}, route:null, pending:null },
     childhoodNightContract: null, // 소꿉친구와 하룻밤 뒤 다른 상대를 택했는지 추적
     seraHousing: null,        // cohabit | separate | reject — 위험한 3인조 편입 조건
-    outsideFearResolved: false, // 윤세라 작업실 사건 전까지 자발적인 외출을 피한다
+    outsideFearResolved: false, // 세라와 서로의 공포를 밝히거나 자유인 구원을 마칠 때까지 자발적인 외출을 피한다
+    outsideFearResolution: null,// {source,day,choice} — 외출이 열린 서사적 계기
     met: [],                 // 한 번이라도 만난 사람 (헤어져도 기억한다) — rememberPerson() 참고
     properties: [],          // [{id, name, emoji, value, rent}]
     passiveAssets: [],       // 주식 외 월 현금흐름 자산 [{id, boughtAt}]
@@ -230,6 +233,9 @@ function newLife() {
     parentAge: 58,
     parentHealth: 78,
     familyBond: 35,
+    fatherSupportEnded: false, // 자립 기준에 도달하면 손실이 나도 생활비 지원은 재개되지 않는다
+    fatherSupportEndReason: null,
+    fatherSupportEndedDay: null,
     career: null,
     housing: null,
     finance: null,
@@ -1441,6 +1447,7 @@ function renderCurrentMonthCloseStep() {
       const condition=L.health<35?'치료 필요':L.stress>=70?'과로 위험':L.health>=70&&L.stress<45?'좋음':'보통';
       return `<span>남은 행동 <b>${lifeActionRemaining()}/${LIFE_ACTIONS_PER_MONTH}</b></span><span>${job.emoji} ${job.name}</span><span>컨디션 <b>${condition}</b></span>`;
     },
+    cohabitationFatigue:dangerousTrioFatigueHTML,
     nextMonthLabel:() => dateInfo(S.day + 1).label,
   });
 }
@@ -1594,7 +1601,37 @@ function rollPartnerIncident(L, partner, per) {
   return ev;
 }
 
-// 월말 정산: 아버지 생활비 + 자산·사업·세력 수입 − 생활·금융비용 + 관계·건강 변화
+function fatherSupportActive(L){
+  return !!(L&&L.generation===1&&!L.fatherSupportEnded&&(L.parentHealth||0)>0);
+}
+function updateFatherSupport(L){
+  if(!L||L.generation!==1||L.fatherSupportEnded)return false;
+  const tooIll=(L.parentHealth||0)<=0;
+  const selfSufficient=!tooIll&&totalWealth()>=FATHER_SUPPORT_WEALTH_LIMIT;
+  if(!tooIll&&!selfSufficient)return true;
+  L.fatherSupportEnded=true;
+  L.fatherSupportEndReason=tooIll?'health':'self-sufficient';
+  L.fatherSupportEndedDay=S.day;
+  const father=(SOCIAL.ensure(L).contacts||[]).find(contact=>contact.role==='father');
+  if(tooIll){
+    if(father)pushPersonMessage(L,father,'이번 달부터는 내 치료비를 먼저 챙겨야 할 것 같다. 미안하다. 네 생활은 이제 네가 지켜야 한다.',false);
+    queueImportantEvent({
+      type:'family',icon:'🏥',title:'아버지의 생활비 지원이 멈췄습니다',
+      desc:'아버지의 건강이 더 나빠져 매달 보내던 생활비를 치료비로 돌려야 합니다.',
+      detail:`이번 달부터 월 ${won(FATHER_MONTHLY_SUPPORT)}원 지원 종료 · 인생 행동에서 아버지를 돌볼 수 있습니다.`,tone:'bad',
+    });
+  }else{
+    if(father)pushPersonMessage(L,father,'계좌 보니까 이제 내가 보태는 돈보다 네가 움직이는 돈이 훨씬 크더라. 이제부터 그 백만 원은 내가 노후에 쓸게. 너도 정말 네 힘으로 선 거다.',false);
+    queueImportantEvent({
+      type:'family',icon:'👨',title:'아버지가 생활비 송금을 끝냈습니다',
+      desc:'아버지는 계좌의 숫자를 한참 확인한 뒤, 이제 자신이 보태지 않아도 된다는 사실이 오히려 기쁘다고 말했습니다.',
+      detail:`순자산 ${won(FATHER_SUPPORT_WEALTH_LIMIT)}원 이상으로 자립 인정 · 월 ${won(FATHER_MONTHLY_SUPPORT)}원 지원 영구 종료`,tone:'good',
+    });
+  }
+  return false;
+}
+
+// 월말 정산: 자립 전 아버지 생활비 + 자산·사업·세력 수입 − 생활·금융비용 + 관계·건강 변화
 function settleMonth() {
   const L = S.life;
   S._importantEvents = [];
@@ -1610,7 +1647,7 @@ function settleMonth() {
   // 1) 직업 월급 대신 아버지가 보내는 최소 생활비. 돈을 크게 버는 축은 투자·사업·세력이다.
   const wasJailed = L.jailMonths > 0;
   L.job='none';
-  b.salary = L.generation===1 ? FATHER_MONTHLY_SUPPORT : 0;
+  b.salary = updateFatherSupport(L) ? FATHER_MONTHLY_SUPPORT : 0;
   b.familySupport=b.salary;
   S.capital += b.salary;
   if (wasJailed) {
@@ -2424,6 +2461,7 @@ function importantEventPriority(event) {
   if(event.factionStory==='first_attack'||event.factionStory==='legal_result')return 100;
   if(event.relationshipSocialEvent&&event.kind==='sera-victim-confrontation')return 92;
   if(event.factionVictory||event.captivity||event.type==='ending')return 95;
+  if(event.dangerousTrioPrelude||event.dangerousTrioStart||event.dangerousTrioChapter)return 88;
   if(event.type==='debt'||event.type==='incident'||event.dangerousHeroineEvent)return 85;
   if(event.yujinInvestigation)return 80;
   if(event.storyBridge)return 78;
@@ -2444,6 +2482,13 @@ function importantEventKey(event) {
   if(event.relationshipSocialEvent)return`relationship-social:${event.kind}:${event.key||event.attackerName||event.day||''}`;
   if(event.yujinInvestigation)return'yujin:first-investigation';
   if(event.dangerousTrioPrelude)return`dangerous:prelude:${event.dangerousTrioPrelude}`;
+  if(event.dangerousTrioStart)return'dangerous:start';
+  if(event.dangerousTrioChapter)return'dangerous:chapter';
+  if(event.dangerousTrioAftermath)return'dangerous:aftermath';
+  if(event.freedomTrioStart)return'freedom:start';
+  if(event.freedomGuildEvent)return`freedom:guild:${event.freedomGuildEvent}`;
+  if(event.freedomTrioChapter)return'freedom:chapter';
+  if(event.freedomTrioAftermath)return'freedom:aftermath';
   if(event.freedomCounselingEvent)return`freedom:counseling:${event.eventId}`;
   if(event.freedomPersonalEvent)return`freedom:personal:${event.eventId}`;
   if(event.freedomFirstOuting)return'freedom:first-outing';
@@ -2453,6 +2498,8 @@ function importantEventKey(event) {
   if(event.chemistryEventId)return`chemistry:${event.chemistryEventId}`;
   if(event.crossEventId)return`cross:${event.crossEventId}`;
   if(event.monthlyMessage)return`message:${event.targetType}:${event.targetId!=null?event.targetId:event.personName||''}`;
+  if(event.childhoodCircleEvent)return`childhood:${event.childhoodCircleEvent}`;
+  if(event.businessRomanceEvent)return`business-romance:${event.kind||'event'}:${event.staffId||event.chapterId||event.rivalName||''}`;
   if(event.businessEvent)return`business:${event.businessId}:${event.eventId}`;
   if(event.story)return`story:${event.personName}`;
   return'';
@@ -3305,6 +3352,10 @@ function resolveDangerousHeroineEvent(choiceIndex){
   }
   if(choice.mutualObsession)r.mutualObsession=(r.mutualObsession||0)+choice.mutualObsession;
   if(choice.flags)Object.assign(r,choice.flags);
+  if(choice.unlockOuting&&r.name==='윤세라'){
+    S.life.outsideFearResolved=true;
+    S.life.outsideFearResolution={source:'sera_opened_door',day:S.day,choice:choice.unlockOuting};
+  }
   if(choice.cash)S.capital=Math.max(0,S.capital+choice.cash);
   if(choice.happy)S.life.happy=clamp(S.life.happy+choice.happy,0,100);
   r.dangerEvents=r.dangerEvents||{};r.dangerEvents[pending.id]='seen';
@@ -3312,7 +3363,8 @@ function resolveDangerousHeroineEvent(choiceIndex){
   const referral=r.name==='한채린'&&choiceIndex===0&&refusalIds.has(pending.id)
     ?noteChaerinSupportRefusal(S.life,`chaerin-event:${pending.id}`):null;
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
-  $('danger-heroine-outcome').innerHTML=`<div class="oc-text">${choice.result}</div>${referral?`<div class="important-event-detail ${referral.given?'up':'neutral'}">${referral.text}</div>`:''}<div class="oc-changes">호감 ${choice.affection>=0?'+':''}${choice.affection||0} · 신뢰 ${choice.trust>=0?'+':''}${choice.trust||0}${choice.danger?` · 위험도 ${choice.danger>0?'+':''}${choice.danger}`:''}${choice.cash?` · ${choice.cash>0?'수입 +':'지출 '}${won(Math.abs(choice.cash))}`:''}</div><button id="danger-heroine-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
+  const outingUnlocked=choice.unlockOuting?'<div class="story-ending"><b>🌆 자발적인 외출 해금 · 서로 문을 열어 준 사람</b><br>세라가 당신을 끌어낸 것이 아니라 자기 공포를 먼저 말하고 밖에서 기다렸습니다. 이제 혼자 걷거나, 연락처를 교환한 사람과 약속을 잡아 외출할 수 있습니다.</div>':'';
+  $('danger-heroine-outcome').innerHTML=`<div class="oc-text">${choice.result}</div>${outingUnlocked}${referral?`<div class="important-event-detail ${referral.given?'up':'neutral'}">${referral.text}</div>`:''}<div class="oc-changes">호감 ${choice.affection>=0?'+':''}${choice.affection||0} · 신뢰 ${choice.trust>=0?'+':''}${choice.trust||0}${choice.danger?` · 위험도 ${choice.danger>0?'+':''}${choice.danger}`:''}${choice.cash?` · ${choice.cash>0?'수입 +':'지출 '}${won(Math.abs(choice.cash))}`:''}</div><button id="danger-heroine-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
   $('danger-heroine-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._dangerousHeroineEvent=null;renderLifePanel();autoSave();showNextImportantEvent();});
 }
 
@@ -3476,7 +3528,8 @@ function maybeLifeEvent() {
     if (childEvent) { showLifeEvent(childEvent); return true; }
   }
   const eventPartner=pick(RELATIONSHIPS.consensualMembers(L));
-  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,stress:L.stress||0,charm:L.charm,affection:L.affection||0,pers:eventPartner&&eventPartner.personality,partnerJob:eventPartner&&eventPartner.job,partnerName:eventPartner&&eventPartner.name,partnerNames:RELATIONSHIPS.names(L),hasLovers:!!(L.lovers&&L.lovers.length),familyPlan:!!L.familyPlan,dangerousTrioLiving:!!(L.dangerousTrioBond&&L.dangerousTrioBond.active),morality:L.morality==null?60:L.morality,guilt:L.guilt||0,makjang:!!L.makjang,hasShark:(L.loans||[]).some(x=>x.illegal),naraeKnown:!!L.tutorialMet,seraKnown:!!metRecord(L,'윤세라'),seraRescueReady:!!(L.seraRescueOrigin&&L.seraRescueOrigin.ready),day:S.day,trades:S.trades||0,hasLongPosition:Object.values(S.owned||{}).some(position=>(position.qty||0)>0),lastBurnoutEventDay:L.lastBurnoutEventDay };
+  const housing=HOUSING.ensure(L);
+  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,stress:L.stress||0,charm:L.charm,affection:L.affection||0,pers:eventPartner&&eventPartner.personality,partnerJob:eventPartner&&eventPartner.job,partnerName:eventPartner&&eventPartner.name,partnerNames:RELATIONSHIPS.names(L),hasLovers:!!(L.lovers&&L.lovers.length),familyPlan:!!L.familyPlan,dangerousTrioLiving:!!(L.dangerousTrioBond&&L.dangerousTrioBond.active),housingTenure:housing.tenure,housingMonths:housing.months||0,lastHousingRenewalMonth:housing.lastRenewalMonth||0,morality:L.morality==null?60:L.morality,guilt:L.guilt||0,makjang:!!L.makjang,hasShark:(L.loans||[]).some(x=>x.illegal),naraeKnown:!!L.tutorialMet,seraKnown:!!metRecord(L,'윤세라'),seraRescueReady:!!(L.seraRescueOrigin&&L.seraRescueOrigin.ready),day:S.day,trades:S.trades||0,hasLongPosition:Object.values(S.owned||{}).some(position=>(position.qty||0)>0),lastBurnoutEventDay:L.lastBurnoutEventDay };
   const seraIntro = (D.LIFE_EVENTS || []).find(e => e.id === 'life_rainy_canvas');
   if (!ctx.seraKnown && seraIntro && (!seraIntro.cond||seraIntro.cond(ctx)) && Math.random() < 0.32) {
     showLifeEvent(seraIntro);
@@ -3543,6 +3596,17 @@ function applyEventEffects(eff) {
   }
   if (eff.morality != null) { changeMorality(eff.morality); changes.push(`도덕성 ${eff.morality >= 0 ? '+' : ''}${eff.morality}`); }
   if (eff.guilt != null) { L.guilt=clamp((L.guilt||0)+eff.guilt,0,100);changes.push(`죄책감 ${eff.guilt>=0?'+':''}${eff.guilt}`); }
+  if(eff.housingRenewal){
+    const housing=HOUSING.ensure(L);
+    housing.lastRenewalMonth=housing.months||0;
+    if(eff.housingMovePlanned){
+      housing.movePlanned=true;
+      changes.push('📦 <b>주거 화면에서 이사할 집을 선택할 수 있음</b>');
+    }else{
+      housing.movePlanned=false;
+      changes.push(`🏠 <b>${housing.months}개월 차 임대차 계약 갱신 완료</b>`);
+    }
+  }
   if(eff.outsideFearResolved){
     L.outsideFearResolved=true;
     changes.push('🚪 <b>그날 이후, 현관 앞에서 발이 멈추지 않았습니다</b>');
@@ -4916,6 +4980,9 @@ function queueAvailableStories(L){
 }
 function resolveCharacterStory(choice){
   const r=S._storyPerson,result=r&&STORIES.apply(r,choice);if(!result)return;
+  const playerReflection=DANGEROUS_HEROINE_NAMES.includes(r.name)&&DANGEROUS_TRIO&&DANGEROUS_TRIO.recordPlayerChoice
+    ?DANGEROUS_TRIO.recordPlayerChoice(S.life,r.name,result.choice.trait,result.chapter.title)
+    :null;
   if(r.name==='한채린'&&CHAR_TRAITS){
     const delta=result.choice.trait==='command'?12:result.choice.trait==='conspire'?6:result.choice.trait==='equal'?2:0;
     if(delta)CHAR_TRAITS.change(r,delta);
@@ -4943,7 +5010,7 @@ function resolveCharacterStory(choice){
   const phaseNote=result.branchPending?'<div class="important-event-detail">💗 친구로서의 이야기가 관계의 갈림길에 도착했습니다. 다음 답은 한 사람과의 순애 또는 세 사람의 공동 관계를 결정합니다.</div>':nextGate&&nextGate.reason==='relationship'?'<div class="important-event-detail">🌱 친구로서 나눌 이야기는 여기까지입니다. 다음 장은 두 사람이 실제 연인이 된 뒤 이어집니다.</div>':'';
   const risk=dangerousRiskMeta(r);
   const romancePath=STORIES.ensure(r).romancePath,completionLabel=romancePath==='pure'?'연인':romancePath==='group'?'공동 관계 준비':'친구';
-  out.innerHTML=`<div class="oc-text"><b class="${result.choice.tone==='good'?'up':result.choice.tone==='bad'?'down':''}">${r.name}의 반응:</b> “${reaction}”${result.completed?`<br><b>${completionLabel} 개인 스토리 완결</b>`:''}</div>${chaerinReferral?`<div class="important-event-detail ${chaerinReferral.given?'up':'neutral'}">${chaerinReferral.text}</div>`:''}<div class="oc-changes">호감 ${result.choice.affection>=0?'+':''}${result.choice.affection} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust}${risk?` · ${risk.label} ${result.choice.obsession>=0?'+':''}${result.choice.obsession}`:''}${lifeChanges.length?` · ${lifeChanges.join(' · ')}`:''}</div>${phaseNote}${ending}<button id="story-confirm" class="session-btn opening">${result.branchPending?'관계에 답한다':'확인'}</button>`;
+  out.innerHTML=`<div class="oc-text"><b class="${result.choice.tone==='good'?'up':result.choice.tone==='bad'?'down':''}">${r.name}의 반응:</b> “${reaction}”${result.completed?`<br><b>${completionLabel} 개인 스토리 완결</b>`:''}</div>${playerReflection?`<div class="story-continuity player-wound-reflection"><b>🪞 플레이어의 결핍 · ${playerReflection.title}</b><br>${playerReflection.text}</div>`:''}${chaerinReferral?`<div class="important-event-detail ${chaerinReferral.given?'up':'neutral'}">${chaerinReferral.text}</div>`:''}<div class="oc-changes">호감 ${result.choice.affection>=0?'+':''}${result.choice.affection} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust}${risk?` · ${risk.label} ${result.choice.obsession>=0?'+':''}${result.choice.obsession}`:''}${lifeChanges.length?` · ${lifeChanges.join(' · ')}`:''}</div>${phaseNote}${ending}<button id="story-confirm" class="session-btn opening">${result.branchPending?'관계에 답한다':'확인'}</button>`;
   pushPersonMessage(S.life,r,reaction,false);addNews(`📖 ${r.name} 개인 스토리 · ${result.chapter.title}`,result.choice.tone);$('story-confirm').addEventListener('click',()=>result.branchPending?showPersonalRomanceBranch(r):closeCharacterStory());renderLifePanel();autoSave();
 }
 function characterStoryEndingScene(r,ending){
@@ -5013,9 +5080,9 @@ const DANGEROUS_AFFECTION_EVENTS={
     {text:'별로인 음식은 별로라고 잘라 말한다',result:'채린은 기분 나빠하기보다 웃었습니다. 자기 돈 앞에서도 눈치 보지 않는 대답이 마음에 든 모양입니다.',affection:9,trust:7},
     {text:'비싼 자리보다 둘만 있는 시간이 좋다고 한다',result:'채린은 잠시 말을 잃고 다음 예약도 같은 이름으로 잡으라고 지시했습니다.',affection:7,trust:9}
   ]},
-  sera_friend:{name:'윤세라',kind:'friend',min:20,scene:'./assets/event-sera-convenience-date.png',icon:'🌙',title:'윤세라 · 새벽 편의점의 정상적인 친구',desc:'세라는 일부러 창가에서 가장 잘 보이는 자리를 골랐습니다. 오늘만큼은 동선을 캐묻지 않고, 평범한 친구처럼 컵라면과 디저트를 나눕니다.',choices:[
-    {text:'먼저 다음 약속 날짜를 정한다',result:'세라는 몇 번이나 달력을 확인했지만 더 묻지는 않았습니다. 먼저 돌아올 약속이 있다는 사실만으로 충분해 보였습니다.',affection:8,trust:8},
-    {text:'연락이 늦어도 불안해하지 말라고 약속한다',result:'세라는 쉬운 약속처럼 듣지 않았습니다. 대신 “노력해볼게요”라고 작게 대답했습니다.',affection:5,trust:12}
+  sera_friend:{name:'윤세라',kind:'friend',min:20,scene:'./assets/event-sera-convenience-date.png',icon:'🚪',title:'윤세라 · 문밖에서 기다린 사람',desc:'폐작업실 사건 뒤 며칠 동안 세라는 당신이 현관 앞에서 자꾸 돌아선다는 사실을 알고도 문을 열거나 위치를 확인하지 않았습니다. 대신 자기 역시 사람들이 사라진 뒤 혼자 밖에 나가는 일이 무서웠다고 처음 털어놓습니다. 오늘은 “억지로 데려가지 않을게요. 저도 무서우니까 편의점까지만 같이 가요”라는 메시지를 보내고 계단 아래에서 기다립니다.',choices:[
+    {text:'문을 열고 세라와 나란히 편의점까지 걷는다',result:'세라는 먼저 손을 잡지도, 뒤를 확인하지도 않았습니다. 두 사람은 서로의 보폭이 느려질 때마다 말없이 기다렸고, 창가 자리에 앉은 뒤에야 무사히 밖에 나왔다는 사실을 함께 웃었습니다.',affection:8,trust:10,danger:-5,unlockOuting:'walk_together'},
+    {text:'계단까지만 나가겠다고 말하고 세라에게 기다려 달라고 한다',result:'세라는 몇 계단 아래에서 등을 돌린 채 기다렸습니다. 당신이 한 층씩 내려올 때마다 “여기 있어요”라고만 대답했고, 결국 두 사람은 편의점 앞 벤치까지 함께 도착했습니다.',affection:6,trust:13,danger:-7,unlockOuting:'wait_on_stairs'}
   ]},
   yujin_warning:{name:'강유진',kind:'friend',min:35,after:'yujin_friend',scene:'./assets/event-yujin-night-call.png',icon:'📍',title:'강유진 · 신고하지 않은 위치 확인',desc:'밤늦게 유진에게서 전화가 왔습니다. “근처 순찰 중이라 그냥” 걸었다지만, 오늘 순찰 구역은 반대편입니다. 당신이 늦게 귀가한다는 말을 기억해 일부러 전화를 건 모양입니다.',choices:[
     {text:'걱정은 고맙지만 내 일정을 확인하지 말라고 한다',result:'유진은 입술을 깨물고 고개를 끄덕였습니다. “보호와 감시는 다르죠. 기록해둘게요.”',affection:2,trust:8,danger:-5},
@@ -5168,16 +5235,23 @@ function resolveGroupConfession(choice){
   autoSave();
 }
 function queueNaturalDangerousEvents(L){
+  let routeQueued=false;
   if(DANGEROUS_TRIO){
     DANGEROUS_TRIO.resolveUnavailable(L);
     const state=DANGEROUS_TRIO.ensure(L);
     const prelude=DANGEROUS_TRIO.queuePrelude(L,S.day);
-    if(prelude)queueImportantEvent({dangerousTrioPrelude:prelude.id});
-    else if(DANGEROUS_TRIO.queue(L))queueImportantEvent({dangerousTrioStart:true});
+    if(prelude)routeQueued=queueImportantEvent({dangerousTrioPrelude:prelude.id});
+    else if(DANGEROUS_TRIO.queue(L))routeQueued=queueImportantEvent({dangerousTrioStart:true});
     else if(state.active&&state.encountered&&state.lastChapterDay!==S.day){
-      if(queueImportantEvent({dangerousTrioChapter:true}))state.lastChapterDay=S.day;
+      if(queueImportantEvent({dangerousTrioChapter:true})){
+        state.lastChapterDay=S.day;
+        routeQueued=true;
+      }
     }
   }
+  // 공생 본편이 열린 달에는 개별 호감 컷신을 함께 쌓지 않는다.
+  // 핵심 장면보다 개인 사건이 먼저 재생되거나 한 달에 여러 단계가 몰리는 일을 막는다.
+  if(routeQueued)return;
   Object.entries(DANGEROUS_AFFECTION_EVENTS).forEach(([id,event])=>{
     const r=metRecord(L,event.name);if(!r)return;
     r.dangerEvents=r.dangerEvents||{};
@@ -6143,14 +6217,24 @@ function currentDateSceneImage() {
   return (S._dateRoute && S._dateRoute.scene) || dateSceneImage((S._dateCompanion && S._dateCompanion.type) || 'solo');
 }
 
+function repairOutsideFearUnlock(L=S.life){
+  if(!L||!L.outsideFearResolved||L.outsideFearResolution||L.freedomRescueComplete)return;
+  const sera=metRecord(L,'윤세라'),openedTogether=!!(sera&&sera.dangerEvents&&sera.dangerEvents.sera_friend==='seen');
+  if(openedTogether)L.outsideFearResolution={source:'sera_friend_legacy',day:sera.lastDay||S.day,choice:'completed_before_migration'};
+  else L.outsideFearResolved=false;
+}
 function freeOutingUnlocked(L=S.life){
+  repairOutsideFearUnlock(L);
   return !!(L&&(L.outsideFearResolved||L.freedomRescueComplete));
 }
 
 function showOutsideFearModal(){
   const L=S.life,host=$('date-host');if(!L||!host)return;
   S._outsideFearPromptCount=Math.max(0,S._outsideFearPromptCount||0)+1;
-  const nudge=L.tutorialMet
+  const sera=metRecord(L,'윤세라');
+  const nudge=sera&&L.seraHousing!=='reject'
+    ?`<div class="phone-shell outside-fear-phone"><div class="phone-status"><span>QuickTalk</span><span>방금</span></div><div class="phone-chat-screen open"><header><img class="char-thumb" src="${characterPortrait(sera)}" alt="윤세라"><span><b>윤세라</b><small>입력 중…</small></span></header><div class="phone-chat-log"><div class="phone-bubble incoming">${S._outsideFearPromptCount<=1?'현관 앞에서 자꾸 돌아서는 거 알아요. 억지로 문 열지는 않을게요. 저도 밖이 무서웠다는 말부터 할 수 있을 때 다시 연락할게요.':'아직 혼자 나가지 마요. 다음에는 제가 문 안으로 들어가는 대신 밖에서 기다릴게요. 우리 둘 다 무서우니까 조금만 같이 가요.'}</div></div></div></div><div class="important-event-detail">세라가 자기 상처를 먼저 말할 수 있게 되면, 두 사람이 함께 문밖으로 나가는 별도 이야기가 열립니다.</div>`
+    :L.tutorialMet
     ?`<div class="phone-shell outside-fear-phone"><div class="phone-status"><span>투자지원센터</span><span>방금</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">📘</span><span><b>나래 매니저</b><small>예약 안내</small></span></header><div class="phone-chat-log"><div class="phone-bubble incoming">${S._outsideFearPromptCount<=1?'다음 상담도 온라인 변경은 안 돼요. 현관까지만 나오세요. 제가 1층에서 기다릴게요.':'또 현관 앞에서 돌아갔죠? 괜찮으니까 다음 상담 날에는 엘리베이터만 타요. 나머지는 제가 같이 갈게요.'}</div></div></div></div><div class="important-event-detail">혼자 나가는 일이 아직 어렵다면 집에서 온라인 게임을 이어 가 보세요. 같은 길드 사람들과 관계가 쌓이면 화면 밖에서 만날 안전한 약속이 생깁니다.</div>`
     :'';
   host.style.display='block';
@@ -7162,12 +7246,14 @@ function showDangerousTrioStory(){
   const chapter=DANGEROUS_TRIO.next(S.life),host=$('life-event');if(!chapter||!host){if(host){host.style.display='none';host.innerHTML='';}if(S.monthCloseContext)S.monthCloseContext.currentImportantEvent=null;showNextImportantEvent();return;}
   const state=DANGEROUS_TRIO.ensure(S.life),witness=trioWitness();
   const carry=chapter.focus&&DANGEROUS_TRIO.personalCarry?DANGEROUS_TRIO.personalCarry(S.life,chapter.focus):null;
+  const continuity=DANGEROUS_TRIO.continuity?DANGEROUS_TRIO.continuity(S.life,chapter):null;
+  const playerArc=DANGEROUS_TRIO.playerArcSummary?DANGEROUS_TRIO.playerArcSummary(S.life):null;
   const speakers=chapter.speakers.map(s=>{
     const row=dangerousTrioSpeaker(s,witness);
     return`<div class="trio-dialogue"><img src="${row.portrait}" alt="${row.name}"><div><b>${row.name}</b><p>“${row.line}”</p></div></div>`;
   }).join('');
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">${chapter.icon} ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="trio-story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${chapter.scene}" alt="${chapter.title} 이벤트 컷신"><div class="trio-meter"><span>세 사람의 분위기</span><b class="${state.stability<30?'down':'up'}">${state.stability<30?'금방이라도 깨질 듯함':'묘하게 맞물림'}</b></div>${carry?`<div class="story-continuity"><b>📕 ${carry.name} 개인 아크 · ${carry.title}</b><br>${carry.text}<br><span class="muted">개인 결말은 지워지지 않습니다. 이번 장에서는 그 결론을 세 사람이 함께 있는 관계에서도 지킬 수 있는지 확인합니다.</span></div>`:''}<div class="event-desc">${chapter.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${chapter.choices.map(choice=>`<button class="event-opt" data-trio-choice="${choice.id}">${choice.text}</button>`).join('')}<button class="event-opt" id="trio-story-later">지금은 셋을 돌려보낸다</button></div><div class="event-outcome" id="trio-outcome"></div></div></div>`;
+  host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">${chapter.icon} ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="trio-story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${chapter.scene}" alt="${chapter.title} 이벤트 컷신"><div class="trio-meter"><span>세 사람의 분위기</span><b class="${state.stability<30?'down':'up'}">${state.stability<30?'금방이라도 깨질 듯함':'묘하게 맞물림'}</b></div>${carry?`<div class="story-continuity"><b>📕 ${carry.name} 개인 아크 · ${carry.title}</b><br>${carry.text}<br><span class="muted">개인 결말은 지워지지 않습니다. 이번 장에서는 그 결론을 세 사람이 함께 있는 관계에서도 지킬 수 있는지 확인합니다.</span></div>`:''}${chapter.playerWound?`<div class="story-continuity player-wound-reflection"><b>🪞 플레이어의 결핍 · ${playerArc&&playerArc.title||'닫힌 방문 앞의 사람'}</b><br>${chapter.playerWound}${playerArc?`<br><span class="muted">지금까지의 선택 경향: ${playerArc.text}</span>`:''}</div>`:''}${continuity?`<div class="story-continuity trio-story-bridge"><b>🦂 지난 선택이 만든 다음 과제</b>${continuity.previous?`<br>${continuity.previous}`:''}${continuity.next?`<br><span class="muted">${continuity.next}</span>`:''}</div>`:''}<div class="event-desc">${chapter.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${chapter.choices.map(choice=>`<button class="event-opt" data-trio-choice="${choice.id}">${choice.text}</button>`).join('')}<button class="event-opt" id="trio-story-later">지금은 셋을 돌려보낸다</button></div><div class="event-outcome" id="trio-outcome"></div></div></div>`;
   host.querySelectorAll('[data-trio-choice]').forEach(button=>button.addEventListener('click',()=>resolveDangerousTrioStory(button.dataset.trioChoice)));
   [$('trio-story-x'),$('trio-story-later')].forEach(button=>button.addEventListener('click',closeLifeEvent));
 }
@@ -7181,9 +7267,10 @@ function resolveDangerousTrioStory(choiceId){
   const host=$('life-event'),options=host.querySelector('.event-options,.phone-reply-options');if(options)options.innerHTML='';
   const scene=host.querySelector('.life-scene-banner');if(scene&&result.ending&&result.ending.scene)scene.src=result.ending.scene;
   const ending=result.ending?`<div class="story-ending ${result.ending.tone==='bad'?'down':''}"><b>📕 ${result.ending.title}</b><br>${result.ending.text}</div>`:'';
+  const playerEnding=result.ending&&DANGEROUS_TRIO.playerArcSummary?DANGEROUS_TRIO.playerArcSummary(S.life):null;
   const success=result.ending&&result.ending.id==='bad_friends'?`<div class="important-event-detail up">세 사람의 모든 이야기가 끝났습니다. 다음 장에서 세 사람이 먼저 네 번째 열쇠를 받을지 묻습니다.</div>`:'';
   const retry=result.ending&&result.ending.tone==='bad'?'<button id="trio-retry" class="session-btn opening">↩️ 마지막 선택 다시 하기</button>':'';
-  $('trio-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">공생 안정도 ${result.choice.stability>=0?'+':''}${result.choice.stability} · 세 사람 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}${result.choice.obsession?` · 집착 +${result.choice.obsession}`:''}</div>${ending}${success}${retry}<button id="trio-confirm" class="session-btn ${result.ending&&result.ending.tone==='bad'?'':'opening'}">${result.ending?'엔딩 확인':'이번 사건을 마친다'}</button>`;
+  $('trio-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">공생 안정도 ${result.choice.stability>=0?'+':''}${result.choice.stability} · 세 사람 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}${result.choice.obsession?` · 집착 +${result.choice.obsession}`:''}</div>${ending}${playerEnding?`<div class="story-continuity player-wound-reflection"><b>🪞 플레이어 개인 아크 · ${playerEnding.title}</b><br>${playerEnding.text}</div>`:''}${success}${retry}<button id="trio-confirm" class="session-btn ${result.ending&&result.ending.tone==='bad'?'':'opening'}">${result.ending?'엔딩 확인':'이번 사건을 마친다'}</button>`;
   addNews(`${result.chapter.icon} 위험한 세 사람 · ${result.chapter.title}`,result.choice.tag==='fracture'?'bad':'neutral');
   const retryBtn=$('trio-retry');if(retryBtn)retryBtn.addEventListener('click',retryDangerousTrioChoice);
   $('trio-confirm').addEventListener('click',()=>{
@@ -8401,14 +8488,37 @@ function applyRelationshipGroupFatigue(group){
   if(CHEMISTRY){
     const result=CHEMISTRY.applyActionFatigue(L,group,S.day);
     if(!result.drain)return;
-    if(L.dangerousTrioBond&&L.dangerousTrioBond.active)L.dangerousTrioBond.totalHealthDrain=(L.dangerousTrioBond.totalHealthDrain||0)+result.drain;
+    if(L.dangerousTrioBond&&L.dangerousTrioBond.active){
+      const bond=L.dangerousTrioBond;
+      bond.totalHealthDrain=(bond.totalHealthDrain||0)+result.drain;
+      recordDangerousTrioFatigue(bond,group,result.drain,result.sources);
+    }
     addNews(`💞 ${result.sources.join(' · ')} 때문에 체력 -${result.drain}`,'neutral');
     return;
   }
   const bond=L.dangerousTrioBond;if(!bond||!bond.active)return;
   const outside=['데이트','취미','경력','인맥','사업','라이벌'].includes(group),drain=outside?4:group==='휴식'?1:2;
   L.health=clamp((L.health||0)-drain,0,100);bond.totalHealthDrain=(bond.totalHealthDrain||0)+drain;
+  recordDangerousTrioFatigue(bond,group,drain,['공동생활 일정 조율']);
   addNews(`🦂 공동생활 일정 조율${outside?'과 동행':' 때문에'} 체력 -${drain}`,'neutral');
+}
+function recordDangerousTrioFatigue(bond,group,drain,sources){
+  if(!bond||!bond.active||!drain)return;
+  if(!bond.monthlyFatigue||bond.monthlyFatigue.day!==S.day){
+    bond.monthlyFatigue={day:S.day,drain:0,actions:[]};
+  }
+  bond.monthlyFatigue.drain+=drain;
+  bond.monthlyFatigue.actions.push({group,drain,sources:(sources||[]).slice()});
+}
+function dangerousTrioFatigueHTML(){
+  const L=S.life,bond=L&&L.dangerousTrioBond,fatigue=bond&&bond.active&&bond.monthlyFatigue;
+  if(!fatigue||fatigue.day!==S.day||!fatigue.drain)return'';
+  const groups=[...new Set((fatigue.actions||[]).map(action=>action.group).filter(Boolean))];
+  const outside=groups.some(group=>['데이트','취미','경력','인맥','사업','라이벌'].includes(group));
+  const scene=outside
+    ?'유진은 귀가 시간을 확인하고, 채린은 이동 동선을 다시 짰으며, 세라는 현관 불을 켠 채 돌아올 때까지 기다렸습니다. 외출 하나가 네 사람의 일정이 되면서 혼자 쉴 시간이 줄었습니다.'
+    :'좁은 자취방에서 네 사람의 수면 시간과 식사, 보고할 일을 맞추느라 쉬는 시간까지 함께 조정해야 했습니다.';
+  return `<div class="important-event-detail down"><b>🦂 공동생활 피로 · 체력 -${fatigue.drain}</b><br>${scene}${groups.length?`<br><span class="muted">이번 달 일정: ${groups.join(' · ')}</span>`:''}</div>`;
 }
 function afterLifeAction(monthlyGroup) {
   markMonthAction(monthlyGroup);
@@ -8496,7 +8606,7 @@ function renderLifePanel() {
      <div class="life-stat"><span>운영 역량</span><strong>${Math.round(CAREER.ensure(L).skill)} · 현장 대응 ${Math.round(CAREER.ensure(L).performance)} · 평판 ${Math.round(CAREER.ensure(L).reputation)}</strong></div>
      ${CAREER.ensure(L).certifications.length?`<div class="life-stat"><span>관리 교육</span><strong>${CAREER.ensure(L).certifications.map(id=>(CAREER.CERTS.find(c=>c.id===id)||{}).icon+(CAREER.CERTS.find(c=>c.id===id)||{}).name).join(' · ')}</strong></div>`:''}
      ${CAREER.abilities(L).length?`<div class="life-stat"><span>운영 특수능력</span><strong class="up">${CAREER.abilities(L).map(a=>a.icon+a.name).join(' · ')}</strong></div>`:''}
-     <div class="life-stat"><span>아버지 생활비</span><strong>월 ${won(FATHER_MONTHLY_SUPPORT)}원</strong></div>
+     <div class="life-stat"><span>아버지 생활비</span><strong class="${fatherSupportActive(L)?'up':'muted'}">${fatherSupportActive(L)?`월 ${won(FATHER_MONTHLY_SUPPORT)}원 · 순자산 ${won(FATHER_SUPPORT_WEALTH_LIMIT)}원까지`:`지원 종료${L.fatherSupportEndReason==='health'?' · 아버지 치료 우선':' · 경제적 자립'}`}</strong></div>
      <div class="life-stat"><span>행복도</span><strong>${hearts} ${Math.round(L.happy)}/100</strong></div>
      <div class="life-stat"><span>건강</span><strong class="${L.health < 35 ? 'down' : ''}">❤️ ${Math.round(L.health)}/100</strong></div>
      <div class="life-stat"><span>스트레스</span><strong class="${L.stress > 70 ? 'down' : ''}">🧠 ${Math.round(L.stress)}/100</strong></div>

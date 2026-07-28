@@ -11,6 +11,7 @@
         <div class="window-body month-flow-body">
           ${api.progress()}
           <div class="life-action-overview">${api.overview()}</div>
+          ${api.cohabitationFatigue()}
           ${api.lifeHubHTML()}
           <div class="close-actions">
             <button class="session-btn opening" data-month-close-next ${remaining>0?'disabled':''}>${remaining>0 ? `일정 ${remaining}회 더 선택해야 진행할 수 있습니다` : '4주 일정 완료 · 주요 사건 확인'}</button>

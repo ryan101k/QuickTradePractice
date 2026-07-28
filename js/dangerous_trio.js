@@ -20,6 +20,22 @@ const ROMANCE_ENDINGS={
 function romanceEnding(kind){return ROMANCE_ENDINGS[kind]||null;}
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const rec=(life,name)=>(life.met||[]).find(person=>person.name===name);
+const PLAYER_ARC_MODES={
+ boundary:'face',equal:'face',anchor:'face',balance:'face',
+ depend:'delegate',containment:'delegate',
+ command:'control',
+ complicity:'enclose',conspire:'enclose',fuse:'enclose',
+ sever:'avoid',fracture:'deflect'
+};
+const PLAYER_ARC_COPY={
+ face:{title:'말하고 선택하는 사람',text:'불편한 설명을 끝까지 하고, 도움을 받으면서도 자기 선택의 책임은 남겼습니다.'},
+ delegate:{title:'구조받는 자리에 숨는 사람',text:'안전해지는 대신 결정권까지 넘겨, 다시 틀릴 가능성 자체를 다른 사람에게 맡겼습니다.'},
+ control:{title:'명령으로 불안을 없애는 사람',text:'관계가 어긋날 시간을 견디기보다 상대의 행동을 정해 불확실성을 줄였습니다.'},
+ enclose:{title:'관계 안에 세상을 가두는 사람',text:'바깥의 문제를 함께 해결하기보다 둘만의 비밀과 공모 안으로 가져와 출구를 줄였습니다.'},
+ avoid:{title:'먼저 사라지는 사람',text:'상처받기 전에 밀어내고 대화를 끝내, 학창 시절처럼 설명하지 않은 이탈을 반복했습니다.'},
+ deflect:{title:'선택을 경쟁으로 미루는 사람',text:'자기 답을 말하는 대신 상대들이 자리를 다투게 만들어 선택의 책임을 피했습니다.'},
+ opening:{title:'닫힌 방문 앞의 사람',text:'학창 시절 관계가 무너졌을 때 누구와도 끝까지 말하지 않고 연락을 끊었습니다. 지금도 틀린 선택을 하느니 혼자 버티는 편이 익숙합니다.'}
+};
 const PERSONAL_ARC_LESSONS={
  '강유진':{
   dangerous_dependence:{title:'필요해지는 사람',text:'유진은 보호받는 사람이 자신만 찾도록 만드는 데 익숙해졌습니다. 셋이 함께라면 먼저 불리려는 경쟁부터 내려놓아야 합니다.'},
@@ -50,12 +66,12 @@ function personalCarry(life,name){
 const PRELUDES=[
  {
   id:'three_ends_one_ledger',title:'악우 형성 1 · 우연히 겹친 세 사람',icon:'🚪',scene:'./assets/event-trio-647.png',
-  desc:'세 사람은 협력하러 온 게 아닙니다. 각자 당신을 자기 방식대로 만나러 왔다가 같은 자리에서 정면으로 마주쳤을 뿐입니다. 채린은 이미 스스로 목걸이를 차고 명령을 기다리러, 유진은 당신을 확인하고 지키러, 세라는 늘 그렇듯 뒤를 따라와서. 셋은 서로의 “취향”을 처음 보고 전혀 이해하지 못한 채, 인사보다 먼저 “쟤는 대체 뭐지”부터 눈으로 잽니다.',
+  desc:'세 사람은 협력하러 온 게 아닙니다. 각자 당신을 자기 방식대로 만나러 왔다가 같은 자리에서 정면으로 마주쳤을 뿐입니다. 채린은 찢긴 계약서의 남은 조각을 돌려주러, 유진은 사건 뒤의 안전을 확인하러, 세라는 약속한 편의점 물건을 건네러 왔습니다. 서로 다른 이유가 모두 당신 한 사람에게 향한다는 사실을 알아챈 셋은 인사보다 먼저 “쟤는 대체 뭐지”부터 눈으로 잽니다.',
   speakers:[
-   {name:'한채린',line:'명령을 기다리는 중이었어. 경찰이랑 스토커가 낄 자리 아니야. …그 목걸이 왜 보냐는 표정은 뭔데.'},
-   {name:'강유진',line:'…제 발로 목줄을 차고 오는 건 처음 봅니다. 두 분 다 이분과 무슨 관계인지부터 확인해야겠네요.'},
+   {name:'한채린',line:'계약서 조각 돌려주러 왔어. 경찰이랑 스토커가 낄 자리 아니야. …왜 둘 다 내가 못 버린 걸 아는 표정인데.'},
+   {name:'강유진',line:'사건 확인은 끝났습니다. 두 분이 수사와 상관없이 여기 있는 이유부터 설명해 주세요. 나도 같은 질문을 받을 테니까.'},
    {name:'윤세라',line:'둘 다 오늘 처음 보는데… 이 사람 옆은 원래 제 자리예요. 확인은 제가 더 오래 했고요.'},
-   {name:'첫 부하',line:'보고드립니다. 한 분은 스스로 목줄을 차고 오셨고, 한 분은 경찰, 한 분은 계속 뒤에 계셨습니다. …무슨 취향 박람회 현장 같습니다.'}
+   {name:'첫 부하',line:'보고드립니다. 한 분은 찢어진 계약서를 보관했고, 한 분은 끝난 사건을 계속 확인하고, 한 분은 약속 장소보다 먼저 와 있었습니다. …세 분 다 방식만 다른 것 같습니다.'}
   ],
   choices:[
    {id:'divide_roles',text:'각자 온 이유만 확인하고 오늘은 따로 돌려보낸다',stability:8,trust:3,result:'셋은 각자 방식대로 흩어졌지만, 돌아가는 길 내내 서로가 당신에게 뭘 원하는지를 곱씹었습니다. 이해는 전혀 못 했어도, 상대의 취향만은 잊지 못했습니다.'},
@@ -84,6 +100,8 @@ const CHAPTERS=[
  {
   title:'악우가 같은 편이 된 날',icon:'🗝️',scene:'./assets/event-trio-647.png',
   desc:'장부 사건 뒤에도 서로 연락을 끊지 못한 세 사람이 이번에는 당신을 공격한 세력을 함께 치기 위해 모였습니다. 이미 서로의 결핍과 취향까지 알아버린 셋은 친해서 온 것이 아니라고 강조하면서도, 설명 없이 수사·자금·정보 역할을 나눕니다.',
+  bridge:'두 번의 우연한 대면에서 서로의 약점과 잘못을 외운 결과, 세 사람은 상대를 믿어서가 아니라 상대가 어디서 선을 넘을지 알기 때문에 등을 맡깁니다. 이 작전은 호감 경쟁이 팀의 규칙으로 바뀔 수 있는 첫 시험입니다.',
+  playerWound:'과거에는 관계가 복잡해지자 단체방을 차단하고 원본 장부만 들고 사라졌습니다. 이번에는 세 사람의 충돌을 구경하거나 경쟁시키지 않고, 같은 테이블에서 역할과 책임을 직접 정해야 합니다.',
   speakers:[
    {name:'강유진',line:'세라 씨 방식은 불법이에요. 자료는 내가 증거로 바꿀 테니 원본은 건드리지 마요.'},
    {name:'한채린',line:'내 계열사라고 봐줄 생각은 없어. 압류 전에 돈줄부터 묶을게. 경찰관은 영장, 세라는 우회 계좌를 줘.'},
@@ -98,6 +116,8 @@ const CHAPTERS=[
  {
   title:'유진 · 가장 먼저 부르지 않은 밤',icon:'📵',scene:'./assets/event-yujin-safehouse-ending.png',focus:'강유진',
   desc:'유진은 세 사람의 비상 연락망을 완성하고도 자기 이름을 첫 칸에 쓰지 못합니다. 둘만의 이야기에서 얻은 결론을 지키려면, 위험을 먼저 발견한 자신이 아니라 도움을 요청한 당신이 순서를 정해야 합니다.',
+  bridge:'첫 공동작전에서 유진은 누구보다 빨리 움직였지만, 세라의 정보와 채린의 자금이 없었다면 합법적인 구조까지 끝내지 못했음을 압니다. 이제 보호를 독점하는 대신 다른 두 사람의 도움을 인정해야 합니다.',
+  playerWound:'당신에게도 “유진이 알아서 구해 주면 내가 틀린 선택을 하지 않아도 된다”는 유혹이 있습니다. 도움을 청하는 것과 판단 자체를 맡기는 것이 다르다는 사실을 말로 정해야 합니다.',
   speakers:[
    {name:'강유진',line:'내가 가장 빨리 갈 수 있어도, 항상 나를 먼저 불러야 하는 건 아니겠죠. 그걸 인정하는 게 생각보다 어렵네요.'},
    {name:'한채린',line:'순번표라도 만들어? 네 보호 본능이 사랑인 척 독점하지 않으면 나야 상관없어.'},
@@ -112,6 +132,8 @@ const CHAPTERS=[
  {
   title:'채린 · 값을 붙이지 않은 자리',icon:'🪑',scene:'./assets/event-chaerin-private-dinner.png',focus:'한채린',
   desc:'채린은 네 사람 몫의 집과 생활비를 준비하고도 계약서를 내밀지 못합니다. 둘만의 방에서 내려놓았던 왕관을, 유진과 세라가 보는 앞에서도 내려놓을 수 있는지 확인하는 자리입니다.',
+  bridge:'비상 연락망에서 “누가 가장 먼저 불리는가”를 다룬 뒤, 이번에는 돈을 낸 사람이 가장 큰 자리를 가져도 되는지가 쟁점이 됩니다. 돈은 가장 빠른 해결책이지만, 해결한 사람의 자리를 사는 수단이 될 수도 있습니다.',
+  playerWound:'아버지의 생활비와 잠긴 자취방에서 버텨 온 당신에게 채린의 돈은 실패할 자유까지 대신 사 주는 탈출구처럼 보입니다. 지원을 거절하는 것만큼, 도움을 받더라도 결정권을 남기는 일이 어렵습니다.',
   speakers:[
    {name:'한채린',line:'돈을 받지 않아도 남는다는 말, 둘만 있을 때는 믿었어. 그런데 셋과 같은 크기의 자리를 가지라는 건 아직 마음에 안 드네.'},
    {name:'강유진',line:'지원은 고맙지만 선택권까지 묶이면 보호가 아니에요. 그건 채린 씨도 이미 알잖아요.'},
@@ -126,6 +148,8 @@ const CHAPTERS=[
  {
   title:'세라 · 열쇠를 복사하지 않은 하루',icon:'🚪',scene:'./assets/event-sera-shoulder-confession.png',focus:'윤세라',
   desc:'세라는 유진과 채린이 당신과 외출한 동안 처음으로 열쇠를 복사하지도, 동선을 따라가지도 않았습니다. 대신 단체방에 “언제 돌아와요?”라고 묻고 답을 기다립니다. 사라지지 않고 기다리는 일이 세라의 가장 큰 양보입니다.',
+  bridge:'첫 연락의 우선권과 돈으로 만든 우선권을 차례로 시험한 뒤, 세라의 “먼저 확인할 권리”가 테이블에 오릅니다. 다른 두 사람이 곁에 있을 때도 대답을 기다릴 수 있는지가 세라에게는 가장 어려운 문제입니다.',
+  playerWound:'세라가 기다리는 집은 따뜻하지만, 당신에게는 다시 세상과 연락을 끊어도 이해받을 수 있는 은신처이기도 합니다. 돌아올 곳을 갖는 것과 그곳을 핑계로 밖을 포기하는 일을 구분해야 합니다.',
   speakers:[
    {name:'윤세라',line:'두 사람이랑 있는 건 싫어요. 그래도 제가 따라가면, 돌아온다는 대답을 듣기도 전에 결론 내리는 거잖아요.'},
    {name:'강유진',line:'기다린 건 잘했어요. 확인할 시간이 지나기 전에는 나도 조회하지 않았고요.'},
@@ -139,7 +163,9 @@ const CHAPTERS=[
  },
  {
   title:'사라진 37분',icon:'🚨',scene:'./assets/event-trio-emergency.png',
-  desc:'당신의 휴대전화가 꺼진 뒤 37분 동안 셋은 통화 한 번 없이 도시를 세 구역으로 나눴습니다. 유진은 신고 절차, 채린은 병원과 차량, 세라는 습관과 마지막 말을 맡았습니다. 평소의 싸움이 역할 확인이었다는 사실이 처음 드러납니다.',
+  desc:'공격 세력의 경고와 세 사람의 질문이 한꺼번에 도착하자, 당신은 예전처럼 설명을 미룬 채 휴대전화를 껐습니다. 그 뒤 사라진 37분 동안 셋은 통화 한 번 없이 도시를 세 구역으로 나눴습니다. 유진은 신고 절차, 채린은 병원과 차량, 세라는 습관과 마지막 말을 맡았습니다. 평소의 싸움이 역할 확인이었다는 사실과, 당신의 침묵이 세 사람의 공포를 동시에 움직였다는 사실이 함께 드러납니다.',
+  bridge:'보호·돈·확인을 둘러싼 세 번의 선택은 아직 말과 생활 규칙에 머물러 있습니다. 연락이 끊긴 37분은 세 개의 통제망이 서로를 방해할지, 하나의 안전망으로 맞물릴지를 가르는 실전입니다.',
+  playerWound:'이번 위기는 우연한 통신 장애가 아니라, 갈등이 커지면 먼저 연락을 끊는 당신의 오래된 습관에서 시작됐습니다. 구조받은 뒤에도 이유를 숨기면 세 사람의 통제만 더 강해집니다.',
   speakers:[
    {name:'강유진',line:'찾았으면 됐어요. 누가 먼저였는지는 나중에 따져요.'},
    {name:'한채린',line:'병원 한 층을 비웠어요. 이제 허가 없이 접근할 사람은 없어요.'},
@@ -154,8 +180,10 @@ const CHAPTERS=[
  {
   title:'네 번째 열쇠가 놓인 방',icon:'🌅',scene:'./assets/event-trio-meeting-3.png',
    desc:'세 사람은 각자 더 넓고 안전한 집을 준비했지만, 누구의 집으로 들어가도 그 사람에게 열쇠와 생활의 주도권이 쏠린다는 사실을 인정합니다. 긴 말다툼 끝에 유진·채린·세라는 누구의 소유도 아닌 기존 자취방을 공동생활의 중립 거점으로 남겨 달라고 먼저 요청했습니다. 이 요청을 받아들이는 동안에는 네 사람 중 누구도 단독으로 이사를 결정하지 않으며, 관계를 끝낼 때만 거점 합의도 함께 해제됩니다.',
+  bridge:'37분의 구조가 협력이었는지 새 경쟁이었는지는 직전 선택에 따라 달라졌습니다. 이제 공동생활의 결론도 가장 좋은 집을 고르는 일이 아니라, 누가 주인이 되고 누가 통제받을지를 끝까지 합의하는 일이 됩니다.',
+  playerWound:'예전의 당신은 누구도 선택하지 않으면 누구도 배신하지 않는다고 믿고 사라졌습니다. 이번에는 세 사람의 요청 뒤에 숨지 않고, 함께 살 이유와 끝낼 조건까지 자기 입으로 말해야 합니다.',
   speakers:[
-   {name:'강유진',line:'나가도 돼요. 위험하면 가장 먼저 나를 부른다는 약속만 해요.'},
+    {name:'강유진',line:'나가도 돼요. 위험하면 혼자 버티지 말고, 우리가 정한 연락망에서 필요한 사람을 직접 골라 불러요.'},
     {name:'한채린',line:'내 집으로 가면 결국 내가 주인이 되겠지. 그건 싫어. 여기 그대로 살아. 대신 생활비로 소유권을 사려는 짓도 안 할게.'},
     {name:'윤세라',line:'여기는 누구의 집도 아니어서 좋아요. 이사를 생각하면 우리 셋한테 먼저 말해 주세요. 세 사람 모두 놓아줄 때만 옮겨요.'}
   ],
@@ -173,6 +201,7 @@ function pureChapters(life){
   {
    title:'한 사람을 고른 뒤의 첫 회의',icon:'💍',scene:'./assets/event-trio-647.png',
    desc:`${chosen}과의 연애를 숨기지 않고 ${friends.join('과 ')}에게 직접 알렸습니다. 두 사람은 선택받지 못한 경쟁자처럼 남는 대신, 각자의 개인사를 끝까지 함께 정리한 친구로서 같은 자리에 앉았습니다.`,
+   playerWound:'학창 시절에는 관계가 무너질 때 아무에게도 결론을 설명하지 않았습니다. 이번 순애는 한 사람만 고르는 일이 아니라, 선택받지 않은 두 사람에게도 숨거나 여지를 남기지 않고 직접 답하는 데서 시작합니다.',
    speakers:[
     {name:chosen,line:'우리 관계를 숨겨서 두 사람을 더 우습게 만들고 싶진 않아요. 연애와 동맹의 선은 여기서 분명히 해요.'},
     {name:friends[0],line:'기분이 좋을 리는 없지. 그래도 네 선택을 뒤집으려고 도운 건 아니야.'},
@@ -187,6 +216,7 @@ function pureChapters(life){
   {
    title:'연인 한 명과 친구 둘의 공동작전',icon:'🦂',scene:'./assets/event-trio-emergency.png',
    desc:'당신을 공격한 세력의 장부가 발견되자 세 사람은 다시 모였습니다. 선택한 연인의 보호는 사적인 약속으로, 두 친구의 도움은 빚이나 미련이 아닌 각자의 판단으로 분리해야 합니다.',
+   playerWound:'연인에게 모든 판단을 맡기면 다시 선택할 필요가 없어지고, 두 친구를 경쟁시키면 자기 책임을 피할 수 있습니다. 사랑과 작전의 지휘권을 분리해야 같은 실패를 반복하지 않습니다.',
    speakers:[
     {name:'강유진',line:'연인 여부와 증거 절차는 별개예요. 내가 맡은 선을 넘으면 두 사람이 먼저 막아줘요.'},
     {name:'한채린',line:'돈을 대가로 자리를 사지 않겠다고 했지. 대신 끊어야 할 자금줄은 정확히 말해.'},
@@ -201,6 +231,7 @@ function pureChapters(life){
   {
    title:'둘만의 열쇠와 세 사람의 출입증',icon:'🗝️',scene:'./assets/event-trio-meeting-5.png',
    desc:`${chosen}에게는 둘만의 귀가 약속을, ${friends.join('과 ')}에게는 필요할 때 찾아올 수 있는 친구의 출입증을 건넬 차례입니다. 같은 열쇠를 나눠 갖지 않아도 서로를 버린 것이 아니라는 결론이 필요합니다.`,
+   playerWound:'당신은 문을 완전히 닫거나 모두에게 가능성을 남기는 방식으로 갈등을 미뤄 왔습니다. 이번에는 연인과 친구의 자리를 다르게 부르면서도 어느 관계도 거짓말로 유지하지 않아야 합니다.',
    speakers:[
     {name:chosen,line:'내가 연인이라는 이유로 두 사람의 삶까지 결정하진 않을게요. 대신 우리 약속은 애매하게 숨기지 말아요.'},
     {name:friends[0],line:'특별대우를 못 받은 게 아니라 다른 자리를 고른 거라고 해. 그래야 나도 미련을 거래로 바꾸지 않지.'},
@@ -296,6 +327,10 @@ function ensure(life){
  const s=life.dangerousTrio;
  if(!s.axes)s.axes={balance:0,containment:0,fracture:0};
  if(!Array.isArray(s.history))s.history=[];
+ if(!s.playerArc||typeof s.playerArc!=='object')s.playerArc={axes:{face:0,delegate:0,control:0,enclose:0,avoid:0,deflect:0},history:[]};
+ const playerAxes=s.playerArc.axes||(s.playerArc.axes={});
+ ['face','delegate','control','enclose','avoid','deflect'].forEach(key=>{if(!Number.isFinite(playerAxes[key]))playerAxes[key]=0;});
+ if(!Array.isArray(s.playerArc.history))s.playerArc.history=[];
  if(!s.version){
   // 4장 구버전 진행 중 저장은 공조 1장까지만 보존하고 새 인물별 양보 장부터 잇는다.
   if(s.active&&!s.ending&&(s.stage||0)>=1){
@@ -318,6 +353,20 @@ function ensure(life){
   s.badFriendsFormed=true;
  }
  return s;
+}
+function recordPlayerChoice(life,source,trait,title){
+ const state=ensure(life),arc=state.playerArc,mode=PLAYER_ARC_MODES[trait]||null;
+ if(!mode)return null;
+ arc.axes[mode]=(arc.axes[mode]||0)+1;
+ const reflection=PLAYER_ARC_COPY[mode];
+ arc.history.push({source:source||'unknown',trait,mode,title:title||null,day:life.day||0});
+ arc.last={...reflection,mode,source:source||'unknown'};
+ return arc.last;
+}
+function playerArcSummary(life){
+ const arc=ensure(life).playerArc,entries=Object.entries(arc.axes||{}).sort((a,b)=>b[1]-a[1]);
+ const [mode,count]=entries[0]||['opening',0],copy=count>0?PLAYER_ARC_COPY[mode]:PLAYER_ARC_COPY.opening;
+ return{...copy,mode,count,axes:{...arc.axes},historyCount:arc.history.length};
 }
 const PRELUDE_AFFECTION=45;
 function preludeEligibility(life){
@@ -437,9 +486,19 @@ function start(life){
  state.individualRoutes=Object.fromEntries(rows.map(row=>[row.name,row.route||'unknown']));
  state.personalConcessions={};
  NAMES.forEach(name=>{const r=rec(life,name);if(r){if(!routePath||routePath.path!=='pure'||routePath.name!==name)r.status='friend';r.trust=clamp((r.trust||0)+4,0,100);}});
- return{ok:true,state,chapter:CHAPTERS[state.stage]};
+ return{ok:true,state,chapter:chaptersFor(life)[state.stage]};
 }
 function next(life){const state=ensure(life);return state.active&&!state.ending?chaptersFor(life)[state.stage]||null:null;}
+function continuity(life,chapter){
+ const state=ensure(life),last=state.history&&state.history[state.history.length-1];
+ if(!last)return chapter&&chapter.bridge?{previous:null,next:chapter.bridge,tag:'opening'}:null;
+ const prior=chaptersFor(life)[last.stage],choice=prior&&prior.choices.find(item=>item.id===last.choice);
+ return{
+  previous:choice?choice.result:null,
+  next:chapter&&chapter.bridge||null,
+  tag:last.tag||'balance'
+ };
+}
 function endingFor(state,finalChoice,life){
  const path=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.path(life,'dangerous');
  if(path&&path.path==='pure'){
@@ -465,6 +524,7 @@ function endingFor(state,finalChoice,life){
 function apply(life,choiceId){
  const state=ensure(life),chapter=next(life);if(!chapter)return null;const choice=chapter.choices.find(c=>c.id===choiceId);if(!choice)return null;
  state.stability=clamp((state.stability||0)+(choice.stability||0),0,100);state.axes[choice.tag]=(state.axes[choice.tag]||0)+1;state.history.push({stage:state.stage,choice:choice.id,tag:choice.tag,focus:chapter.focus||null});
+ recordPlayerChoice(life,'dangerous-group',choice.tag,chapter.title);
  NAMES.forEach(name=>{const r=rec(life,name);if(!r)return;r.trust=clamp((r.trust||0)+(choice.trust||0),0,100);r.affection=clamp((r.affection||0)+(choice.tag==='fracture'?-2:3),0,100);if(choice.obsession){const key=name==='윤세라'?'obsession':'dangerLevel';r[key]=clamp((r[key]||0)+choice.obsession,0,100);}});
  if(chapter.focus)state.personalConcessions[chapter.focus]={choice:choice.id,tag:choice.tag,route:personalCarry(life,chapter.focus).route};
  state.stage++;if(state.stage>=chaptersFor(life).length){state.ending=endingFor(state,choice,life);state.active=false;if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'dangerous',state.ending.id,state.ending.tone);}
@@ -492,5 +552,5 @@ function applyAftermath(life,choiceId){
 }
 function compatibleCandidate(){return false;}
 
-root.QT_DANGEROUS_TRIO={VERSION,NAMES,ROMANCE_ENDINGS,romanceEnding,PRELUDES,CHAPTERS,pureChapters,chaptersFor,AFTERMATH,PERSONAL_ARC_LESSONS,personalCarry,ensure,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,storyComplete,resolveUnavailable,confessionReady,eligibility,queue,cancelQueue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
+root.QT_DANGEROUS_TRIO={VERSION,NAMES,ROMANCE_ENDINGS,romanceEnding,PRELUDES,CHAPTERS,pureChapters,chaptersFor,AFTERMATH,PERSONAL_ARC_LESSONS,PLAYER_ARC_MODES,PLAYER_ARC_COPY,personalCarry,continuity,recordPlayerChoice,playerArcSummary,ensure,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,storyComplete,resolveUnavailable,confessionReady,eligibility,queue,cancelQueue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
 })(window);

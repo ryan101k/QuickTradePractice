@@ -19,39 +19,11 @@ const LIFE_EVENTS = [
     desc: '당신을 공격한 세력이 신인 작가들의 정산금까지 빼돌렸다는 제보를 따라가자, 텅 빈 작업실에 윤세라가 혼자 남아 있습니다. 전 재산과 계약을 잃고 자포자기한 세라는 마지막 그림 상자 위에 앉아 “이제 어디로 가야 하죠?”라고 묻습니다.',
     cond: c => !c.seraKnown && c.seraRescueReady,
     options: [
-      { text: '상자와 세라를 집으로 데려와 함께 산다', effects: { cash:-120000, happy:5, morality:5, meetSera:true, seraHousing:'cohabit', outsideFearResolved:true }, outcome: '세라는 차에 탄 뒤에도 목적지를 말하지 않았습니다. 당신이 “갈 데 없으면 일단 와”라고 하자 처음으로 휴대전화를 켰습니다. 그날 밤 현관에는 낯선 신발과 작은 상자가 나란히 놓였습니다.' },
-      { text: '임시 숙소를 잡아준 뒤 집에서는 내보낸다', effects: { cash:-50000, happy:3, morality:3, meetSera:true, seraHousing:'separate', outsideFearResolved:true }, outcome: '세라는 열쇠 대신 당신 번호만 저장했습니다. 짐을 내려놓은 뒤 한참 문 앞에 서 있었지만, 결국 혼자 방으로 들어갔습니다.' },
-      { text: '경찰과 피해자 지원 연락처만 남기고 완전히 떠난다', effects: { happy:-2, seraHousing:'reject', outsideFearResolved:true }, outcome: '세라는 종이를 받아 들었지만 전화하지 않았습니다. 다음에 찾아왔을 때 작업실은 비어 있었고, 남겨 둔 상자도 함께 사라졌습니다.' },
+      { text: '상자와 세라를 집으로 데려와 함께 산다', effects: { cash:-120000, happy:5, morality:5, meetSera:true, seraHousing:'cohabit' }, outcome: '세라는 차에 탄 뒤에도 목적지를 말하지 않았습니다. 당신이 “갈 데 없으면 일단 와”라고 하자 처음으로 휴대전화를 켰습니다. 그날 밤 현관에는 낯선 신발과 작은 상자가 나란히 놓였습니다. 그러나 두 사람 모두 아직 그 문을 함께 나설 수는 없습니다.' },
+      { text: '임시 숙소를 잡아준 뒤 집에서는 내보낸다', effects: { cash:-50000, happy:3, morality:3, meetSera:true, seraHousing:'separate' }, outcome: '세라는 열쇠 대신 당신 번호만 저장했습니다. 짐을 내려놓은 뒤 한참 문 앞에 서 있었지만, 결국 혼자 방으로 들어갔습니다. 서로의 문밖에서 기다릴 수 있을 만큼 마음을 열기까지는 시간이 더 필요합니다.' },
+      { text: '경찰과 피해자 지원 연락처만 남기고 완전히 떠난다', effects: { happy:-2, seraHousing:'reject' }, outcome: '세라는 종이를 받아 들었지만 전화하지 않았습니다. 다음에 찾아왔을 때 작업실은 비어 있었고, 남겨 둔 상자도 함께 사라졌습니다. 이 선택에서는 세라가 외출의 계기가 되지 않습니다.' },
     ],
   },
-  /* ---------------- 직업(job) ---------------- */
-  {
-    id: 'job_promo', cat: 'job', emoji: '📈', title: '승진 제안',
-    desc: '상사가 승진을 제안합니다. 책임은 커지지만 보너스가 붙습니다.',
-    cond: c => c.job !== 'none',
-    options: [
-      { text: '수락한다 (보너스+, 스트레스)', effects: { cash: [2000000, 8000000], happy: -6 }, outcome: '두둑한 보너스를 받았지만 업무가 늘었다.' },
-      { text: '거절한다 (마음의 평화)', effects: { happy: 5 }, outcome: '워라밸을 택했다.' },
-    ],
-  },
-  {
-    id: 'job_side', cat: 'job', emoji: '💡', title: '주말 부업 제안',
-    desc: '지인이 짭짤한 주말 부업을 소개합니다.',
-    options: [
-      { text: '한다 (돈+, 행복-)', effects: { cash: [500000, 2500000], happy: -6 }, outcome: '주말을 반납하고 돈을 벌었다.' },
-      { text: '쉰다', effects: { happy: 5 }, outcome: '푹 쉬며 재충전했다.' },
-    ],
-  },
-  {
-    id: 'job_coin', cat: 'job', emoji: '🪙', title: '동료의 "확실한" 코인',
-    desc: '동료가 무조건 오른다며 코인을 추천합니다.',
-    cond: c => c.job !== 'none',
-    options: [
-      { text: '크게 넣는다 (복불복)', effects: { cash: [-6000000, 20000000] }, outcome: '결과는 하늘에 맡겼다...' },
-      { text: '무시한다', effects: {}, outcome: '평정심을 지켰다.' },
-    ],
-  },
-
   /* ---------------- 빚(debt) ---------------- */
   {
     id: 'debt_call', cat: 'debt', emoji: '📵', title: '대출 상환 독촉',
@@ -275,12 +247,16 @@ LIFE_EVENTS.push(
     ],
   },
   {
-    id: 'life_moving', cat: 'life', emoji: '📦', title: '전세 만기 통보',
-    desc: '집주인이 만기에 맞춰 보증금을 올리겠다고 연락했습니다.',
+    id: 'life_moving', cat: 'life', emoji: '📦', title: '임대차 계약 갱신',
+    desc: '실제 계약 갱신 시점이 돌아왔습니다. 집주인이 주변 시세를 근거로 임대 조건을 조정하자고 연락했습니다.',
+    cond: c => !c.dangerousTrioLiving
+      && (c.housingTenure === 'monthly' || c.housingTenure === 'jeonse')
+      && c.housingMonths >= 12
+      && c.housingMonths - (c.lastHousingRenewalMonth || 0) >= 12,
     options: [
-      { text: '주변 시세를 조사해 협상한다', effects: { cash: -1000000, happy: 5 }, outcome: '근거를 들이대자 인상폭이 절반으로 줄었다.' },
-      { text: '요구를 받아들인다', effects: { cash: -8000000, happy: -3 }, outcome: '이사 비용보다는 싸다고 스스로를 설득했다.' },
-      { text: '더 싼 곳으로 이사한다', effects: { cash: -3000000, happy: -6 }, outcome: '출퇴근이 40분 늘었다. 통장은 조금 편해졌다.' },
+      { text: '주변 시세와 계약서를 확인해 협상한다', effects: { cash: -300000, happy: 5, housingRenewal:true }, outcome: '중개사와 상담해 과도한 인상 요구를 막고 현재 계약을 갱신했습니다.' },
+      { text: '조건을 받아들이고 갱신한다', effects: { cash: -2000000, happy: -3, housingRenewal:true }, outcome: '이사 비용과 시간을 따져 현재 집의 계약을 갱신했습니다.' },
+      { text: '이사 계획을 세우고 단기 연장한다', effects: { cash: -800000, happy: -2, housingRenewal:true, housingMovePlanned:true }, outcome: '다음 집을 고를 시간을 확보했습니다. 주거 화면에서 원하는 집으로 옮길 수 있습니다.' },
     ],
   },
   {
@@ -290,38 +266,6 @@ LIFE_EVENTS.push(
       { text: '휴가를 내고 같이 병원에 간다', effects: { cash: -500000, happy: 10 }, outcome: '다행히 큰 문제는 아니었다. 같이 간 게 더 오래 기억에 남았다.' },
       { text: '검사비를 보내드린다', effects: { cash: -1500000, happy: 4 }, outcome: '"바쁜데 뭐하러." 목소리는 서운함 반, 고마움 반이었다.' },
       { text: '결과 나오면 알려달라고 한다', effects: { happy: -7 }, outcome: '결과는 괜찮았다. 다만 그 통화가 계속 마음에 걸렸다.' },
-    ],
-  },
-
-  /* ---------------- 직장 ---------------- */
-  {
-    id: 'job_sidehustle', cat: 'job', emoji: '🌙', title: '부업 제안',
-    desc: '주말에만 하면 되는 부업 제안이 들어왔습니다. 회사 규정상 겸업은 애매합니다.',
-    cond: c => c.job !== 'none',
-    options: [
-      { text: '회사에 먼저 확인한다', effects: { happy: 3 }, outcome: '신고 후 승인받았다. 마음 편히 시작했다.' },
-      { text: '몰래 시작한다', effects: { cash: [1000000, 4000000], happy: -5 }, outcome: '돈은 들어오지만 들킬까 봐 계속 신경이 쓰인다.' },
-      { text: '거절하고 본업에 집중한다', effects: { happy: 5 }, outcome: '한 우물을 파기로 했다.' },
-    ],
-  },
-  {
-    id: 'job_blame', cat: 'job', emoji: '🫥', title: '남의 실수, 내 이름',
-    desc: '동료의 실수로 생긴 문제인데 회의에서 내 이름이 거론됐습니다.',
-    cond: c => c.job !== 'none',
-    options: [
-      { text: '기록을 정리해 조용히 해명한다', effects: { happy: 4, charm: 3 }, outcome: '감정 없이 사실만 정리해 보내자 정정됐다.' },
-      { text: '회의 자리에서 바로 반박한다', effects: { happy: -3 }, outcome: '사실은 밝혀졌지만 분위기는 오래 껄끄러웠다.' },
-      { text: '그냥 뒤집어쓴다', effects: { happy: -10 }, outcome: '한 번 넘어가자 다음에도 같은 일이 생겼다.' },
-    ],
-  },
-  {
-    id: 'job_counteroffer', cat: 'job', emoji: '💼', title: '역제안',
-    desc: '이직 의사를 밝히자 회사가 연봉 인상을 제안합니다.',
-    cond: c => c.job !== 'none',
-    options: [
-      { text: '조건을 문서로 남기고 남는다', effects: { cash: [2000000, 6000000], happy: 4 }, outcome: '구두 약속은 사라진다는 걸 알고 있었다.' },
-      { text: '그래도 나간다', effects: { happy: 6 }, outcome: '돈 때문에 나가는 게 아니었다.' },
-      { text: '구두 약속만 믿고 남는다', effects: { happy: -6 }, outcome: '반년 뒤, 그런 얘기 한 적 없다는 답이 돌아왔다.' },
     ],
   },
 
@@ -354,14 +298,6 @@ LIFE_EVENTS.push(
       {text:'경찰서에 그대로 맡긴다',effects:{morality:8,guilt:-5,happy:3},outcome:'며칠 뒤 주인에게서 감사 연락이 왔다.'},
       {text:'현금만 챙기고 지갑은 둔다',effects:{cash:600000,morality:-12,guilt:10},outcome:'당장은 이득이었지만 신분증 사진이 자꾸 떠올랐다.'},
       {text:'못 본 척 지나간다',effects:{morality:-2},outcome:'관여하지 않았지만 마음 한편이 불편했다.'}
-    ]
-  },
-  {
-    id:'moral_blame',cat:'job',emoji:'📎',title:'동료에게 책임 넘기기',desc:'내 실수로 생긴 문제가 아직 누구 책임인지 밝혀지지 않았습니다.',
-    cond:c=>c.job!=='none',options:[
-      {text:'내 실수라고 먼저 말한다',effects:{morality:9,guilt:-12,happy:-2},outcome:'질책은 받았지만 동료의 신뢰는 지켰다.'},
-      {text:'말없이 수습부터 한다',effects:{morality:3,guilt:-4},outcome:'밤늦게까지 일해 문제를 겨우 막았다.'},
-      {text:'신입의 실수처럼 꾸민다',effects:{morality:-16,guilt:18,happy:2},outcome:'나는 빠져나왔지만 신입이 대신 고개를 숙였다.'}
     ]
   },
   {

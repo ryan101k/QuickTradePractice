@@ -363,6 +363,11 @@ for (const file of [
   assert.ok(yujinStory.chapters.slice(0,3).every(chapter=>chapter.phase==='friend')&&yujinStory.chapters.slice(3).every(chapter=>chapter.requiresRelationship),'강유진은 3장까지 친구 이야기이고 이후는 실제 연인 전용이어야 한다');
   assert.ok(seraStory.chapters.slice(0,3).every(chapter=>chapter.phase==='friend')&&seraStory.chapters.slice(3).every(chapter=>chapter.requiresRelationship),'윤세라는 잠긴 작업실까지 친구 이야기이고 이후는 실제 연인 전용이어야 한다');
   assert.ok(chaerinStory.chapters.slice(0,4).every(chapter=>chapter.phase==='friend')&&chaerinStory.chapters.slice(4).every(chapter=>chapter.requiresRelationship),'한채린은 화해의 갈림길까지 친구 이야기이고 이후는 실제 연인 전용이어야 한다');
+  assert.match(yujinStory.chapters[0].desc,/순찰 구역을 벗어나[\s\S]*귀가 시간을 확인했던 전화/,'강유진 개인 1장은 앞서 발생한 위치 확인 위험 신호에서 이어져야 한다');
+  assert.match(chaerinStory.chapters[0].desc,/법인카드 사건 뒤/,'한채린 개인 1장은 앞서 통제권을 넘긴 법인카드 위험 신호에서 이어져야 한다');
+  assert.equal(seraStory.chapters[0].title,'열두 통을 지운 밤','윤세라 개인 1장은 외출 해금 뒤의 절제 시도로 이어져야 한다');
+  assert.match(seraStory.chapters[0].desc,/함께 편의점까지 걸었던 날[\s\S]*몰래 찍은 사진을 지운 사건 뒤/,'윤세라 개인 1장은 문밖 외출과 사진 위험 신호를 모두 기억해야 한다');
+  assert.doesNotMatch(seraStory.chapters[0].desc,/아직 모릅니다/,'윤세라가 이미 들은 플레이어의 바깥 공포를 다시 모르는 것으로 되돌리면 안 된다');
   for(const scene of ['event-yujin-1.png','event-yujin-2.png','event-yujin-night-3.png','event-yujin-5135.png','event-yujin-14.png']){
     assert.ok(yujinStory.chapters.some(chapter=>chapter.scene===scene),`강유진 추가 일러 ${scene}가 개인 스토리에 배치돼야 한다`);
     assert.ok(fs.existsSync(path.join(root,'assets',scene)),`강유진 추가 일러 ${scene} 파일이 있어야 한다`);
@@ -1504,13 +1509,17 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /class="route-card place-card solo-outing-card"/, '혼자 하는 외출은 간결한 장소 카드로 보여야 한다');
   assert.doesNotMatch(appSource, /function makeCandidate/, '외출 화면이 전체 히로인 명부에서 새 사람을 추첨하면 안 된다');
   assert.match(appSource, /이번 주에는 누구를 만나기보다, 내가 갈 곳부터 정해 보기로 했습니다/, '외출 화면은 시스템 설명 대신 플레이어의 시점으로 말해야 한다');
-  assert.match(appSource, /if\(!freeOutingUnlocked\(S\.life\)\)\{showOutsideFearModal\(\)/, '윤세라 작업실 사건 전 자발적 외출은 현관 공포 장면으로 막혀야 한다');
+  assert.match(appSource, /if\(!freeOutingUnlocked\(S\.life\)\)\{showOutsideFearModal\(\)/, '윤세라와 문밖으로 나가는 이야기 전 자발적 외출은 현관 공포 장면으로 막혀야 한다');
   assert.match(appSource, /L\.outsideFearResolved\|\|L\.freedomRescueComplete/, '구버전 저장의 자유인 구원 완료 기록도 외출 해금 호환값으로 인정해야 한다');
   assert.doesNotMatch(appSource, /L\.seraHousing==='reject'\|\|metRecord\(L,'윤세라'\)/, '윤세라를 거절했거나 얼굴만 본 사실만으로 자발적 외출이 즉시 열리면 안 된다');
   assert.match(appSource, /!\['game','study'\]\.includes\(id\)&&!freeOutingUnlocked\(S\.life\)/, '외부 취미로 초반 은둔 외출 관문을 우회하면 안 된다');
   assert.match(appSource, /아직은 밖에 나가기가 무섭다/, '초반 외출 팝업은 플레이어의 은둔 상태를 직접 보여줘야 한다');
   assert.match(appSource, /제가 1층에서 기다릴게요/, '투자 컨설팅은 집에 틀어박힌 플레이어를 나래가 직접 데리러 나와야 한다');
-  assert.match(lifeEventsSource, /outsideFearResolved:true/, '윤세라 작업실 사건을 겪으면 어떤 선택에서도 자유 외출이 다시 열려야 한다');
+  assert.doesNotMatch(lifeEventsSource, /life_rainy_canvas[\s\S]{0,1800}outsideFearResolved/, '윤세라를 폐작업실에서 한 번 만난 사실만으로 자유 외출이 열리면 안 된다');
+  assert.match(appSource, /title:'윤세라 · 문밖에서 기다린 사람'[\s\S]{0,1800}unlockOuting:'walk_together'/, '윤세라가 자기 공포를 먼저 밝히고 함께 걷는 별도 사건이 외출을 열어야 한다');
+  assert.match(appSource, /S\.life\.outsideFearResolution=\{source:'sera_opened_door',day:S\.day,choice:choice\.unlockOuting\}/, '외출 해금은 윤세라 사건의 선택과 날짜를 서사 상태로 남겨야 한다');
+  assert.match(appSource, /자발적인 외출 해금 · 서로 문을 열어 준 사람/, '외출 기능이 열린 이유를 사건 결과 화면에서 명확히 보여줘야 한다');
+  assert.match(appSource, /function repairOutsideFearUnlock\(L=S\.life\)[\s\S]{0,500}sera\.dangerEvents\.sera_friend==='seen'[\s\S]{0,300}else L\.outsideFearResolved=false/, '구버전 저장은 세라 친구 사건을 실제로 봤을 때만 기존 외출 해금을 보존해야 한다');
   assert.match(appSource, /formerClubEx:true/, '옛 동아리 여성 다섯은 과거 연인 기록으로 시작해야 한다');
   assert.match(appSource, /former\.status='ex'/, '옛 동아리 여성 다섯은 현재 친구가 아니라 전 연인 상태여야 한다');
   assert.match(appSource, /function showOriginFriendReferral/, '은둔 프롤로그 뒤 고정 친구의 투자지원센터 소개 장면이 있어야 한다');
@@ -1527,6 +1536,9 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/prologue\.careerUnlocked=true/,'투자지원 등록 완료 상태는 구버전 프롤로그 필드에도 저장돼야 한다');
   assert.doesNotMatch(appSource,/data-act="changejob"/,'월 행동 UI에 이직 선택지가 남으면 안 된다');
   assert.match(appSource,/FATHER_MONTHLY_SUPPORT = 1000000/,'아버지의 월 생활비가 명시돼야 한다');
+  assert.match(appSource,/FATHER_SUPPORT_WEALTH_LIMIT = 30000000/,'아버지 생활비는 세력의 시장 주목 자산 기준에서 끝나야 한다');
+  assert.match(appSource,/function updateFatherSupport\(L\)[\s\S]{0,1400}fatherSupportEnded=true[\s\S]{0,1400}지원 영구 종료/,'자립 뒤에는 자산을 잃어도 아버지 생활비가 다시 시작되면 안 된다');
+  assert.match(appSource,/b\.salary = updateFatherSupport\(L\) \? FATHER_MONTHLY_SUPPORT : 0/,'월 정산은 아버지 지원 종료 상태를 실제 입금에 반영해야 한다');
   assert.match(appSource,/아버지가 이번 달 생활비/,'월 정산에서 직업 월급 대신 아버지 생활비가 안내돼야 한다');
   assert.match(appSource,/S\.life\.familyBackground='father_home'/,'새 게임의 가족 배경은 아버지 한 명으로 고정돼야 한다');
   assert.match(appSource,/생활경제연구회 모의투자 대회의 계좌번호 일부/,'첫 공격 장면은 과거 조작 장부와 현재 경쟁 세력을 연결해야 한다');
@@ -2059,6 +2071,24 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.doesNotMatch(trioSource,/payRate/,'월급 농담 선택이 실제 급여 배율을 저장하면 안 된다');
   assert.match(trioSource,/id:'preference_audit'/,'세 사람은 정식 공생 전에 서로의 취향을 폭로하는 사건을 겪어야 한다');
   assert.doesNotMatch(trioSource,/id:'fault_tribunal'/,'취향 폭로와 잘잘못 재판을 별도 사건으로 반복하면 안 된다');
+  assert.doesNotMatch(context.QT_DANGEROUS_TRIO.PRELUDES[0].desc,/목걸이|목줄/,'악우 형성 사건은 아직 열리지 않았을 수 있는 한채린 후반 목걸이 서사를 앞당겨 쓰면 안 된다');
+  assert.match(context.QT_DANGEROUS_TRIO.PRELUDES[0].desc,/찢긴 계약서[\s\S]*사건 뒤의 안전[\s\S]*편의점/,'첫 악우 대면은 세 사람의 실제 초반 진입 사건을 한자리에 모아야 한다');
+  assert.match(trioSource,/chapter:chaptersFor\(life\)\[state\.stage\]/,'광기 3인 시작 장면은 순애·공동 관계의 실제 선택 경로를 따라야 한다');
+  assert.equal(context.QT_DANGEROUS_TRIO.CHAPTERS.every(chapter=>typeof chapter.playerWound==='string'&&chapter.playerWound.length>=55),true,'광기 3인 공생 본편의 모든 장은 세 사람뿐 아니라 플레이어의 결핍도 다뤄야 한다');
+  assert.match(context.QT_DANGEROUS_TRIO.CHAPTERS.find(chapter=>chapter.title==='사라진 37분').desc,/설명을 미룬 채 휴대전화를 껐습니다/,'37분 실종은 우연이 아니라 갈등 앞에서 연락을 끊는 플레이어의 습관 때문에 발생해야 한다');
+  const playerArcLife={met:[]};
+  context.QT_DANGEROUS_TRIO.recordPlayerChoice(playerArcLife,'강유진','boundary','경계');
+  context.QT_DANGEROUS_TRIO.recordPlayerChoice(playerArcLife,'강유진','depend','의존');
+  context.QT_DANGEROUS_TRIO.recordPlayerChoice(playerArcLife,'윤세라','depend','의존');
+  assert.equal(context.QT_DANGEROUS_TRIO.playerArcSummary(playerArcLife).mode,'delegate','개인 선택은 플레이어가 직접 마주하는지 구조받는 자리에 숨는지 누적해서 보여줘야 한다');
+  assert.equal(context.QT_DANGEROUS_TRIO.ensure(playerArcLife).playerArc.history.length,3,'플레이어 결핍 선택은 개인별 이력으로 보존돼야 한다');
+  assert.match(appSource,/플레이어의 결핍 · \$\{playerReflection\.title\}/,'광기 3인 개인 서사 결과에서 플레이어 자신의 선택 경향을 보여줘야 한다');
+  assert.match(appSource,/플레이어 개인 아크 · \$\{playerEnding\.title\}/,'공생 결말은 세 사람의 결말과 함께 플레이어의 변화도 정리해야 한다');
+  assert.equal(context.QT_DANGEROUS_TRIO.CHAPTERS.every(chapter=>typeof chapter.bridge==='string'&&chapter.bridge.length>=45),true,'광기 3인 본편의 모든 장은 앞 장의 양보가 다음 갈등으로 이어지는 연결 서사를 가져야 한다');
+  const continuityLife={met:[]},continuityState=context.QT_DANGEROUS_TRIO.ensure(continuityLife);
+  continuityState.history=[{stage:0,choice:'compete',tag:'fracture'}];
+  assert.equal(context.QT_DANGEROUS_TRIO.continuity(continuityLife,context.QT_DANGEROUS_TRIO.CHAPTERS[1]).previous,context.QT_DANGEROUS_TRIO.CHAPTERS[0].choices[1].result,'광기 3인 다음 장은 실제 직전 선택 결과를 이어받아야 한다');
+  assert.match(appSource,/지난 선택이 만든 다음 과제/,'광기 3인 본편 화면은 장면 사이의 인과를 플레이어에게 보여줘야 한다');
   for(const removed of ['yujin_control','chaerin_control','sera_control','yujin_daily1','chaerin_daily1','sera_daily1','yujin_romance3','chaerin_romance3','sera_romance3']){
     assert.doesNotMatch(appSource,new RegExp(`${removed}:\\{`),`${removed} 중복 호감 컷씬은 정식 개인 아크와 병렬로 남으면 안 된다`);
   }
@@ -2080,6 +2110,18 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(triggerAppSource,/return S\._importantEvents\.includes\(event\)/,'event queue callers must receive the actual insertion result');
   assert.doesNotMatch(triggerAppSource,/if\s*\(\s*!met\.length\s*\)\s*return/,'online and route triggers must run before any real-world contact exists');
   assert.match(triggerAppSource,/if\(event\.groupConfession\)return event\.groupId\|\|null/,'group confessions must obey their route lock');
+  for(const key of [
+    "if(event.dangerousTrioStart)return'dangerous:start'",
+    "if(event.dangerousTrioChapter)return'dangerous:chapter'",
+    "if(event.dangerousTrioAftermath)return'dangerous:aftermath'",
+    "if(event.freedomTrioStart)return'freedom:start'",
+    "if(event.freedomTrioChapter)return'freedom:chapter'",
+    "if(event.freedomTrioAftermath)return'freedom:aftermath'",
+    "if(event.childhoodCircleEvent)return`childhood:${event.childhoodCircleEvent}`",
+    "if(event.businessRomanceEvent)return`business-romance:"
+  ])assert.ok(triggerAppSource.includes(key),`${key} must have a stable queue deduplication key`);
+  assert.match(triggerAppSource,/if\(event\.dangerousTrioPrelude\|\|event\.dangerousTrioStart\|\|event\.dangerousTrioChapter\)return 88/,'광기 3인 본편은 개별 호감 컷신보다 먼저 재생돼야 한다');
+  assert.match(triggerAppSource,/if\(routeQueued\)return;[\s\S]{0,180}Object\.entries\(DANGEROUS_AFFECTION_EVENTS\)/,'광기 3인 본편이 예약된 달에는 개별 호감 컷신을 함께 쌓지 않아야 한다');
   assert.match(triggerAppSource,/function repairOpeningStoryQueue\(\)/,'legacy saves must repair the missing Sera opening encounter');
   assert.match(triggerAppSource,/origin\.ready\|\|attacker\|\|L\.yujinInvestigationSeen\|\|\(L\._attackedRecently\|\|0\)>0/,'opening repair must use persisted attack evidence instead of one transient faction stage');
   assert.match(triggerAppSource,/if\(repairOpeningStoryQueue\(\)\)return/,'faction progression must yield to the repaired Sera encounter');
@@ -2090,7 +2132,12 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(triggerAppSource,/circle&&circle\.anchor&&L\.devChildhoodFinale===true/,'the postponed childhood finale must not be exposed in the normal early-game story list');
   const lifeEventSource=fs.readFileSync(path.join(root,'js/events_life.js'),'utf8');
   assert.match(lifeEventSource,/id: 'inv_windfall'[\s\S]{0,300}c\.day >= 3 && c\.trades > 0 && c\.hasLongPosition/,'the stock windfall must require an established real holding');
-  assert.match(lifeEventSource,/id: 'job_coin'[\s\S]{0,240}cond: c => c\.job !== 'none'/,'the coworker coin event must not appear while unemployed');
+  ['job_promo','job_side','job_coin','job_sidehustle','job_blame','job_counteroffer','moral_blame'].forEach(id=>{
+    assert.doesNotMatch(lifeEventSource,new RegExp(`id:\\s*['"]${id}['"]`),`${id} must be removed from the investment-only life event pool`);
+  });
+  assert.match(lifeEventSource,/id: 'life_moving'[\s\S]{0,500}housingMonths >= 12[\s\S]{0,200}lastHousingRenewalMonth/,'housing renewal must wait for a real lease renewal interval');
+  assert.match(triggerAppSource,/housingTenure:housing\.tenure[\s\S]{0,300}lastHousingRenewalMonth:housing\.lastRenewalMonth/,'life event context must include lease timing');
+  assert.match(triggerAppSource,/function dangerousTrioFatigueHTML\(\)[\s\S]{0,1200}공동생활 피로 · 체력 -/,'month-close life actions must explain dangerous trio cohabitation fatigue');
   const businessLife={};
   const businessState=context.QT_BUSINESS_ROMANCE.ensure(businessLife);
   businessState.retaliationSeen=true;
