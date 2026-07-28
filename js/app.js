@@ -2120,7 +2120,7 @@ function showDebtGameOver() {
     </div></div>`;
   const makjang=$('debt-makjang');if(makjang)makjang.addEventListener('click',startMakjangLife);
   const restart = $('debt-restart');
-  if (restart) restart.addEventListener('click', () => { localStorage.removeItem(LS_KEY); location.reload(); });
+  if (restart) restart.addEventListener('click', () => { localStorage.removeItem(LS_KEY); reloadWithCacheBust(); });
   autoSave(); playSound('crash');
 }
 
@@ -5241,7 +5241,7 @@ function showGroupRouteBadEnding(id,kind,context={}){
     else closeDateModal();
     pauseUISync();renderLifePanel();autoSave();
   });
-  $('group-ending-restart').addEventListener('click',()=>{localStorage.removeItem(LS_KEY);location.reload();});
+  $('group-ending-restart').addEventListener('click',()=>{localStorage.removeItem(LS_KEY);reloadWithCacheBust();});
   addNews(`${ending.icon} BAD END · ${ending.title}`,'bad');playSound('crash');autoSave();
   return true;
 }
@@ -5844,7 +5844,7 @@ function rewindDangerousRelationship(r){
   S.paused=false;
   resolveMonthCloseTerminal();
   addNews(`↩️ ${r.name}와 위험해지기 전, 친구 관계를 택한 시점으로 돌아갔습니다`,'neutral');
-  autoSave();location.reload();
+  autoSave();reloadWithCacheBust();
 }
 function showDangerousHeroineEnding(r){
   if(S.timer){clearInterval(S.timer);S.timer=null;}S.phase='closed';S.paused=true;
@@ -5854,7 +5854,7 @@ function showDangerousHeroineEnding(r){
   host.style.display='flex';host.className='life-modal-host captivity-meta-host';
   host.innerHTML=`<div class="window event-window captivity-ending-window"><div class="title-bar"><div class="title-bar-text">🔒 ${r.name} 배드엔딩 · ${yujin?'보호관찰':'황금 계약'}</div></div><div class="window-body"><img class="life-scene-banner" src="${scene}" alt="${r.name} 전용 감금엔딩 컷신"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(r,'sad')}" alt="${r.name}"><div><strong>${r.name}</strong><br><span class="down">빠져나갈 문이 보이지 않습니다</span></div></div><div class="event-title">${yujin?'“밖이 위험한데 왜 굳이 나가려고 해요?”':'“네가 고를 수 있는 건 내가 준비한 것들뿐이야.”'}</div><div class="event-desc">${yujin?'유진은 사건과 빚과 위협에서 당신을 완벽히 분리했습니다. 문제는 그 안전가옥의 외출 허가도 유진이 쥐고 있다는 것입니다.':'채린은 빚과 집과 직업을 모두 해결했습니다. 대신 계좌, 열쇠, 일정표 어디에도 채린의 승인 없이 열리는 출구가 남지 않았습니다.'}</div><div class="important-event-detail">뒤늦게 경계를 세우려 했지만 이미 열쇠와 계좌와 연락처는 상대의 손에 넘어가 있었습니다.</div><button id="danger-ending-rewind" class="session-btn opening">↩️ 위험해지기 전 관계 선택으로 돌아가기</button><button id="danger-ending-restart" class="hot">🔁 완전히 새 인생 시작</button></div></div>`;
   $('danger-ending-rewind').addEventListener('click',()=>rewindDangerousRelationship(r));
-  $('danger-ending-restart').addEventListener('click',()=>{localStorage.removeItem(LS_KEY);location.reload();});
+  $('danger-ending-restart').addEventListener('click',()=>{localStorage.removeItem(LS_KEY);reloadWithCacheBust();});
   autoSave();playSound('crash');
 }
 
@@ -5863,7 +5863,7 @@ function showCaptivityEnding(r,origin){
   const host=$('life-modal');if(!host)return;host.style.display='flex';
   if(r.name!=='윤세라'){
     host.innerHTML=`<div class="window event-window"><div class="title-bar"><div class="title-bar-text">🔒 배드엔딩 · 닫힌 방</div></div><div class="window-body"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(r,'sad')}" alt="${r.name}"><div><strong>${r.name}</strong><br><span class="down">집착 ${Math.round(r.obsession||100)}/100</span></div></div><div class="event-title">“이제 아무도 우리 사이를 방해하지 못해.”</div><div class="event-desc">반복된 통제 요구를 방치한 끝에 일상이 완전히 끊겼습니다. 이것은 사랑의 결말이 아니라 관계의 경고를 무시한 결과입니다.</div><button id="captivity-restart" class="hot">🔁 새 인생 시작</button></div></div>`;
-    $('captivity-restart').addEventListener('click',()=>{localStorage.removeItem(LS_KEY);location.reload();});
+    $('captivity-restart').addEventListener('click',()=>{localStorage.removeItem(LS_KEY);reloadWithCacheBust();});
     autoSave();playSound('crash');return;
   }
   const variant=origin||r.seraEndingVariant||seraCaptivityVariant(S.life,r);
@@ -5959,7 +5959,7 @@ function beginSeraLoop(){
   const previous=readSeraLoop();
   localStorage.setItem(LS_SERA_LOOP,JSON.stringify({active:true,loops:(previous.loops||0)+1,startedAt:Date.now()}));
   localStorage.removeItem(LS_KEY);
-  location.reload();
+  reloadWithCacheBust();
 }
 
 // 지금 이 사람과 어떤 사이인가 — 명부 카드에 붙는 배지
@@ -7577,7 +7577,7 @@ function showDangerousTrioClubEnding(){
   host.style.display='flex';host.className='life-modal-host captivity-meta-host';
   host.innerHTML=`<div class="window event-window captivity-ending-window"><div class="title-bar"><div class="title-bar-text">🔒 공동생활 배드엔딩 · 세 사람이 합의한 외출 금지</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-trio-bed-ending.png" alt="세 사람의 반복 경고를 무시한 뒤 잠긴 방"><div class="event-title">“두 번이나 말로 돌려보냈잖아요.”</div><div class="event-desc">세 번째로 클럽 문을 열려던 밤의 기억은 거기서 끊겼습니다. 눈을 뜬 자취방에는 유진의 귀가 기록, 채린의 출입 계약, 세라가 모아 둔 열쇠가 나란히 놓였습니다. 늘 서로를 말리던 세 사람은 이번 한 번만큼은 당신을 밖에 내보내지 않는 데 완전히 합의했습니다.</div><div class="story-dialogue"><b>강유진</b> “보호 조치예요.” <b>한채린</b> “두 번이면 선택은 충분히 줬어.” <b>윤세라</b> “이제 나갈 버튼은 없어요.”</div><div class="important-event-detail down">공동생활 경고 3회 · 클럽 선택 잠금 · 세 사람 공동 감금엔딩</div><button id="trio-club-rewind" class="session-btn opening">↩️ 두 번째 경고를 받아들인 시점으로 돌아가기</button><button id="trio-club-restart" class="hot">🔁 완전히 새 인생 시작</button></div></div>`;
   $('trio-club-rewind').addEventListener('click',rewindDangerousTrioClub);
-  $('trio-club-restart').addEventListener('click',()=>{localStorage.removeItem(LS_KEY);location.reload();});
+  $('trio-club-restart').addEventListener('click',()=>{localStorage.removeItem(LS_KEY);reloadWithCacheBust();});
   autoSave();playSound('crash');
 }
 
@@ -10251,6 +10251,13 @@ function autoSave() {
   } catch (e) { /* 용량 초과 등 무시 */ }
 }
 
+function reloadWithCacheBust() {
+  const url = new URL(location.href);
+  url.hash = '';
+  url.searchParams.set('fresh', `${Date.now()}`);
+  location.replace(url.toString());
+}
+
 function loadSave() {
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -10353,7 +10360,7 @@ function hardReset() {
   if (!confirm(`정말 초기화할까요? 저장된 진행 상황이 삭제됩니다. (업적은 유지)${loopWarning}`)) return;
   localStorage.removeItem(LS_KEY);
   localStorage.removeItem(LS_SERA_LOOP);
-  location.reload();
+  reloadWithCacheBust();
 }
 
 /* URL 공유는 세이브 복원이 아니라 검증 가능한 읽기 전용 결과 카드다. */

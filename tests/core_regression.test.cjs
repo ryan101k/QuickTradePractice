@@ -2108,6 +2108,8 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(triggerAppSource,/L\.job='none';L\.lifeView='origin';CAREER\.ensure\(L\);L\.started=true/,'fresh prologue must initialize the current operation-career state before showing the friend message');
   assert.match(triggerAppSource,/else if \(!S\.life\.referralSeen\) showOpeningFriendMessage\(\)/,'an interrupted prologue save must reopen the first friend message before the market');
   assert.match(triggerAppSource,/S\.life\.referralSeen\?showTutorial\(\):showOpeningFriendMessage\(\)/,'boot must recover a started save that never displayed the opening friend message');
+  assert.match(triggerAppSource,/function reloadWithCacheBust\(\)[\s\S]{0,220}searchParams\.set\('fresh'/,'reset and ending restarts must navigate to a cache-busted document URL');
+  assert.doesNotMatch(triggerAppSource,/location\.reload\(\)/,'game restarts must not reuse a stale cached app bundle');
   const businessLife={};
   const businessState=context.QT_BUSINESS_ROMANCE.ensure(businessLife);
   businessState.retaliationSeen=true;
