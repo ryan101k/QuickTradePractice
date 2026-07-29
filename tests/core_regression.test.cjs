@@ -369,10 +369,13 @@ for (const file of [
     assert.ok(yujinStory.chapters.some(chapter=>chapter.scene===scene),`강유진 추가 일러 ${scene}가 개인 스토리에 배치돼야 한다`);
     assert.ok(fs.existsSync(path.join(root,'assets',scene)),`강유진 추가 일러 ${scene} 파일이 있어야 한다`);
   }
-  for(const scene of ['event-chaerin-2.png','event-chaerin-4.png','event-chaerin-5.png','event-chaerin-8.png','event-chaerin-9.png','event-chaerin-10.png']){
+  for(const scene of ['event-chaerin-2.png','event-chaerin-4.png','event-chaerin-9.png','event-chaerin-private-command.png','event-chaerin-black-collar.png','event-chaerin-crown-down.png']){
     assert.ok(chaerinStory.chapters.some(chapter=>chapter.scene===scene),`한채린 추가 일러 ${scene}가 개인 스토리에 배치돼야 한다`);
     assert.ok(fs.existsSync(path.join(root,'assets',scene)),`한채린 추가 일러 ${scene} 파일이 있어야 한다`);
   }
+  assert.match(chaerinStory.chapters[4].desc,/명령[\s\S]*도발/,'한채린 중반부는 사업 실무가 아니라 명령을 유도하는 사적 도발을 다뤄야 한다');
+  assert.match(chaerinStory.chapters[5].speaker,/화|매달린/,'한채린은 원하는 반응을 얻으려고 사고를 키우는 결함과 마주해야 한다');
+  assert.match(chaerinStory.chapters[7].desc,/목걸이[\s\S]*열쇠/,'검은 목걸이 장면은 채린 본인의 해제권을 명시해야 한다');
   const storyAppSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
   assert.match(storyAppSource,/dangerous_dependence:'\.\/assets\/event-yujin-1111\.png'/,'강유진 위험한 의존 완결에는 전용 내면 독백 컷신을 써야 한다');
   assert.match(yujinStory.chapters[1].speaker,/필요|부를 이유/,'강유진의 친구 구간부터 사건이 끝나 자신이 필요 없어지는 불안을 드러내야 한다');
@@ -1445,9 +1448,12 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /function showFactionMentorPhoneStory/, '첫 세력 공격은 장태식의 스마트폰 연락으로 이어져야 한다');
   assert.match(appSource, /queueSeraOpeningEncounter\('second_month'\)/, '윤세라는 공격을 기다리지 않고 늦어도 두 번째 달에 먼저 등장해야 한다');
   assert.match(appSource, /queueSeraOpeningEncounter\('blocked_outing'\)/, '초반에 외출을 시도하면 현관 공포와 연결된 윤세라 조우가 먼저 열려야 한다');
-  assert.match(appSource, /function queueFactionMentorAfterSera/, '윤세라 거처 선택을 끝낸 뒤에만 장태식의 세력 설명이 이어져야 한다');
+  assert.match(appSource, /function queueFactionMentorAfterSera/, '윤세라를 만난 뒤 첫 공격의 전말이 순서대로 이어져야 한다');
   assert.match(appSource, /prologue\.firstAttackSequence='complete'/, '장태식에게 첫 부하를 받은 뒤 프롤로그 공격 연쇄 완료를 기록해야 한다');
-  assert.match(appSource, /function showFactionMentorFall/, '세력 창설 직후 장태식 사망과 태식 사채라인 해산 화면이 이어져야 한다');
+  assert.match(appSource, /function showFactionMentorDefense/, '세력 창설 뒤 장태식과 첫 부하가 실제 방어를 한 번 수행해야 한다');
+  assert.match(appSource, /factionStory:'mentor_defense'/, '장태식 사망 전에 첫 방어 사건이 별도 주요 사건으로 예약돼야 한다');
+  assert.match(appSource, /prologue\.firstAttackSequence='mentor_defense'/, '세력 창설만으로 1장 공격 연쇄를 완료 처리하면 안 된다');
+  assert.match(appSource, /function showFactionMentorFall/, '첫 방어 뒤 장태식 사망과 태식 사채라인 해산 화면이 이어져야 한다');
   assert.match(appSource, /RIVALS\.collapseFaction\(/, '장태식 세력 해산은 일반 경쟁 세력 파산과 같은 상태 변경을 사용해야 한다');
   assert.match(appSource, /function showFactionResume/, '세력 지원자는 즉시 영입되지 않고 이력서를 먼저 보여줘야 한다');
   assert.match(appSource, /data-recruit-id[\s\S]{0,250}showFactionResume/, '모집 카드 클릭은 영입 확정이 아니라 이력서 열람으로 이어져야 한다');
@@ -1522,6 +1528,8 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/r\.status==='acquaintance'&&\(r\.affection\|\|0\)>=18&&\(r\.trust\|\|0\)>=10/,'처음 집에 데려온 윤세라는 생활을 쌓은 뒤에야 친구가 되어야 한다');
   assert.match(appSource,/rememberPerson\(Object\.assign\(\{\}, D\.SPECIAL_CHARACTERS\.sera\), 'acquaintance'\)/,'윤세라 첫 조우가 즉시 친구 상태를 부여하면 안 된다');
   assert.match(appSource,/function showSeraRestModal\(sera\)/,'윤세라 동거 중 일반 휴식도 전용 선택 장면으로 갈라져야 한다');
+  assert.match(appSource,/L\.seraTemporaryMomentIds=seen[\s\S]{0,120}L\.seraTemporaryMoments=seen\.length/,'윤세라 임시 보호는 같은 행동 반복이 아니라 서로 다른 생활 장면 수로 진행돼야 한다');
+  assert.match(appSource,/available&&!alreadyTemporary/,'임시 보호 중 이미 본 생활 장면은 다시 눌러 진행도를 소모할 수 없어야 한다');
   const replyPersonSource=appSource.slice(appSource.indexOf('function replyToPerson'),appSource.indexOf('function relationshipDateLine'));
   assert.match(replyPersonSource,/L\.happy=clamp\(\(L\.happy\|\|0\)\+seraHappy/,'윤세라 집착 문자에 대한 대응은 플레이어 행복도를 바꿔야 한다');
   assert.doesNotMatch(replyPersonSource,/L\.stress/,'윤세라 집착 문자 답장이 플레이어 스트레스를 직접 바꾸면 안 된다');
@@ -1569,12 +1577,14 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.doesNotMatch(charactersSource,/key:'chaerin_scene'/,'데이트 경로에 중복 한채린 비공개 회동이 남으면 안 된다');
   assert.match(fs.readFileSync(path.join(root,'js/character_traits.js'),'utf8'),/name:'굴복 욕구'/,'한채린 고유 수치는 아첨이 아니라 사적인 굴복 성향을 표현해야 한다');
   const chaerinStorySource=fs.readFileSync(path.join(root,'js/character_stories.js'),'utf8');
-  assert.match(chaerinStorySource,/계열사 이름이 적힌 계좌/,'한채린 개인 스토리는 강유진 수사와 윤세라 원본 장부에 연결돼야 한다');
-  assert.match(chaerinStorySource,/C\('command','변명 말고 네 이름으로 공개하고 피해자부터 갚으라고 명령한다'/,'한채린은 명령과 거절에 가장 크게 반응해야 한다');
+  assert.match(chaerinStorySource,/명령을 부탁하는 여자/,'한채린 개인 스토리는 사업 실무보다 도발과 사적 굴복 성향을 중심으로 진행돼야 한다');
+  assert.match(chaerinStorySource,/C\('command','휴대폰을 내려놓고 명령하지 말고 원하는 것을 부탁하라고 시킨다'/,'한채린은 도발로 반응을 훔치지 않고 직접 부탁하는 법을 배워야 한다');
+  assert.doesNotMatch(chaerinStorySource,/계열사 이름이 적힌 계좌/,'사업 4인조와 겹치는 계열사 실무 사건이 한채린 개인 아크에 남으면 안 된다');
   assert.match(appSource,/S\.life\.seraHousing==='cohabit'/,'윤세라 동거 중 후속 만남에는 위험 3인조 악우 변형이 있어야 한다');
   assert.match(appSource,/dangerousBadFriendsEncounters/,'동거 중 강유진·한채린 후속 만남은 악우 관계 기록을 쌓아야 한다');
   assert.match(appSource,/function queueYujinInvestigation\(housing,attacker\)/,'첫 경쟁 세력 피해 뒤 강유진의 담당 수사를 자동 예약해야 한다');
-  assert.match(appSource,/if\(!L\|\|!sera\|\|!\['cohabit','separate','reject'\]\.includes/,'윤세라를 실제로 만나고 거처 선택을 끝내기 전에는 강유진 수사가 예약되면 안 된다');
+  assert.match(appSource,/if\(!L\|\|!sera\|\|!\['temporary','cohabit','separate','reject'\]\.includes/,'윤세라를 실제로 만나 임시 보호 이상의 상태가 된 뒤에만 강유진 수사를 검토해야 한다');
+  assert.match(appSource,/const attackKnown=!!\(L\.seraRescueOrigin&&L\.seraRescueOrigin\.playerAttackDay\)/,'첫 공격 전에는 윤세라를 임시 보호해도 강유진 수사가 예약되면 안 된다');
   assert.match(appSource,/queueImportantEvent\(\{yujinInvestigation:true/,'강유진 첫 조우는 플레이어가 숨은 버튼을 찾는 대신 주요 사건으로 떠야 한다');
   assert.match(appSource,/eff\.seraHousing==='reject'&&L\.seraRescueOrigin\)L\.seraRescueOrigin\.ready=false/,'윤세라를 떠나보낸 뒤 같은 폐작업실 구조 사건이 반복되면 안 된다');
   assert.match(appSource,/if \(event\.yujinInvestigation\) \{ showYujinInvestigation\(false\)/,'월말 주요 사건 큐가 강유진 방문 조사 화면으로 이어져야 한다');

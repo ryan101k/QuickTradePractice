@@ -191,7 +191,7 @@ function newLife() {
       firstGuildTutorialSeen: false,
       mainGameStarted: false,
       mainGameStartedDay: null,
-      firstAttackSequence: null, // sera → taesik → complete
+      firstAttackSequence: null, // sera → attack → yujin → taesik → defense → complete
     },
     job: 'none',             // 직업 id
     happy: 50,               // 행복도 0~100
@@ -205,7 +205,7 @@ function newLife() {
     freedomTrio: { active:false, stage:0, harmony:50, axes:{freedom:0,career:0,control:0}, history:[], personal:{}, ending:null, aftermathIndex:0 },
     childhoodCircle: { anchor:null, schoolId:null, stage:'dormant', pressure:0, trust:0, seen:{}, route:null, pending:null },
     childhoodNightContract: null, // 소꿉친구와 하룻밤 뒤 다른 상대를 택했는지 추적
-    seraHousing: null,        // cohabit | separate | reject — 위험한 3인조 편입 조건
+    seraHousing: null,        // temporary | cohabit | separate | reject — 임시 보호 뒤 정식 거처 결정
     outsideFearResolved: false, // 세라와 서로의 공포를 밝히거나 자유인 구원을 마칠 때까지 자발적인 외출을 피한다
     outsideFearResolution: null,// {source,day,choice} — 외출이 열린 서사적 계기
     met: [],                 // 한 번이라도 만난 사람 (헤어져도 기억한다) — rememberPerson() 참고
@@ -2087,6 +2087,7 @@ function showOriginFriendReferral(){
     ['플레이어','역시 그럴 줄 알았다. 궁금하면 네가 가.'],
     [contact.name,'너부터 방에서 나와. 그리고 옛날 대회 계정은 쓰지 마. 그 장부 아직 가지고 있으면 더더욱. 주소랑 예약 시간 보냈다.'],
     ['플레이어','돈 버는 법 알려 달랬더니 사람을 밖으로 끌어내네.'],
+    [contact.name,'장 끝나고 방이 너무 조용하면 예전에 하던 게임도 다시 깔아. 내 길드 지인들 파티가 밤마다 한 자리 빈다더라. 얼굴 볼 일 없는 사람들이니까 부담도 덜할 거고.'],
   ];
   S._originReferralIndex=0;
   const render=()=>{
@@ -3628,13 +3629,20 @@ function applyEventEffects(eff) {
     L.seraIntelHelper=false;
     if(L.seraRescueOrigin)L.seraRescueOrigin.ready=false;
     pushPersonMessage(L, rec, '오늘은 문 잠가도 돼요. 어디 안 갈게요. 아직은 서로 아무것도 묻지 말아요.', false);
-    changes.push('🖤 <b>윤세라와 이름만 아는 불편한 동거를 시작함</b>');
+    changes.push('🖤 <b>윤세라를 오늘 밤만 임시로 집에 들임 · 거처는 아직 정하지 않음</b>');
     addNews('🖤 모든 것을 잃고 계단에 있던 윤세라를 집에 들였습니다', 'neutral');
   }
   if(eff.seraHousing){
     const trio=DANGEROUS_TRIO&&DANGEROUS_TRIO.ensure(L);
     L.seraHousing=eff.seraHousing;
-    if(trio)trio.lockedOut=eff.seraHousing!=='cohabit';
+    if(trio&&eff.seraHousing!=='temporary')trio.lockedOut=eff.seraHousing!=='cohabit';
+    if(eff.seraHousing==='temporary'){
+      L.seraTemporarySince=S.day;
+      L.seraTemporaryMoments=0;
+      L.seraTemporaryMomentIds=[];
+      L.seraCohabitingSince=null;
+      changes.push('📦 <b>윤세라를 오늘 밤만 임시로 집에 들임 · 함께 지낼지는 아직 정하지 않음</b>');
+    }else
     if(eff.seraHousing==='cohabit'){
       if(window.QT_ROMANCE_ROUTES)QT_ROMANCE_ROUTES.engage(L,'dangerous','sera_cohabit');
       L.seraCohabitingSince=S.day;
@@ -3645,8 +3653,9 @@ function applyEventEffects(eff) {
       if(eff.seraHousing==='reject'&&L.seraRescueOrigin)L.seraRescueOrigin.ready=false;
       changes.push('🚪 <b>윤세라에게 따로 지낼 곳을 마련해 줌</b>');
     }
-    queueFactionMentorAfterSera();
-    if(queueYujinInvestigation(eff.seraHousing,L.seraRescueOrigin&&L.seraRescueOrigin.attacker)){
+    if(eff.seraHousing!=='temporary')queueFactionMentorAfterSera();
+    const attackKnown=!!(L.seraRescueOrigin&&L.seraRescueOrigin.playerAttackDay);
+    if(attackKnown&&eff.seraHousing!=='temporary'&&queueYujinInvestigation(eff.seraHousing,L.seraRescueOrigin&&L.seraRescueOrigin.attacker)){
       changes.push('👮‍♀️ <b>피해 자금 수사를 맡은 경찰의 방문 조사 예정</b>');
     }
   }
@@ -3812,14 +3821,15 @@ function doNaraeConsulting(){
 function showHomeLifeModal(){
   const host=$('life-event'),L=S.life;if(!host)return;
   const indoor=D.HOBBIES.filter(h=>['game','study'].includes(h.id));
-  const sera=metRecord(L,'윤세라'),seraHere=!!(sera&&L.seraHousing==='cohabit'),trioHere=!!(L.dangerousTrioBond&&L.dangerousTrioBond.active);
+  const sera=metRecord(L,'윤세라'),seraHere=!!(sera&&['temporary','cohabit'].includes(L.seraHousing)),trioHere=!!(L.dangerousTrioBond&&L.dangerousTrioBond.active);
   const guild=FREEDOM_TRIO&&FREEDOM_TRIO.ensure(L);
   const home=HOUSING.home(L),tenure=HOUSING.TENURES[L.housing.tenure];
   const gameLabel=guild&&guild.guildJoined?`〈${guild.guildName||FREEDOM_TRIO.GUILD_NAME}〉 길드원들과 게임하기`:null;
   const trioHome=trioHere?`<div class="route-sep">네 사람이 같은 자취방에서 보내는 시간</div><div class="important-event-detail">유진·채린·세라가 누구의 소유도 아닌 이 집을 중립 거점으로 유지해 달라고 요청했습니다. 공동생활이 이어지는 동안 이사는 세 사람 모두가 거점 합의를 해제해야 가능합니다.</div><div class="home-action-grid"><button class="life-btn" data-trio-home="late-morning">☕ 비좁은 늦은 아침 <small>행복 +7 · 스트레스 -7 · 체력 +2</small></button><button class="life-btn" data-trio-home="quiet-night">📺 소파에 붙어 조용히 쉰다 <small>행복 +5 · 스트레스 -12 · 체력 +4</small></button><button class="life-btn" data-trio-home="rules">🔑 귀가·동행 규칙을 다시 정한다 <small>공생 안정도 +6 · 집착 -3</small></button></div>`:'';
   const seraHome=seraHere&&!trioHere?seraHomeSection(sera):'';
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window home-life-window"><div class="title-bar event-bar"><div class="title-bar-text">🏠 오늘은 집에서</div><div class="title-bar-controls"><button aria-label="Close" id="home-life-x"></button></div></div><div class="window-body"><div class="home-life-summary"><b>${trioHere?'위험한 세 사람과 공동생활 중':seraHere?'윤세라와 동거 중':'혼자 보내는 시간'}</b><small>${home.icon} ${home.name} · ${tenure?tenure.name:'거주'} · 행복 ${Math.round(L.happy||0)}/100 · 스트레스 ${Math.round(L.stress||0)}/100</small></div><div class="route-sep">이번 주를 집에서 보내기</div><div class="home-action-grid"><button class="life-btn" data-act="rest">🛌 아무 일정 없이 푹 쉰다 <small>${trioHere?'공동생활 휴식 장면':'생활비 30,000 · 스트레스 -22 · 건강 +3'}${seraHere&&!trioHere?' · 세라와 쉬는 방식 선택':''}</small></button><button class="life-btn" data-act="decompress">🌿 휴대폰을 끄고 마음을 정리한다 <small>비용 없음 · 스트레스 -16 · 행복 +3</small></button>${indoor.map(h=>`<button class="life-btn" data-act="hobby" data-id="${h.id}">${h.emoji} ${h.id==='game'&&gameLabel?gameLabel:h.name} <small>${won(h.cost)}</small></button>`).join('')}</div>${trioHome}${seraHome}<button id="home-life-close" class="session-btn">닫기</button></div></div>`;
+  const seraSummary=L.seraHousing==='temporary'?'윤세라를 임시로 보호 중':'윤세라와 동거 중';
+  host.innerHTML=`<div class="window event-window home-life-window"><div class="title-bar event-bar"><div class="title-bar-text">🏠 오늘은 집에서</div><div class="title-bar-controls"><button aria-label="Close" id="home-life-x"></button></div></div><div class="window-body"><div class="home-life-summary"><b>${trioHere?'위험한 세 사람과 공동생활 중':seraHere?seraSummary:'혼자 보내는 시간'}</b><small>${home.icon} ${home.name} · ${tenure?tenure.name:'거주'} · 행복 ${Math.round(L.happy||0)}/100 · 스트레스 ${Math.round(L.stress||0)}/100</small></div><div class="route-sep">이번 주를 집에서 보내기</div><div class="home-action-grid"><button class="life-btn" data-act="rest">🛌 아무 일정 없이 푹 쉰다 <small>${trioHere?'공동생활 휴식 장면':'생활비 30,000 · 스트레스 -22 · 건강 +3'}${seraHere&&!trioHere?' · 세라와 쉬는 방식 선택':''}</small></button><button class="life-btn" data-act="decompress">🌿 휴대폰을 끄고 마음을 정리한다 <small>비용 없음 · 스트레스 -16 · 행복 +3</small></button>${indoor.map(h=>`<button class="life-btn" data-act="hobby" data-id="${h.id}">${h.emoji} ${h.id==='game'&&gameLabel?gameLabel:h.name} <small>${won(h.cost)}</small></button>`).join('')}</div>${trioHome}${seraHome}<button id="home-life-close" class="session-btn">닫기</button></div></div>`;
   wireLifeHub(host);
   host.querySelectorAll('[data-trio-home]').forEach(button=>button.addEventListener('click',()=>resolveDangerousTrioHomeMoment(button.dataset.trioHome)));
   const close=()=>{host.style.display='none';host.innerHTML='';};
@@ -3855,38 +3865,75 @@ SERA_HOME_MOMENTS['late-morning'].minAffection=20;
 SERA_HOME_MOMENTS['late-morning'].minTrust=12;
 
 function seraHomeMomentAvailable(sera,moment){
+  if(S.life&&S.life.seraHousing==='temporary'){
+    return ['quiet-meal','separate-corners','studio'].some(id=>SERA_HOME_MOMENTS[id]===moment);
+  }
   return !!(sera&&moment&&(sera.affection||0)>=(moment.minAffection||0)&&(sera.trust||0)>=(moment.minTrust||0)
     &&(moment.maxAffection==null||(sera.affection||0)<=moment.maxAffection));
 }
 function seraHomeSection(sera){
   const early=(sera.affection||0)<20;
+  const temporary=S.life.seraHousing==='temporary';
   const line=early
     ?'“신경 쓰지 마세요. 저도 당신 생활에 들어오지 않을게요. 아직은… 같은 집을 쓰는 것뿐이니까.”'
     :'“오늘은 어디 안 가도 되는 거죠? 그러면… 뭘 같이 할지 제가 골라도 돼요?”';
   const order=['quiet-meal','separate-corners','studio','late-morning','keys'];
   const buttons=order.filter(id=>SERA_HOME_MOMENTS[id].maxAffection==null||(sera.affection||0)<=SERA_HOME_MOMENTS[id].maxAffection).map(id=>{
     const moment=SERA_HOME_MOMENTS[id],available=seraHomeMomentAvailable(sera,moment);
-    const requirement=available?`행복 +${moment.happy} · 신뢰 +${moment.trust}`:`호감 ${moment.minAffection||0} · 신뢰 ${moment.minTrust||0}부터`;
-    return `<button class="life-btn" data-act="sera-home" data-sera-home="${id}" ${available?'':'disabled'}>${moment.icon} ${moment.title} <small>${requirement}</small></button>`;
+    const alreadyTemporary=temporary&&Array.isArray(S.life.seraTemporaryMomentIds)&&S.life.seraTemporaryMomentIds.includes(id);
+    const requirement=alreadyTemporary?'이미 함께 겪은 장면':available?`행복 +${moment.happy} · 신뢰 +${moment.trust}`:`호감 ${moment.minAffection||0} · 신뢰 ${moment.minTrust||0}부터`;
+    return `<button class="life-btn" data-act="sera-home" data-sera-home="${id}" ${available&&!alreadyTemporary?'':'disabled'}>${moment.icon} ${moment.title} <small>${requirement}</small></button>`;
   }).join('');
-  return `<div class="route-sep">세라와 한집에서 보내는 시간</div><div class="date-profile sera-home-profile"><img class="char-portrait" src="${characterPortrait(sera,early?'neutral':'happy')}" alt="집에서 지내는 윤세라"><div><strong>윤세라 · ${early?'아직 낯선 동거인':'동거 중'}</strong><br><span class="muted">${line}</span></div></div><div class="home-action-grid">${buttons}</div>`;
+  return `<div class="route-sep">${temporary?'거처를 정하기 전, 세라와 보내는 시간':'세라와 한집에서 보내는 시간'}</div><div class="date-profile sera-home-profile"><img class="char-portrait" src="${characterPortrait(sera,early?'neutral':'happy')}" alt="집에서 지내는 윤세라"><div><strong>윤세라 · ${temporary?'오늘 밤만 머무는 손님':early?'아직 낯선 동거인':'동거 중'}</strong><br><span class="muted">${line}</span></div></div><div class="home-action-grid">${buttons}</div>`;
 }
 
 function resolveSeraHomeMoment(id){
   if(lifeActionExhausted()){flashToast(`📅 이번 달 자유시간 ${LIFE_ACTIONS_PER_MONTH}회를 모두 사용했습니다`,'neutral');return;}
   const L=S.life,r=metRecord(L,'윤세라'),moment=SERA_HOME_MOMENTS[id],host=$('life-event');
-  if(!r||L.seraHousing!=='cohabit'||!moment||!host||!seraHomeMomentAvailable(r,moment))return;
+  if(!r||!['temporary','cohabit'].includes(L.seraHousing)||!moment||!host||!seraHomeMomentAvailable(r,moment))return;
   L.happy=clamp((L.happy||0)+moment.happy,0,100);L.stress=clamp((L.stress||0)+moment.stress,0,100);
   r.affection=clamp((r.affection||0)+moment.affection,0,100);r.trust=clamp((r.trust||0)+moment.trust,0,100);r.obsession=clamp((r.obsession||0)+moment.obsession,0,100);
   if(r.status==='acquaintance'&&(r.affection||0)>=18&&(r.trust||0)>=10){
     r.status='friend';
     addNews('🖤 윤세라와 낯선 동거인을 넘어 친구가 되었습니다','good');
   }
-  pushPersonMessage(L,r,moment.line,false);
+  if(L.seraHousing==='temporary'){
+    const seen=Array.isArray(L.seraTemporaryMomentIds)?L.seraTemporaryMomentIds:[];
+    if(!seen.includes(id))seen.push(id);
+    L.seraTemporaryMomentIds=seen;
+    L.seraTemporaryMoments=seen.length;
+  }
+  else pushPersonMessage(L,r,moment.line,false);
   addNews(`${moment.icon} 윤세라와 집에서 보낸 하루 · 행복 +${moment.happy} · 신뢰 +${moment.trust}`,'good');
   host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${moment.icon} 윤세라와 집에서</div></div><div class="window-body"><img class="life-scene-banner" src="${moment.scene}" alt="${moment.title}"><div class="event-title">${moment.title}</div><div class="event-desc">${moment.desc}</div><div class="story-dialogue"><b>윤세라</b> “${moment.line}”</div><div class="oc-changes">행복 +${moment.happy} · 스트레스 ${moment.stress} · 호감 +${moment.affection} · 신뢰 +${moment.trust} · 집착 ${moment.obsession>=0?'+':''}${moment.obsession}</div><button id="sera-home-confirm" class="session-btn opening">같은 집의 하루를 마친다</button></div></div>`;
-  $('sera-home-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';afterLifeAction('휴식');});
+  $('sera-home-confirm').addEventListener('click',()=>{
+    if(L.seraHousing==='temporary'&&(L.seraTemporaryMoments||0)>=3){showSeraHousingDecision(r);return;}
+    host.style.display='none';host.innerHTML='';afterLifeAction('휴식');
+  });
   autoSave();
+}
+
+function showSeraHousingDecision(sera){
+  const host=$('life-event');if(!host||!sera)return;
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">📦 윤세라 · 오늘 밤 이후</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-sera-temporary-decision.png" alt="상자를 다시 싸고 빈손으로 현관 앞에 선 윤세라"><div class="event-title">세라는 빌린 옷을 접고 상자를 다시 현관 앞으로 옮겼습니다.</div><div class="event-desc">말없는 식사와 잠들지 못한 새벽을 세 번이나 함께 보냈지만, 처음 약속은 분명 ‘오늘 밤만’이었습니다. 세라는 먼저 머물겠다고 말하지 못한 채 열쇠가 없는 손만 내려다봅니다.</div><div class="story-dialogue"><b>윤세라</b> “이제 정해야 하죠. 계속 있으라고 하면 이유는 묻지 않을게요. 나가라고 해도… 적어도 이번에는 말없이 사라지지는 않을게요.”</div><div class="event-options"><button class="event-opt opening" data-sera-housing-final="cohabit"><b>같이 살아보자고 한다</b><span>낯선 임시 보호를 정식 동거로 바꿉니다.</span></button><button class="event-opt" data-sera-housing-final="separate"><b>가까운 방을 구하고 계속 연락하자고 한다</b><span>각자의 공간을 남긴 친구 관계로 이어갑니다.</span></button><button class="event-opt bad" data-sera-housing-final="reject"><b>오늘로 끝내고 다시는 찾아오지 말라고 한다</b><span>윤세라와 위험한 3인 공동생활 가능성이 닫힙니다.</span></button></div></div></div>`;
+  host.querySelectorAll('[data-sera-housing-final]').forEach(button=>button.addEventListener('click',()=>{
+    const choice=button.dataset.seraHousingFinal,trio=DANGEROUS_TRIO&&DANGEROUS_TRIO.ensure(S.life);
+    S.life.seraHousing=choice;S.life.seraTemporaryResolvedDay=S.day;
+    if(trio)trio.lockedOut=choice!=='cohabit';
+    if(choice==='cohabit'){
+      S.life.seraCohabitingSince=S.day;
+      if(window.QT_ROMANCE_ROUTES)QT_ROMANCE_ROUTES.engage(S.life,'dangerous','sera_cohabit');
+      addNews('🏠 윤세라와 임시 보호를 끝내고 정식으로 함께 살기 시작했습니다','good');
+    }else{
+      S.life.seraCohabitingSince=null;
+      if(window.QT_ROMANCE_ROUTES)QT_ROMANCE_ROUTES.decline(S.life,'dangerous',`sera_${choice}`);
+      addNews(choice==='separate'?'🚪 윤세라와 각자의 방을 두고 연락하기로 했습니다':'🚪 윤세라와의 인연을 끝냈습니다',choice==='separate'?'neutral':'bad');
+    }
+    const attackKnown=!!(S.life.seraRescueOrigin&&S.life.seraRescueOrigin.playerAttackDay);
+    if(attackKnown)queueYujinInvestigation(choice,S.life.seraRescueOrigin.attacker);
+    queueFactionMentorAfterSera();
+    host.style.display='none';host.innerHTML='';afterLifeAction('휴식');autoSave();
+  }));
 }
 
 function incomeWorkOptions(){
@@ -4362,7 +4409,7 @@ function rememberPerson(c, status) {
 
 function queueYujinInvestigation(housing,attacker){
   const L=S.life,sera=L&&metRecord(L,'윤세라');
-  if(!L||!sera||!['cohabit','separate','reject'].includes(housing||L.seraHousing)||metRecord(L,'강유진')||L.yujinInvestigationSeen||L.yujinInvestigation&&L.yujinInvestigation.ready)return false;
+  if(!L||!sera||!['temporary','cohabit','separate','reject'].includes(housing||L.seraHousing)||metRecord(L,'강유진')||L.yujinInvestigationSeen||L.yujinInvestigation&&L.yujinInvestigation.ready)return false;
   L.yujinInvestigation={
     ready:true,
     housing:housing||L.seraHousing||'reject',
@@ -4383,7 +4430,7 @@ function showYujinInvestigation(manual){
     else showNextImportantEvent();
     return;
   }
-  const cohabit=!!(sera&&housing==='cohabit'),separate=!!(sera&&housing==='separate');
+  const cohabit=!!(sera&&['temporary','cohabit'].includes(housing)),separate=!!(sera&&housing==='separate');
   const seraPartner=!!(sera&&RELATIONSHIPS.isPartner(L,'윤세라'));
   S._yujinInvestigation={manual:!!manual,c,sera,housing};
   const scene=cohabit
@@ -4428,6 +4475,7 @@ function resolveYujinInvestigation(choice){
   $('yujin-investigation-outcome').innerHTML=`<div class="story-dialogue"><b>강유진</b> “${effect.line}”</div>${seraReply}<div class="oc-changes">강유진 · 공식 사건 연락만 가능 · 호감 ${effect.affection} · 신뢰 ${effect.trust}<br>개인 연락처는 후속 수사와 사적인 대화를 거쳐야 열립니다.</div><button id="yujin-investigation-confirm" class="session-btn opening">업무용 명함을 받아 둔다</button>`;
   $('yujin-investigation-confirm').addEventListener('click',()=>{
     host.style.display='none';host.innerHTML='';S._yujinInvestigation=null;
+    queueFactionMentorAfterSera();
     renderLifePanel();autoSave();
     if(pending.manual)afterLifeAction('인맥');else showNextImportantEvent();
   });
@@ -4578,7 +4626,7 @@ function resolveChaerinGatheringBreak(kind){
 function showChaerinAwakening(rec){
   const host=$('life-event');if(!host)return;
   rec.chaerinPrivateRoomUnlocked=true;
-  host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">👑 한채린 · 잠기지 않은 개인실</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-chaerin-5.png" alt="개인실에서 처음 느낀 욕망을 부정하는 한채린"><div class="event-title">나래에게 끌려 나가기 직전, 채린이 개인실 문을 열고 당신만 다시 부릅니다.</div><div class="story-dialogue"><b>한채린</b> “문 닫아. 아니, 잠그지는 마. 잘못한 건 너야. 당장 내보내야 하는데… 왜 네가 한 말만 계속 남지? 사과는 하지 마. 지금 들으면 진짜 재미없어질 것 같으니까.”</div><div class="event-desc">채린은 명령하듯 당신을 세워 두고는, 정작 자신이 어디에 앉아야 하는지 묻습니다. 밖에서는 모두의 선택지를 좁히던 사람이 둘만 남자 자기 욕망을 명령문 뒤에 숨깁니다. 이 방에서는 고분고분 숙이는 답보다, 멈출 선을 직접 정하면서도 채린의 명령을 다시 꺾는 답이 관계를 움직입니다.</div><button id="chaerin-awakening-confirm" class="session-btn opening">개인 번호를 저장하고 방의 규칙은 다음에 정한다</button></div></div>`;
+  host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">👑 한채린 · 잠기지 않은 개인실</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-chaerin-private-command.png" alt="개인실 문 앞에서 명령을 기다리면서도 부정하는 한채린"><div class="event-title">나래에게 끌려 나가기 직전, 채린이 개인실 문을 열고 당신만 다시 부릅니다.</div><div class="story-dialogue"><b>한채린</b> “문 닫아. 아니, 잠그지는 마. 잘못한 건 너야. 당장 내보내야 하는데… 왜 네가 한 말만 계속 남지? 사과는 하지 마. 지금 들으면 진짜 재미없어질 것 같으니까.”</div><div class="event-desc">채린은 명령하듯 당신을 세워 두고는, 정작 자신이 어디에 앉아야 하는지 묻습니다. 밖에서는 모두의 선택지를 좁히던 사람이 둘만 남자 자기 욕망을 명령문 뒤에 숨깁니다. 이 방에서는 고분고분 숙이는 답보다, 멈출 선을 직접 정하면서도 채린의 명령을 다시 꺾는 답이 관계를 움직입니다.</div><button id="chaerin-awakening-confirm" class="session-btn opening">개인 번호를 저장하고 방의 규칙은 다음에 정한다</button></div></div>`;
   $('chaerin-awakening-confirm').addEventListener('click',()=>{
     pushPersonMessage(S.life,rec,'내일 연락해. 오늘 일은 없던 일로 하지 말고, 네가 왜 화났는지 처음부터 전부 말해.',false);
     addNews('📱 한채린이 비서실을 거치지 않은 개인 번호를 건넸습니다','neutral');
@@ -4612,17 +4660,17 @@ function showSpecialFollowupMeet(id,c,rec){
       ? '다음 사교모임이 끝나자 채린은 수행원과 참석자를 전부 내보냈습니다. 지난번 당신이 밀어낸 낮은 의자는 사라졌고 자기 상석만 하나 남아 있습니다. 채린은 앉지 않은 채, 당신이 또 자기 말을 끊어주기를 기다립니다.'
       : '비서실이 잡은 공식 일정은 이미 끝났습니다. 채린은 개인 번호가 적힌 휴대전화를 테이블 위에 두고도 건네지 않습니다. 고분고분 연락처를 달라고 하면 그대로 치우고, 자기 방식이 답답하다고 잘라 말하면 넘길 생각입니다.';
     if(seraAtHome&&yujin){
-      interruption='<div class="hub-note bad-friends-note"><b>차명계좌 사건의 세 번째 끝</b><br>약속 장소 밖에는 세라와 유진이 따로 와 있었습니다. 세라는 “채린 씨 계열사가 내 주소를 샀어요”라고 말하고, 유진은 “해당 자료는 수사기관에 먼저 제출하세요”라고 경고합니다. 채린은 “둘 다 내 약속을 추적해놓고 누가 스토커인지부터 정하자”고 받아치면서도 계열사 원장을 테이블에 내려놓습니다.</div>';
+      interruption='<div class="hub-note bad-friends-note"><b>세 사람 모두 자기가 정상이라고 믿는 밤</b><br>약속 장소 밖에는 세라와 유진이 따로 와 있었습니다. 세라가 채린의 붉어진 뺨을 보고 “저 사람, 매 맞는 여자가 꿈이었어요?”라고 묻자 유진은 “피해 사실을 취향으로 덮으면 안 됩니다”라고 끊습니다. 채린은 “스토커와 구원 중독 경찰이 내 취향을 심문하는 건 괜찮고?”라고 받아치고, 세라는 “그래도 우리는 일부러 맞을 일을 만들지는 않아요”라고 덧붙입니다.</div>';
     }else if(seraAtHome){
-      interruption='<div class="hub-note bad-friends-note"><b>세라와 동거 중</b><br>채린이 보낸 차량이 집 앞에 서기 전부터 세라가 초대장 속 계열사 로고를 알아봤습니다. 채린이 “남의 일정을 훔쳐보는 사람이 나를 의심해?”라고 하자 세라는 “돈 주고 남의 주소를 산 사람보다는 싸게 알아냈네요”라고 답합니다. 둘은 서로를 싫어한다면서도 같은 차명계좌 장부를 펼칩니다.</div>';
+      interruption='<div class="hub-note bad-friends-note"><b>세라가 알아본 도발</b><br>채린이 보낸 차량이 집 앞에 서자 세라는 “화내게 만들려고 또 부른 거죠?”라고 단번에 묻습니다. 채린은 “남의 집에서 기다리는 사람이 할 말은 아니네”라고 쏘아붙이지만, 세라는 “저는 돌아오게 만들지, 일부러 때릴 이유를 만들지는 않아요”라고 답합니다.</div>';
     }else if(yujin){
-      interruption='<div class="hub-note bad-friends-note"><b>강유진의 공식 요청</b><br>채린의 수행원이 문을 닫기 직전, 유진이 보낸 계열사 자료 제출 요구서가 도착했습니다. 채린은 종이를 읽지도 않고 당신 앞으로 밀며 “경찰관한테는 절차대로 답할 거야. 너는 네 말로 뭘 원하는지 말해”라고 합니다.</div>';
+      interruption='<div class="hub-note bad-friends-note"><b>강유진의 경고</b><br>채린의 수행원이 문을 닫기 직전 유진의 전화가 옵니다. “상대가 도발했다고 신체적 충돌의 책임이 없어지는 건 아니에요. 채린 씨도 원하는 반응을 얻으려고 위험을 키우면 안 되고요.” 채린은 전화를 빼앗아 “경찰관은 기대게 만들고 나는 화내게 만들 뿐인데, 왜 당신만 보호라고 부르지?”라고 되묻습니다.</div>';
     }else interruption='';
   }
   const name=id==='yujin'?'강유진':'한채린';
   const progress=contactReadiness(rec);
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${c.emoji} ${name} · ${count}번째 후속 약속</div><div class="title-bar-controls"><button aria-label="Close" id="special-followup-close"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="${name}"><div><strong>${name} · ${id==='yujin'?'업무용 연락만 가능':'비서실 연락만 가능'}</strong><br><span class="muted">${progress.missing.join(' · ')||'조금 더 솔직한 대화가 필요합니다'}</span></div></div><div class="event-desc">${intro}</div>${interruption}<div class="event-options"><button class="event-opt" data-special-followup="open">${id==='yujin'?(count===1?'조사가 끝난 뒤 긴장이 풀려 유진에게 잠시 기댄다':'사건이 없어도 내가 먼저 부를 테니 더는 조사 명목을 만들지 말라고 한다'):'“번호 줄 거면 주고, 시험할 거면 그만 불러”라고 말을 끊는다'}</button><button class="event-opt" data-special-followup="practical">${id==='yujin'?'공식 신고와 개인 비상연락의 선을 함께 정한다':'계열사 차명계좌 원장부터 내놓으라고 요구한다'}</button><button class="event-opt" data-special-followup="formal">${id==='yujin'?'도움은 필요 없다며 사건 이야기만 하고 돌아간다':'비서실을 칭찬하며 채린의 결정에 따르겠다고 한다'}</button><button class="event-opt" id="special-followup-cancel">다음으로 미룬다</button></div></div></div>`;
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${c.emoji} ${name} · ${count}번째 후속 약속</div><div class="title-bar-controls"><button aria-label="Close" id="special-followup-close"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="${name}"><div><strong>${name} · ${id==='yujin'?'업무용 연락만 가능':'비서실 연락만 가능'}</strong><br><span class="muted">${progress.missing.join(' · ')||'조금 더 솔직한 대화가 필요합니다'}</span></div></div><div class="event-desc">${intro}</div>${interruption}<div class="event-options"><button class="event-opt" data-special-followup="open">${id==='yujin'?(count===1?'조사가 끝난 뒤 긴장이 풀려 유진에게 잠시 기댄다':'사건이 없어도 내가 먼저 부를 테니 더는 조사 명목을 만들지 말라고 한다'):'“번호 줄 거면 주고, 시험할 거면 그만 불러”라고 말을 끊는다'}</button><button class="event-opt" data-special-followup="practical">${id==='yujin'?'공식 신고와 개인 비상연락의 선을 함께 정한다':'명령하지 말고 원하는 게 있으면 직접 부탁하라고 한다'}</button><button class="event-opt" data-special-followup="formal">${id==='yujin'?'도움은 필요 없다며 사건 이야기만 하고 돌아간다':'비위를 맞추며 채린이 정해 주는 대로 따르겠다고 한다'}</button><button class="event-opt" id="special-followup-cancel">다음으로 미룬다</button></div></div></div>`;
   host.querySelectorAll('[data-special-followup]').forEach(b=>b.addEventListener('click',()=>resolveSpecialFollowupMeet(b.dataset.specialFollowup)));
   [$('special-followup-close'),$('special-followup-cancel')].forEach(b=>{if(b)b.addEventListener('click',closeSpecialFollowupMeet);});
 }
@@ -5499,7 +5547,7 @@ function showFirstCloseGuildTutorial(){
     ?`<div class="event-outcome"><div class="phone-bubble mine">${chosen.text}</div><div class="phone-bubble incoming followup">${chosen.result}</div><div class="oc-changes">파티의 온기 ${chosen.warmth>=0?'+':''}${chosen.warmth}</div><button id="first-guild-confirm" class="phone-chat-confirm">게임을 끄고 이번 달 일정을 정한다</button></div>`
     :`<div class="phone-reply-label">파티에 어떻게 답할까요?</div><div class="phone-reply-options">${event.choices.map(choice=>`<button type="button" data-first-guild-choice="${choice.id}">${choice.text}</button>`).join('')}</div>`;
   host.style.display='block';
-  host.innerHTML=`<div class="phone-notification-stage freedom-guild-stage first-close-guild-stage"><div class="phone-shell"><div class="phone-status"><span>QuickTalk · ${FREEDOM_TRIO.GUILD_NAME}</span><span>●●● 38%</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">🎮</span><span><b>남아 있던 대화창</b><small>현실 정보 비공개 · 접속 중 4명</small></span></header><div class="phone-chat-log"><div class="phone-date-chip">첫 장 마감 · 게임 파티</div><div class="phone-bubble incoming"><b>시스템</b><span>차트를 닫자 방 안이 너무 조용해졌습니다. 습관처럼 시우가 알려 준 게임을 켰습니다.</span></div>${members}<div class="chat-readonly-note">같은 사람들과 파티를 이어 가면 길드와 오프라인 정모 이야기가 열리고, 현관 밖으로 나갈 또 다른 계기가 생깁니다.</div>${result}</div></div></div></div>`;
+  host.innerHTML=`<div class="phone-notification-stage freedom-guild-stage first-close-guild-stage"><div class="phone-shell"><div class="phone-status"><span>QuickTalk · ${FREEDOM_TRIO.GUILD_NAME}</span><span>●●● 38%</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">🎮</span><span><b>남아 있던 대화창</b><small>현실 정보 비공개 · 접속 중 4명</small></span></header><div class="phone-chat-log"><div class="phone-date-chip">첫 장 마감 · 게임 파티</div><div class="phone-bubble incoming"><b>시스템</b><span>차트를 닫자 방 안이 너무 조용해졌습니다. 시우가 알려 준 게임을 다시 설치하고, 얼굴도 이름도 모르는 세 사람의 파티에 들어갔습니다. 알게 된 지 얼마 되지 않았지만 지금 연락창에서 가장 자주 말을 섞는 사람들입니다.</span></div>${members}<div class="chat-readonly-note">현실 이야기는 묻지 않은 채 다음 판 약속만 남겼습니다.</div>${result}</div></div></div></div>`;
   if(!chosen){
     host.querySelectorAll('[data-first-guild-choice]').forEach(button=>button.addEventListener('click',()=>{
       const choiceId=button.dataset.firstGuildChoice;
@@ -7778,7 +7826,7 @@ function factionAttackStatus() {
 
 function seraOpeningResolved(L=S.life){
   if(!L)return false;
-  if(['cohabit','separate','reject'].includes(L.seraHousing))return true;
+  if(['temporary','cohabit','separate','reject'].includes(L.seraHousing))return true;
   const legacySera=metRecord(L,'윤세라');
   if(legacySera&&legacySera.pickedUpAfterRuin){
     L.seraHousing='cohabit';
@@ -7819,18 +7867,19 @@ function awakenSeraAfterFactionAttack(attacker){
   if(sera.seraObsessionAwakened)return false;
   sera.seraObsessionAwakened=true;
   sera.obsession=clamp((sera.obsession||0)+14,0,100);
-  pushPersonMessage(L,sera,`${name}… 내가 돈과 작업실을 잃었을 때 쓰던 이름이에요. 당신까지 건드릴 줄은 몰랐어요. 이번에는 내가 먼저 그 사람들 동선을 찾아볼게요.`,false);
-  addNews(`🖤 윤세라가 ${name}의 이름을 알아보고 처음으로 자기 피해를 말했습니다`,'bad');
+  pushPersonMessage(L,sera,`${name}… 내가 돈과 작업물을 잃었을 때 쓰던 이름이에요. 그런데 저 사람들은 나를 못 알아봤어요. 당신이 예전 피해 기록을 들이밀고 따지니까 그제야 “그런 사람도 있었나”라고 했죠. 이번에는 내가 먼저 그 사람들 동선을 찾아볼게요.`,false);
+  addNews(`🖤 윤세라가 ${name}의 이름을 알아봤지만, 상대는 과거 피해자였던 세라를 기억하지 못했습니다`,'bad');
   return true;
 }
 
 function queueFactionMentorAfterSera(){
   const L=S.life;if(!L||!seraOpeningResolved(L)||!FACTION_CAMPAIGN)return false;
   const faction=FACTION_CAMPAIGN.ensure(L);
-  if(faction.storyStage!=='attacked')return false;
+  if(faction.storyStage!=='attacked'||faction.firstAttackNarrativeSeen||faction.firstAttackNarrativeQueued)return false;
+  faction.firstAttackNarrativeQueued=true;
   const prologue=L.prologue||(L.prologue={});
-  prologue.firstAttackSequence='taesik';
-  return queueImportantEvent({factionStory:'first_attack',type:'faction',scene:lifeSceneImage('faction')});
+  prologue.firstAttackSequence='attack';
+  return queueImportantEvent({factionStory:'attack_disclosure',type:'faction',scene:lifeSceneImage('faction')});
 }
 
 function repairOpeningStoryQueue(){
@@ -7902,6 +7951,12 @@ function queueFactionStoryProgress() {
   }
   const due = FACTION_CAMPAIGN.takeDueStory(S.life, S.day);
   if (due) queueImportantEvent({ factionStory:due, type:'faction', scene:lifeSceneImage('faction') });
+  if(faction.storyStage==='active'&&faction.mentorDeathPending&&!faction.mentorDefenseSeen
+    &&S.day>=(faction.mentorDefenseDueDay||((faction.mentorHandoffDay||S.day)+1))
+    &&!faction.mentorDefenseQueued){
+    faction.mentorDefenseQueued=true;
+    queueImportantEvent({factionStory:'mentor_defense',type:'faction',scene:lifeSceneImage('faction')});
+  }
 }
 
 function queueFactionRankEnding() {
@@ -7969,32 +8024,44 @@ function resolveFactionMentorPhone(choice){
 function foundFactionFromMentor(pathId){
   const result=FACTION_CAMPAIGN.foundWithMentor(S.life,pathId,S.day);
   const prologue=S.life.prologue||(S.life.prologue={});
-  prologue.firstAttackSequence='complete';
+  prologue.firstAttackSequence='mentor_defense';
   if(pathId==='legal')changeMorality(4,'합법 투자조합 창설 원칙을 세웠습니다');
   if(pathId==='underground')changeMorality(-6,'지하 세력의 규칙을 받아들였습니다');
   LEGACY.push(S.life,dateInfo(S.day).age,result.path.icon,`${result.path.name} 창설 · 장태식의 첫 제자`,'faction');
   SOCIAL.addContact(S.life,{id:`faction-${result.member.sourceId}`,name:result.member.name,role:'subordinate',origin:'faction',originKey:`faction-${result.member.sourceId}`,relationLabel:'첫 부하 · 상황 보고',trust:55,favor:1,factionMemberId:result.member.sourceId});
   addNews(`${result.path.icon} ${result.path.factionName} 창설 · 장태식의 소개로 ${result.member.name} 합류`,'good');
   const contact=SOCIAL.ensure(S.life).contacts.find(item=>item.originKey===`faction-${result.member.sourceId}`);
-  const fall=FACTION_CAMPAIGN.resolveMentorFall(S.life,result.faction.firstAttacker,S.day);
-  const taesikBot=(S.bots||[]).find(bot=>bot.leader==='장태식');
-  if(fall.ok&&taesikBot){
-    RIVALS.collapseFaction(
-      taesikBot,S.day,
-      `수장 장태식 사망 · ${fall.attacker}의 보복으로 태식 사채라인 강제 해산`,
-      result.faction,
-      {leaderDeceased:true,killedBy:fall.attacker,collapseSource:'mentor-fall'}
-    );
-  }
-  if(fall.ok){
-    LEGACY.push(S.life,dateInfo(S.day).age,'🕯️',`장태식 사망 · 태식 사채라인 해산 · ${fall.attacker} 배후`,'faction');
-    addNews(`🚨 속보 · 장태식 사망, 태식 사채라인 파산·강제 해산 · 배후 ${fall.attacker}`,'bad');
-    showFactionMentorFall(result,fall,taesikBot,contact);
-    return;
-  }
-  pushPersonMessage(S.life,contact,'형님, 장 선생님한테 얘기 들었습니다. 오늘부터 제가 먼저 상황 보고드리겠습니다.',false);
-  flashToast(`${result.path.factionName} 창설 · 첫 부하 ${result.member.name} 합류`,'good');
+  result.faction.mentorDefenseDueDay=S.day+1;
+  result.faction.mentorDefenseQueued=false;
+  pushPersonMessage(S.life,contact,'대표님, 장 선생님한테 얘기 들었습니다. 다음 공격은 같이 막아보자고 하셨습니다. 제가 먼저 상황 보고드리겠습니다.',false);
+  flashToast(`${result.path.factionName} 창설 · 첫 부하 ${result.member.name} 합류 · 다음 달 장태식과 첫 방어`,'good');
   closeFactionStory();
+}
+
+function showFactionMentorDefense(){
+  const host=$('life-event'),faction=FACTION_CAMPAIGN.ensure(S.life);if(!host)return;
+  const path=FACTION_CAMPAIGN.PATHS[faction.path]||FACTION_CAMPAIGN.PATHS.network;
+  const member=faction.members.find(item=>item.sourceId===(FACTION_CAMPAIGN.FOUNDING_MEMBERS[faction.path]||FACTION_CAMPAIGN.FOUNDING_MEMBERS.network).sourceId)||faction.members[0];
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🦈 제1장 · 장태식과 첫 방어</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-taesik-first-defense.png" alt="장태식과 첫 부하가 세 가지 방어안을 펼쳐 놓은 장면"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(D.SPECIAL_CHARACTERS.taesik,'neutral')}" alt="장태식"><div><strong>장태식 · 마지막 수업</strong><br><span class="muted">${member.name}과 함께하는 첫 실제 방어</span></div></div><div class="event-title">“사람 붙여줬다고 세력이 되는 게 아니다. 네가 결정을 내리고, 그 결정 때문에 남는 사람이 있어야 세력이지.”</div><div class="event-desc">${faction.firstAttacker}이 다시 공매도와 허위 주문을 겹쳐 당신의 보유 종목을 흔듭니다. 장태식은 답을 대신 말하지 않고 세 가지 대응만 펼쳐 놓습니다. 이번에는 플레이어가 직접 지시하고 ${member.name}이 그 지시를 실행합니다.</div><div class="event-options"><button class="event-opt" data-mentor-defense="evidence"><b>주문 원본을 보존하고 상대 계좌를 역추적한다</b><span>방어보다 다음 반격에 쓸 증거를 남깁니다.</span></button><button class="event-opt" data-mentor-defense="shield"><b>세력 자금으로 보유 종목의 급락부터 막는다</b><span>손실을 줄이고 첫 부하의 실행력을 확인합니다.</span></button><button class="event-opt" data-mentor-defense="decoy"><b>가짜 주문을 흘려 공격자의 다음 계좌를 드러낸다</b><span>위험하지만 적대 세력의 연결망을 확인합니다.</span></button></div></div></div>`;
+  host.querySelectorAll('[data-mentor-defense]').forEach(button=>button.addEventListener('click',()=>resolveFactionMentorDefense(button.dataset.mentorDefense,path,member)));
+}
+
+function resolveFactionMentorDefense(choice,path,member){
+  const faction=FACTION_CAMPAIGN.ensure(S.life),host=$('life-event');if(!host)return;
+  const prologue=S.life.prologue||(S.life.prologue={});
+  prologue.firstAttackSequence='complete';
+  faction.mentorDefenseSeen=true;faction.mentorDefenseQueued=false;faction.mentorDefenseChoice=choice;
+  faction.defense=(faction.defense||0)+(choice==='shield'?12:7);
+  faction.intel=(faction.intel||0)+(choice==='evidence'?10:choice==='decoy'?14:4);
+  const contact=SOCIAL.ensure(S.life).contacts.find(item=>item.factionMemberId===member.sourceId);
+  addNews(`🛡️ 장태식과 첫 방어 성공 · ${member.name}이 플레이어의 지시를 끝까지 실행했습니다`,'good');
+  const fall=FACTION_CAMPAIGN.resolveMentorFall(S.life,faction.firstAttacker,S.day);
+  const taesikBot=(S.bots||[]).find(bot=>bot.leader==='장태식');
+  const result={faction,path,member};
+  if(fall.ok&&taesikBot)RIVALS.collapseFaction(taesikBot,S.day,`수장 장태식 사망 · ${fall.attacker}의 보복으로 태식 사채라인 강제 해산`,faction,{leaderDeceased:true,killedBy:fall.attacker,collapseSource:'mentor-fall'});
+  LEGACY.push(S.life,dateInfo(S.day).age,'🕯️',`첫 방어 성공 뒤 장태식 사망 · ${fall.attacker} 배후`,'faction');
+  addNews(`🚨 속보 · 첫 방어 직후 장태식 피습 사망 · 배후 ${fall.attacker}`,'bad');
+  showFactionMentorFall(result,fall,taesikBot,contact);
 }
 
 function showFactionMentorFall(result,fall,taesikBot,contact){
@@ -8007,7 +8074,7 @@ function showFactionMentorFall(result,fall,taesikBot,contact){
     <div class="window-body">
       <img class="life-scene-banner" src="${lifeSceneImage('faction')}" alt="비어 버린 태식 사채라인 사무실과 끊긴 연락망">
       <div class="date-profile"><img class="char-portrait" src="${characterPortrait(t,'neutral')}" alt="장태식"><div><strong>장태식 · 사망</strong><br><span class="down">수장 부재 · 조직 강제 해산</span></div></div>
-      <div class="event-title">길을 고른 지 한 시간도 지나지 않아 장태식의 번호가 끊겼습니다.</div>
+      <div class="event-title">첫 방어를 마친 그날 밤, 장태식의 번호가 끊겼습니다.</div>
       <div class="event-desc">${fall.attacker}은 장태식이 당신에게 사람과 장부를 넘겼다는 사실을 알아냈습니다. 사무실은 습격당했고, 남은 조직원은 흩어졌습니다. 현장에 도착했을 때 장태식은 이미 숨져 있었고 마지막 발신 기록에는 당신과 ${member.name}의 번호만 남아 있었습니다.</div>
       ${attacker?`<div class="date-profile"><img class="char-portrait" src="./assets/characters/${attacker.portrait||'mob-faction-intel.png'}" alt="${attacker.name}"><div><strong>배후 · ${attacker.name}</strong><br><span class="down">${attacker.faction||'경쟁 세력'} · 장태식 제거 지시</span></div></div>`:''}
       <div class="faction-operation-summary faction-collapse-summary">
@@ -8034,6 +8101,7 @@ function showFactionStory(stage) {
   const host=$('life-event');if(!host||!FACTION_CAMPAIGN)return;
   const faction=FACTION_CAMPAIGN.ensure(S.life);
   host.style.display='block';
+  if(stage==='mentor_defense'){showFactionMentorDefense();return;}
   if(stage==='legal_result'){
     const n=D.SPECIAL_CHARACTERS.narae;
     host.innerHTML=`<div class="window event-window">
@@ -8053,13 +8121,17 @@ function showFactionStory(stage) {
 
   const attacker=S.bots.find(bot=>bot.name===faction.firstAttacker);
   const attackerLine=attacker?RIVALS.reactionLine(attacker,'wary'):'“혼자 움직이는 계좌치고는 제법이군. 하지만 혼자 버티는 데는 한계가 있어.”';
+  const traded=(S.trades||0)>0||Object.values(S.owned||{}).some(position=>(position.qty||0)>0);
+  const exposureCopy=traded
+    ?'당신이 다시 거래하며 남긴 주문 습관이 과거 원본 장부의 작성자를 드러냈습니다.'
+    :'아직 주문을 내지 않았지만 초보 투자지원 신청과 반복해서 열어 본 호가 기록이 과거 대회 계정과 연결됐습니다. 상대는 반격할 조직이 없는 개인이 다시 움직이기 전에 먼저 겁주려 합니다.';
   host.innerHTML=`<div class="window event-window">
     <div class="title-bar event-bar"><div class="title-bar-text">⚔️ 세력 캠페인 · 혼자라는 약점</div></div>
     <div class="window-body">
       <img class="life-scene-banner" src="${lifeSceneImage('faction')}" alt="첫 세력 공격 직후 도착한 연락">
       <div class="date-profile">${attacker&&attacker.portrait?`<img class="char-portrait" src="./assets/characters/${attacker.portrait}" alt="${attacker.name}">`:'<span class="message-popup-avatar">⚔️</span>'}<div><strong>${faction.firstAttacker||'경쟁 세력'}</strong><br><span class="down">첫 번째 직접 공격</span></div></div>
       <div class="event-title">${attackerLine}</div>
-      <div class="event-desc">공격자는 생활경제연구회 모의투자 대회의 계좌번호 일부를 보내 왔습니다. 사라진 후원사는 이 경쟁 세력의 차명회사였고, 당신이 다시 거래하며 남긴 주문 습관이 과거 원본 장부의 작성자를 드러냈습니다. 상대는 조작 증거를 회수하고, 혼자인 당신이 입을 열기 전에 꺾으려 합니다.</div>
+      <div class="event-desc">공격자는 생활경제연구회 모의투자 대회의 계좌번호 일부를 보내 왔습니다. 사라진 후원사는 이 경쟁 세력의 차명회사였습니다. ${exposureCopy} 상대는 조작 증거를 회수하고, 혼자인 당신이 입을 열기 전에 꺾으려 합니다.</div>
       <div class="important-event-detail">📱 아버지: “학교 때 그 다섯에게서 겨우 벗어난 줄 알았더니, 그 대회 뒤에 있던 사람들까지 다시 찾아온 거냐? 이번에도 혼자 숨지 마라.”</div>
       <div class="event-options">
         <button class="event-opt" data-faction-first="question">왜 나를 노렸는지 묻는다<span class="opt-sub">공격자의 의도를 확인한 뒤 나래에게 기록을 넘깁니다</span></button>
@@ -8074,6 +8146,7 @@ function showFactionStory(stage) {
 function resolveFactionFirstAttack(choice) {
   const host=$('life-event');if(!host||!FACTION_CAMPAIGN)return;
   const faction=FACTION_CAMPAIGN.completeFirstAttack(S.life,S.day,choice);
+  faction.firstAttackNarrativeSeen=true;faction.firstAttackNarrativeQueued=false;
   faction.tempDefense=Math.max(faction.tempDefense||0,.22);
   const n=D.SPECIAL_CHARACTERS.narae;
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
