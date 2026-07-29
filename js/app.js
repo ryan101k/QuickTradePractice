@@ -4009,8 +4009,7 @@ function meetContact() {
 }
 function showIndustryGatherings(){
   const host=$('life-event');if(!host||!SOCIAL)return;
-  const social=SOCIAL.ensure(S.life),introduced=BUSINESS_ROMANCE?BUSINESS_ROMANCE.ensure(S.life).staff:{};
-  const businessAccess=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.chaerinAccess(S.life);
+  const social=SOCIAL.ensure(S.life);
   const naraeGuide=social.industry.meetings===0
     ?'“사교모임은 비싼 사람을 바로 만나는 곳이 아니에요. 오늘은 명함 욕심 내지 말고 분위기만 보세요. 대신 끝나도 바로 가지 말고 제 신호를 기다려요 — 위층에 당신이 꼭 봐 둬야 할 사람이 있거든요.”'
     :social.industry.meetings===1
@@ -4019,7 +4018,7 @@ function showIndustryGatherings(){
         ?'“이제 분위기는 알겠죠? 다음부터는 모임이 끝나도 바로 가지 마세요. 제가 따로 부르면 이유 묻지 말고 따라와요.”'
         :'“아는 얼굴이 생겼으면 이제 누가 자리를 만들고 누가 사람을 시험하는지도 보일 거예요. 끝난 뒤 제 신호도 놓치지 말고요.”';
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">🥂 사교 모임 · 업계 소개</div><div class="title-bar-controls"><button aria-label="Close" id="industry-gathering-x"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래 · 인맥 수업</strong><br><span class="muted">${naraeGuide}</span></div></div><div class="event-desc">처음에는 공개 네트워킹에서 얼굴과 분위기를 익히고, 다시 불리는 횟수가 늘수록 더 안쪽의 자리가 열립니다.</div>${businessAccess?'':'<div class="important-event-detail">특별 책임자들은 한채린의 업계 인맥입니다. 채린과 친구 이상이 되기 전에는 같은 모임에 참석해도 정식 소개까지 이어지지 않습니다.</div>'}<div class="date-glance"><span>사회 평판 ${Math.round(social.reputation)}</span><span>사교 실적 ${social.industry.standing}</span><span>참석 ${social.industry.meetings}회</span><span>아는 얼굴 ${Object.values(introduced).filter(item=>item.introduced).length}/4명</span></div><div class="resume-grid">${SOCIAL.INDUSTRY_GATHERINGS.map(g=>{const status=SOCIAL.gatheringStatus(S.life,g.id),remaining=g.candidates.filter(id=>!introduced[id]||!introduced[id].introduced),hints=businessAccess?remaining.map(id=>{const p=BUSINESS_ROMANCE&&BUSINESS_ROMANCE.profile(id);return p?`${p.rivalFirm} ${p.role}`:'업계 인물';}).join(' · '):g.candidates.length?'한채린의 소개가 있어야 이름이 공개됩니다':'';return`<button class="resume-card" data-industry-gathering="${g.id}" ${status.available&&S.capital>=g.cost?'':'disabled'}><span>${g.icon}</span><b>${g.name} · ${g.tier}등급</b><small>${g.desc}</small><em>${hints||'익숙한 얼굴들이 모이는 자리'}</em><strong>${won(g.cost)}${!status.available?` · ${status.reason}`:S.capital<g.cost?' · 현금 부족':''}</strong></button>`;}).join('')}</div><button id="industry-gathering-close" class="session-btn">이번 달은 참가하지 않는다</button></div></div>`;
+  host.innerHTML=`<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">🥂 사교 모임 · 업계 동향</div><div class="title-bar-controls"><button aria-label="Close" id="industry-gathering-x"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래 · 인맥 수업</strong><br><span class="muted">${naraeGuide}</span></div></div><div class="event-desc">처음에는 공개 네트워킹에서 얼굴과 분위기를 익히고, 다시 불리는 횟수가 늘수록 더 안쪽의 자리와 업계 동향이 열립니다.</div><div class="date-glance"><span>사회 평판 ${Math.round(social.reputation)}</span><span>사교 실적 ${social.industry.standing}</span><span>참석 ${social.industry.meetings}회</span></div><div class="resume-grid">${SOCIAL.INDUSTRY_GATHERINGS.map(g=>{const status=SOCIAL.gatheringStatus(S.life,g.id);return`<button class="resume-card" data-industry-gathering="${g.id}" ${status.available&&S.capital>=g.cost?'':'disabled'}><span>${g.icon}</span><b>${g.name} · ${g.tier}등급</b><small>${g.desc}</small><em>${g.tier===0?'처음 보는 얼굴과 공개된 정보부터 익힙니다':g.tier===1?'실무자의 표정에서 다음 움직임을 읽습니다':g.tier===2?'공개되지 않은 사업 계획과 세력 동향을 듣습니다':'대표자들의 협상과 다음 시장 충돌을 확인합니다'}</em><strong>${won(g.cost)}${!status.available?` · ${status.reason}`:S.capital<g.cost?' · 현금 부족':''}</strong></button>`;}).join('')}</div><button id="industry-gathering-close" class="session-btn">이번 달은 참가하지 않는다</button></div></div>`;
   const close=()=>{host.style.display='none';host.innerHTML='';};
   host.querySelectorAll('[data-industry-gathering]').forEach(button=>button.addEventListener('click',()=>attendIndustryGathering(button.dataset.industryGathering)));
   $('industry-gathering-x').addEventListener('click',close);$('industry-gathering-close').addEventListener('click',close);
@@ -4031,15 +4030,8 @@ function attendIndustryGathering(id){
   if(!result.ok){flashToast(result.message,'neutral');return;}
   S.capital-=gathering.cost;
   let message=`${gathering.icon} ${gathering.name} 참가 · 사교 실적 ${result.standing}`;
-  if(result.introduced&&BUSINESS_ROMANCE){
-    const person=BUSINESS_ROMANCE.introduce(S.life,result.introduced);
-    message=`${person.emoji} ${person.name} 소개 · ${person.rivalFirm} ${person.role}`;
-    addNews(`${message} · 자산·사업 관리실에서 특별 책임자 계약 가능`,'good');
-  }else if(result.chaerinRequired){
-    message='모임 안쪽에서 얼굴을 가린 책임자들을 봤지만 한채린의 소개가 없어 명함은 받지 못했습니다';
-    addNews(`🥂 ${message}`,'neutral');
-  }else addNews(message,'good');
-  flashToast(result.introduced?`새 업계 인물을 소개받았습니다: ${BUSINESS_ROMANCE.identity(S.life,result.introduced).displayName}`:message,result.chaerinRequired?'neutral':'good');
+  addNews(message,'good');
+  flashToast(message,'good');
   const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
   const chaerin=metRecord(S.life,'한채린');
   if(!chaerin&&gathering.tier>=1&&SOCIAL.ensure(S.life).industry.meetings>=1&&S.life.chaerinLeadLastDay!==S.day){

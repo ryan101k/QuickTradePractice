@@ -1561,6 +1561,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/손목을 뿌리치다 실수로 뺨을 때린다/,'세 번째 동행에는 떠나기·참기와 구분된 위험한 실수 분기가 있어야 한다');
   assert.match(appSource,/function showChaerinAwakening\(rec\)/,'뺨 사건 뒤 한채린의 독백과 위험한 각성 장면이 별도로 이어져야 한다');
   assert.doesNotMatch(appSource,/한채린의 비공개 회동 제안을 받는다/,'한채린 전용 비공개 회동 버튼이 다시 생기면 안 된다');
+  assert.doesNotMatch(appSource,/g\.candidates/,'사교 모임 UI가 제거된 특별 직원 후보 데이터에 다시 의존하면 안 된다');
   assert.doesNotMatch(charactersSource,/key:'chaerin_scene'/,'데이트 경로에 중복 한채린 비공개 회동이 남으면 안 된다');
   assert.match(fs.readFileSync(path.join(root,'js/character_traits.js'),'utf8'),/name:'굴복 욕구'/,'한채린 고유 수치는 아첨이 아니라 사적인 굴복 성향을 표현해야 한다');
   const chaerinStorySource=fs.readFileSync(path.join(root,'js/character_stories.js'),'utf8');

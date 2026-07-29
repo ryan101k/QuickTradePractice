@@ -103,15 +103,15 @@
    * 월말 진행 중 해당 확인 버튼이 눌리면 현재 월말 단계를 다시 렌더한 뒤
    * 기존 View의 다음 버튼을 사용해 정상 큐 처리 함수로 복귀시킨다.
    */
-  document.addEventListener('click', event => {
+  if (root.document) root.document.addEventListener('click', event => {
     const target = event.target && event.target.closest ? event.target.closest('#trio-confirm') : null;
     if (!target) return;
     setTimeout(() => {
-      const sessionButton = document.getElementById('session-btn');
+      const sessionButton = root.document.getElementById('session-btn');
       if (!sessionButton) return;
       sessionButton.click();
       setTimeout(() => {
-        const nextButton = document.querySelector('#market-close [data-month-close-next]');
+        const nextButton = root.document.querySelector('#market-close [data-month-close-next]');
         if (nextButton) nextButton.click();
       }, 0);
     }, 0);
