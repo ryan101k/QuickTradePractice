@@ -454,7 +454,7 @@ for (const file of [
     day:9,seraHousing:'cohabit',partner:{name:'강유진'},polycule:{active:false,members:[]},
     yujinInvestigationSeen:true,
     faction:{level:1,members:[{uid:'mentor-intel-1',sourceId:'mentor-intel',name:'강도윤',upkeep:140000,loyalty:78}]},
-    met:trio.NAMES.map(name=>({name,status:'friend',affection:85,trust:70,story:{chapter:5,completed:true,history:[],traits:{},variant:'adult',ending:{route:endings[name],title:name}}}))
+    met:trio.NAMES.map(name=>({name,status:'friend',affection:85,trust:70,story:{chapter:99,completed:true,history:[],traits:{},variant:'adult',romancePath:'group',ending:{route:endings[name],title:name}}}))
   };
   assert.equal(trio.PRELUDES.length,2,'위험 3인조의 취향 폭로와 잘잘못 재판은 중복 없이 한 악우 사건으로 합쳐져야 한다');
   assert.equal(trio.CHAPTERS.length,6,'위험 3인조 그룹 본편은 공조·개인 결말 양보 3장·위기·공동생활 합의의 6장이어야 한다');
@@ -470,6 +470,14 @@ for (const file of [
   trio.ensure(blockedPreludeLife).queued=true;
   trio.cancelQueue(blockedPreludeLife);
   assert.equal(trio.ensure(blockedPreludeLife).queued,false,'a lost dangerous trio start must be retryable');
+  const earlyPreludeLife=JSON.parse(JSON.stringify(life));
+  earlyPreludeLife.met.forEach(person=>{
+    person.affection=20;
+    person.story={chapter:0,completed:false,history:[],traits:{},variant:'adult'};
+    delete person.dangerEvents;
+    delete person.dangerAwakened;
+  });
+  assert.equal(trio.preludeEligibility(earlyPreludeLife).ok,true,'첫 악우 사건은 호감 20 뒤에 숨은 호감 35 각성 사건까지 요구하지 않아야 한다');
   const legacyActive={dangerousTrio:{active:true,encountered:true,stage:3,stability:82,axes:{balance:3,containment:0,fracture:0},history:[
     {stage:0,choice:'roles',tag:'balance'},{stage:1,choice:'same',tag:'balance'},{stage:2,choice:'thank',tag:'balance'}
   ]}};
@@ -486,6 +494,15 @@ for (const file of [
   assert.equal(trio.ensure(life).badFriendsFormed,true,'세 사건 뒤 셋은 정식 루트 이전부터 악우가 돼야 한다');
   assert.equal(trio.eligibility(life).ok,true,'위험 3인조는 세 개인 결핍 루트를 완성하고 윤세라와 동거하면 시작돼야 한다');
   assert.equal(trio.start(life).ok,true);
+  for(let chapterIndex=0;chapterIndex<4;chapterIndex++){
+    const chapter=trio.next(life);
+    trio.apply(life,chapter.choices.find(choice=>choice.tag==='balance').id);
+  }
+  const seraStory=life.met.find(person=>person.name==='윤세라').story;
+  const seraEnding=seraStory.ending;
+  seraStory.completed=false;seraStory.ending=null;seraStory.chapter=3;
+  assert.equal(trio.next(life),null,'공동 본편 5·6장은 세 사람의 개인 이야기가 모두 끝날 때까지 기다려야 한다');
+  seraStory.completed=true;seraStory.ending=seraEnding;seraStory.chapter=99;
   while(trio.next(life))trio.apply(life,trio.next(life).choices.find(choice=>choice.tag==='balance').id);
   assert.equal(trio.ensure(life).ending.id,'bad_friends','균형 선택은 위험 3인조 악우 공동생활 결말이어야 한다');
   assert.equal(Object.keys(trio.ensure(life).personalConcessions).sort().join('|'),Array.from(trio.NAMES).sort().join('|'),'세 사람 모두 개인 결말을 그룹 관계 안에서 다시 선택한 기록이 남아야 한다');
@@ -494,7 +511,7 @@ for (const file of [
   const failedLife={
     day:20,seraHousing:'cohabit',partner:{name:'강유진'},polycule:{active:false,members:[]},
     yujinInvestigationSeen:true,faction:{level:1,members:[{uid:'unit',name:'부하'}]},
-    met:trio.NAMES.map(name=>({name,status:'friend',affection:85,trust:70,story:{completed:true,ending:{route:endings[name],title:name}}}))
+    met:trio.NAMES.map(name=>({name,status:'friend',affection:85,trust:70,story:{chapter:99,completed:true,history:[],traits:{},variant:'adult',romancePath:'group',ending:{route:endings[name],title:name}}}))
   };
   trio.PRELUDES.forEach((event,index)=>{failedLife.day=20+index;trio.queuePrelude(failedLife,failedLife.day);trio.applyPrelude(failedLife,event.choices[0].id);});
   assert.equal(trio.start(failedLife).ok,true);
@@ -1462,7 +1479,9 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.doesNotMatch(appSource, /showDateCompanyModal/, '데이트 진입 전에 별도 동행 선택 관문을 다시 만들면 안 된다');
   assert.doesNotMatch(appSource, /class="date-companion-strip"/, '외출에서 새 인연을 뽑는 동행 선택을 다시 노출하면 안 된다');
   assert.match(appSource, /data-solo-outing=/, '외출에는 관계와 무관한 혼자 하는 활동이 있어야 한다');
-  assert.match(appSource, /class="date-person-grid"/, '데이트 대상은 설명 목록이 아니라 간결한 인물 카드로 보여야 한다');
+  const outingPickerSource=appSource.slice(appSource.indexOf('function showRouteModal()'),appSource.indexOf('function showDateModal('));
+  assert.doesNotMatch(outingPickerSource, /date-person-grid|data-known=|data-partner-i=/, '범용 외출 화면에서 히로인이나 연인을 직접 골라 호감도를 올리면 안 된다');
+  assert.match(outingPickerSource, /휴대폰 연락이나 그 사람의 개인 사건에서 약속이 생겼을 때만/, '인물 약속은 연락과 개인 사건에서만 열리는 구조임을 외출 화면이 알려야 한다');
   assert.match(appSource, /class="event-options date-choice-grid"/, '데이트 행동은 장면 아래의 짧은 전용 선택 영역에 모여야 한다');
   assert.match(appSource, /S\._dateApproaches\|\|D\.DATE_APPROACHES/, '화면에 고른 성격별 데이트 행동이 결과 판정에도 그대로 사용돼야 한다');
   assert.match(appSource, /Number\.isFinite\(Number\(c\.age\)\)/, '나이가 없는 인물에게 undefined세를 표시하면 안 된다');
@@ -1583,7 +1602,8 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/S\.life\.seraHousing==='cohabit'/,'윤세라 동거 중 후속 만남에는 위험 3인조 악우 변형이 있어야 한다');
   assert.match(appSource,/dangerousBadFriendsEncounters/,'동거 중 강유진·한채린 후속 만남은 악우 관계 기록을 쌓아야 한다');
   assert.match(appSource,/function queueYujinInvestigation\(housing,attacker\)/,'첫 경쟁 세력 피해 뒤 강유진의 담당 수사를 자동 예약해야 한다');
-  assert.match(appSource,/if\(!L\|\|!sera\|\|!\['temporary','cohabit','separate','reject'\]\.includes/,'윤세라를 실제로 만나 임시 보호 이상의 상태가 된 뒤에만 강유진 수사를 검토해야 한다');
+  assert.match(appSource,/if\(!L\|\|!sera\|\|!\['cohabit','separate','reject'\]\.includes/,'윤세라의 임시 보호 결정을 끝내기 전에는 강유진 수사를 시작하지 않아야 한다');
+  assert.match(appSource,/if\(!L\|\|L\.seraHousing==='temporary'\|\|seraOpeningResolved\(L\)\)return false/,'윤세라 임시 보호 중에는 첫 조우를 반복하지 않으면서 주거 결정 사건을 기다려야 한다');
   assert.match(appSource,/const attackKnown=!!\(L\.seraRescueOrigin&&L\.seraRescueOrigin\.playerAttackDay\)/,'첫 공격 전에는 윤세라를 임시 보호해도 강유진 수사가 예약되면 안 된다');
   assert.match(appSource,/queueImportantEvent\(\{yujinInvestigation:true/,'강유진 첫 조우는 플레이어가 숨은 버튼을 찾는 대신 주요 사건으로 떠야 한다');
   assert.match(appSource,/eff\.seraHousing==='reject'&&L\.seraRescueOrigin\)L\.seraRescueOrigin\.ready=false/,'윤세라를 떠나보낸 뒤 같은 폐작업실 구조 사건이 반복되면 안 된다');
@@ -2071,6 +2091,13 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
     assert.doesNotMatch(appSource,new RegExp(`${removed}:\\{`),`${removed} 중복 호감 컷씬은 정식 개인 아크와 병렬로 남으면 안 된다`);
   }
   assert.match(appSource,/개인 아크 ·/,'그룹 본편은 개인 결말을 단순 완료 조건이 아니라 현재 장의 감정 전제로 보여줘야 한다');
+  assert.match(trioSource,/if\(state\.stage>=4&&!progress\(life\)\.every\(row=>row\.ready\)\)return null/,'광기 3인 본편의 위기와 공동생활 합의는 세 개인사가 끝난 뒤에만 열려야 한다');
+  for(const developerCopy of [
+    '이 선택은 위험한 3인조 전체의 관계 노선을 정합니다',
+    '공동생활 직전의 거절은 이 그룹 고유 배드엔딩으로 이어집니다',
+    '지금 먼저 고백하면 이 사람 한 명을 택하는 순애 루트가 되며'
+  ])assert.doesNotMatch(appSource,new RegExp(developerCopy),`공략 결과를 미리 설명하는 문구를 사건 화면에 남기면 안 된다: ${developerCopy}`);
+  assert.doesNotMatch(appSource,/연락처를 교환한 사람과 약속을 잡아 외출할 수 있습니다/,'범용 데이트 제거 뒤 세라 외출 해금 문구가 구버전 구조를 안내하면 안 된다');
   assert.match(trioSource,/quiet_sickday/,'공동생활 후일담에는 감시가 돌봄으로 바뀌는 정서 장면이 있어야 한다');
   assert.match(trioSource,/separate_returns/,'공동생활 후일담에는 각자가 자발적으로 돌아오는 생활 장면이 있어야 한다');
   assert.match(trioSource,/life\.seraHousing==='cohabit'/,'위험 3인조는 윤세라와 실제 동거 중일 때만 열려야 한다');

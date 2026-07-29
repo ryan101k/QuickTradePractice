@@ -14,7 +14,7 @@
  * ========================================================================= */
 const LIFE_EVENTS = [
   {
-    id: 'life_rainy_canvas', cat: 'life', emoji: '🖤', title: '불 꺼진 작업실의 마지막 상자',
+    id: 'life_rainy_canvas', cat: 'life', emoji: '🖤', title: '현관 아래 계단의 마지막 상자',
     scene: './assets/event-sera-1.png',
     desc: '현관문을 열지 못하고 돌아선 날, 같은 건물 계단에 낯선 여자가 그림 상자를 끌어안고 앉아 있었습니다. 신인 작가 정산금을 가로챈 유령회사 때문에 전 재산과 계약을 잃은 윤세라는 갈 곳도, 신고할 힘도 남지 않은 얼굴로 “이런 걸 원한 거 아니에요? 망가진 사람 하나쯤 주워 가는 거”라고 묻습니다.',
     cond: c => !c.seraKnown && c.seraRescueReady,

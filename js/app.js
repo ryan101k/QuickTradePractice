@@ -1837,7 +1837,7 @@ function settleMonth() {
     }
   }
   if (attack) {
-    registerFactionAttack(attack.attacker);
+    const firstAttackResult=registerFactionAttack(attack.attacker);
     if(RELATIONSHIP_SOCIAL){
       const businessCount=BUSINESS&&BUSINESS.ensure?BUSINESS.ensure(L).owned.length:0;
       const awareness=RELATIONSHIP_SOCIAL.rivalAwareness(L,attack.attacker,{businessCount});
@@ -1873,7 +1873,7 @@ function settleMonth() {
     rivalNews.push(`⚔️ [나 대상] ${attack.message}`);
     addNews(`⚔️ ${attack.message}`, defended ? 'good' : 'bad');
     flashToast(`⚔️ ${attack.message}`, defended ? 'good' : 'bad');
-    queueImportantEvent({ type:'faction', scene:'./assets/pixel-event-faction-court-v1.png', icon:defended?'🛡️':'⚔️', title:'라이벌이 나를 노렸습니다', desc:attack.message, detail:attack.caught ? '상대의 공작이 적발되어 직접 피해를 피했습니다.' : attack.blocked ? '내 세력이 공격을 포착하고 피해를 완전히 막았습니다.' : `직접 손실 ${won(attack.loss || 0)}원이 반영됐습니다.`, tone:defended ? 'good' : 'bad' });
+    queueImportantEvent({ firstFactionAttack:!!(firstAttackResult&&firstAttackResult.queued),type:'faction', scene:'./assets/pixel-event-faction-court-v1.png', icon:defended?'🛡️':'⚔️', title:'라이벌이 나를 노렸습니다', desc:attack.message, detail:attack.caught ? '상대의 공작이 적발되어 직접 피해를 피했습니다.' : attack.blocked ? '내 세력이 공격을 포착하고 피해를 완전히 막았습니다.' : `직접 손실 ${won(attack.loss || 0)}원이 반영됐습니다.`, tone:defended ? 'good' : 'bad' });
   }
   queueFactionStoryProgress();
   queueFactionRankEnding();
@@ -2466,12 +2466,15 @@ const LIFE_SCENE_IMAGES = {
 function lifeSceneImage(key) { return LIFE_SCENE_IMAGES[key] || LIFE_SCENE_IMAGES.life; }
 function importantEventPriority(event) {
   if(event.seraFirstAttackEncounter)return 105;
-  if(event.factionStory==='first_attack'||event.factionStory==='legal_result')return 100;
+  if(event.firstFactionAttack)return 104;
+  if(event.factionStory==='first_attack'||event.factionStory==='attack_disclosure')return 102;
+  if(event.factionStory==='legal_result')return 100;
   if(event.relationshipSocialEvent&&event.kind==='sera-victim-confrontation')return 92;
   if(event.factionVictory||event.captivity||event.type==='ending')return 95;
   if(event.dangerousTrioPrelude||event.dangerousTrioStart||event.dangerousTrioChapter)return 88;
   if(event.type==='debt'||event.type==='incident'||event.dangerousHeroineEvent)return 85;
-  if(event.yujinInvestigation)return 80;
+  if(event.yujinInvestigation)return 96;
+  if(event.factionStory==='mentor_defense')return 94;
   if(event.storyBridge)return 78;
   if(event.chemistryEventId&&event.urgent)return 79;
   if(event.groupConfession)return 76;
@@ -2486,6 +2489,7 @@ function importantEventPriority(event) {
 }
 function importantEventKey(event) {
   if(event.seraFirstAttackEncounter)return'sera:first-attack-encounter';
+  if(event.firstFactionAttack)return'faction:first-attack-summary';
   if(event.factionStory)return`faction:${event.factionStory}`;
   if(event.relationshipSocialEvent)return`relationship-social:${event.kind}:${event.key||event.attackerName||event.day||''}`;
   if(event.yujinInvestigation)return'yujin:first-investigation';
@@ -3371,7 +3375,7 @@ function resolveDangerousHeroineEvent(choiceIndex){
   const referral=r.name==='한채린'&&choiceIndex===0&&refusalIds.has(pending.id)
     ?noteChaerinSupportRefusal(S.life,`chaerin-event:${pending.id}`):null;
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
-  const outingUnlocked=choice.unlockOuting?'<div class="story-ending"><b>🌆 자발적인 외출 해금 · 서로 문을 열어 준 사람</b><br>세라가 당신을 끌어낸 것이 아니라 자기 공포를 먼저 말하고 밖에서 기다렸습니다. 이제 혼자 걷거나, 연락처를 교환한 사람과 약속을 잡아 외출할 수 있습니다.</div>':'';
+  const outingUnlocked=choice.unlockOuting?'<div class="story-ending"><b>🌆 자발적인 외출 해금 · 서로 문을 열어 준 사람</b><br>세라가 당신을 끌어낸 것이 아니라 자기 공포를 먼저 말하고 밖에서 기다렸습니다. 이제 혼자 문밖을 나설 수 있고, 누군가와의 약속은 그 사람의 연락과 개인적인 사건 속에서 이어집니다.</div>':'';
   $('danger-heroine-outcome').innerHTML=`<div class="oc-text">${choice.result}</div>${outingUnlocked}${referral?`<div class="important-event-detail ${referral.given?'up':'neutral'}">${referral.text}</div>`:''}<div class="oc-changes">호감 ${choice.affection>=0?'+':''}${choice.affection||0} · 신뢰 ${choice.trust>=0?'+':''}${choice.trust||0}${choice.danger?` · 위험도 ${choice.danger>0?'+':''}${choice.danger}`:''}${choice.cash?` · ${choice.cash>0?'수입 +':'지출 '}${won(Math.abs(choice.cash))}`:''}</div><button id="danger-heroine-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
   $('danger-heroine-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._dangerousHeroineEvent=null;renderLifePanel();autoSave();showNextImportantEvent();});
 }
@@ -3922,10 +3926,17 @@ function showSeraHousingDecision(sera){
     if(trio)trio.lockedOut=choice!=='cohabit';
     if(choice==='cohabit'){
       S.life.seraCohabitingSince=S.day;
+      sera.routeClosed=false;
       if(window.QT_ROMANCE_ROUTES)QT_ROMANCE_ROUTES.engage(S.life,'dangerous','sera_cohabit');
       addNews('🏠 윤세라와 임시 보호를 끝내고 정식으로 함께 살기 시작했습니다','good');
     }else{
       S.life.seraCohabitingSince=null;
+      if(choice==='reject'){
+        sera.status='parted';
+        sera.routeClosed=true;
+        sera.contactUnlocked=false;
+        sera.personalContact=false;
+      }
       if(window.QT_ROMANCE_ROUTES)QT_ROMANCE_ROUTES.decline(S.life,'dangerous',`sera_${choice}`);
       addNews(choice==='separate'?'🚪 윤세라와 각자의 방을 두고 연락하기로 했습니다':'🚪 윤세라와의 인연을 끝냈습니다',choice==='separate'?'neutral':'bad');
     }
@@ -4409,7 +4420,7 @@ function rememberPerson(c, status) {
 
 function queueYujinInvestigation(housing,attacker){
   const L=S.life,sera=L&&metRecord(L,'윤세라');
-  if(!L||!sera||!['temporary','cohabit','separate','reject'].includes(housing||L.seraHousing)||metRecord(L,'강유진')||L.yujinInvestigationSeen||L.yujinInvestigation&&L.yujinInvestigation.ready)return false;
+  if(!L||!sera||!['cohabit','separate','reject'].includes(housing||L.seraHousing)||metRecord(L,'강유진')||L.yujinInvestigationSeen||L.yujinInvestigation&&L.yujinInvestigation.ready)return false;
   L.yujinInvestigation={
     ready:true,
     housing:housing||L.seraHousing||'reject',
@@ -4645,6 +4656,8 @@ function showSpecialFollowupMeet(id,c,rec){
   const sera=metRecord(S.life,'윤세라');
   const seraAtHome=!!(sera&&S.life.seraHousing==='cohabit');
   const yujin=metRecord(S.life,'강유진');
+  const dangerousState=DANGEROUS_TRIO&&DANGEROUS_TRIO.ensure(S.life);
+  const trioAlreadyMet=!!(dangerousState&&(dangerousState.preludeStage>0||dangerousState.badFriendsFormed));
   S._specialFollowup={id,c,rec,seraAtHome,yujinKnown:!!yujin};
   const count=(rec.specialFollowupCount||0)+1;
   let intro='',interruption='';
@@ -4652,18 +4665,18 @@ function showSpecialFollowupMeet(id,c,rec){
     intro=count===1
       ? '유진은 추가 진술을 받겠다며 경찰서 조사실로 불렀습니다. 첫 두 번만큼은 차명계좌, 윤세라의 피해 기록, 당신을 공격한 세력의 이동 경로를 정확히 확인합니다. 다만 조사가 끝난 뒤에도 식사는 했는지, 혼자 귀가해도 괜찮은지를 묻는 목소리만은 기록용이 아닙니다.'
       : '사건에 필요한 진술은 이미 끝났습니다. 그런데도 유진은 비어 있는 조사실에 새 사건철을 올려두고 당신을 다시 불렀습니다. 표지에는 “추가 피해 예방”이라고 적혀 있지만 안에는 식사 여부와 귀가 시간, 필요한 생활비가 빼곡합니다. 보호할 명분이 없어지면 자신도 필요 없어질까 봐 사건을 끝내지 못하고 있습니다.';
-    interruption=seraAtHome
+    interruption=seraAtHome&&trioAlreadyMet
       ? '<div class="hub-note bad-friends-note"><b>세라와 동거 중</b><br>카페 밖에는 세라가 먼저 와 있었습니다. 유진이 “참고인 조사를 따라오는 동거인은 처음 보네요”라고 하자 세라는 “애인인지 두 번이나 물어보는 담당 경찰도 처음 봤어요”라고 받아칩니다. 유진은 사적인 질문이 아니었다고 부정하면서도 귀가할 때까지 두 사람을 따라옵니다.</div>'
       : '';
   }else{
     intro=count===1
       ? '다음 사교모임이 끝나자 채린은 수행원과 참석자를 전부 내보냈습니다. 지난번 당신이 밀어낸 낮은 의자는 사라졌고 자기 상석만 하나 남아 있습니다. 채린은 앉지 않은 채, 당신이 또 자기 말을 끊어주기를 기다립니다.'
       : '비서실이 잡은 공식 일정은 이미 끝났습니다. 채린은 개인 번호가 적힌 휴대전화를 테이블 위에 두고도 건네지 않습니다. 고분고분 연락처를 달라고 하면 그대로 치우고, 자기 방식이 답답하다고 잘라 말하면 넘길 생각입니다.';
-    if(seraAtHome&&yujin){
+    if(seraAtHome&&yujin&&trioAlreadyMet){
       interruption='<div class="hub-note bad-friends-note"><b>세 사람 모두 자기가 정상이라고 믿는 밤</b><br>약속 장소 밖에는 세라와 유진이 따로 와 있었습니다. 세라가 채린의 붉어진 뺨을 보고 “저 사람, 매 맞는 여자가 꿈이었어요?”라고 묻자 유진은 “피해 사실을 취향으로 덮으면 안 됩니다”라고 끊습니다. 채린은 “스토커와 구원 중독 경찰이 내 취향을 심문하는 건 괜찮고?”라고 받아치고, 세라는 “그래도 우리는 일부러 맞을 일을 만들지는 않아요”라고 덧붙입니다.</div>';
-    }else if(seraAtHome){
+    }else if(seraAtHome&&trioAlreadyMet){
       interruption='<div class="hub-note bad-friends-note"><b>세라가 알아본 도발</b><br>채린이 보낸 차량이 집 앞에 서자 세라는 “화내게 만들려고 또 부른 거죠?”라고 단번에 묻습니다. 채린은 “남의 집에서 기다리는 사람이 할 말은 아니네”라고 쏘아붙이지만, 세라는 “저는 돌아오게 만들지, 일부러 때릴 이유를 만들지는 않아요”라고 답합니다.</div>';
-    }else if(yujin){
+    }else if(yujin&&trioAlreadyMet){
       interruption='<div class="hub-note bad-friends-note"><b>강유진의 경고</b><br>채린의 수행원이 문을 닫기 직전 유진의 전화가 옵니다. “상대가 도발했다고 신체적 충돌의 책임이 없어지는 건 아니에요. 채린 씨도 원하는 반응을 얻으려고 위험을 키우면 안 되고요.” 채린은 전화를 빼앗아 “경찰관은 기대게 만들고 나는 화내게 만들 뿐인데, 왜 당신만 보호라고 부르지?”라고 되묻습니다.</div>';
     }else interruption='';
   }
@@ -4994,7 +5007,7 @@ function showPersonalRomanceBranch(r){
   const groupId=ROMANCE_ROUTES&&ROMANCE_ROUTES.memberGroup(r.name),selected=groupId&&ROMANCE_ROUTES.path(S.life,groupId);
   if(selected){syncPersonalRomancePath(r);showCharacterStory(r.name);return;}
   S._storyPerson=r;host.style.display='block';
-  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">💗 ${r.name} · 관계의 갈림길</div><div class="title-bar-controls"><button aria-label="Close" id="story-branch-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${characterEventScene(r.name,STORIES.RELATIONSHIP_START[r.name])}" alt="${r.name} 관계 분기 장면"><div class="event-title">${copy.title}</div><div class="event-desc">${copy.desc}</div><div class="story-dialogue"><b>${r.name}</b> “${copy.speaker}”</div><div class="important-event-detail">이 선택은 위험한 3인조 전체의 관계 노선을 정합니다. 순애를 택하면 다른 두 사람의 후반 개인사는 친구 이야기로 바뀝니다.</div><div class="event-options"><button class="event-opt hot" data-story-branch="pure"><b>💕 ${r.name} 순애 루트</b><span>${copy.pure}</span></button><button class="event-opt" data-story-branch="group"><b>💗 세 사람과 공동 관계를 준비한다</b><span>${copy.group}</span></button><button class="event-opt" data-story-branch="defer"><b>🤝 아직 결정하지 않는다</b><span>${copy.defer}</span></button></div><div class="event-outcome" id="story-branch-outcome"></div></div></div>`;
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">💗 ${r.name} · 관계의 갈림길</div><div class="title-bar-controls"><button aria-label="Close" id="story-branch-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${characterEventScene(r.name,STORIES.RELATIONSHIP_START[r.name])}" alt="${r.name} 관계 분기 장면"><div class="event-title">${copy.title}</div><div class="event-desc">${copy.desc}</div><div class="story-dialogue"><b>${r.name}</b> “${copy.speaker}”</div><div class="important-event-detail">한 사람에게만 답하면 다른 두 사람에게도 같은 사실을 숨기지 않아야 합니다. 누구도 고르지 않는다면 세 사람은 지금의 거리에서 답을 기다립니다.</div><div class="event-options"><button class="event-opt hot" data-story-branch="pure"><b>💕 ${r.name}에게만 마음을 답한다</b><span>${copy.pure}</span></button><button class="event-opt" data-story-branch="group"><b>💗 세 사람 모두에게 숨기지 않겠다고 한다</b><span>${copy.group}</span></button><button class="event-opt" data-story-branch="defer"><b>🤝 아직 결정하지 않는다</b><span>${copy.defer}</span></button></div><div class="event-outcome" id="story-branch-outcome"></div></div></div>`;
   $('story-branch-x').addEventListener('click',closeCharacterStory);
   host.querySelectorAll('[data-story-branch]').forEach(button=>button.addEventListener('click',()=>resolvePersonalRomanceBranch(r,button.dataset.storyBranch)));
 }
@@ -5004,10 +5017,10 @@ function resolvePersonalRomanceBranch(r,path){
   if(path==='defer'){
     const state=STORIES.ensure(r);state.branchPending=true;state.branchDeferred=(state.branchDeferred||0)+1;
     if(options)options.innerHTML='';
-    out.innerHTML='<div class="oc-text">🤝 지금은 친구의 신뢰를 지켰습니다. 이 선택은 루트를 잠그지 않으며 인맥 화면에서 다시 답할 수 있습니다.</div><button id="story-branch-confirm" class="session-btn opening">돌아간다</button>';
+    out.innerHTML='<div class="oc-text">🤝 지금은 누구의 마음도 대신 정하지 않았습니다. 세 사람은 대답을 재촉하지 않고 다음 만남을 기다립니다.</div><button id="story-branch-confirm" class="session-btn opening">돌아간다</button>';
   }else{
     const groupId=ROMANCE_ROUTES.memberGroup(r.name),chosen=ROMANCE_ROUTES.setPath(S.life,groupId,path,path==='pure'?r.name:null,'personal_story_branch');
-    if(!chosen.ok){flashToast('이미 다른 관계 노선이 확정되어 있습니다','bad');return;}
+    if(!chosen.ok){flashToast('이미 다른 사람들에게 건넨 대답과 충돌합니다','bad');return;}
     const members=ROMANCE_ROUTES.META[groupId].members;
     members.forEach(name=>{
       const person=metRecord(S.life,name);if(!person)return;
@@ -5017,10 +5030,10 @@ function resolvePersonalRomanceBranch(r,path){
     else{r.status=r.status==='casual'?'friend':r.status;ROMANCE_ROUTES.engage(S.life,groupId,'personal_story_group_intent');}
     if(options)options.innerHTML='';
     const message=path==='pure'
-      ?`💕 ${r.name} 한 사람을 택했습니다. ${r.name}의 후반부는 연인 서사로, 다른 두 사람은 친구로서 각자의 문제를 마무리합니다.`
-      :'💗 누구도 몰래 차지하지 않기로 했습니다. 세 사람의 후반 개인사를 모두 마치면 공통서사에서 공동 관계를 최종 합의합니다.';
+      ?`💕 ${r.name}에게만 마음을 답했습니다. 다른 두 사람에게도 그 선택을 숨기지 않았고, 세 사람은 각자의 자리에서 남은 이야기를 이어갑니다.`
+      :'💗 누구도 몰래 특별 취급하지 않겠다고 답했습니다. 세 사람은 말보다 앞으로의 행동을 보고 판단하겠다고 합니다.';
     out.innerHTML=`<div class="oc-text up">${message}</div><button id="story-branch-confirm" class="session-btn opening">다음 이야기를 기다린다</button>`;
-    addNews(`💗 관계 노선 선택 · ${path==='pure'?`${r.name} 순애`:'위험한 3인조 공동 관계 준비'}`,'good');
+    addNews(`💗 관계의 갈림길 · ${path==='pure'?`${r.name}에게만 마음을 전함`:'세 사람 모두에게 감정을 공개함'}`,'good');
   }
   $('story-branch-confirm').addEventListener('click',closeCharacterStory);
   renderLifePanel();autoSave();
@@ -5289,9 +5302,8 @@ function showGroupConfession(event){
     if(ROMANCE_ROUTES&&ROMANCE_ROUTES.clearQueuedConfession)ROMANCE_ROUTES.clearQueuedConfession(S.life,id);
     showNextImportantEvent();return;
   }
-  const proposal=id==='freedom'?'공동 관계':id==='business'?'최종 공개 관계':'공동생활';
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window trio-route-window group-confession-window"><div class="title-bar event-bar"><div class="title-bar-text">${meta.icon} ${meta.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${meta.scene}" alt="${meta.title}"><div class="event-desc">${meta.desc}</div><div class="story-dialogue"><b>${ROMANCE_ROUTES.META[id].members.join(' · ')}</b> ${meta.line}</div><div class="event-options"><button class="event-opt opening" data-group-confession="accept"><b>${meta.accept}</b></button><button class="event-opt hot" data-group-confession="reject"><b>${meta.reject}</b><span>${proposal} 직전의 거절은 이 그룹 고유 배드엔딩으로 이어집니다.</span></button></div><div class="event-outcome" id="group-confession-outcome"></div></div></div>`;
+  host.innerHTML=`<div class="window event-window trio-route-window group-confession-window"><div class="title-bar event-bar"><div class="title-bar-text">${meta.icon} ${meta.title}</div></div><div class="window-body"><img class="life-scene-banner" src="${meta.scene}" alt="${meta.title}"><div class="event-desc">${meta.desc}</div><div class="story-dialogue"><b>${ROMANCE_ROUTES.META[id].members.join(' · ')}</b> ${meta.line}</div><div class="event-options"><button class="event-opt opening" data-group-confession="accept"><b>${meta.accept}</b></button><button class="event-opt hot" data-group-confession="reject"><b>${meta.reject}</b><span>여기까지 함께 정한 약속을 모두 없던 일로 돌립니다.</span></button></div><div class="event-outcome" id="group-confession-outcome"></div></div></div>`;
   S._groupConfession=id;
   host.querySelectorAll('[data-group-confession]').forEach(button=>button.addEventListener('click',()=>resolveGroupConfession(button.dataset.groupConfession)));
 }
@@ -5341,7 +5353,7 @@ function queueNaturalDangerousEvents(L){
     const prelude=DANGEROUS_TRIO.queuePrelude(L,S.day);
     if(prelude)routeQueued=queueImportantEvent({dangerousTrioPrelude:prelude.id});
     else if(DANGEROUS_TRIO.queue(L))routeQueued=queueImportantEvent({dangerousTrioStart:true});
-    else if(state.active&&state.encountered&&state.lastChapterDay!==S.day){
+    else if(state.active&&state.encountered&&DANGEROUS_TRIO.next(L)&&state.lastChapterDay!==S.day){
       if(queueImportantEvent({dangerousTrioChapter:true})){
         state.lastChapterDay=S.day;
         routeQueued=true;
@@ -6474,47 +6486,16 @@ function resolveSoloOuting(id){
   closeDateModal();afterLifeAction('취미');
 }
 
-// 외출 고르기 — 혼자 보내는 시간 / 연락처를 교환한 사람과의 약속 / 차단 기록
+// 외출 고르기 — 장소와 혼자 하는 행동만 선택한다.
+// 인물과의 약속은 휴대폰 연락·개인 사건이 만든 경우에만 해당 사건에서 연다.
 function showRouteModal() {
   const host = $('date-host'); if (!host) return;
   const L = S.life;
-  ensureMet(L);
-  const currentPartners=RELATIONSHIPS.consensualMembers(L);
-  const inRel = currentPartners.length > 0;
   S._dateCompanion={type:'solo',name:'혼자',scoreMod:0,costMul:1};
-  const formerPartners = L.met.filter(m => m.status === 'ex').map(m=>{ensureCourtship(m);return m;});
-  S._dateKnown = L.met.filter(m =>
-    m.status !== 'ex'&&hasPersonalContact(m)&&!RELATIONSHIPS.isPartner(L,m.name)&&
-    (!FREEDOM_TRIO||FREEDOM_TRIO.canMeetOffline(L,m.name))
-  ).map(candidateFromRecord);
-
-  let cards = `<div class="route-sep">🚶 혼자 하는 외출</div><div class="date-place-grid">${SOLO_OUTINGS.map(outing=>
+  const cards = `<div class="route-sep">🚶 혼자 하는 외출</div><div class="date-place-grid">${SOLO_OUTINGS.map(outing=>
     `<button class="route-card place-card solo-outing-card" data-solo-outing="${outing.id}"><div class="rc-head">${outing.icon} ${outing.name}</div><small>${outing.desc}</small><em>${won(outing.cost)} · 행복 +${outing.happy} · 스트레스 ${outing.stress}</em></button>`
-  ).join('')}<button class="route-card place-card club-relief-card" data-club-night><div class="rc-head">🍸 클럽</div></button></div>`;
-  S._datePartners=currentPartners;
-  if (inRel) {
-    cards += `<div class="route-sep">💕 현재 관계</div><div class="date-person-grid">`;
-    cards += currentPartners.map((person,index)=>{
-      const record=metRecord(L,person.name),affection=record&&record.affection!=null?record.affection:L.affection||0;
-      const candidate=Object.assign({age:person.age||28},person);
-      return personCardHTML(Object.assign({ age:person.age||28 },person),
-        `💞 ${relationTag(L,person.name)}과 데이트`,
-        `data-partner-i="${index}"`, 'partner-card', `${dateSuggestion(candidate,'date')} · 친밀도 ${Math.max(0,affection)} · ${won(D.RELATIONSHIP.DATE_COST)}`);
-    }).join('')+'</div>';
-  }
-  if (S._dateKnown.length) {
-    cards += `<div class="route-sep">📱 약속할 수 있는 사람</div><div class="date-person-grid">`;
-    cards += S._dateKnown.map((c, i) => {
-      const readiness=courtshipReadiness(c),friendOnly=FREEDOM_TRIO&&FREEDOM_TRIO.NAMES.includes(c.name)&&FREEDOM_TRIO.relationshipMode(L).exclusive,idle=c.idleMonths>=3?` · ${c.idleMonths}개월 만`:'';
-      return personCardHTML(c, `${friendOnly?'🤝 친구 외출':readiness.ready?'💘 데이트 가능':'📱 친분 외출'} · ${relationTag(L,c.name)}`,
-        `data-known="${i}"`, 'known-card', `${dateSuggestion(c,readiness.ready?'date':'outing')} · 호감 ${Math.round(c.affection||0)} · ${friendOnly?'현재 단독 연인을 존중하는 친구 관계':readiness.ready?'마음을 확인할 때':'서로 연락처를 교환한 사이'}${idle}`);
-    }).join('')+'</div>';
-  }
-  if (formerPartners.length) {
-    cards += `<div class="route-sep">🚫 차단한 전 연인</div><div class="date-person-grid">`;
-    cards += formerPartners.map(c => personCardHTML(c,
-      '🚫 내가 차단한 연락처', 'disabled', 'known-card ex-card blocked-ex-card', '메시지 수신 안 함 · 외출에서 다시 만나지 않음')).join('')+'</div>';
-  }
+  ).join('')}<button class="route-card place-card club-relief-card" data-club-night><div class="rc-head">🍸 클럽</div><small>체력을 쓰고 혼자 밤을 보냅니다.</small></button></div>
+  <div class="important-event-detail">📱 누군가와의 약속은 외출 목록에서 고르지 않습니다. 휴대폰 연락이나 그 사람의 개인 사건에서 약속이 생겼을 때만 만날 수 있습니다.</div>`;
   host.style.display = 'block';
   host.innerHTML =
     `<div class="window event-window date-picker-window">
@@ -6529,21 +6510,6 @@ function showRouteModal() {
   host.querySelectorAll('[data-solo-outing]').forEach(button=>button.addEventListener('click',()=>resolveSoloOuting(button.dataset.soloOuting)));
   const clubNightButton=host.querySelector('[data-club-night]');
   if(clubNightButton)clubNightButton.addEventListener('click',showClubNight);
-  host.querySelectorAll('.route-card').forEach(b => b.addEventListener('click', () => {
-    if (b.hasAttribute('data-club-night')||b.hasAttribute('data-solo-outing')) return;
-    if (b.dataset.partnerI != null) {
-      S._dateRoute = null;
-      const person=S._datePartners[+b.dataset.partnerI];
-      S._dateCandidate = Object.assign({ age: person.age || 28 }, person);
-      showDateModal(S._dateCandidate, null);
-      return;
-    }
-    if (b.dataset.known != null) {
-      S._dateRoute = null;
-      S._dateCandidate = S._dateKnown[+b.dataset.known];
-      showDateModal(S._dateCandidate, null);
-    }
-  }));
   const x = $('route-x'); if (x) x.addEventListener('click', closeDateModal);
 }
 
@@ -6717,13 +6683,13 @@ function resolveDate(i) {
       extra+=`<br>🤝 <span class="muted">${c.name}님과는 이미 연애가 아닌 관계로 결론을 냈습니다. 오늘도 그 선을 바꾸지 않습니다.</span>`;
       S._romance={name:c.name,forward:false,groupId:routeGroup,html:'<div class="romance-choice"><button id="romance-friend" class="life-btn">🤝 친구로 지낸다</button><button id="romance-skip" class="life-btn">⏳ 오늘은 돌아간다</button></div>'};
     }else if(eligible&&personalStoryBranch&&!selectedGroupPath){
-      extra+=`<br>💗 <b>${c.name}님의 개인 이야기에서 친구와 연애의 경계에 먼저 답해야 합니다.</b><br><span class="muted">그 자리에서 한 사람과의 순애 또는 세 사람의 공동 관계를 고를 수 있습니다. 데이트에서 먼저 고백해 분기를 건너뛸 수는 없습니다.</span>`;
+      extra+=`<br>💗 <b>${c.name}님은 둘만의 대답을 받기 전에, 아직 끝나지 않은 이야기를 먼저 들어 달라고 합니다.</b><br><span class="muted">다른 사람들의 마음까지 얽힌 문제라 이 자리에서 성급하게 고백할 수는 없습니다.</span>`;
       S._romance={name:c.name,forward:false,groupId:routeGroup,storyBranchPending:true,html:'<div class="romance-choice"><button id="romance-friend" class="life-btn">🤝 지금 관계를 지킨다</button><button id="romance-skip" class="life-btn">📖 개인 이야기를 먼저 마친다</button></div>'};
     }else if(eligible&&selectedGroupPath&&selectedGroupPath.path==='group'&&!groupStoryDone){
-      extra+=`<br>💗 <b>${ROMANCE_ROUTES.META[routeGroup].name}의 공동 관계를 준비하기로 이미 답했습니다.</b><br><span class="muted">지금 한 사람에게만 고백해 앞선 합의를 뒤집을 수 없습니다. 개인사와 공통서사를 마친 뒤 모두의 고백에 답하게 됩니다.</span>`;
-      S._romance={name:c.name,forward:false,groupId:routeGroup,groupIntent:true,html:'<div class="romance-choice"><button id="romance-friend" class="life-btn">🤝 지금 관계를 지킨다</button><button id="romance-skip" class="life-btn">⏳ 공동 고백을 기다린다</button></div>'};
+      extra+=`<br>💗 <b>${c.name}님은 세 사람 모두에게 숨기지 않겠다고 한 당신의 대답을 기억하고 있습니다.</b><br><span class="muted">지금 한 사람에게만 말을 바꾸기보다, 각자의 남은 이야기를 끝까지 듣기로 합니다.</span>`;
+      S._romance={name:c.name,forward:false,groupId:routeGroup,groupIntent:true,html:'<div class="romance-choice"><button id="romance-friend" class="life-btn">🤝 지금 관계를 지킨다</button><button id="romance-skip" class="life-btn">⏳ 남은 이야기를 기다린다</button></div>'};
     }else if(eligible&&routeGroup&&!groupStoryDone){
-      extra+=`<br>💗 <b>${c.name}님은 아직 자기 이야기를 끝내지 못한 채, 당신이 무슨 말을 할지 기다리고 있습니다.</b><br><span class="muted">지금 먼저 고백하면 이 사람 한 명을 택하는 순애 루트가 되며, 그룹 쪽 공동 고백은 오지 않습니다.</span>`;
+      extra+=`<br>💗 <b>${c.name}님은 아직 자기 이야기를 끝내지 못한 채, 당신이 무슨 말을 할지 기다리고 있습니다.</b><br><span class="muted">지금 마음을 전하면 한 사람에게만 답한 것으로 받아들여집니다. 다른 사람들에게도 같은 사실을 숨길 수 없습니다.</span>`;
       S._romance={name:c.name,forward:false,groupId:routeGroup,premature:true,chance:0,html:
         '<div class="romance-choice"><button id="romance-confess" class="life-btn hot">💌 지금 고백한다</button><button id="romance-friend" class="life-btn">🤝 지금 관계를 지킨다</button><button id="romance-skip" class="life-btn">⏳ 이야기가 끝날 때까지 기다린다</button></div>'};
     }else if (eligible) {
@@ -6917,7 +6883,7 @@ function beginPureRomance(c,groupId,source){
   }
   startDating(c);
   if(ROMANCE_ROUTES&&groupId)ROMANCE_ROUTES.beginDevotion(S.life,groupId,c.name,source||'player_confession');
-  addNews(`💍 ${c.name} 한 사람을 택한 순애 루트가 시작됐습니다 · ${ROMANCE_ROUTES.META[groupId].name} 공동 고백 차단`,'good');
+  addNews(`💍 ${c.name} 한 사람에게만 마음을 전했습니다 · 다른 사람들에게도 선택을 공개합니다`,'good');
   return true;
 }
 function showPureRouteAffairEnding(target){
@@ -6964,14 +6930,14 @@ function romanceResolve(kind, confirmed) {
   const romanceState=S._romance||{},routeGroup=ROMANCE_ROUTES&&ROMANCE_ROUTES.memberGroup(c.name);
   const selectedGroupPath=routeGroup&&ROMANCE_ROUTES.path(S.life,routeGroup);
   if(['accept','confess','casual'].includes(kind)&&selectedGroupPath&&selectedGroupPath.path==='group'&&!groupStoryComplete(routeGroup,S.life)){
-    flashToast('공동 관계를 준비하기로 한 합의가 먼저입니다','bad');return;
+    flashToast('세 사람 모두에게 숨기지 않겠다고 한 대답이 먼저입니다','bad');return;
   }
   const prematureConfession=kind==='confess'&&routeGroup&&!groupStoryComplete(routeGroup,S.life);
   const rejectedIncoming=routeGroup&&romanceState.forward&&['decline','friend'].includes(kind);
   let resultHTML = '';
   if(prematureConfession){
     beginPureRomance(c,routeGroup,'player_confession_before_group_story_complete');
-    resultHTML=`💍 <b class="up">${c.name}님에게 먼저 고백해 두 사람의 순애를 시작했습니다.</b><br><span class="muted">남은 그룹 사건은 이어지지만 ${ROMANCE_ROUTES.META[routeGroup].name}의 공동 고백은 오지 않습니다. 이 약속을 둔 채 다른 사람을 유혹하면 불륜 배드엔딩으로 이어집니다.</span>`;
+    resultHTML=`💍 <b class="up">${c.name}님에게만 마음을 전했고 두 사람은 연인이 되었습니다.</b><br><span class="muted">다른 사람들에게도 선택을 숨기지 않았습니다. 이 약속을 둔 채 다시 마음을 숨기면 지금의 관계는 견디지 못합니다.</span>`;
   } else if (kind === 'accept') {
     if(routeGroup)beginPureRomance(c,routeGroup,'accepted_individual_confession');
     else startDating(c);
@@ -6985,7 +6951,7 @@ function romanceResolve(kind, confirmed) {
     if (ok) {
       if(routeGroup)beginPureRomance(c,routeGroup,'player_confession');
       else startDating(c);
-      resultHTML = `💕 <b class="up">고백 성공! ${c.name}님과 연애를 시작했어요!</b>${routeGroup?`<br><span class="muted">${c.name} 한 사람을 고른 순애 루트로 고정됐습니다.</span>`:''}`;
+      resultHTML = `💕 <b class="up">${c.name}님이 마음을 받아들였습니다. 두 사람은 연애를 시작합니다.</b>${routeGroup?`<br><span class="muted">이 대답은 ${c.name} 한 사람에게만 건넨 약속으로 남습니다.</span>`:''}`;
     }
     else { rec.affection = Math.max(0, (rec.affection || 0) - 8); resultHTML = `🫸 <b class="down">${c.name}님이 "아직 그런 사이는 아닌 것 같아요"라며 거절했다.</b>`; playSound('error'); }
   } else if (kind === 'friend') {
@@ -7826,7 +7792,7 @@ function factionAttackStatus() {
 
 function seraOpeningResolved(L=S.life){
   if(!L)return false;
-  if(['temporary','cohabit','separate','reject'].includes(L.seraHousing))return true;
+  if(['cohabit','separate','reject'].includes(L.seraHousing))return true;
   const legacySera=metRecord(L,'윤세라');
   if(legacySera&&legacySera.pickedUpAfterRuin){
     L.seraHousing='cohabit';
@@ -7840,7 +7806,7 @@ function queueSeraFirstAttackEncounter(attacker,loss=0){
 }
 
 function queueSeraOpeningEncounter(source='early',attacker=null,loss=0){
-  const L=S.life;if(!L||seraOpeningResolved(L))return false;
+  const L=S.life;if(!L||L.seraHousing==='temporary'||seraOpeningResolved(L))return false;
   const previous=L.seraRescueOrigin||{};
   const name=attacker&&attacker.name||attacker||previous.attacker||'경쟁 세력';
   L.seraRescueOrigin=Object.assign({},previous,{
