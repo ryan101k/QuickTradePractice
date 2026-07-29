@@ -1847,6 +1847,7 @@ function settleMonth() {
     }
     L._attackedRecently=3;
     const seraScout=metRecord(L,'윤세라');
+    if(seraScout)awakenSeraAfterFactionAttack(attack.attacker);
     if(seraScout)queueYujinInvestigation(L.seraHousing,attack.attacker);
     if(seraScout&&L.seraIntelHelper&&!attack.caught&&!attack.blocked&&(seraScout.obsession||0)<90&&Math.random()<.28){
       attack.caught=true;attack.blocked=true;attack.loss=0;
@@ -3618,16 +3619,17 @@ function applyEventEffects(eff) {
     changes.push('🚪 <b>그날 이후, 현관 앞에서 발이 멈추지 않았습니다</b>');
   }
   if (eff.meetSera && !metRecord(L, '윤세라')) {
-    const rec = rememberPerson(Object.assign({}, D.SPECIAL_CHARACTERS.sera), 'friend');
-    rec.affection = Math.max(rec.affection || 0, 22);
-    rec.trust = Math.max(rec.trust || 0, 12);
-    rec.obsession = Math.max(rec.obsession || 0, 55);
+    const rec = rememberPerson(Object.assign({}, D.SPECIAL_CHARACTERS.sera), 'acquaintance');
+    rec.affection = Math.max(rec.affection || 0, 4);
+    rec.trust = Math.max(rec.trust || 0, 2);
+    rec.obsession = Math.max(rec.obsession || 0, 8);
     rec.pickedUpAfterRuin=true;
-    L.seraIntelHelper=true;
+    rec.seraEarlyAcquaintance=true;
+    L.seraIntelHelper=false;
     if(L.seraRescueOrigin)L.seraRescueOrigin.ready=false;
-    pushPersonMessage(L, rec, '데려와 줘서 고마워요. 그 세력 사람들, 돈을 옮길 때 같은 길을 써요. 다음에는 내가 먼저 알려줄게요.', false);
-    changes.push('🖤 <b>윤세라를 거두고 연락처·세력 정보 조력을 얻음</b>');
-    addNews('🖤 경쟁 세력에게 모든 것을 잃은 윤세라를 데려왔습니다', 'good');
+    pushPersonMessage(L, rec, '오늘은 문 잠가도 돼요. 어디 안 갈게요. 아직은 서로 아무것도 묻지 말아요.', false);
+    changes.push('🖤 <b>윤세라와 이름만 아는 불편한 동거를 시작함</b>');
+    addNews('🖤 모든 것을 잃고 계단에 있던 윤세라를 집에 들였습니다', 'neutral');
   }
   if(eff.seraHousing){
     const trio=DANGEROUS_TRIO&&DANGEROUS_TRIO.ensure(L);
@@ -3815,7 +3817,7 @@ function showHomeLifeModal(){
   const home=HOUSING.home(L),tenure=HOUSING.TENURES[L.housing.tenure];
   const gameLabel=guild&&guild.guildJoined?`〈${guild.guildName||FREEDOM_TRIO.GUILD_NAME}〉 길드원들과 게임하기`:null;
   const trioHome=trioHere?`<div class="route-sep">네 사람이 같은 자취방에서 보내는 시간</div><div class="important-event-detail">유진·채린·세라가 누구의 소유도 아닌 이 집을 중립 거점으로 유지해 달라고 요청했습니다. 공동생활이 이어지는 동안 이사는 세 사람 모두가 거점 합의를 해제해야 가능합니다.</div><div class="home-action-grid"><button class="life-btn" data-trio-home="late-morning">☕ 비좁은 늦은 아침 <small>행복 +7 · 스트레스 -7 · 체력 +2</small></button><button class="life-btn" data-trio-home="quiet-night">📺 소파에 붙어 조용히 쉰다 <small>행복 +5 · 스트레스 -12 · 체력 +4</small></button><button class="life-btn" data-trio-home="rules">🔑 귀가·동행 규칙을 다시 정한다 <small>공생 안정도 +6 · 집착 -3</small></button></div>`:'';
-  const seraHome=seraHere&&!trioHere?`<div class="route-sep">세라와 한집에서 보내는 시간</div><div class="date-profile sera-home-profile"><img class="char-portrait" src="${characterPortrait(sera,'happy')}" alt="집에서 쉬고 있는 윤세라"><div><strong>윤세라 · 동거 중</strong><br><span class="muted">“오늘은 어디 안 가도 되는 거죠? 그러면… 뭘 같이 할지 제가 골라도 돼요?”</span></div></div><div class="home-action-grid"><button class="life-btn" data-act="sera-home" data-sera-home="late-morning">☕ 늦은 아침을 같이 보낸다 <small>행복 +8 · 신뢰 +3 · 집착 +1</small></button><button class="life-btn" data-act="sera-home" data-sera-home="keys">🔑 열쇠와 귀가 약속을 다시 정한다 <small>행복 +5 · 신뢰 +5 · 집착 -4</small></button><button class="life-btn" data-act="sera-home" data-sera-home="studio">🎨 세라의 작업을 옆에서 지켜본다 <small>행복 +6 · 호감 +5</small></button></div>`:'';
+  const seraHome=seraHere&&!trioHere?seraHomeSection(sera):'';
   host.style.display='block';
   host.innerHTML=`<div class="window event-window home-life-window"><div class="title-bar event-bar"><div class="title-bar-text">🏠 오늘은 집에서</div><div class="title-bar-controls"><button aria-label="Close" id="home-life-x"></button></div></div><div class="window-body"><div class="home-life-summary"><b>${trioHere?'위험한 세 사람과 공동생활 중':seraHere?'윤세라와 동거 중':'혼자 보내는 시간'}</b><small>${home.icon} ${home.name} · ${tenure?tenure.name:'거주'} · 행복 ${Math.round(L.happy||0)}/100 · 스트레스 ${Math.round(L.stress||0)}/100</small></div><div class="route-sep">이번 주를 집에서 보내기</div><div class="home-action-grid"><button class="life-btn" data-act="rest">🛌 아무 일정 없이 푹 쉰다 <small>${trioHere?'공동생활 휴식 장면':'생활비 30,000 · 스트레스 -22 · 건강 +3'}${seraHere&&!trioHere?' · 세라와 쉬는 방식 선택':''}</small></button><button class="life-btn" data-act="decompress">🌿 휴대폰을 끄고 마음을 정리한다 <small>비용 없음 · 스트레스 -16 · 행복 +3</small></button>${indoor.map(h=>`<button class="life-btn" data-act="hobby" data-id="${h.id}">${h.emoji} ${h.id==='game'&&gameLabel?gameLabel:h.name} <small>${won(h.cost)}</small></button>`).join('')}</div>${trioHome}${seraHome}<button id="home-life-close" class="session-btn">닫기</button></div></div>`;
   wireLifeHub(host);
@@ -3843,17 +3845,43 @@ function resolveDangerousTrioHomeMoment(id){
 }
 
 const SERA_HOME_MOMENTS={
+  'quiet-meal':{icon:'🥣',title:'말없이 나눈 두 사람 몫의 식사',scene:'./assets/event-sera-1.png',desc:'식탁 양 끝에 앉아 서로의 사정은 묻지 않았습니다. 세라는 당신이 먼저 수저를 들고 나서야 천천히 국을 한 모금 마셨습니다.',happy:3,stress:-4,affection:3,trust:2,obsession:0,minAffection:0,minTrust:0,maxAffection:19,line:'잘 먹었다는 말은 할게요. 고맙다는 말까지 하면… 너무 가까워지는 것 같으니까.'},
+  'separate-corners':{icon:'📦',title:'선을 넘지 않는 같은 방',scene:'./assets/event-sera-1.png',desc:'세라의 상자와 당신의 생활 공간 사이에 비워 둔 선이 생겼습니다. 서로 휴대전화를 보지 않고, 잠들기 전 불을 끌 시간만 짧게 정했습니다.',happy:2,stress:-5,affection:2,trust:4,obsession:-1,minAffection:0,minTrust:0,maxAffection:19,line:'안 물어봐 줘서 편해요. 나도 당신이 왜 집에만 있는지 아직은 안 물을게요.'},
   'late-morning':{icon:'☕',title:'늦은 오전, 두 사람 몫의 컵',scene:'./assets/event-sera-shoulder-confession.png',desc:'세라는 먼저 깨어 있었지만 깨우지 않았습니다. 식어 버린 커피를 다시 데우고, 당신이 일어날 때까지 소파 끝에 기대 있었습니다. 오늘만큼은 어디 있었는지 묻는 대신 같은 창밖을 봅니다.',happy:8,stress:-8,affection:4,trust:3,obsession:1,line:'깨울까 봐 몇 번이나 참았어요. 같이 늦잠 자는 것도… 동거하는 사람만 할 수 있는 거네요.'},
-  keys:{icon:'🔑',title:'감시가 아니라 돌아올 약속',scene:'./assets/event-sera-lip-confession.png',desc:'서로의 열쇠를 빼앗지 않고, 늦는 날에는 한 줄만 남기기로 정했습니다. 세라는 몇 번이나 예외 상황을 묻다가 마지막에는 열쇠를 현관 그릇에 내려놓았습니다.',happy:5,stress:-5,affection:3,trust:5,obsession:-4,line:'모르는 시간을 견디는 게 약속이라면… 해볼게요. 대신 꼭 돌아온다고 말해줘요.'},
-  studio:{icon:'🎨',title:'작업하는 사람의 옆자리',scene:'./assets/event-sera-7.png',desc:'세라는 당신을 그리지 않는 그림을 일부러 꺼냈습니다. 붓을 씻고 색을 고르는 동안 아무 말도 하지 않아도 되는 시간이 이어집니다. 완성된 그림 구석에는 결국 두 사람 몫의 작은 의자가 생겼습니다.',happy:6,stress:-5,affection:5,trust:2,obsession:2,line:'안 보고 있어도 여기 있는 거 알아요. 그게 이렇게 조용할 수 있는 건지 처음 알았어요.'},
+  keys:{icon:'🔑',title:'감시가 아니라 돌아올 약속',scene:'./assets/event-sera-lip-confession.png',desc:'서로의 열쇠를 빼앗지 않고, 늦는 날에는 한 줄만 남기기로 정했습니다. 세라는 몇 번이나 예외 상황을 묻다가 마지막에는 열쇠를 현관 그릇에 내려놓았습니다.',happy:5,stress:-5,affection:3,trust:5,obsession:-4,minAffection:35,minTrust:20,line:'모르는 시간을 견디는 게 약속이라면… 해볼게요. 대신 꼭 돌아온다고 말해줘요.'},
+  studio:{icon:'🎨',title:'작업하는 사람의 옆자리',scene:'./assets/event-sera-7.png',desc:'세라는 당신을 그리지 않는 그림을 일부러 꺼냈습니다. 붓을 씻고 색을 고르는 동안 아무 말도 하지 않아도 되는 시간이 이어집니다. 완성된 그림 구석에는 결국 두 사람 몫의 작은 의자가 생겼습니다.',happy:6,stress:-5,affection:5,trust:2,obsession:2,minAffection:12,minTrust:8,line:'안 보고 있어도 여기 있는 거 알아요. 그게 이렇게 조용할 수 있는 건지 처음 알았어요.'},
 };
+SERA_HOME_MOMENTS['late-morning'].minAffection=20;
+SERA_HOME_MOMENTS['late-morning'].minTrust=12;
+
+function seraHomeMomentAvailable(sera,moment){
+  return !!(sera&&moment&&(sera.affection||0)>=(moment.minAffection||0)&&(sera.trust||0)>=(moment.minTrust||0)
+    &&(moment.maxAffection==null||(sera.affection||0)<=moment.maxAffection));
+}
+function seraHomeSection(sera){
+  const early=(sera.affection||0)<20;
+  const line=early
+    ?'“신경 쓰지 마세요. 저도 당신 생활에 들어오지 않을게요. 아직은… 같은 집을 쓰는 것뿐이니까.”'
+    :'“오늘은 어디 안 가도 되는 거죠? 그러면… 뭘 같이 할지 제가 골라도 돼요?”';
+  const order=['quiet-meal','separate-corners','studio','late-morning','keys'];
+  const buttons=order.filter(id=>SERA_HOME_MOMENTS[id].maxAffection==null||(sera.affection||0)<=SERA_HOME_MOMENTS[id].maxAffection).map(id=>{
+    const moment=SERA_HOME_MOMENTS[id],available=seraHomeMomentAvailable(sera,moment);
+    const requirement=available?`행복 +${moment.happy} · 신뢰 +${moment.trust}`:`호감 ${moment.minAffection||0} · 신뢰 ${moment.minTrust||0}부터`;
+    return `<button class="life-btn" data-act="sera-home" data-sera-home="${id}" ${available?'':'disabled'}>${moment.icon} ${moment.title} <small>${requirement}</small></button>`;
+  }).join('');
+  return `<div class="route-sep">세라와 한집에서 보내는 시간</div><div class="date-profile sera-home-profile"><img class="char-portrait" src="${characterPortrait(sera,early?'neutral':'happy')}" alt="집에서 지내는 윤세라"><div><strong>윤세라 · ${early?'아직 낯선 동거인':'동거 중'}</strong><br><span class="muted">${line}</span></div></div><div class="home-action-grid">${buttons}</div>`;
+}
 
 function resolveSeraHomeMoment(id){
   if(lifeActionExhausted()){flashToast(`📅 이번 달 자유시간 ${LIFE_ACTIONS_PER_MONTH}회를 모두 사용했습니다`,'neutral');return;}
   const L=S.life,r=metRecord(L,'윤세라'),moment=SERA_HOME_MOMENTS[id],host=$('life-event');
-  if(!r||L.seraHousing!=='cohabit'||!moment||!host)return;
+  if(!r||L.seraHousing!=='cohabit'||!moment||!host||!seraHomeMomentAvailable(r,moment))return;
   L.happy=clamp((L.happy||0)+moment.happy,0,100);L.stress=clamp((L.stress||0)+moment.stress,0,100);
   r.affection=clamp((r.affection||0)+moment.affection,0,100);r.trust=clamp((r.trust||0)+moment.trust,0,100);r.obsession=clamp((r.obsession||0)+moment.obsession,0,100);
+  if(r.status==='acquaintance'&&(r.affection||0)>=18&&(r.trust||0)>=10){
+    r.status='friend';
+    addNews('🖤 윤세라와 낯선 동거인을 넘어 친구가 되었습니다','good');
+  }
   pushPersonMessage(L,r,moment.line,false);
   addNews(`${moment.icon} 윤세라와 집에서 보낸 하루 · 행복 +${moment.happy} · 신뢰 +${moment.trust}`,'good');
   host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${moment.icon} 윤세라와 집에서</div></div><div class="window-body"><img class="life-scene-banner" src="${moment.scene}" alt="${moment.title}"><div class="event-title">${moment.title}</div><div class="event-desc">${moment.desc}</div><div class="story-dialogue"><b>윤세라</b> “${moment.line}”</div><div class="oc-changes">행복 +${moment.happy} · 스트레스 ${moment.stress} · 호감 +${moment.affection} · 신뢰 +${moment.trust} · 집착 ${moment.obsession>=0?'+':''}${moment.obsession}</div><button id="sera-home-confirm" class="session-btn opening">같은 집의 하루를 마친다</button></div></div>`;
@@ -3904,7 +3932,7 @@ function resolveIncomeWork(id){
 function doRestMonth() {
   if(S.life.dangerousTrioBond&&S.life.dangerousTrioBond.active){resolveDangerousTrioHomeMoment('quiet-night');return;}
   const sera=metRecord(S.life,'윤세라');
-  if(sera&&S.life.seraHousing==='cohabit'){showSeraRestModal(sera);return;}
+  if(sera&&S.life.seraHousing==='cohabit'&&(sera.affection||0)>=20&&(sera.trust||0)>=12){showSeraRestModal(sera);return;}
   S.capital -= Math.min(Math.max(0,S.capital),30000);
   HEALTH.rest(S.life); flashToast('🛌 푹 쉬었습니다 · 스트레스 -22 · 건강 +3', 'good'); afterLifeAction('휴식');
 }
@@ -5255,6 +5283,9 @@ function resolveGroupConfession(choice){
   autoSave();
 }
 function queueNaturalDangerousEvents(L){
+  if(!seraOpeningResolved(L)&&S.day>=2){
+    if(queueSeraOpeningEncounter('second_month'))return;
+  }
   let routeQueued=false;
   if(DANGEROUS_TRIO){
     DANGEROUS_TRIO.resolveUnavailable(L);
@@ -6265,7 +6296,12 @@ function showOutsideFearModal(){
 }
 
 function doDate() {
-  if(!freeOutingUnlocked(S.life)){showOutsideFearModal();syncBGM();return;}
+  if(!freeOutingUnlocked(S.life)){
+    if(queueSeraOpeningEncounter('blocked_outing'))showNextImportantEvent();
+    else showOutsideFearModal();
+    syncBGM();
+    return;
+  }
   if(S.life.dangerousTrioBond&&S.life.dangerousTrioBond.active&&(S.life.health||0)<12){
     flashToast('🦂 체력이 너무 낮아 세 사람이 현관에서 외출을 막았습니다. 먼저 집에서 쉬어야 합니다','bad');return;
   }
@@ -7752,6 +7788,10 @@ function seraOpeningResolved(L=S.life){
 }
 
 function queueSeraFirstAttackEncounter(attacker,loss=0){
+  return queueSeraOpeningEncounter('first_attack',attacker,loss);
+}
+
+function queueSeraOpeningEncounter(source='early',attacker=null,loss=0){
   const L=S.life;if(!L||seraOpeningResolved(L))return false;
   const previous=L.seraRescueOrigin||{};
   const name=attacker&&attacker.name||attacker||previous.attacker||'경쟁 세력';
@@ -7760,10 +7800,28 @@ function queueSeraFirstAttackEncounter(attacker,loss=0){
     attacker:name,
     loss:Math.max(0,loss||previous.loss||0),
     day:previous.day||S.day,
+    source:previous.source||source,
+    beforePlayerAttack:source!=='first_attack'&&!previous.attacker,
   });
   const prologue=L.prologue||(L.prologue={});
   prologue.firstAttackSequence='sera';
   return queueImportantEvent({seraFirstAttackEncounter:true,type:'life',scene:'./assets/event-sera-1.png'});
+}
+
+function awakenSeraAfterFactionAttack(attacker){
+  const L=S.life,sera=metRecord(L,'윤세라');if(!L||!sera)return false;
+  const name=attacker&&attacker.name||attacker||'그 세력';
+  if(L.seraRescueOrigin){
+    L.seraRescueOrigin.attacker=name;
+    L.seraRescueOrigin.playerAttackDay=S.day;
+  }
+  L.seraIntelHelper=true;
+  if(sera.seraObsessionAwakened)return false;
+  sera.seraObsessionAwakened=true;
+  sera.obsession=clamp((sera.obsession||0)+14,0,100);
+  pushPersonMessage(L,sera,`${name}… 내가 돈과 작업실을 잃었을 때 쓰던 이름이에요. 당신까지 건드릴 줄은 몰랐어요. 이번에는 내가 먼저 그 사람들 동선을 찾아볼게요.`,false);
+  addNews(`🖤 윤세라가 ${name}의 이름을 알아보고 처음으로 자기 피해를 말했습니다`,'bad');
+  return true;
 }
 
 function queueFactionMentorAfterSera(){
@@ -8998,7 +9056,10 @@ function maybeRivalRaid() {
   f.lastAttacker = attacker.name;
   registerFactionAttack(attacker);
   L._attackedRecently = 3;   // 최근 피습 → 경찰(강유진) 조우 조건
-  if(metRecord(L,'윤세라'))queueYujinInvestigation(L.seraHousing,attacker);
+  if(metRecord(L,'윤세라')){
+    awakenSeraAfterFactionAttack(attacker);
+    queueYujinInvestigation(L.seraHousing,attacker);
+  }
   let blocked = false, mitigated = 0;
   const def = Math.min(0.9, (f.defense || 0) + (f.tempDefense || 0)); f.tempDefense = 0;
   if (f.level && Math.random() < def) { blocked = true; loss = 0; }

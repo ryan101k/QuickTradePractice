@@ -1443,7 +1443,8 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /내가 왜 여기까지 왔지\?/, '클럽 입구에서는 플레이어도 자신의 행동을 이해하지 못하는 망설임이 보여야 한다');
   assert.doesNotMatch(appSource, /히로인이 아닌 처음 보는 여성과 가볍게 어울립니다/, '클럽 카드가 결과를 시스템 설명처럼 미리 적어두면 안 된다');
   assert.match(appSource, /function showFactionMentorPhoneStory/, '첫 세력 공격은 장태식의 스마트폰 연락으로 이어져야 한다');
-  assert.match(appSource, /seraFirstAttackEncounter:true/, '첫 공격은 랜덤 일상 사건이 아니라 윤세라 폐작업실 조우를 필수 사건으로 예약해야 한다');
+  assert.match(appSource, /queueSeraOpeningEncounter\('second_month'\)/, '윤세라는 공격을 기다리지 않고 늦어도 두 번째 달에 먼저 등장해야 한다');
+  assert.match(appSource, /queueSeraOpeningEncounter\('blocked_outing'\)/, '초반에 외출을 시도하면 현관 공포와 연결된 윤세라 조우가 먼저 열려야 한다');
   assert.match(appSource, /function queueFactionMentorAfterSera/, '윤세라 거처 선택을 끝낸 뒤에만 장태식의 세력 설명이 이어져야 한다');
   assert.match(appSource, /prologue\.firstAttackSequence='complete'/, '장태식에게 첫 부하를 받은 뒤 프롤로그 공격 연쇄 완료를 기록해야 한다');
   assert.match(appSource, /function showFactionMentorFall/, '세력 창설 직후 장태식 사망과 태식 사채라인 해산 화면이 이어져야 한다');
@@ -1466,7 +1467,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /class="route-card place-card solo-outing-card"/, '혼자 하는 외출은 간결한 장소 카드로 보여야 한다');
   assert.doesNotMatch(appSource, /function makeCandidate/, '외출 화면이 전체 히로인 명부에서 새 사람을 추첨하면 안 된다');
   assert.match(appSource, /이번 주에는 누구를 만나기보다, 내가 갈 곳부터 정해 보기로 했습니다/, '외출 화면은 시스템 설명 대신 플레이어의 시점으로 말해야 한다');
-  assert.match(appSource, /if\(!freeOutingUnlocked\(S\.life\)\)\{showOutsideFearModal\(\)/, '윤세라와 문밖으로 나가는 이야기 전 자발적 외출은 현관 공포 장면으로 막혀야 한다');
+  assert.match(appSource, /if\(!freeOutingUnlocked\(S\.life\)\)\{[\s\S]{0,220}queueSeraOpeningEncounter\('blocked_outing'\)[\s\S]{0,160}showOutsideFearModal\(\)/, '첫 조우 뒤에도 윤세라와 문밖으로 나가는 이야기 전까지 자발적 외출은 계속 막혀야 한다');
   assert.match(appSource, /L\.outsideFearResolved\|\|L\.freedomRescueComplete/, '구버전 저장의 자유인 구원 완료 기록도 외출 해금 호환값으로 인정해야 한다');
   assert.doesNotMatch(appSource, /L\.seraHousing==='reject'\|\|metRecord\(L,'윤세라'\)/, '윤세라를 거절했거나 얼굴만 본 사실만으로 자발적 외출이 즉시 열리면 안 된다');
   assert.match(appSource, /!\['game','study'\]\.includes\(id\)&&!freeOutingUnlocked\(S\.life\)/, '외부 취미로 초반 은둔 외출 관문을 우회하면 안 된다');
@@ -1515,8 +1516,11 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /Math\.min\(Math\.max\(0,S\.capital\),30000\)/, '집에서 쉬기 실제 비용은 3만원이어야 한다');
   assert.match(appSource, /생활비 30,000 · 스트레스 -22/, '집 화면은 휴식 비용과 실제 스트레스 회복량을 함께 표시해야 한다');
   assert.match(appSource, /data-act="decompress"/, '비용 없이 스트레스를 내릴 수 있는 마음 정리 행동이 있어야 한다');
-  assert.match(appSource,/data-sera-home="late-morning"/,'윤세라와 동거하면 늦은 아침 전용 집 행동이 열려야 한다');
-  assert.match(appSource,/data-sera-home="keys"/,'윤세라와 열쇠·귀가 약속을 정하는 동거 행동이 있어야 한다');
+  assert.match(appSource,/const order=\['quiet-meal','separate-corners','studio','late-morning','keys'\]/,'윤세라 동거 행동은 낯선 초기 생활부터 친밀한 열쇠 약속까지 순서대로 구성돼야 한다');
+  assert.match(appSource,/data-sera-home="\$\{id\}"/,'윤세라 집 행동은 현재 친밀도에 맞는 동적 버튼으로 표시돼야 한다');
+  assert.match(appSource,/function seraHomeMomentAvailable\(sera,moment\)/,'윤세라 집 행동은 호감과 신뢰 조건으로 단계별 해금돼야 한다');
+  assert.match(appSource,/r\.status==='acquaintance'&&\(r\.affection\|\|0\)>=18&&\(r\.trust\|\|0\)>=10/,'처음 집에 데려온 윤세라는 생활을 쌓은 뒤에야 친구가 되어야 한다');
+  assert.match(appSource,/rememberPerson\(Object\.assign\(\{\}, D\.SPECIAL_CHARACTERS\.sera\), 'acquaintance'\)/,'윤세라 첫 조우가 즉시 친구 상태를 부여하면 안 된다');
   assert.match(appSource,/function showSeraRestModal\(sera\)/,'윤세라 동거 중 일반 휴식도 전용 선택 장면으로 갈라져야 한다');
   const replyPersonSource=appSource.slice(appSource.indexOf('function replyToPerson'),appSource.indexOf('function relationshipDateLine'));
   assert.match(replyPersonSource,/L\.happy=clamp\(\(L\.happy\|\|0\)\+seraHappy/,'윤세라 집착 문자에 대한 대응은 플레이어 행복도를 바꿔야 한다');
@@ -2007,7 +2011,8 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
     assert.equal(fs.existsSync(path.join(root,'assets',file)),false,`${file} 구버전 컷신은 새 외형 전환 뒤 남아 있으면 안 된다`);
   }
   assert.match(appSource,/개인적인 전쟁/,'세력 창에서 개인적인 공격 동기를 보여줘야 한다');
-  assert.match(appSource,/L\.seraRescueOrigin=Object\.assign\(\{\},previous,\{[\s\S]{0,180}ready:true/,'윤세라 조우는 첫 경쟁 세력 피해에서 필수 사건 상태로 시작해야 한다');
+  assert.match(appSource,/function queueSeraOpeningEncounter\(source='early'[\s\S]{0,500}beforePlayerAttack:source!=='first_attack'/,'윤세라 조우는 플레이어가 공격받기 전에도 시작될 수 있어야 한다');
+  assert.match(appSource,/function awakenSeraAfterFactionAttack\(attacker\)/,'이후 첫 공격에서는 윤세라가 같은 세력 이름을 알아보고 집착·정보 조력 단계로 전환돼야 한다');
   assert.match(appSource,/L\.seraIntelHelper=true/,'구조된 윤세라는 세력 정보 조력자가 되어야 한다');
   assert.match(appSource,/L\.seraHousing=eff\.seraHousing/,'윤세라 구조 선택은 동거 여부를 저장해야 한다');
   assert.match(appSource,/bond\.clubEscapeAttempts=Math\.max\(0,bond\.clubEscapeAttempts\|\|0\)\+1/,'공동생활 중 클럽 시도는 경고 횟수를 누적해야 한다');
