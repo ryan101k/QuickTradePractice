@@ -1,0 +1,973 @@
+{
+  "ok": true,
+  "frames_root": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames",
+  "states": [
+    "idle",
+    "running-right",
+    "running-left",
+    "waving",
+    "jumping",
+    "failed",
+    "waiting",
+    "running",
+    "review"
+  ],
+  "errors": [],
+  "warnings": [],
+  "rows": [
+    {
+      "state": "idle",
+      "expected_frames": 6,
+      "actual_frames": 6,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\idle\\00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14061,
+          "bbox": [
+            44,
+            5,
+            147,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 121
+        },
+        {
+          "index": 1,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\idle\\01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14032,
+          "bbox": [
+            44,
+            5,
+            147,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 132
+        },
+        {
+          "index": 2,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\idle\\02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 13857,
+          "bbox": [
+            45,
+            5,
+            147,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 118
+        },
+        {
+          "index": 3,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\idle\\03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 13998,
+          "bbox": [
+            44,
+            5,
+            147,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 119
+        },
+        {
+          "index": 4,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\idle\\04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14255,
+          "bbox": [
+            41,
+            5,
+            150,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 104
+        },
+        {
+          "index": 5,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\idle\\05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 13995,
+          "bbox": [
+            44,
+            5,
+            148,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 119
+        }
+      ]
+    },
+    {
+      "state": "running-right",
+      "expected_frames": 8,
+      "actual_frames": 8,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-right\\00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15105,
+          "bbox": [
+            31,
+            5,
+            160,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 226
+        },
+        {
+          "index": 1,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-right\\01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14027,
+          "bbox": [
+            39,
+            5,
+            152,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 198
+        },
+        {
+          "index": 2,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-right\\02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14178,
+          "bbox": [
+            40,
+            5,
+            152,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 193
+        },
+        {
+          "index": 3,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-right\\03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 13585,
+          "bbox": [
+            42,
+            5,
+            150,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 178
+        },
+        {
+          "index": 4,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-right\\04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 13320,
+          "bbox": [
+            40,
+            5,
+            151,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 207
+        },
+        {
+          "index": 5,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-right\\05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 13456,
+          "bbox": [
+            37,
+            5,
+            154,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 179
+        },
+        {
+          "index": 6,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-right\\06.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14723,
+          "bbox": [
+            32,
+            5,
+            159,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 234
+        },
+        {
+          "index": 7,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-right\\07.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 12972,
+          "bbox": [
+            43,
+            5,
+            149,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 180
+        }
+      ]
+    },
+    {
+      "state": "running-left",
+      "expected_frames": 8,
+      "actual_frames": 8,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-left\\00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14284,
+          "bbox": [
+            38,
+            5,
+            153,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 174
+        },
+        {
+          "index": 1,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-left\\01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 13385,
+          "bbox": [
+            45,
+            5,
+            147,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 169
+        },
+        {
+          "index": 2,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-left\\02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14711,
+          "bbox": [
+            36,
+            5,
+            156,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 226
+        },
+        {
+          "index": 3,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-left\\03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 13919,
+          "bbox": [
+            39,
+            5,
+            153,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 167
+        },
+        {
+          "index": 4,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-left\\04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 13498,
+          "bbox": [
+            37,
+            5,
+            154,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 234
+        },
+        {
+          "index": 5,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-left\\05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 13521,
+          "bbox": [
+            35,
+            5,
+            157,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 184
+        },
+        {
+          "index": 6,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-left\\06.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14575,
+          "bbox": [
+            34,
+            5,
+            158,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 223
+        },
+        {
+          "index": 7,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running-left\\07.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 12972,
+          "bbox": [
+            43,
+            5,
+            149,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 180
+        }
+      ]
+    },
+    {
+      "state": "waving",
+      "expected_frames": 4,
+      "actual_frames": 4,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\waving\\00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14931,
+          "bbox": [
+            42,
+            5,
+            150,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 45
+        },
+        {
+          "index": 1,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\waving\\01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15366,
+          "bbox": [
+            40,
+            5,
+            151,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 50
+        },
+        {
+          "index": 2,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\waving\\02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15465,
+          "bbox": [
+            39,
+            5,
+            152,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 62
+        },
+        {
+          "index": 3,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\waving\\03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15012,
+          "bbox": [
+            42,
+            5,
+            149,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 57
+        }
+      ]
+    },
+    {
+      "state": "jumping",
+      "expected_frames": 5,
+      "actual_frames": 5,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\jumping\\00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23603,
+          "bbox": [
+            13,
+            5,
+            178,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 304
+        },
+        {
+          "index": 1,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\jumping\\01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 19677,
+          "bbox": [
+            22,
+            5,
+            170,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 203
+        },
+        {
+          "index": 2,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\jumping\\02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 20280,
+          "bbox": [
+            19,
+            5,
+            173,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 206
+        },
+        {
+          "index": 3,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\jumping\\03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 18040,
+          "bbox": [
+            24,
+            5,
+            167,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 131
+        },
+        {
+          "index": 4,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\jumping\\04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 18147,
+          "bbox": [
+            28,
+            5,
+            163,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 157
+        }
+      ]
+    },
+    {
+      "state": "failed",
+      "expected_frames": 8,
+      "actual_frames": 8,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\failed\\00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15987,
+          "bbox": [
+            42,
+            5,
+            149,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 170
+        },
+        {
+          "index": 1,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\failed\\01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15825,
+          "bbox": [
+            43,
+            5,
+            149,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 221
+        },
+        {
+          "index": 2,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\failed\\02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15770,
+          "bbox": [
+            43,
+            5,
+            149,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 208
+        },
+        {
+          "index": 3,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\failed\\03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 16419,
+          "bbox": [
+            41,
+            5,
+            151,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 222
+        },
+        {
+          "index": 4,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\failed\\04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 16901,
+          "bbox": [
+            39,
+            5,
+            153,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 262
+        },
+        {
+          "index": 5,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\failed\\05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 19897,
+          "bbox": [
+            33,
+            5,
+            159,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 349
+        },
+        {
+          "index": 6,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\failed\\06.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22157,
+          "bbox": [
+            28,
+            5,
+            164,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 420
+        },
+        {
+          "index": 7,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\failed\\07.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 24534,
+          "bbox": [
+            19,
+            5,
+            173,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 543
+        }
+      ]
+    },
+    {
+      "state": "waiting",
+      "expected_frames": 6,
+      "actual_frames": 6,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\waiting\\00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14826,
+          "bbox": [
+            42,
+            5,
+            149,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 80
+        },
+        {
+          "index": 1,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\waiting\\01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 16210,
+          "bbox": [
+            37,
+            5,
+            155,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 109
+        },
+        {
+          "index": 2,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\waiting\\02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 16011,
+          "bbox": [
+            38,
+            5,
+            153,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 91
+        },
+        {
+          "index": 3,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\waiting\\03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15426,
+          "bbox": [
+            40,
+            5,
+            151,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 82
+        },
+        {
+          "index": 4,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\waiting\\04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 16167,
+          "bbox": [
+            37,
+            5,
+            155,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 123
+        },
+        {
+          "index": 5,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\waiting\\05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14820,
+          "bbox": [
+            42,
+            5,
+            150,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 77
+        }
+      ]
+    },
+    {
+      "state": "running",
+      "expected_frames": 6,
+      "actual_frames": 6,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running\\00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15122,
+          "bbox": [
+            41,
+            5,
+            151,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 102
+        },
+        {
+          "index": 1,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running\\01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14921,
+          "bbox": [
+            42,
+            5,
+            149,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 98
+        },
+        {
+          "index": 2,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running\\02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15041,
+          "bbox": [
+            41,
+            5,
+            150,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 116
+        },
+        {
+          "index": 3,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running\\03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15301,
+          "bbox": [
+            41,
+            5,
+            151,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 100
+        },
+        {
+          "index": 4,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running\\04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14867,
+          "bbox": [
+            42,
+            5,
+            149,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 104
+        },
+        {
+          "index": 5,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\running\\05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14888,
+          "bbox": [
+            41,
+            5,
+            150,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 105
+        }
+      ]
+    },
+    {
+      "state": "review",
+      "expected_frames": 6,
+      "actual_frames": 6,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\review\\00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14248,
+          "bbox": [
+            44,
+            5,
+            148,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 78
+        },
+        {
+          "index": 1,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\review\\01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14380,
+          "bbox": [
+            44,
+            5,
+            148,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 68
+        },
+        {
+          "index": 2,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\review\\02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14573,
+          "bbox": [
+            43,
+            5,
+            149,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 82
+        },
+        {
+          "index": 3,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\review\\03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14459,
+          "bbox": [
+            42,
+            5,
+            149,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 73
+        },
+        {
+          "index": 4,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\review\\04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14460,
+          "bbox": [
+            44,
+            5,
+            148,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 76
+        },
+        {
+          "index": 5,
+          "file": "C:\\Users\\seeu7\\OneDrive\\\ubb38\uc11c\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\frames\\review\\05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 13905,
+          "bbox": [
+            44,
+            5,
+            147,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 95
+        }
+      ]
+    }
+  ]
+}

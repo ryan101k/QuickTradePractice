@@ -1,0 +1,23 @@
+{
+  "reviewer": "independent-final-visual-qa",
+  "visual_qa": "pass",
+  "review_warnings": "Accepted continuity-only warnings at 157.5->180 and 337.5->000 because the labeled normal-size loop retains correct quadrants, stable identity, and no conspicuous snap or pop.",
+  "directions": [
+    {"direction":"000","verdict":"pass","expected":"up","observed":"eyes and chin raised; face remains centered","reason":"vertical evidence: pupils and chin rise above neutral; horizontal axis not required"},
+    {"direction":"022.5","verdict":"pass","expected":"up-right","observed":"raised chin with nose and exposed face shifted screen-right","reason":"horizontal evidence: nose/face right of head center; vertical evidence: chin and pupils raised"},
+    {"direction":"045","verdict":"pass","expected":"up-right","observed":"clear right turn with upward eye and chin angle","reason":"horizontal evidence: right-facing cheek and nose; vertical evidence: upward gaze"},
+    {"direction":"067.5","verdict":"pass","expected":"up-right","observed":"near-right profile with remaining upward tilt","reason":"horizontal evidence: nose projects screen-right; vertical evidence: eye line remains raised"},
+    {"direction":"090","verdict":"pass","expected":"right","observed":"unmistakable screen-right profile","reason":"horizontal evidence: nose tip, pupil, and exposed face surface point screen-right; vertical axis not required"},
+    {"direction":"112.5","verdict":"pass","expected":"down-right","observed":"right profile with lowered eye and chin","reason":"horizontal evidence: nose projects right; vertical evidence: gaze and chin descend"},
+    {"direction":"135","verdict":"pass","expected":"down-right","observed":"bowed right-facing head","reason":"horizontal evidence: exposed face remains right; vertical evidence: eyelids and chin lower"},
+    {"direction":"157.5","verdict":"warning","expected":"down-right","observed":"strongly bowed right profile, correct quadrant","reason":"axes pass; continuity metric rises at 157.5→180, but labeled normal-size review shows no reversal or broken attachment"},
+    {"direction":"180","verdict":"warning","expected":"down","observed":"centered bowed head and lowered eyes","reason":"vertical evidence is unmistakably down; row-boundary pixel diff is elevated but feet, scale, identity, and key remain stable"},
+    {"direction":"202.5","verdict":"pass","expected":"down-left","observed":"bowed face begins turning screen-left","reason":"horizontal evidence: nose and exposed face shift left; vertical evidence: chin and eyes remain down"},
+    {"direction":"225","verdict":"pass","expected":"down-left","observed":"clear down-left head turn","reason":"horizontal evidence: left-facing nose and cheek; vertical evidence: lowered eyelids and chin"},
+    {"direction":"247.5","verdict":"pass","expected":"down-left","observed":"near-left profile with remaining downward gaze","reason":"horizontal evidence: nose projects left; vertical evidence: face remains bowed"},
+    {"direction":"270","verdict":"pass","expected":"left","observed":"unmistakable screen-left profile opposite 090","reason":"horizontal evidence: nose tip, pupil, and exposed face surface point screen-left; vertical axis not required"},
+    {"direction":"292.5","verdict":"pass","expected":"up-left","observed":"left profile begins lifting","reason":"horizontal evidence: nose and cheek remain left; vertical evidence: chin and pupil rise"},
+    {"direction":"315","verdict":"pass","expected":"up-left","observed":"clear up-left turn","reason":"horizontal evidence: exposed face is left-facing; vertical evidence: eye line and chin lift"},
+    {"direction":"337.5","verdict":"warning","expected":"up-left","observed":"up-left face one step before centered up","reason":"both axes pass three-worker blind consensus; wrap continuity metric is elevated, but labeled loop shows the correct final quadrant without reversal"}
+  ]
+}

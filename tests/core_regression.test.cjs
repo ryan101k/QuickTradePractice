@@ -125,6 +125,8 @@ for (const file of [
   'js/group_chat.js',
   'js/services/save.js',
   'js/ui/page-lifecycle.js',
+  'js/ui/overlay-manager.js',
+  'js/ui/important-event-flow.js',
   'js/ui/market-workspace.js',
   'js/ui/info-market-panel.js',
   'js/ui/month-close-flow.js',
@@ -133,6 +135,85 @@ for (const file of [
   'js/faction_campaign.js',
 ]) {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename:file });
+}
+
+{
+  const hosts = {
+    'life-event': { style:{ display:'none' }, className:'', innerHTML:'stale' },
+    secondary: { style:{ display:'none' }, className:'', innerHTML:'secondary' },
+  };
+  const completed = [];
+  const closed = [];
+  const overlay = context.QT_OVERLAY_MANAGER.create({
+    getHost:id => hosts[id] || null,
+  });
+  const first = overlay.open({
+    id:'event:first',
+    type:'story',
+    className:'event-host story-host',
+    onComplete:value => completed.push(value),
+    onClose:reason => closed.push(reason),
+  });
+  assert.equal(first.ok,true,'the shared overlay manager must open the life-event host');
+  assert.equal(hosts['life-event'].style.display,'block');
+  assert.equal(hosts['life-event'].className,'event-host story-host');
+  assert.equal(overlay.complete('done',{token:first.token}),true,'an active overlay must complete once');
+  assert.deepEqual(completed,['done']);
+  assert.deepEqual(closed,['completed']);
+  assert.equal(hosts['life-event'].style.display,'none');
+  assert.equal(hosts['life-event'].innerHTML,'');
+  assert.equal(overlay.complete('again',{token:first.token}),false,'a completed overlay must not resolve twice');
+
+  const stale = overlay.open({id:'event:stale'});
+  const current = overlay.open({id:'event:current'});
+  assert.equal(overlay.close({token:stale.token}),false,'a late handler must not close a newer overlay');
+  assert.equal(overlay.current().token,current.token);
+  assert.equal(overlay.close({token:current.token}),true);
+  assert.equal(overlay.open({hostId:'missing'}).reason,'missing_host','a missing host must fail without throwing');
+}
+
+{
+  const flow=context.QT_IMPORTANT_EVENT_FLOW;
+  const queue=[];
+  const dropped=[];
+  assert.equal(flow.enqueue(queue,{monthlyMessage:true,targetType:'person',personName:'A'}),true);
+  assert.equal(flow.enqueue(queue,{dangerousTrioStart:true}),true);
+  assert.equal(flow.enqueue(queue,{factionStory:'legal_result'}),true);
+  assert.equal(flow.key(queue[0]),'faction:legal_result','higher-priority events must be inserted first');
+  assert.equal(flow.key(queue[1]),'dangerous:start');
+  assert.equal(flow.enqueue(queue,{dangerousTrioStart:true}),true,'duplicate queue requests must be idempotent');
+  assert.equal(queue.length,3);
+  assert.equal(flow.take(queue,{allowed:event=>!event.factionStory,onDrop:(event,reason)=>dropped.push([flow.key(event),reason])}).dangerousTrioStart,true);
+  assert.deepEqual(dropped,[['faction:legal_result','blocked']],'blocked events must release their reservation through onDrop');
+
+  const capped=[];
+  for(let i=0;i<14;i++)flow.enqueue(capped,{story:true,personName:`person-${i}`},{
+    maxSize:12,
+    onDrop:(event,reason)=>dropped.push([flow.key(event),reason]),
+  });
+  assert.equal(capped.length,12,'the event queue must remain bounded');
+  assert.equal(dropped.filter(row=>row[1]==='capacity').length,2,'capacity drops must be observable');
+}
+
+{
+  const flow=context.QT_MONTH_CLOSE_FLOW;
+  const state={monthCloseContext:{active:true,currentImportantEvent:null,currentRandomEvent:null}};
+  assert.equal(flow.activeEventContext(state),null);
+  assert.equal(flow.beginEventPhase(state,state.monthCloseContext),state.monthCloseContext);
+  assert.equal(flow.activeEventContext(state),state.monthCloseContext);
+  flow.holdImportant(state,{id:'important'});
+  assert.equal(state.monthCloseContext.currentImportantEvent.id,'important');
+  flow.holdRandom(state,{id:'random'});
+  assert.equal(state._monthCloseRandomEvent,true);
+  flow.clearImportant(state);
+  flow.clearRandom(state);
+  assert.equal(state.monthCloseContext.currentImportantEvent,null);
+  assert.equal(state.monthCloseContext.currentRandomEvent,null);
+  flow.endEventPhase(state);
+  assert.equal(state._monthCloseEventPhase,false);
+  assert.equal(state._monthCloseRandomEvent,false);
+  const source=fs.readFileSync(path.join(root,'js/ui/month-close-flow.js'),'utf8');
+  assert.doesNotMatch(source,/#trio-confirm|sessionButton\.click/,'month-close recovery must not depend on synthetic popup clicks');
 }
 
 {
@@ -254,6 +335,7 @@ for (const file of [
   assert.equal(legacyPayLife.faction.members[0].upkeep,140000,'이전 버전에서 실제 반영된 위험수당은 원래 급여로 복구돼야 한다');
   assert.equal('trioBaseUpkeep' in legacyPayLife.faction.members[0],false,'복구 뒤 임시 급여 표식도 제거해야 한다');
   const appSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  const eventFlowSource=fs.readFileSync(path.join(root,'js/ui/important-event-flow.js'),'utf8');
   const indexSource=fs.readFileSync(path.join(root,'index.html'),'utf8');
   assert.doesNotMatch(indexSource,/interaction_profiles\.js/,'삭제한 범용 데이트·부탁 프로필 모듈을 다시 로드하면 안 된다');
   assert.match(appSource,/function relationshipBGM\(text\)/,'화면의 관계 그룹을 전용 BGM으로 분류해야 한다');
@@ -263,8 +345,8 @@ for (const file of [
   assert.match(appSource,/CROSS_EVENTS\.get\(eventId,S\.life\)/,'교차 사건은 현재 친구·연인 상태에 맞춘 변형을 렌더링해야 한다');
   assert.match(appSource,/dangerousDisclosurePending/,'광기 3인 공동생활 사실은 첫 정모 직후가 아니라 중반 공개 대기로 기록돼야 한다');
   assert.match(crossSource,/dangerousDisclosureComplete/,'광기 3인과 자유인 3인의 첫 대면은 중반 관계 공개를 마쳐야 열려야 한다');
-  assert.match(appSource,/if\(event\.storyBridge\)return 78/,'후속 그룹 첫 대면은 정식 그룹 루트 시작보다 먼저 보여야 한다');
-  assert.match(appSource,/while\(event&&!routeEventAllowed\(event\)\)\{[\s\S]{0,120}releaseImportantEventReservation\(event\);[\s\S]{0,80}event=queue\.shift\(\);/,'조건이 사라진 그룹 사건은 예약 상태를 해제하고 중요 사건 큐에서 건너뛰어야 한다');
+  assert.match(eventFlowSource,/if\(event\.storyBridge\)return 78/,'후속 그룹 첫 대면은 정식 그룹 루트 시작보다 먼저 보여야 한다');
+  assert.match(eventFlowSource,/while\(event&&!settings\.allowed\(event\)\)\{[\s\S]{0,120}settings\.onDrop\(event,'blocked'\)/,'조건이 사라진 그룹 사건은 예약 상태를 해제하고 중요 사건 큐에서 건너뛰어야 한다');
   assert.match(appSource,/function showGroupConfession\(event\)/,'그룹의 모든 이야기가 끝난 뒤 별도 선고백 알림을 보여줘야 한다');
   assert.match(appSource,/CHEMISTRY\.monthly\(L,S\.day\)/,'캐릭터 캐미 사건은 월말 중요 사건 큐에서 별도 쿨다운으로 검사해야 한다');
   assert.match(appSource,/CHEMISTRY\.applyActionFatigue\(L,group,S\.day\)/,'다중 관계의 생활 피로는 광기 3인뿐 아니라 성립한 모든 그룹 행동에 적용돼야 한다');
@@ -1569,7 +1651,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.doesNotMatch(appSource,/data-act="contact-nurture"|data-act="contact-ask"/,'일반 친구 만나기·부탁 버튼을 중복 노출하면 안 된다');
   assert.match(appSource,/social\.contacts\.filter\(c=>c\.freeRecruit&&!c\.recruitedTo\)/,'시작 친구의 무료 합류 연결만 남겨야 한다');
   assert.doesNotMatch(socialNetworkSource, /function meet\(/,'범용 업계 인맥 무작위 추첨 기능은 없어야 한다');
-  assert.match(appSource, /message:\$\{event\.targetType\}:\$\{event\.targetId!=null/,'같은 상대의 월말 연락이 문구만 달리해 두 번 큐에 쌓이면 안 된다');
+  assert.match(fs.readFileSync(path.join(root,'js/ui/important-event-flow.js'),'utf8'), /message:\$\{event\.targetType\}:\$\{event\.targetId!=null/,'같은 상대의 월말 연락이 문구만 달리해 두 번 큐에 쌓이면 안 된다');
   assert.doesNotMatch(appSource, /polyculeCandidateFits|relationshipGroupTone|data-act="polycule"/,'범용 다자연애 성향 판정과 제안 버튼은 없어야 한다');
   assert.match(appSource, /function retryBusinessManagementEnding\(\)/,'사업관리 배드엔딩에도 직전 선택으로 돌아가는 경로가 있어야 한다');
   assert.match(appSource, /const CONTACT_RULES=\{affection:12,trust:6,interactions:2,months:1\}/, '일반 인물은 호감·신뢰·교류·기간을 채워야 연락처를 줘야 한다');
@@ -2009,6 +2091,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
 
 {
   const appSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  const eventFlowSource=fs.readFileSync(path.join(root,'js/ui/important-event-flow.js'),'utf8');
   assert.doesNotMatch(appSource,/회귀 압력<\/span>|현재 신뢰<\/span>/,'소꿉친구 내부 판정값을 숫자 계기판으로 노출하면 안 된다');
   for(const file of [
     'pixel-event-market-v1.png','pixel-event-career-v1.png','pixel-event-debt-property-v1.png',
@@ -2108,16 +2191,20 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(lifeEventsSource,/seraHousing:'separate'/,'윤세라를 집에서 내보내는 선택지가 있어야 한다');
   assert.match(appSource,/MARKET_CIRCUIT:\s*-0\.10/,'시장 급락 보호선은 -10%여야 한다');
   assert.match(appSource,/downsideCircuitDay === S\.day/,'개별 종목 -10% 서킷은 남은 장을 정지해야 한다');
-  assert.match(appSource,/importantEventPriority\(event\)/,'월말 주요 사건은 중요도 순서로 정렬돼야 한다');
-  assert.match(appSource,/prepareLifeEventOverlay\(true\)/,'휴대폰 알림은 전용 최상위 레이어로 열려야 한다');
+  assert.match(eventFlowSource,/function priority\(event\)/,'월말 주요 사건은 중요도 순서로 정렬돼야 한다');
+  assert.match(appSource,/openLifeEventOverlay\(event,!!event\.monthlyMessage\)/,'휴대폰 알림은 전용 최상위 레이어로 열려야 한다');
 }
 
 {
   const triggerAppSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
+  const eventFlowSource=fs.readFileSync(path.join(root,'js/ui/important-event-flow.js'),'utf8');
+  assert.match(triggerAppSource,/function finishImportantEvent\(options\)/,'queued popups must share one completion path');
+  assert.equal((triggerAppSource.match(/if\(host\)\{host\.style\.display='none';host\.innerHTML='';\}/g)||[]).length,1,'life-event DOM clearing must only remain in the overlay fallback');
+  assert.doesNotMatch(triggerAppSource,/closeLifeEvent\(\);[\s\S]{0,100}showNextImportantEvent\(\)/,'a popup confirmation must not advance the queue twice');
   assert.match(triggerAppSource,/function releaseImportantEventReservation\(event\)/,'dropped events must release their module reservation');
-  assert.match(triggerAppSource,/return S\._importantEvents\.includes\(event\)/,'event queue callers must receive the actual insertion result');
+  assert.match(eventFlowSource,/return queue\.includes\(event\)/,'event queue callers must receive the actual insertion result');
   assert.doesNotMatch(triggerAppSource,/if\s*\(\s*!met\.length\s*\)\s*return/,'online and route triggers must run before any real-world contact exists');
-  assert.match(triggerAppSource,/if\(event\.groupConfession\)return event\.groupId\|\|null/,'group confessions must obey their route lock');
+  assert.match(eventFlowSource,/if\(event\.groupConfession\)return event\.groupId\|\|null/,'group confessions must obey their route lock');
   for(const key of [
     "if(event.dangerousTrioStart)return'dangerous:start'",
     "if(event.dangerousTrioChapter)return'dangerous:chapter'",
@@ -2127,8 +2214,8 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
     "if(event.freedomTrioAftermath)return'freedom:aftermath'",
     "if(event.childhoodCircleEvent)return`childhood:${event.childhoodCircleEvent}`",
     "if(event.businessRomanceEvent)return`business-romance:"
-  ])assert.ok(triggerAppSource.includes(key),`${key} must have a stable queue deduplication key`);
-  assert.match(triggerAppSource,/if\(event\.dangerousTrioPrelude\|\|event\.dangerousTrioStart\|\|event\.dangerousTrioChapter\)return 88/,'광기 3인 본편은 개별 호감 컷신보다 먼저 재생돼야 한다');
+  ])assert.ok(eventFlowSource.includes(key),`${key} must have a stable queue deduplication key`);
+  assert.match(eventFlowSource,/if\(event\.dangerousTrioPrelude\|\|event\.dangerousTrioStart\|\|event\.dangerousTrioChapter\)return 88/,'광기 3인 본편은 개별 호감 컷신보다 먼저 재생돼야 한다');
   assert.match(triggerAppSource,/if\(routeQueued\)return;[\s\S]{0,180}Object\.entries\(DANGEROUS_AFFECTION_EVENTS\)/,'광기 3인 본편이 예약된 달에는 개별 호감 컷신을 함께 쌓지 않아야 한다');
   assert.match(triggerAppSource,/function repairOpeningStoryQueue\(\)/,'legacy saves must repair the missing Sera opening encounter');
   assert.match(triggerAppSource,/origin\.ready\|\|attacker\|\|L\.yujinInvestigationSeen\|\|\(L\._attackedRecently\|\|0\)>0/,'opening repair must use persisted attack evidence instead of one transient faction stage');

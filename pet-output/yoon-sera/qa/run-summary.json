@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "spriteVersionNumber": 2,
+  "run_dir": "C:\\Users\\seeu7\\OneDrive\\문서\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera",
+  "spritesheet": "C:\\Users\\seeu7\\OneDrive\\문서\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\final\\spritesheet-extended.webp",
+  "validation": "C:\\Users\\seeu7\\OneDrive\\문서\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\final\\validation-extended.json",
+  "chroma_despill": "C:\\Users\\seeu7\\OneDrive\\문서\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\qa\\chroma-despill-extended.json",
+  "contact_sheet": "C:\\Users\\seeu7\\OneDrive\\문서\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\qa\\contact-sheet-extended.png",
+  "direction_sheet": "C:\\Users\\seeu7\\OneDrive\\문서\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\qa\\look-directions.png",
+  "direction_semantics": "C:\\Users\\seeu7\\OneDrive\\문서\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\qa\\direction-semantics.json",
+  "blind_direction_validation": "C:\\Users\\seeu7\\OneDrive\\문서\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\qa\\direction-blind-validation.json",
+  "blind_review_resolution": null,
+  "continuity": "C:\\Users\\seeu7\\OneDrive\\문서\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\qa\\look-continuity.json",
+  "review": "C:\\Users\\seeu7\\OneDrive\\문서\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\qa\\review.json",
+  "workspace_package": "C:\\Users\\seeu7\\OneDrive\\문서\\GitHub\\QuickTradePractice\\pet-output\\yoon-sera\\package\\yoon-sera",
+  "installed_package": "C:\\Users\\seeu7\\.codex\\pets\\yoon-sera",
+  "visual_qa": "pass"
+}

@@ -47,11 +47,17 @@ const LIFE_FINANCE = window.QT_LIFE_FINANCE;
 const WEALTH = window.QT_WEALTH;
 const COMPANY = window.QT_COMPANY;
 const PAGE_LIFECYCLE = window.QT_PAGE_LIFECYCLE;
+const OVERLAY_MANAGER = window.QT_OVERLAY_MANAGER;
+const IMPORTANT_EVENT_FLOW = window.QT_IMPORTANT_EVENT_FLOW;
 const MARKET_WORKSPACE = window.QT_MARKET_WORKSPACE;
 const INFO_MARKET_PANEL = window.QT_INFO_MARKET_PANEL;
 const MONTH_CLOSE_FLOW = window.QT_MONTH_CLOSE_FLOW;
 const MONTH_CLOSE_VIEWS = window.QT_MONTH_CLOSE_VIEWS || {};
 const MARKET_BALANCE = window.QT_MARKET_BALANCE;
+const LIFE_EVENT_OVERLAY = OVERLAY_MANAGER ? OVERLAY_MANAGER.create({
+  hostId:'life-event',
+  defaultClassName:'event-host',
+}) : null;
 // 분리 View 파일이 캐시·로딩 순서 문제로 누락돼도 핵심 행동 단계는
 // 절대 건너뛰지 않는다. 외부 View가 정상 등록됐으면 이 fallback은 쓰지 않는다.
 if (!MONTH_CLOSE_VIEWS['life-action']) {
@@ -1383,8 +1389,7 @@ function restoreRequiredLifeActionStep(ctx) {
     ctx.currentIndex=lifeIndex;
     ctx.lifeActionConfirmed=false;
     ctx.completedSteps=(ctx.completedSteps||[]).filter(name=>name!=='life-action');
-    S._monthCloseEventPhase=false;
-    S._monthCloseRandomEvent=false;
+    MONTH_CLOSE_FLOW.endEventPhase(S);
     return true;
   }
   return false;
@@ -1407,9 +1412,8 @@ function renderCurrentMonthCloseStep() {
   if (step.name === 'important-events') {
     host.style.display = 'none';
     host.innerHTML = '';
-    S._monthCloseEventPhase = true;
+    MONTH_CLOSE_FLOW.beginEventPhase(S,ctx);
     if (ctx.currentRandomEvent) {
-      S._monthCloseRandomEvent = true;
       showLifeEvent(ctx.currentRandomEvent);
     } else {
       showNextImportantEvent(!!ctx.currentImportantEvent);
@@ -1422,7 +1426,7 @@ function renderCurrentMonthCloseStep() {
     const terminal = ctx.terminal;
     const resuming = !!ctx.terminalShown;
     ctx.terminalShown = true;
-    S._monthCloseEventPhase = false;
+    MONTH_CLOSE_FLOW.endEventPhase(S);
     autoSave();
     if (terminal.type === 'death') showDeathScreen(terminal.age, resuming);
     else if (terminal.type === 'bankruptcy') showCampaignBankruptcyEnding(terminal.reason, resuming);
@@ -1473,7 +1477,7 @@ function advanceMonthCloseFlow() {
     ctx.lifeActionConfirmed=true;
   }
   MONTH_CLOSE_FLOW.advance(ctx);
-  S._monthCloseEventPhase = false;
+  MONTH_CLOSE_FLOW.endEventPhase(S);
   autoSave();
   renderCurrentMonthCloseStep();
 }
@@ -1485,7 +1489,7 @@ function finishMonthCloseFlow() {
     ctx.active = false;
   }
   S.monthCloseContext = null;
-  S._monthCloseEventPhase = false;
+  MONTH_CLOSE_FLOW.endEventPhase(S);
   closeReport();
   autoSave();
   openMarket();
@@ -1498,8 +1502,7 @@ function resolveMonthCloseTerminal() {
     ctx.active = false;
   }
   S.monthCloseContext = null;
-  S._monthCloseEventPhase = false;
-  S._monthCloseRandomEvent = false;
+  MONTH_CLOSE_FLOW.endEventPhase(S);
 }
 
 /* 구버전 마감 리포트. 새 월말 큐를 복원할 수 없는 저장에만 폴백한다. */
@@ -2469,65 +2472,13 @@ const LIFE_SCENE_IMAGES = {
 };
 function lifeSceneImage(key) { return LIFE_SCENE_IMAGES[key] || LIFE_SCENE_IMAGES.life; }
 function importantEventPriority(event) {
-  if(event.seraFirstAttackEncounter)return 105;
-  if(event.firstFactionAttack)return 104;
-  if(event.factionStory==='first_attack'||event.factionStory==='attack_disclosure')return 102;
-  if(event.factionStory==='legal_result')return 100;
-  if(event.relationshipSocialEvent&&event.kind==='sera-victim-confrontation')return 92;
-  if(event.factionVictory||event.captivity||event.type==='ending')return 95;
-  if(event.dangerousTrioPrelude||event.dangerousTrioStart||event.dangerousTrioChapter)return 88;
-  if(event.type==='debt'||event.type==='incident'||event.dangerousHeroineEvent)return 85;
-  if(event.yujinInvestigation)return 96;
-  if(event.factionStory==='mentor_defense')return 94;
-  if(event.storyBridge)return 78;
-  if(event.chemistryEventId&&event.urgent)return 79;
-  if(event.groupConfession)return 76;
-  if(event.groupChatEvent)return 72;
-  if(event.relationshipSocialEvent)return 74;
-  if(event.childhoodCircleEvent||event.dangerousTrioPrelude||event.dangerousTrioStart||event.freedomTrioStart||event.freedomGuildEvent||event.freedomCounselingEvent||event.freedomPersonalEvent||event.freedomFirstOuting||event.freedomDangerousDisclosure)return 75;
-  if(event.crossEventId||event.chemistryEventId||event.story||event.bondEncounter)return 55;
-  if(event.businessRomanceEvent)return 45;
-  if(event.businessEvent)return 40;
-  if(event.monthlyMessage)return event.targetType==='rival'?30:event.targetType==='subordinate'?25:20;
-  return 50;
+  return IMPORTANT_EVENT_FLOW.priority(event);
 }
 function importantEventKey(event) {
-  if(event.seraFirstAttackEncounter)return'sera:first-attack-encounter';
-  if(event.firstFactionAttack)return'faction:first-attack-summary';
-  if(event.factionStory)return`faction:${event.factionStory}`;
-  if(event.relationshipSocialEvent)return`relationship-social:${event.kind}:${event.key||event.attackerName||event.day||''}`;
-  if(event.yujinInvestigation)return'yujin:first-investigation';
-  if(event.dangerousTrioPrelude)return`dangerous:prelude:${event.dangerousTrioPrelude}`;
-  if(event.dangerousTrioStart)return'dangerous:start';
-  if(event.dangerousTrioChapter)return'dangerous:chapter';
-  if(event.dangerousTrioAftermath)return'dangerous:aftermath';
-  if(event.freedomTrioStart)return'freedom:start';
-  if(event.freedomGuildEvent)return`freedom:guild:${event.freedomGuildEvent}`;
-  if(event.freedomTrioChapter)return'freedom:chapter';
-  if(event.freedomTrioAftermath)return'freedom:aftermath';
-  if(event.freedomCounselingEvent)return`freedom:counseling:${event.eventId}`;
-  if(event.freedomPersonalEvent)return`freedom:personal:${event.eventId}`;
-  if(event.freedomFirstOuting)return'freedom:first-outing';
-  if(event.freedomDangerousDisclosure)return'freedom:dangerous-disclosure';
-  if(event.groupConfession)return`group-confession:${event.groupId}`;
-  if(event.groupChatEvent)return`group-chat:${event.eventId}`;
-  if(event.chemistryEventId)return`chemistry:${event.chemistryEventId}`;
-  if(event.crossEventId)return`cross:${event.crossEventId}`;
-  if(event.monthlyMessage)return`message:${event.targetType}:${event.targetId!=null?event.targetId:event.personName||''}`;
-  if(event.childhoodCircleEvent)return`childhood:${event.childhoodCircleEvent}`;
-  if(event.businessRomanceEvent)return`business-romance:${event.kind||'event'}:${event.staffId||event.chapterId||event.rivalName||''}`;
-  if(event.businessEvent)return`business:${event.businessId}:${event.eventId}`;
-  if(event.story)return`story:${event.personName}`;
-  return'';
+  return IMPORTANT_EVENT_FLOW.key(event);
 }
 function importantEventRouteGroup(event){
-  if(!event)return null;
-  if(event.childhoodCircleEvent)return'childhood';
-  if(event.dangerousTrioPrelude||event.dangerousTrioStart||event.dangerousTrioChapter)return'dangerous';
-  if(event.freedomTrioStart||event.freedomTrioChapter||event.freedomPersonalEvent||event.freedomDangerousDisclosure||event.freedomFirstOuting||event.freedomGuildEvent==='offline_table')return'freedom';
-  if(event.groupConfession)return event.groupId||null;
-  if(event.businessRomanceEvent&&['quartet-story','quartet-ending'].includes(event.kind))return'business';
-  return null;
+  return IMPORTANT_EVENT_FLOW.routeGroup(event);
 }
 function routeEventAllowed(event){
   const id=importantEventRouteGroup(event),routes=window.QT_ROMANCE_ROUTES&&S.life&&QT_ROMANCE_ROUTES.ensure(S.life);
@@ -2574,17 +2525,11 @@ function releaseImportantEventReservation(event){
 }
 function queueImportantEvent(event) {
   S._importantEvents = S._importantEvents || [];
-  if(!routeEventAllowed(event)){releaseImportantEventReservation(event);return false;}
-  const key=importantEventKey(event);
-  if(key&&S._importantEvents.some(item=>importantEventKey(item)===key))return true;
-  event._priority=importantEventPriority(event);
-  const insertAt=S._importantEvents.findIndex(item=>(item._priority||importantEventPriority(item))<event._priority);
-  if(insertAt<0)S._importantEvents.push(event);else S._importantEvents.splice(insertAt,0,event);
-  if(S._importantEvents.length>12){
-    const dropped=S._importantEvents.splice(12);
-    dropped.forEach(releaseImportantEventReservation);
-  }
-  return S._importantEvents.includes(event);
+  return IMPORTANT_EVENT_FLOW.enqueue(S._importantEvents,event,{
+    maxSize:12,
+    allowed:routeEventAllowed,
+    onDrop:releaseImportantEventReservation,
+  });
 }
 function closeLifeWorkspaceLayers() {
   document.body.querySelectorAll(':scope > .life-workspace-layer').forEach(layer=>{
@@ -2600,38 +2545,86 @@ function prepareLifeEventOverlay(phoneMode) {
   if(host)host.className=phoneMode?'event-host phone-event-host':'event-host';
 }
 
+function openLifeEventOverlay(event, phoneMode) {
+  prepareLifeEventOverlay(!!phoneMode);
+  const host=$('life-event');
+  if(!host)return null;
+  if(!LIFE_EVENT_OVERLAY){
+    host.style.display='block';
+    return host;
+  }
+  const opened=LIFE_EVENT_OVERLAY.open({
+    id:importantEventKey(event)||event&&event.id||`life-event:${S.day}:${Date.now()}`,
+    type:event&&event.type||'important-event',
+    className:phoneMode?'event-host phone-event-host':'event-host',
+  });
+  return opened.ok?opened.host:null;
+}
+
+function closeLifeEventOverlay() {
+  if(LIFE_EVENT_OVERLAY){
+    LIFE_EVENT_OVERLAY.close({clear:true,forceHost:true});
+    return;
+  }
+  const host=$('life-event');
+  if(host){host.style.display='none';host.innerHTML='';}
+}
+
+function finishImportantEvent(options) {
+  const settings=Object.assign({
+    clear:null,
+    renderCapital:false,
+    renderLife:true,
+    renderChat:false,
+    save:true,
+    next:true,
+  },options||{});
+  if(S._finishingImportantEvent)return false;
+  S._finishingImportantEvent=true;
+  try{
+    closeLifeEventOverlay();
+    if(typeof settings.clear==='function')settings.clear();
+    if(settings.renderCapital)renderCapital();
+    if(settings.renderLife)renderLifePanel();
+    if(settings.renderChat)renderChatPanel();
+    if(settings.save)autoSave();
+    if(settings.next)showNextImportantEvent();
+  }finally{
+    S._finishingImportantEvent=false;
+  }
+  return true;
+}
+
 function showNextImportantEvent(resumeCurrent = false) {
   prepareLifeEventOverlay(false);
   const queue = S._importantEvents || [];
-  const ctx = S._monthCloseEventPhase && S.monthCloseContext && S.monthCloseContext.active
-    ? S.monthCloseContext : null;
+  const ctx = MONTH_CLOSE_FLOW.activeEventContext(S);
   let event = null;
   if (resumeCurrent && ctx && ctx.currentImportantEvent) {
     if(routeEventAllowed(ctx.currentImportantEvent))event=ctx.currentImportantEvent;
     else{
       releaseImportantEventReservation(ctx.currentImportantEvent);
-      ctx.currentImportantEvent=null;
+      MONTH_CLOSE_FLOW.clearImportant(S);
     }
   }
   if(!event){
-    if (ctx) ctx.currentImportantEvent = null;
-    event = queue.shift();
-    while(event&&!routeEventAllowed(event)){
-      releaseImportantEventReservation(event);
-      event=queue.shift();
-    }
+    if (ctx) MONTH_CLOSE_FLOW.clearImportant(S);
+    event = IMPORTANT_EVENT_FLOW.take(queue,{
+      allowed:routeEventAllowed,
+      onDrop:releaseImportantEventReservation,
+    });
     if (ctx && event) {
-      ctx.currentImportantEvent = event;
+      MONTH_CLOSE_FLOW.holdImportant(S,event);
       autoSave();
     }
   }
   if (!event) {
-    if (S._monthCloseEventPhase) {
+    closeLifeEventOverlay();
+    if (ctx) {
       const opened = maybeLifeEvent();
       if (opened) {
-        S._monthCloseRandomEvent = true;
         if (ctx) {
-          ctx.currentRandomEvent = S._curEvent || null;
+          MONTH_CLOSE_FLOW.holdRandom(S,S._curEvent||null);
           autoSave();
         }
       }
@@ -2641,6 +2634,7 @@ function showNextImportantEvent(resumeCurrent = false) {
     maybeLifeEvent();
     return;
   }
+  openLifeEventOverlay(event,!!event.monthlyMessage);
   if (event.relationshipSocialEvent) { showRelationshipSocialEvent(event); return; }
   if (event.childhoodCircleEvent) { showChildhoodCircleEvent(event.childhoodCircleEvent); return; }
   if (event.dangerousTrioPrelude) { showDangerousTrioPrelude(event.dangerousTrioPrelude); return; }
@@ -2663,7 +2657,7 @@ function showNextImportantEvent(resumeCurrent = false) {
   if (event.factionVictory) { showFactionVictoryEnding(); return; }
   if (event.businessEvent) { showBusinessReport(event); return; }
   if (event.businessRomanceEvent) { showBusinessRomanceEvent(event); return; }
-  if (event.monthlyMessage) { prepareLifeEventOverlay(true); showMonthlyMessagePopup(event); return; }
+  if (event.monthlyMessage) { showMonthlyMessagePopup(event); return; }
   if (event.bondEncounter) { showBondEncounter(event); return; }
   if (event.dangerousHeroineEvent) { showDangerousHeroineEvent(event.dangerousHeroineEvent); return; }
   if (event.chemistryEventId) { showCharacterChemistryEvent(event.chemistryEventId); return; }
@@ -2675,7 +2669,7 @@ function showNextImportantEvent(resumeCurrent = false) {
   if (ctx && MONTH_CLOSE_VIEWS['major-event']) {
     const marketHost = $('market-close');
     const lifeHost = $('life-event');
-    if (lifeHost) { lifeHost.style.display = 'none'; lifeHost.innerHTML = ''; }
+    if (lifeHost) closeLifeEventOverlay();
     marketHost.style.display = 'block';
     MONTH_CLOSE_VIEWS['major-event'].render(marketHost, {
       event:Object.assign({ scene:lifeSceneImage(event.type) }, event),
@@ -2707,8 +2701,7 @@ function showNextImportantEvent(resumeCurrent = false) {
      </div>`;
   const confirm = $('important-event-confirm');
   if (confirm) confirm.addEventListener('click', () => {
-    host.style.display = 'none'; host.innerHTML = '';
-    showNextImportantEvent();
+    finishImportantEvent({renderLife:false});
   });
 }
 
@@ -2754,7 +2747,10 @@ function resolveBusinessReport(choiceId){
   const cashText=result.cash?` · 현금 ${result.cash>0?'+':'-'}${won(Math.abs(result.cash))}`:'';
   $('business-report-outcome').innerHTML=`<div class="story-dialogue"><b>${managerName}</b> “${result.outcome}”</div><div class="oc-changes">${result.detail}${cashText}${managerIdentity?` · 숨은 신뢰 ${managerIdentity.bond}/100`:''}</div><button id="business-report-confirm" class="session-btn opening">보고 확인 · 다음 사건 보기</button>`;
   addNews(`${result.type.icon} [사업 결정] ${managerName} · ${result.outcome}${cashText}`,result.cash>=0?'good':'neutral');
-  $('business-report-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._businessReport=null;renderCapital();renderLifePanel();autoSave();showNextImportantEvent();});
+  $('business-report-confirm').addEventListener('click',()=>finishImportantEvent({
+    clear:()=>{S._businessReport=null;},
+    renderCapital:true,
+  }));
   renderCapital();renderLifePanel();autoSave();
 }
 
@@ -2799,8 +2795,10 @@ function resolveRelationshipSocialEvent(choiceId){
     :`${pending.kind==='celebrity-disclosure'?'📸':'📵'} ${result.text}`;
   addNews(headline,result.tone||'neutral');
   $('relationship-social-confirm').addEventListener('click',()=>{
-    host.style.display='none';host.innerHTML='';S._relationshipSocialEvent=null;
-    renderCapital();renderLifePanel();autoSave();showNextImportantEvent();
+    finishImportantEvent({
+      clear:()=>{S._relationshipSocialEvent=null;},
+      renderCapital:true,
+    });
   });
   renderCapital();renderLifePanel();autoSave();
 }
@@ -2976,8 +2974,10 @@ function resolveBusinessRomanceEvent(choiceId){
   $('business-romance-outcome').innerHTML=`<div class="oc-text ${result.tone==='bad'?'down':result.tone==='good'?'up':''}">${result.badEnding?`<b>BAD END · ${result.title}</b><br>`:''}${result.text}${result.reply?`<div class="story-dialogue"><b>${BUSINESS_ROMANCE.profile(result.staffId).name}</b> “${result.reply}”</div>`:''}${cashText}${result.meta?`<div class="oc-changes">${result.meta}</div>`:''}</div>${retry}<button id="business-romance-confirm" class="session-btn ${result.managementBadEnding||result.businessRouteBadEnding?'':'opening'}">기록하고 다음 사건 보기</button>`;
   addNews(`${result.badEnding?'🕳️':result.quartet||result.groupStory?'🏢':result.revealed?'🎭':'💼'} ${result.text}`,result.tone||'neutral');
   $('business-romance-confirm').addEventListener('click',()=>{
-    host.style.display='none';host.innerHTML='';S._businessRomanceEvent=null;S._businessBadRetry=null;
-    renderCapital();renderLifePanel();autoSave();showNextImportantEvent();
+    finishImportantEvent({
+      clear:()=>{S._businessRomanceEvent=null;S._businessBadRetry=null;},
+      renderCapital:true,
+    });
   });
   const retryButton=$('business-romance-retry');if(retryButton)retryButton.addEventListener('click',retryBusinessManagementEnding);
   renderCapital();renderLifePanel();autoSave();
@@ -3083,7 +3083,10 @@ function resolveMonthlyMessage(kind){
   const room=personChat(S.life,pending.target.name);room.unread=0;
   const unlock=!pending.isContact&&!pending.isRival&&courtshipReadiness(pending.target).ready?`<div class="oc-changes">💘 ${pending.target.name}님이 다음에는 미리 약속을 잡아 만나자고 말했습니다.</div>`:'';
   $('message-event-outcome').innerHTML=`<div class="phone-bubble mine">${result.text}</div>${result.answer?`<div class="phone-bubble incoming followup">${result.answer}</div>`:''}${result.meta?`<div class="oc-changes">${result.meta}</div>`:''}${unlock}<button id="message-event-confirm" class="phone-chat-confirm">대화 닫기 · 다음 알림</button>`;
-  $('message-event-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._monthlyMessage=null;renderLifePanel();renderChatPanel();autoSave();showNextImportantEvent();});
+  $('message-event-confirm').addEventListener('click',()=>finishImportantEvent({
+    clear:()=>{S._monthlyMessage=null;},
+    renderChat:true,
+  }));
 }
 
 function showGroupChatEvent(eventId){
@@ -3118,8 +3121,10 @@ function resolveGroupChatEvent(choiceId){
   $('group-chat-event-outcome').innerHTML=`<div class="phone-bubble mine">${result.choice.text}</div><div class="phone-bubble incoming followup">${result.choice.reply}</div><div class="oc-changes">다음 접속의 온기 ${result.choice.warmth>=0?'+':''}${result.choice.warmth||0} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}</div><button id="group-chat-event-confirm" class="phone-chat-confirm">단체방을 닫는다</button>`;
   addNews(`💬 ${result.event.title} · 휴대폰의 답을 다시 플레이어가 직접 고쳤습니다`,result.choice.control?'bad':'neutral');
   $('group-chat-event-confirm').addEventListener('click',()=>{
-    host.style.display='none';host.innerHTML='';S._groupChatEvent=null;
-    renderLifePanel();renderChatPanel();autoSave();showNextImportantEvent();
+    finishImportantEvent({
+      clear:()=>{S._groupChatEvent=null;},
+      renderChat:true,
+    });
   });
   renderLifePanel();autoSave();
 }
@@ -3163,7 +3168,9 @@ function resolveBondEncounter(kind){
   const ready=courtshipReadiness(r);
   host.querySelector('.event-options').innerHTML='';
   $('bond-encounter-outcome').innerHTML=`<div class="story-dialogue"><b>${r.name}</b> “${text}”</div><div class="oc-changes">호감 ${affection>=0?'+':''}${affection} · 신뢰 ${trust>=0?'+':''}${trust}</div>${gainedContact?`<div class="oc-text up"><b>📱 개인 연락처 교환</b><br>${r.name}님이 직접 번호를 건넸습니다.</div>`:''}${ready.ready?`<div class="oc-text up">다음에는 우연이 아니라 약속을 잡아 만나도 좋을 것 같습니다.</div>`:''}<button id="bond-encounter-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
-  $('bond-encounter-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._bondEncounter=null;renderLifePanel();autoSave();showNextImportantEvent();});
+  $('bond-encounter-confirm').addEventListener('click',()=>finishImportantEvent({
+    clear:()=>{S._bondEncounter=null;},
+  }));
 }
 
 function showCrossCharacterEvent(eventId) {
@@ -3232,8 +3239,10 @@ function resolveCrossCharacterEvent(choiceIndex) {
   const out = $('cross-event-outcome');
   out.innerHTML = `<div class="oc-text">${choice.outcome}</div>${changes.length ? `<div class="oc-changes">${changes.join(' · ')}</div>` : ''}<button id="cross-event-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
   $('cross-event-confirm').addEventListener('click', () => {
-    host.style.display = 'none'; host.innerHTML = ''; S._crossEvent = null;
-    renderCapital(); renderLifePanel(); autoSave(); showNextImportantEvent();
+    finishImportantEvent({
+      clear:()=>{S._crossEvent=null;},
+      renderCapital:true,
+    });
   });
 }
 
@@ -3295,8 +3304,10 @@ function resolveCharacterChemistryEvent(choiceIndex){
   const out=$('chemistry-event-outcome');
   out.innerHTML=`<div class="oc-text">${choice.outcome}</div>${changes.length?`<div class="oc-changes">${changes.join(' · ')}</div>`:''}<button id="chemistry-event-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
   $('chemistry-event-confirm').addEventListener('click',()=>{
-    host.style.display='none';host.innerHTML='';S._chemistryEvent=null;
-    renderCapital();renderLifePanel();autoSave();showNextImportantEvent();
+    finishImportantEvent({
+      clear:()=>{S._chemistryEvent=null;},
+      renderCapital:true,
+    });
   });
 }
 
@@ -3381,7 +3392,9 @@ function resolveDangerousHeroineEvent(choiceIndex){
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
   const outingUnlocked=choice.unlockOuting?'<div class="story-ending"><b>🌆 자발적인 외출 해금 · 서로 문을 열어 준 사람</b><br>세라가 당신을 끌어낸 것이 아니라 자기 공포를 먼저 말하고 밖에서 기다렸습니다. 이제 혼자 문밖을 나설 수 있고, 누군가와의 약속은 그 사람의 연락과 개인적인 사건 속에서 이어집니다.</div>':'';
   $('danger-heroine-outcome').innerHTML=`<div class="oc-text">${choice.result}</div>${outingUnlocked}${referral?`<div class="important-event-detail ${referral.given?'up':'neutral'}">${referral.text}</div>`:''}<div class="oc-changes">호감 ${choice.affection>=0?'+':''}${choice.affection||0} · 신뢰 ${choice.trust>=0?'+':''}${choice.trust||0}${choice.danger?` · 위험도 ${choice.danger>0?'+':''}${choice.danger}`:''}${choice.cash?` · ${choice.cash>0?'수입 +':'지출 '}${won(Math.abs(choice.cash))}`:''}</div><button id="danger-heroine-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
-  $('danger-heroine-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._dangerousHeroineEvent=null;renderLifePanel();autoSave();showNextImportantEvent();});
+  $('danger-heroine-confirm').addEventListener('click',()=>finishImportantEvent({
+    clear:()=>{S._dangerousHeroineEvent=null;},
+  }));
 }
 
 function showFreedomCounselingEvent(eventId){
@@ -3408,7 +3421,9 @@ function resolveFreedomCounselingEvent(choiceId){
   const options=host.querySelector('.phone-reply-options');if(options)options.innerHTML='';
   $('freedom-counseling-outcome').innerHTML=`<div class="phone-bubble mine">${result.choice.text}</div><div class="phone-bubble incoming followup">${result.choice.result}</div><div class="oc-changes">호감 +${result.choice.affection||0} · 신뢰 +${result.choice.trust||0} · 파티의 온기 +${result.choice.warmth||0}</div>${result.complete?'<div class="important-event-detail up">세 사람의 고민을 모두 들었습니다. 정모에서 생긴 현실 친구 관계를 어떻게 이어갈지 이야기할 차례입니다.</div>':''}<button id="freedom-counseling-confirm" class="phone-chat-confirm">통화를 마친다 · 다음 알림</button>`;
   addNews(`${result.event.icon} ${result.event.name}의 고민 상담 · 약속보다 먼저 이어진 통화`,'good');
-  $('freedom-counseling-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._freedomCounselingEvent=null;renderLifePanel();autoSave();showNextImportantEvent();});
+  $('freedom-counseling-confirm').addEventListener('click',()=>finishImportantEvent({
+    clear:()=>{S._freedomCounselingEvent=null;},
+  }));
   renderLifePanel();autoSave();
 }
 function showFreedomDangerousDisclosure(){
@@ -3425,7 +3440,7 @@ function resolveFreedomDangerousDisclosure(choiceId){
   const options=host.querySelector('.phone-reply-options');if(options)options.innerHTML='';
   $('freedom-disclosure-outcome').innerHTML=`<div class="phone-bubble mine">${result.choice.text}</div><div class="phone-bubble incoming followup">${result.choice.result}</div><div class="oc-changes">파티의 온기 +${result.choice.warmth} · 세 사람 신뢰 +${result.choice.trust}</div><div class="important-event-detail up">숨겨진 관계가 사라졌습니다. 이후 두 그룹이 직접 만나는 사건이 열릴 수 있습니다.</div><button id="freedom-disclosure-confirm" class="phone-chat-confirm">단체방을 닫는다</button>`;
   addNews('📱 다음 접속 단체방 · 광기 3인 공동생활 사실을 직접 공개했습니다','neutral');
-  $('freedom-disclosure-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';renderLifePanel();autoSave();showNextImportantEvent();});
+  $('freedom-disclosure-confirm').addEventListener('click',()=>finishImportantEvent());
   renderLifePanel();autoSave();
 }
 function showFreedomFirstOuting(){
@@ -3445,7 +3460,7 @@ function resolveFreedomFirstOuting(choiceId){
   if(result.blocked){
     const options=host.querySelector('.event-options');if(options)options.innerHTML='';
     $('freedom-first-outing-outcome').innerHTML='<div class="important-event-detail">정모 전에 관계 상태가 달라졌습니다. 세 사람은 현실을 캐지 않고 온라인 친구로 남기로 했습니다. 실명·직업·초상화·연락처는 열리지 않습니다.</div><button id="freedom-first-outing-confirm" class="session-btn opening">다음 접속 공지를 확인한다</button>';
-    $('freedom-first-outing-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';renderLifePanel();autoSave();showNextImportantEvent();});
+    $('freedom-first-outing-confirm').addEventListener('click',()=>finishImportantEvent());
     return;
   }
   if(result.reveal){
@@ -3474,7 +3489,7 @@ function resolveFreedomFirstOuting(choiceId){
   $('freedom-first-outing-outcome').innerHTML=`<div class="oc-text up">${choiceId==='call'?'현관에서 게임 카페까지 길드 음성 채팅이 한 번도 끊기지 않았습니다.':'누구에게도 증명하지 않고 약속 장소에 도착했습니다.'} 네 개의 길드 키링을 테이블에 올린 뒤에야 세 사람은 실명과 직업을 직접 밝혔습니다.</div>${rescue}${freedomState.dangerousDisclosurePending?'<div class="important-event-detail">현재 공동생활 관계는 이 자리에서 성급하게 폭로하지 않습니다. 네 사람의 현실 우정이 생긴 뒤, 관계가 달라질 수 있는 중반 대화에서 직접 공개해야 합니다.</div>':''}<button id="freedom-first-outing-confirm" class="session-btn opening">첫 정모를 마친다</button>`;
   addNews('🎮 자유인 3인조 첫 정모 · 닉네임에서 현실 친구로','good');
   $('freedom-first-outing-confirm').addEventListener('click',()=>{
-    host.style.display='none';host.innerHTML='';renderLifePanel();autoSave();showNextImportantEvent();
+    finishImportantEvent();
   });
   renderLifePanel();autoSave();
 }
@@ -3501,7 +3516,10 @@ function resolveFreedomPersonalEvent(choiceId){
   const bridge=result.checkpointComplete?`<div class="important-event-detail up">세 사람의 이번 개인 이야기가 모두 공통 단체방으로 모였습니다. 이제 자유인 공통 ${result.resumeStage+1}장이 이어집니다.</div>`:'';
   $('freedom-personal-outcome').innerHTML=`<div class="story-dialogue"><b>${result.r.name}</b> “${result.choice.result}”</div><div class="oc-changes">호감 ${result.choice.affection>=0?'+':''}${result.choice.affection||0} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0} · 안식감 ${result.choice.rest>=0?'+':''}${result.choice.rest||0}${result.choice.happy?` · 행복 ${result.choice.happy>0?'+':''}${result.choice.happy}`:''}${result.choice.stress?` · 스트레스 ${result.choice.stress>0?'+':''}${result.choice.stress}`:''}${result.choice.cash?` · 현금 ${result.choice.cash>0?'+':'-'}${won(Math.abs(result.choice.cash))}`:''}</div>${bridge}<button id="freedom-personal-confirm" class="session-btn opening">확인 · 다음 사건 보기</button>`;
   addNews(`${result.event.icon} ${result.event.title} · ${result.choice.text}`,result.choice.tag==='control'?'bad':'good');
-  $('freedom-personal-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._freedomPersonalEvent=null;renderCapital();renderLifePanel();autoSave();showNextImportantEvent();});
+  $('freedom-personal-confirm').addEventListener('click',()=>finishImportantEvent({
+    clear:()=>{S._freedomPersonalEvent=null;},
+    renderCapital:true,
+  }));
   renderCapital();renderLifePanel();autoSave();
 }
 
@@ -3531,8 +3549,7 @@ function showJobIncident(incident) {
      </div>`;
   const confirmBtn = $('job-incident-confirm');
   if (confirmBtn) confirmBtn.addEventListener('click', () => {
-    host.style.display = 'none'; host.innerHTML = '';
-    showNextImportantEvent();
+    finishImportantEvent({renderLife:false});
   });
 }
 
@@ -3702,20 +3719,19 @@ function resolveEvent(i) {
 }
 
 function closeLifeEvent() {
-  const host = $('life-event'); if (host) { host.style.display = 'none'; host.innerHTML = ''; }
+  closeLifeEventOverlay();
   S._curEvent = null;
   if(S._forcedImportantLifeEvent){
     S._forcedImportantLifeEvent=false;
-    if(S.monthCloseContext)S.monthCloseContext.currentImportantEvent=null;
+    MONTH_CLOSE_FLOW.clearImportant(S);
     autoSave();
     const hasQueuedImportant=(S._importantEvents||[]).length>0;
-    const continuingMonthClose=!!(S._monthCloseEventPhase&&S.monthCloseContext&&S.monthCloseContext.active);
+    const continuingMonthClose=!!MONTH_CLOSE_FLOW.activeEventContext(S);
     if(hasQueuedImportant||continuingMonthClose)showNextImportantEvent();
     return;
   }
   if (S._monthCloseRandomEvent) {
-    S._monthCloseRandomEvent = false;
-    if (S.monthCloseContext) S.monthCloseContext.currentRandomEvent = null;
+    MONTH_CLOSE_FLOW.clearRandom(S);
     if((S._importantEvents||[]).length)showNextImportantEvent();
     else advanceMonthCloseFlow();
   } else if (S.phase === 'closed' && S.monthCloseContext && S.monthCloseContext.active) {
@@ -3818,7 +3834,7 @@ function doNaraeConsulting(){
     if(host){
       host.style.display='block';
       host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">📘 투자지원센터 · 현장 상담</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-guide.png" alt="나래가 센터 입구까지 마중 나온 장면"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'happy')}" alt="나래"><div><strong>나래 · 투자교육 매니저</strong><br><span class="muted">“온라인 변경은 안 된다고 했죠. 그래도 엘리베이터까지는 내려왔네요.”</span></div></div><div class="event-desc">약속 시간이 지나기 전에 나래가 건물 1층까지 찾아왔습니다. 사람 많은 길을 피해서 걷고, 센터에서도 출입문과 가장 가까운 자리를 비워 두었습니다. 차트를 읽는 시간보다 집 밖에 머문 시간이 더 길게 느껴졌습니다.</div><div class="oc-changes">투자 감각 +12${unlocked.length?` · ${unlocked.join(' · ')} 습득`:''} · 나래의 동행 상담 ${state.escortedSessions}회</div><button id="narae-consult-confirm" class="session-btn opening">상담을 마치고 집으로 돌아간다</button></div></div>`;
-      $('narae-consult-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';afterLifeAction('경력');});
+  $('narae-consult-confirm').addEventListener('click',()=>{closeLifeEventOverlay();afterLifeAction('경력');});
       autoSave();return;
     }
   }
@@ -3840,7 +3856,7 @@ function showHomeLifeModal(){
   host.innerHTML=`<div class="window event-window home-life-window"><div class="title-bar event-bar"><div class="title-bar-text">🏠 오늘은 집에서</div><div class="title-bar-controls"><button aria-label="Close" id="home-life-x"></button></div></div><div class="window-body"><div class="home-life-summary"><b>${trioHere?'위험한 세 사람과 공동생활 중':seraHere?seraSummary:'혼자 보내는 시간'}</b><small>${home.icon} ${home.name} · ${tenure?tenure.name:'거주'} · 행복 ${Math.round(L.happy||0)}/100 · 스트레스 ${Math.round(L.stress||0)}/100</small></div><div class="route-sep">이번 주를 집에서 보내기</div><div class="home-action-grid"><button class="life-btn" data-act="rest">🛌 아무 일정 없이 푹 쉰다 <small>${trioHere?'공동생활 휴식 장면':'생활비 30,000 · 스트레스 -22 · 건강 +3'}${seraHere&&!trioHere?' · 세라와 쉬는 방식 선택':''}</small></button><button class="life-btn" data-act="decompress">🌿 휴대폰을 끄고 마음을 정리한다 <small>비용 없음 · 스트레스 -16 · 행복 +3</small></button>${indoor.map(h=>`<button class="life-btn" data-act="hobby" data-id="${h.id}">${h.emoji} ${h.id==='game'&&gameLabel?gameLabel:h.name} <small>${won(h.cost)}</small></button>`).join('')}</div>${trioHome}${seraHome}<button id="home-life-close" class="session-btn">닫기</button></div></div>`;
   wireLifeHub(host);
   host.querySelectorAll('[data-trio-home]').forEach(button=>button.addEventListener('click',()=>resolveDangerousTrioHomeMoment(button.dataset.trioHome)));
-  const close=()=>{host.style.display='none';host.innerHTML='';};
+  const close=()=>closeLifeEventOverlay();
   $('home-life-x').addEventListener('click',close);$('home-life-close').addEventListener('click',close);
 }
 
@@ -3858,7 +3874,7 @@ function resolveDangerousTrioHomeMoment(id){
   DANGEROUS_HEROINE_NAMES.forEach(name=>{const r=metRecord(L,name);if(r)r.obsession=clamp((r.obsession||0)+moment.obsession,0,100);});
   addNews(`${moment.icon} 위험한 세 사람과 집에서 보낸 하루 · 체력 ${moment.health>=0?'+':''}${moment.health} · 공생 안정도 +${moment.stability}`,'good');
   host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${moment.icon} 공동생활 · 자취방</div></div><div class="window-body"><img class="life-scene-banner" src="${moment.scene}" alt="${moment.title}"><div class="event-title">${moment.title}</div><div class="event-desc">${moment.desc}</div><div class="oc-changes">행복 +${moment.happy} · 스트레스 ${moment.stress} · 체력 +${moment.health} · 공생 안정도 +${moment.stability} · 집착 ${moment.obsession}</div><button id="trio-home-confirm" class="session-btn opening">같은 집의 하루를 마친다</button></div></div>`;
-  $('trio-home-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';afterLifeAction('휴식');});
+  $('trio-home-confirm').addEventListener('click',()=>{closeLifeEventOverlay();afterLifeAction('휴식');});
   autoSave();
 }
 
@@ -3916,7 +3932,7 @@ function resolveSeraHomeMoment(id){
   host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${moment.icon} 윤세라와 집에서</div></div><div class="window-body"><img class="life-scene-banner" src="${moment.scene}" alt="${moment.title}"><div class="event-title">${moment.title}</div><div class="event-desc">${moment.desc}</div><div class="story-dialogue"><b>윤세라</b> “${moment.line}”</div><div class="oc-changes">행복 +${moment.happy} · 스트레스 ${moment.stress} · 호감 +${moment.affection} · 신뢰 +${moment.trust} · 집착 ${moment.obsession>=0?'+':''}${moment.obsession}</div><button id="sera-home-confirm" class="session-btn opening">같은 집의 하루를 마친다</button></div></div>`;
   $('sera-home-confirm').addEventListener('click',()=>{
     if(L.seraHousing==='temporary'&&(L.seraTemporaryMoments||0)>=3){showSeraHousingDecision(r);return;}
-    host.style.display='none';host.innerHTML='';afterLifeAction('휴식');
+    closeLifeEventOverlay();afterLifeAction('휴식');
   });
   autoSave();
 }
@@ -3947,7 +3963,7 @@ function showSeraHousingDecision(sera){
     const attackKnown=!!(S.life.seraRescueOrigin&&S.life.seraRescueOrigin.playerAttackDay);
     if(attackKnown)queueYujinInvestigation(choice,S.life.seraRescueOrigin.attacker);
     queueFactionMentorAfterSera();
-    host.style.display='none';host.innerHTML='';afterLifeAction('휴식');autoSave();
+    closeLifeEventOverlay();afterLifeAction('휴식');autoSave();
   }));
 }
 
@@ -3973,7 +3989,7 @@ function showIncomeWorkModal(){
   const options=incomeWorkOptions(),repeat=monthActionCount('수입');
   host.style.display='block';
   host.innerHTML=`<div class="window event-window income-work-window"><div class="title-bar event-bar"><div class="title-bar-text">💵 이번 주 돈 벌기</div><div class="title-bar-controls"><button aria-label="Close" id="income-work-x"></button></div></div><div class="window-body"><div class="home-life-summary"><b>현재 현금 ${won(S.capital)}원</b><small>이번 달 수입 행동 ${repeat}회 · ${repeat?`반복 피로로 이번 보수 ${Math.round(Math.max(.65,1-repeat*.12)*100)}%`:'첫 수입 행동은 보수 100%'}</small></div><div class="event-desc">자유시간 1회를 사용해 즉시 현금을 받습니다. 정규직은 없지만 시장과 현장에서 작은 일을 맡아 투자금이나 생활비를 직접 마련할 수 있습니다.</div><div class="event-options">${options.map(option=>`<button class="event-opt" data-income-work="${option.id}"><b>${option.icon} ${option.name} · +${won(option.pay)}원</b><span>${option.desc}</span><small>스트레스 +${option.stress}${option.skill?' · 운영 역량 +1':''}</small></button>`).join('')}<button class="event-opt" id="income-work-close">이번 주는 다른 일을 한다</button></div></div></div>`;
-  const close=()=>{host.style.display='none';host.innerHTML='';};
+  const close=()=>closeLifeEventOverlay();
   host.querySelectorAll('[data-income-work]').forEach(button=>button.addEventListener('click',()=>resolveIncomeWork(button.dataset.incomeWork)));
   $('income-work-x').addEventListener('click',close);$('income-work-close').addEventListener('click',close);
 }
@@ -3987,7 +4003,7 @@ function resolveIncomeWork(id){
   if(option.skill){const career=CAREER.ensure(S.life);career.skill=clamp((career.skill||0)+option.skill,0,100);}
   addNews(`${option.icon} ${option.name} 완료 · 현금 +${won(option.pay)}원 · 스트레스 +${option.stress}`,'good');
   flashToast(`${option.icon} +${won(option.pay)}원 · 바로 입금됐습니다`,'good');
-  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
+  closeLifeEventOverlay();
   afterLifeAction('수입');
 }
 
@@ -4002,7 +4018,7 @@ function showSeraRestModal(sera){
   const host=$('life-event');if(!host)return;
   host.style.display='block';
   host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🛌 윤세라와 쉬는 밤</div><div class="title-bar-controls"><button aria-label="Close" id="sera-rest-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-sera-shoulder-confession.png" alt="소파에서 어깨를 맞대고 쉬는 윤세라"><div class="event-title">세라는 불을 끈 뒤에도 현관과 휴대전화를 번갈아 봅니다.</div><div class="event-desc">“그냥 자도 돼요. 제가 보고 있을게요.” 안심시키는 말인지, 감시하겠다는 말인지 구분하기 어렵습니다. 이번 밤의 규칙을 정할 수 있습니다.</div><div class="event-options"><button class="event-opt" data-sera-rest="open"><b>🌅 휴대전화를 엎어 두고 같은 소파에서 쉰다</b><span>서로 깨어 있는지 확인하지 않고 아침까지 기다립니다.</span><small>행복 +8 · 신뢰 +5 · 집착 -4</small></button><button class="event-opt hot" data-sera-rest="locked"><b>🔐 오늘만 같이 문을 잠그자고 한다</b><span>세라가 하려던 말을 당신이 먼저 꺼냅니다.</span><small>행복 +10 · 호감 +6 · 상호집착 +1</small></button><button class="event-opt" data-sera-rest="alone"><b>🚪 오늘은 각자 방에서 쉬자고 한다</b><span>혼자 있을 시간도 동거의 약속에 포함시킵니다.</span><small>행복 -3 · 신뢰 +2 · 집착 +4</small></button></div></div></div>`;
-  const close=()=>{host.style.display='none';host.innerHTML='';showHomeLifeModal();};
+  const close=()=>{closeLifeEventOverlay();showHomeLifeModal();};
   $('sera-rest-x').addEventListener('click',close);
   host.querySelectorAll('[data-sera-rest]').forEach(button=>button.addEventListener('click',()=>resolveSeraRest(sera,button.dataset.seraRest)));
 }
@@ -4020,7 +4036,7 @@ function resolveSeraRest(sera,choice){
   pushPersonMessage(L,sera,out.line,false);
   addNews(`🛌 윤세라와 동거 휴식 · 행복 ${out.happy>=0?'+':''}${out.happy} · 집착 ${out.obsession>=0?'+':''}${out.obsession}`,'neutral');
   host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🌙 같은 집에서 맞은 아침</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-sera-shoulder-confession.png" alt="윤세라와 함께 쉰 다음 날 아침"><div class="event-desc">${out.text}</div><div class="story-dialogue"><b>윤세라</b> “${out.line}”</div><div class="oc-changes">스트레스 -22 · 건강 +3 · 행복 ${out.happy>=0?'+':''}${out.happy} · 호감 ${out.affection>=0?'+':''}${out.affection} · 신뢰 +${out.trust} · 집착 ${out.obsession>=0?'+':''}${out.obsession}${out.mutual?' · 상호집착 +1':''}</div><button id="sera-rest-confirm" class="session-btn opening">아침 일정을 시작한다</button></div></div>`;
-  $('sera-rest-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';afterLifeAction('휴식');});
+  $('sera-rest-confirm').addEventListener('click',()=>{closeLifeEventOverlay();afterLifeAction('휴식');});
   autoSave();
 }
 function doDecompressMonth() {
@@ -4107,7 +4123,7 @@ function showIndustryGatherings(){
     html=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🥂 사교 모임</div><div class="title-bar-controls"><button aria-label="Close" id="industry-gathering-x"></button></div></div><div class="window-body"><div class="event-desc">사교 모임 정보를 불러오는 중 문제가 발생했습니다.<br><span class="muted">${(e&&e.message||e||'').toString().slice(0,120)}</span></div><button id="industry-gathering-close" class="session-btn">닫기</button></div></div>`;
   }
   host.style.display='block';host.innerHTML=html;
-  const close=()=>{host.style.display='none';host.innerHTML='';};
+  const close=()=>closeLifeEventOverlay();
   host.querySelectorAll('[data-industry-gathering]').forEach(button=>button.addEventListener('click',()=>attendIndustryGathering(button.dataset.industryGathering)));
   const x=$('industry-gathering-x'),c=$('industry-gathering-close');
   if(x)x.addEventListener('click',close);if(c)c.addEventListener('click',close);
@@ -4132,7 +4148,7 @@ function attendIndustryGathering(id){
   let message=`${gathering.icon} ${gathering.name} 참가 · 사교 실적 ${result.standing}`;
   addNews(message,'good');
   flashToast(message,'good');
-  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
+  closeLifeEventOverlay();
   const chaerin=metRecord(S.life,'한채린');
   if(!chaerin&&gathering.tier>=1&&SOCIAL.ensure(S.life).industry.meetings>=1&&S.life.chaerinLeadLastDay!==S.day){
     showNaraeChaerinLead(gathering,result.introduced);
@@ -4151,7 +4167,7 @@ function showNaraeChaerinLead(gathering,introducedId){
   S._chaerinLead={gathering,introducedId};
   host.style.display='block';
   host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">📘 나래의 인맥 수업 · 끝난 뒤의 초대</div><div class="title-bar-controls"><button aria-label="Close" id="chaerin-lead-x"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래</strong><br><span class="muted">“오늘은 명함보다 사람 보는 법을 배울 차례예요.”</span></div></div><div class="event-desc">모임이 끝나자 나래는 로비가 아니라 전용 엘리베이터 쪽으로 걷습니다. 방금까지 당신을 없는 사람 취급하던 참석자 몇 명이 그쪽을 보고 먼저 길을 비킵니다.</div><div class="story-dialogue"><b>나래</b> “위층에 업계에서 유명한 ‘신입 털이’가 있어요. 말려들지 말고 구경만 하려면 지금 따라와요. 싫으면 오늘 배운 것만 챙겨서 돌아가도 되고요.”</div><div class="event-options"><button class="event-opt opening" id="chaerin-lead-follow"><b>나래를 따라 전용 엘리베이터에 탄다</b><span>이름이 공개되지 않은 후원자의 자리를 구경합니다.</span></button><button class="event-opt" id="chaerin-lead-leave"><b>오늘은 여기까지 하고 돌아간다</b><span>다음 사교모임에서 다시 기회를 기다립니다.</span></button></div></div></div>`;
-  const leave=()=>{host.style.display='none';host.innerHTML='';S._chaerinLead=null;afterLifeAction('인맥');};
+  const leave=()=>{closeLifeEventOverlay();S._chaerinLead=null;afterLifeAction('인맥');};
   $('chaerin-lead-follow').addEventListener('click',()=>showChaerinIndustryEncounter(gathering,introducedId));
   [$('chaerin-lead-x'),$('chaerin-lead-leave')].forEach(button=>button.addEventListener('click',leave));
   autoSave();
@@ -4171,7 +4187,7 @@ function showChaerinIndustryEncounter(gathering,introducedId){
   host.style.display='block';
   host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">👑 ${gathering.name} · 신입을 구경하는 사람</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-chaerin-contract.png" alt="사교모임의 후원자로 나타난 한채린"><div class="event-title">위층에서 당신은 순식간에 모임의 구경거리가 됐습니다.</div><div class="event-desc">나래가 잠시 자리를 비운 사이, 업계에서 신입을 골라내기로 유명한 참석자들이 실적과 집안과 자산을 번갈아 묻습니다. 제대로 답할 틈도 없이 웃음이 번집니다. 그때 한채린이 잔을 든 채 다가와 그들을 먼저 비웃습니다.</div>${caseLink}<div class="story-dialogue"><b>한채린</b> “그 질문에 답한다고 여기 사람이 되는 줄 알았어? 정말 순진하네. 그래도 저 사람들보다 네 표정이 더 재미있으니까, 잠깐 빌려갈게.”</div><div class="event-desc">채린은 당신을 구해준 사람처럼 보이지만, 호의가 아니라 새 장난감을 발견한 얼굴입니다. 인사도 받지 않은 채 전용 엘리베이터를 가리킵니다.</div><div class="event-options"><button class="event-opt opening" id="chaerin-elevator-next">한채린을 따라 엘리베이터에 탄다</button><button class="event-opt" id="chaerin-elevator-leave">나래를 기다리겠다며 돌아선다</button></div></div></div>`;
   $('chaerin-elevator-next').addEventListener('click',showChaerinElevatorProposal);
-  $('chaerin-elevator-leave').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._chaerinIndustry=null;S._chaerinLead=null;afterLifeAction('인맥');});
+  $('chaerin-elevator-leave').addEventListener('click',()=>{closeLifeEventOverlay();S._chaerinIndustry=null;S._chaerinLead=null;afterLifeAction('인맥');});
 }
 
 function showChaerinElevatorProposal(){
@@ -4207,7 +4223,7 @@ function resolveChaerinIndustryEncounter(choice){
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
   $('chaerin-industry-outcome').innerHTML=`${choice==='tear'?'<img class="life-scene-banner" src="./assets/event-chaerin-1.png" alt="찢어진 계약서를 사이에 둔 한채린">':''}<div class="story-dialogue"><b>한채린</b> “${outcome.line}”</div><div class="event-desc">${outcome.text}</div><button id="chaerin-industry-confirm" class="session-btn opening">${choice==='tear'?'찢어진 조각을 남겨두고 나온다':'다음 층에서 내린다'}</button>`;
   $('chaerin-industry-confirm').addEventListener('click',()=>{
-    host.style.display='none';host.innerHTML='';S._chaerinIndustry=null;S._chaerinLead=null;
+    closeLifeEventOverlay();S._chaerinIndustry=null;S._chaerinLead=null;
     afterLifeAction('인맥');
   });
   autoSave();
@@ -4227,7 +4243,7 @@ function showOriginAllyPlacement(contactId){
   host.style.display='block';
   host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🎒 ${contact.name}에게 함께하자고 말하기</div><div class="title-bar-controls"><button aria-label="Close" id="origin-ally-x"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-portrait" src="./assets/characters/${npc.portrait}" alt="${npc.name}"><div><strong>${npc.name} · ${contact.relationLabel}</strong><br><span class="muted">${npc.job} · 영입비 0원</span></div></div><div class="story-dialogue"><b>${npc.name}</b> “우리가 언제 계약서 보고 친구 했냐. 내가 필요한 자리를 말해.”</div><div class="event-options">${faction.level&&faction.members.length<faction.capacity?`<button class="event-opt" data-origin-ally="faction">🛡️ ${faction.name}에 합류시킨다<span class="opt-sub">영입비 0원 · 기존 전문 능력과 월 수입 적용</span></button>`:''}${businesses.map(item=>{const type=BUSINESS.typeOf(item.typeId);return`<button class="event-opt" data-origin-ally="business" data-business="${item.id}">${type.icon} ${type.name}에 합류시킨다<span class="opt-sub">영입비 0원 · 직원 1명과 사기 보너스</span></button>`;}).join('')}${!faction.level&&!businesses.length?'<div class="asset-empty">세력을 만들거나 사업체를 시작한 뒤 다시 부를 수 있습니다.</div>':''}<button class="event-opt" id="origin-ally-close">아직은 각자 자리에서 지낸다</button></div></div></div>`;
   host.querySelectorAll('[data-origin-ally]').forEach(button=>button.addEventListener('click',()=>placeOriginAlly(contact,npc,button.dataset.originAlly,button.dataset.business)));
-  const close=()=>{host.style.display='none';host.innerHTML='';};$('origin-ally-x').addEventListener('click',close);$('origin-ally-close').addEventListener('click',close);
+  const close=()=>closeLifeEventOverlay();$('origin-ally-x').addEventListener('click',close);$('origin-ally-close').addEventListener('click',close);
 }
 
 function placeOriginAlly(contact,npc,kind,businessId){
@@ -4246,7 +4262,7 @@ function placeOriginAlly(contact,npc,kind,businessId){
     RIVALS.ensureFaction(S.life);contact.recruitedTo='faction';
     addNews(`🎒 소꿉친구 ${npc.name}, ${faction.name} 합류 · 영입비 0원`,'good');
   }
-  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}flashToast(`🤝 ${npc.name}이 대가 없이 합류했습니다`,'good');renderLifePanel();autoSave();
+  closeLifeEventOverlay();flashToast(`🤝 ${npc.name}이 대가 없이 합류했습니다`,'good');renderLifePanel();autoSave();
 }
 function hireCourtLawyer(tier){const preview={public:0,standard:5000000,elite:20000000}[tier];if(S.capital<preview){flashToast(`💸 선임비 ${won(preview)}원 부족`,'bad');return;}const r=JUSTICE.hire(S.life,tier);if(!r)return;S.capital-=r.cost;flashToast(`⚖️ ${r.name} 선임`,'good');afterLifeAction();}
 function chooseCourtStrategy(strategy){if(!JUSTICE.choose(S.life,strategy)){flashToast('재판 단계에서 선택할 수 있습니다','neutral');return;}flashToast('⚖️ 재판 전략을 제출했습니다','good');afterLifeAction();}
@@ -4499,7 +4515,7 @@ function resolveYujinInvestigation(choice){
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
   $('yujin-investigation-outcome').innerHTML=`<div class="story-dialogue"><b>강유진</b> “${effect.line}”</div>${seraReply}<div class="oc-changes">강유진 · 공식 사건 연락만 가능 · 호감 ${effect.affection} · 신뢰 ${effect.trust}<br>개인 연락처는 후속 수사와 사적인 대화를 거쳐야 열립니다.</div><button id="yujin-investigation-confirm" class="session-btn opening">업무용 명함을 받아 둔다</button>`;
   $('yujin-investigation-confirm').addEventListener('click',()=>{
-    host.style.display='none';host.innerHTML='';S._yujinInvestigation=null;
+    closeLifeEventOverlay();S._yujinInvestigation=null;
     queueFactionMentorAfterSera();
     renderLifePanel();autoSave();
     if(pending.manual)afterLifeAction('인맥');else showNextImportantEvent();
@@ -4551,7 +4567,7 @@ function resolveSpecialMeet(status) {
     addNews(`${c.emoji} ${c.name}님과 ${status==='followup'?'다음 만남의 여지를 남겼습니다':'업무상 인사를 나눴습니다'}`,'neutral');
     flashToast('명함 뒷면에 다음 약속의 날짜를 받아냈습니다','neutral');
   }
-  const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}S._specialMeet=null;afterLifeAction('인맥');
+  closeLifeEventOverlay();S._specialMeet=null;afterLifeAction('인맥');
 }
 
 function showChaerinGatheringFollowup(c,rec,gathering){
@@ -4613,7 +4629,7 @@ function resolveChaerinGatheringFollowup(kind){
   addNews(`👑 한채린이 당신을 ${count}번째 사교모임 동행으로 데리고 다녔습니다`,'neutral');
   host.querySelector('.event-options').innerHTML='';
   host.querySelector('.window-body').insertAdjacentHTML('beforeend',`<div class="event-outcome"><div class="story-dialogue"><b>한채린</b> “${gain.line}”</div><button id="chaerin-followup-confirm" class="session-btn opening">모임을 빠져나온다</button></div>`);
-  $('chaerin-followup-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';S._chaerinGatheringFollowup=null;afterLifeAction('인맥');});
+  $('chaerin-followup-confirm').addEventListener('click',()=>{closeLifeEventOverlay();S._chaerinGatheringFollowup=null;afterLifeAction('인맥');});
   autoSave();
 }
 
@@ -4660,7 +4676,7 @@ function showChaerinAwakening(rec){
 }
 
 function finishChaerinGatheringBreak(){
-  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
+  closeLifeEventOverlay();
   S._chaerinGatheringFollowup=null;
   afterLifeAction('인맥');
 }
@@ -4702,7 +4718,7 @@ function showSpecialFollowupMeet(id,c,rec){
   [$('special-followup-close'),$('special-followup-cancel')].forEach(b=>{if(b)b.addEventListener('click',closeSpecialFollowupMeet);});
 }
 function closeSpecialFollowupMeet(){
-  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
+  closeLifeEventOverlay();
   S._specialFollowup=null;
 }
 function resolveSpecialFollowupMeet(kind){
@@ -4780,7 +4796,7 @@ function showPersonRequest(name) {
   host.querySelectorAll('[data-request]').forEach(b=>b.addEventListener('click',()=>resolvePersonRequest(b.dataset.request)));
   [$('request-x'),$('request-close')].forEach(b=>{if(b)b.addEventListener('click',closePersonRequest);});
 }
-function closePersonRequest(){const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}S._requestPerson=null;}
+function closePersonRequest(){closeLifeEventOverlay();S._requestPerson=null;}
 /* 특수 인물도 각성 전에는 직업과 일상 성격을 유지한다.
  * 각성 뒤에는 각자의 결핍이 드러나는 개인 부탁만 열린다. */
 const DANGEROUS_REQUEST_FIT={
@@ -4964,7 +4980,9 @@ function resolveChildhoodCircleEvent(choiceId){
     const out=$('childhood-circle-outcome'),options=out&&out.parentElement.querySelector('.event-options');if(options)options.innerHTML='';
     out.innerHTML='<div class="story-ending"><b>🚪 단체방을 나갔습니다.</b><br>다섯 사람의 연락처, 만남 후보, 개인 사건과 세트 사건이 이번 인생에서 모두 사라집니다. 과거를 다시 부르는 우연도 발생하지 않습니다.</div><button id="childhood-circle-confirm" class="session-btn opening">이 인생에서는 다시 만나지 않는다</button>';
     addNews('🚪 닫힌 단체방 · 실패한 첫 하렘의 다섯과 완전히 단절했습니다','neutral');
-    $('childhood-circle-confirm').addEventListener('click',()=>{const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}S._childhoodCircleEvent=null;renderLifePanel();autoSave();showNextImportantEvent();});
+    $('childhood-circle-confirm').addEventListener('click',()=>finishImportantEvent({
+      clear:()=>{S._childhoodCircleEvent=null;},
+    }));
     renderLifePanel();autoSave();return;
   }
   people.forEach(person=>{
@@ -4998,8 +5016,9 @@ function resolveChildhoodCircleEvent(choiceId){
   out.innerHTML=`<div class="oc-text">${reaction}</div><div class="oc-changes ${changedMood.tone}"><b>${changedMood.title}</b> · ${changedMood.detail}</div>${ending}<button id="childhood-circle-confirm" class="session-btn opening">확인</button>`;
   addNews(`${view.icon} 한 번씩 헤어진 다섯 · ${view.title}`,choice.id==='rewind'?'bad':choice.id==='present'?'good':'neutral');
   $('childhood-circle-confirm').addEventListener('click',()=>{
-    const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
-    S._childhoodCircleEvent=null;renderLifePanel();autoSave();showNextImportantEvent();
+    finishImportantEvent({
+      clear:()=>{S._childhoodCircleEvent=null;},
+    });
   });
   renderLifePanel();autoSave();
 }
@@ -5076,7 +5095,7 @@ function showCharacterStory(name){
   [$('story-x'),$('story-close')].forEach(b=>{if(b)b.addEventListener('click',closeCharacterStory);});
 }
 function closeCharacterStory(){
-  const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}
+  closeLifeEventOverlay();
   S._storyPerson=null;
   if(S._storyFromQueue){S._storyFromQueue=false;showNextImportantEvent();return;}
   if(S.phase==='closed'&&S.monthCloseContext&&S.monthCloseContext.active)renderCurrentMonthCloseStep();
@@ -5353,7 +5372,9 @@ function resolveGroupConfession(choice){
     else activateBusinessQuartetBond();
     $('group-confession-outcome').innerHTML=`<div class="oc-text up">${meta.accept}. 앞 장의 개인사와 합의가 공동 관계의 규칙으로 이어집니다.</div><button id="group-confession-confirm" class="session-btn opening">새 관계를 확인한다</button>`;
   }
-  $('group-confession-confirm').addEventListener('click',()=>{S._groupConfession=null;closeLifeEvent();renderLifePanel();autoSave();showNextImportantEvent();});
+  $('group-confession-confirm').addEventListener('click',()=>finishImportantEvent({
+    clear:()=>{S._groupConfession=null;},
+  }));
   autoSave();
 }
 function queueNaturalDangerousEvents(L){
@@ -5607,7 +5628,7 @@ function resolveFreedomGuildEvent(choiceId){
   $('freedom-guild-outcome').innerHTML=`<div class="phone-bubble mine">${result.choice.text}</div><div class="phone-bubble incoming followup">${result.choice.result}</div>${branch}<div class="oc-changes">파티의 온기 ${result.choice.warmth>=0?'+':''}${result.choice.warmth}</div><button id="freedom-guild-confirm" class="phone-chat-confirm">${result.meetupQueued?'정모 공지를 확인한다':'게임을 종료한다'}</button>`;
   $('freedom-guild-confirm').addEventListener('click',()=>{
     S._freedomGuildEvent=null;
-    host.style.display='none';host.innerHTML='';renderLifePanel();autoSave();
+    closeLifeEventOverlay();renderLifePanel();autoSave();
   });
   renderLifePanel();autoSave();
 }
@@ -6364,7 +6385,7 @@ function showOutsideFearModal(){
     :'';
   host.style.display='block';
   host.innerHTML=`<div class="window event-window place-encounter-window outside-fear-window"><div class="title-bar event-bar"><div class="title-bar-text">🚪 현관 앞에서 멈춘 주말</div><div class="title-bar-controls"><button aria-label="Close" id="outside-fear-x"></button></div></div><div class="window-body"><img class="dating-banner date-scene" src="${dateSceneImage('solo')}" alt="문 앞에서 외출을 망설이는 장면"><div class="event-title">아직은 밖에 나가기가 무섭다.</div><div class="event-desc">출근이나 시간을 정해 둔 상담은 어떻게든 버티지만, 아무도 기다리지 않는 곳으로 혼자 나가려니 예전 일이 다시 떠오릅니다. 손잡이를 잡은 채 한참 서 있다가 신발을 벗었습니다.</div>${nudge}<div class="event-options"><button class="event-opt" id="outside-fear-close">오늘은 문을 잠그고 돌아간다</button></div></div></div>`;
-  const close=()=>{host.style.display='none';host.innerHTML='';};
+  const close=()=>closeLifeEventOverlay();
   $('outside-fear-x').addEventListener('click',close);
   $('outside-fear-close').addEventListener('click',close);
 }
@@ -6868,7 +6889,7 @@ function showChildhoodGroupIntervention(triggerName){
   closeDateModal();
   const host=$('life-event');if(!host)return true;host.style.display='block';
   host.innerHTML=`<div class="window event-window"><div class="title-bar"><div class="title-bar-text">${group.icon} 끊겨 버린 약속</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/pixel-event-childhood-pact-v1.png" alt="현재 관계가 과거의 재발을 막는 장면"><div class="event-title">${group.name}이 먼저 움직였습니다.</div><div class="event-desc">${contract.anchorName}와의 밤 이후 ${triggerName}에게 향하던 약속은 성립하지 않았습니다. ${group.line}</div><div class="important-event-detail up">오래된 단체방에는 더 이상 새 메시지가 올라오지 않았습니다.</div><button id="childhood-group-intervention-confirm" class="session-btn opening">현재의 관계로 돌아간다</button></div></div>`;
-  $('childhood-group-intervention-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';renderLifePanel();autoSave();});
+  $('childhood-group-intervention-confirm').addEventListener('click',()=>{closeLifeEventOverlay();renderLifePanel();autoSave();});
   autoSave();return true;
 }
 function showChildhoodRelapseEnding(triggerName,triggerType){
@@ -6880,8 +6901,8 @@ function showChildhoodRelapseEnding(triggerName,triggerType){
   ensureChildhoodCircleCast();
   const people=CHILDHOOD_CIRCLE.MEMBERS.join('·');
   host.innerHTML=`<div class="window event-window captivity-ending-window"><div class="title-bar"><div class="title-bar-text">🎓 BAD END · 한 번으로 끝난 적 없던 사이</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/pixel-event-childhood-graduation-v1.png" alt="끝나지 않은 졸업식"><div class="event-title">“가볍게라고 말한 건 너뿐이었어.”</div><div class="event-desc">${contract.anchorName}와 밤을 보낸 뒤 ${triggerType==='club'?'클럽에서 낯선 사람과 다시 밤을 보낸 사실':`${triggerName}에게 같은 관계를 제안한 사실`}이 다섯 사람의 기록망에 동시에 잡혔습니다. 누구도 독점 관계를 요구한 적은 없지만, 다섯에게 그 밤은 학창 시절의 관계가 다시 시작됐다는 합의였습니다.</div><div class="trio-dialogues">${CHILDHOOD_CIRCLE.MEMBERS.map(name=>{const person=metRecord(L,name);return`<div class="trio-dialogue"><img src="${characterPortrait(person,'sad')}" alt="${name}"><div><b>${name}</b><p>“우리는 네가 또 모르는 척할 때를 대비해서 전부 남겨 뒀어.”</p></div></div>`;}).join('')}</div><div class="important-event-detail down">${people} 전원 · 회귀 압력 최대 · 현재의 관계 선택권 상실</div><button id="childhood-relapse-retry" class="session-btn opening">↩️ 다른 사람에게 가기 전으로 돌아간다</button><button id="childhood-relapse-accept" class="hot">🎓 끝나지 않은 졸업식 엔딩을 받아들인다</button></div></div>`;
-  $('childhood-relapse-retry').addEventListener('click',()=>{circle.pressure=checkpoint.pressure;L.stress=checkpoint.stress;contract.breached=false;host.style.display='none';host.innerHTML='';renderLifePanel();autoSave();});
-  $('childhood-relapse-accept').addEventListener('click',()=>{contract.ended=true;circle.route='never_graduate';circle.stage='complete';ensureChildhoodCircleCast();activateChildhoodCircleBond('never_graduate');host.style.display='none';host.innerHTML='';addNews('🎓 BAD END · 한 번으로 끝난 적 없던 사이','bad');renderLifePanel();autoSave();});
+  $('childhood-relapse-retry').addEventListener('click',()=>{circle.pressure=checkpoint.pressure;L.stress=checkpoint.stress;contract.breached=false;closeLifeEventOverlay();renderLifePanel();autoSave();});
+  $('childhood-relapse-accept').addEventListener('click',()=>{contract.ended=true;circle.route='never_graduate';circle.stage='complete';ensureChildhoodCircleCast();activateChildhoodCircleBond('never_graduate');closeLifeEventOverlay();addNews('🎓 BAD END · 한 번으로 끝난 적 없던 사이','bad');renderLifePanel();autoSave();});
   playSound('crash');autoSave();return true;
 }
 
@@ -7128,7 +7149,7 @@ function confirmBreakup() {
 }
 
 function closeBreakupModal() {
-  const h = $('life-event'); if (h) { h.style.display = 'none'; h.innerHTML = ''; }
+  closeLifeEventOverlay();
   S._breakupPreview = null;
   if (S.phase === 'closed' && $('market-close') && $('market-close').style.display === 'block') renderCloseReport(S.day);
 }
@@ -7177,7 +7198,7 @@ function resolveDangerousTrioAftermath(choiceId){
   }
   const referral=result.choice.id==='roles'?noteChaerinSupportRefusal(S.life,'shared-home-aftermath'):null;
   $('trio-aftermath-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div>${referral?`<div class="important-event-detail ${referral.given?'up':'neutral'}">${referral.text}</div>`:''}<div class="oc-changes">공생 안정도 ${result.choice.stability>=0?'+':''}${result.choice.stability||0}${result.choice.obsession?` · 세 사람 집착 ${result.choice.obsession>0?'+':''}${result.choice.obsession}`:''}${result.choice.faction?` · 세력 경험 +${result.choice.faction}`:''}</div><button id="trio-aftermath-confirm" class="session-btn opening">후일담을 기록하고 다음 사건 보기</button>`;
-  $('trio-aftermath-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';renderLifePanel();autoSave();showNextImportantEvent();});
+  $('trio-aftermath-confirm').addEventListener('click',()=>finishImportantEvent());
 }
 function enlistDangerousTrioFaction(L){
   const bond=L.dangerousTrioBond;if(!bond||!bond.active)return;
@@ -7244,8 +7265,8 @@ function showDangerousTrioPrelude(eventId){
   const host=$('life-event'),event=DANGEROUS_TRIO.nextPrelude(S.life);
   if(!host||!event||event.id!==eventId){
     DANGEROUS_TRIO.deferPrelude(S.life,0);
-    if(S.monthCloseContext)S.monthCloseContext.currentImportantEvent=null;
-    if(host){host.style.display='none';host.innerHTML='';}
+    MONTH_CLOSE_FLOW.clearImportant(S);
+    closeLifeEventOverlay();
     showNextImportantEvent();return;
   }
   const state=DANGEROUS_TRIO.ensure(S.life),witness=firstSubordinateWitness();
@@ -7257,7 +7278,11 @@ function showDangerousTrioPrelude(eventId){
   host.style.display='block';
   host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">${event.icon} ${event.title}</div><div class="title-bar-controls"><button aria-label="Close" id="trio-prelude-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${event.scene}" alt="${event.title} 사건"><div class="trio-meter"><span>세 사람의 현재 거리</span><b class="${state.stability<30?'down':'up'}">${phase}</b></div><div class="event-desc">${event.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${event.choices.map(choice=>`<button class="event-opt" data-trio-prelude-choice="${choice.id}">${choice.text}</button>`).join('')}<button class="event-opt" id="trio-prelude-later">오늘은 회의를 끝낸다</button></div><div class="event-outcome" id="trio-prelude-outcome"></div></div></div>`;
   host.querySelectorAll('[data-trio-prelude-choice]').forEach(button=>button.addEventListener('click',()=>resolveDangerousTrioPrelude(button.dataset.trioPreludeChoice)));
-  [$('trio-prelude-x'),$('trio-prelude-later')].forEach(button=>button.addEventListener('click',()=>{DANGEROUS_TRIO.deferPrelude(S.life,S.day);const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}if(S.monthCloseContext)S.monthCloseContext.currentImportantEvent=null;autoSave();showNextImportantEvent();}));
+  [$('trio-prelude-x'),$('trio-prelude-later')].forEach(button=>button.addEventListener('click',()=>{
+    DANGEROUS_TRIO.deferPrelude(S.life,S.day);
+    MONTH_CLOSE_FLOW.clearImportant(S);
+    finishImportantEvent({renderLife:false});
+  }));
 }
 function resolveDangerousTrioPrelude(choiceId){
   const result=DANGEROUS_TRIO.applyPrelude(S.life,choiceId);if(!result)return;
@@ -7265,7 +7290,10 @@ function resolveDangerousTrioPrelude(choiceId){
   const host=$('life-event'),options=host&&host.querySelector('.event-options');if(options)options.innerHTML='';
   $('trio-prelude-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">세 사람의 공조 ${result.choice.stability>=0?'+':''}${result.choice.stability} · 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust}</div>${result.complete?'<div class="important-event-detail up">셋은 끝내 친해졌다는 말을 하지 않았습니다. 대신 서로의 잘못을 가장 먼저 지적하고, 외부가 한 사람을 건드리면 나머지 둘이 먼저 움직이는 악우가 됐습니다.</div>':''}<button id="trio-prelude-confirm" class="session-btn opening">회의를 마친다</button>`;
   addNews(`${result.event.icon} 강유진·한채린·윤세라 · ${result.event.title}`,result.choice.stability<0?'bad':'neutral');
-  $('trio-prelude-confirm').addEventListener('click',()=>{const h=$('life-event');if(h){h.style.display='none';h.innerHTML='';}if(S.monthCloseContext)S.monthCloseContext.currentImportantEvent=null;renderLifePanel();showNextImportantEvent();});
+  $('trio-prelude-confirm').addEventListener('click',()=>{
+    MONTH_CLOSE_FLOW.clearImportant(S);
+    finishImportantEvent({save:false});
+  });
   renderLifePanel();autoSave();
 }
 function dangerousTrioCast(){
@@ -7292,7 +7320,7 @@ function startDangerousTrioRoute(auto){
   autoSave();showDangerousTrioStory();
 }
 function showDangerousTrioStory(){
-  const chapter=DANGEROUS_TRIO.next(S.life),host=$('life-event');if(!chapter||!host){if(host){host.style.display='none';host.innerHTML='';}if(S.monthCloseContext)S.monthCloseContext.currentImportantEvent=null;showNextImportantEvent();return;}
+  const chapter=DANGEROUS_TRIO.next(S.life),host=$('life-event');if(!chapter||!host){closeLifeEventOverlay();MONTH_CLOSE_FLOW.clearImportant(S);showNextImportantEvent();return;}
   const state=DANGEROUS_TRIO.ensure(S.life),witness=trioWitness();
   const carry=chapter.focus&&DANGEROUS_TRIO.personalCarry?DANGEROUS_TRIO.personalCarry(S.life,chapter.focus):null;
   const continuity=DANGEROUS_TRIO.continuity?DANGEROUS_TRIO.continuity(S.life,chapter):null;
@@ -7323,9 +7351,7 @@ function resolveDangerousTrioStory(choiceId){
   addNews(`${result.chapter.icon} 위험한 세 사람 · ${result.chapter.title}`,result.choice.tag==='fracture'?'bad':'neutral');
   const retryBtn=$('trio-retry');if(retryBtn)retryBtn.addEventListener('click',retryDangerousTrioChoice);
   $('trio-confirm').addEventListener('click',()=>{
-    closeLifeEvent();
-    renderLifePanel();
-    showNextImportantEvent();
+    finishImportantEvent({save:false});
   });
   renderLifePanel();autoSave();
 }
@@ -7372,7 +7398,7 @@ function startFreedomTrioRoute(auto){
 }
 function showFreedomTrioStory(){
   const chapter=FREEDOM_TRIO&&FREEDOM_TRIO.next(S.life),host=$('life-event');
-  if(!chapter||!host){closeLifeEvent();showNextImportantEvent();return;}
+  if(!chapter||!host){closeLifeEventOverlay();showNextImportantEvent();return;}
   const state=FREEDOM_TRIO.ensure(S.life);
   const chatChapter=!!(GROUP_CHAT&&!state.extensionActive);
   const choiceButtons=chapter.choices.map(choice=>{const poor=choice.cash<0&&S.capital<Math.abs(choice.cash),blocked=poor||choice.disabled,cost=choice.cash?`<span class="opt-sub">현금 -${won(Math.abs(choice.cash))}${poor?' · 현금 부족':''}</span>`:'';return`<button class="event-opt" data-freedom-choice="${choice.id}" ${blocked?'disabled':''}>${choice.text}${choice.disabled?'<span class="opt-sub">관계를 먼저 공개해야 합니다</span>':''}${cost}</button>`;}).join('');
@@ -7451,7 +7477,9 @@ function resolveFreedomTrioStory(choiceId){
   $('freedom-outcome').innerHTML=`${dialogue}<div class="oc-changes">관계 조화 ${result.choice.harmony>=0?'+':''}${result.choice.harmony} · 안식감 ${result.choice.rest>=0?'+':''}${result.choice.rest||0} · 세 사람 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}${result.choice.happy?` · 행복 ${result.choice.happy>0?'+':''}${result.choice.happy}`:''}${result.choice.stress?` · 스트레스 ${result.choice.stress>0?'+':''}${result.choice.stress}`:''}${result.choice.cash?` · 현금 -${won(Math.abs(result.choice.cash))}`:''}</div>${ending}${success}${retry}<button id="freedom-confirm" class="${confirmClass}">${result.ending?'엔딩 확인':'이번 사건을 마친다'}</button>`;
   addNews(`${result.chapter.icon} 다음 접속 · ${result.chapter.title}`,result.ending&&result.ending.tone==='bad'||result.choice.tag==='control'?'bad':'good');
   const retryBtn=$('freedom-retry');if(retryBtn)retryBtn.addEventListener('click',retryFreedomTrioChoice);
-  $('freedom-confirm').addEventListener('click',()=>{closeLifeEvent();renderCapital();renderLifePanel();if(!result.ending)showNextImportantEvent();});
+  $('freedom-confirm').addEventListener('click',()=>finishImportantEvent({
+    renderCapital:true,
+  }));
   renderCapital();renderLifePanel();autoSave();
 }
 function applyFreedomTrioBadEnding(){
@@ -7508,7 +7536,9 @@ function resolveFreedomTrioAftermath(choiceId){
   if(result.choice.stress)S.life.stress=clamp((S.life.stress||0)+result.choice.stress,0,100);
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
   $('freedom-aftermath-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">관계 조화 ${result.choice.harmony>=0?'+':''}${result.choice.harmony||0} · 안식감 ${result.choice.rest>=0?'+':''}${result.choice.rest||0}${result.choice.happy?` · 행복 ${result.choice.happy>0?'+':''}${result.choice.happy}`:''}${result.choice.stress?` · 스트레스 ${result.choice.stress>0?'+':''}${result.choice.stress}`:''}${result.choice.cash?` · 현금 -${won(Math.abs(result.choice.cash))}`:''}${result.choice.income?` · 생활 수입 +${won(result.choice.income)}`:''}</div><button id="freedom-aftermath-confirm" class="session-btn opening">후일담을 기록하고 다음 사건 보기</button>`;
-  $('freedom-aftermath-confirm').addEventListener('click',()=>{host.style.display='none';host.innerHTML='';renderCapital();renderLifePanel();autoSave();showNextImportantEvent();});
+  $('freedom-aftermath-confirm').addEventListener('click',()=>finishImportantEvent({
+    renderCapital:true,
+  }));
   renderCapital();autoSave();
 }
 
@@ -7665,7 +7695,7 @@ function recruitBusinessStaff(id){
   host.style.display='block';
   host.innerHTML=`<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">📄 ${type.name} · 직원 모집</div><div class="title-bar-controls"><button aria-label="Close" id="business-recruit-x"></button></div></div><div class="window-body"><div class="event-title">도착한 이력서 ${applicants.length}건</div><div class="event-desc">사업 평판과 규모가 높아질수록 더 숙련된 지원자가 나타납니다. 일부 지원자는 이름과 얼굴을 공개하지 않았으며, 이력과 면접 힌트만 확인할 수 있습니다.</div><div class="resume-grid">${applicants.map(candidate=>`<button class="resume-card ${candidate.mystery?'mystery':''}" data-business-applicant="${candidate.id}"><span>${candidate.icon}</span><b>${candidate.name}</b><small>${candidate.career}</small><em>“${candidate.hint}”</em><strong>채용·교육 ${won(cost)}</strong></button>`).join('')}</div><button id="business-recruit-close" class="session-btn">이번에는 보류</button></div></div>`;
   host.querySelectorAll('[data-business-applicant]').forEach(button=>button.addEventListener('click',()=>finishBusinessRecruit(button.dataset.businessApplicant)));
-  const close=()=>{host.style.display='none';host.innerHTML='';S._businessRecruit=null;};
+  const close=()=>{closeLifeEventOverlay();S._businessRecruit=null;};
   $('business-recruit-x').addEventListener('click',close);$('business-recruit-close').addEventListener('click',close);
 }
 
@@ -7680,7 +7710,7 @@ function finishBusinessRecruit(candidateId){
   const label=candidate.mystery?'신원 비공개 경력자':candidate.name;
   addNews(`👥 ${result.type.name} ${label} 채용 · 현재 ${result.business.employees}/${BUSINESS.staffCapacity(result.business)}명`,'good');
   flashToast(`👥 ${label} 채용 완료`,'good');
-  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}S._businessRecruit=null;
+  closeLifeEventOverlay();S._businessRecruit=null;
   afterLifeAction('사업');
 }
 
@@ -7694,7 +7724,7 @@ function showSpecialManagerRecruit(id){
   });
   host.style.display='block';
   host.innerHTML=`<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">🤝 ${type.name} · 특별 책임자 계약</div><div class="title-bar-controls"><button aria-label="Close" id="special-manager-x"></button></div></div><div class="window-body"><div class="event-desc">특별 책임자는 공개 채용 지원자가 아닙니다. 사교 모임에서 정식 소개를 받은 경쟁자를 업종별로 영입합니다. 처음에는 직급과 가린 얼굴로만 일하며, 큰 위기에서 실적보다 사람을 먼저 지켜 줬을 때 본명과 얼굴을 공개합니다.</div>${candidates.length?`<div class="resume-grid">${candidates.map(staffId=>{const p=BUSINESS_ROMANCE.profile(staffId),identity=BUSINESS_ROMANCE.identity(S.life,staffId);return`<button class="resume-card" data-special-manager="${staffId}"><img class="char-portrait" src="${identity.portrait||p.maskedScene}" alt="${identity.displayName}"><b>${identity.displayName}</b><small>${p.rivalFirm} · ${p.role}</small><em>“${p.style}”</em><strong>전속 계약금 ${won(2500000)}</strong></button>`;}).join('')}</div>`:`<div class="asset-empty">이 업종에 맞는 새 소개 인물이 없습니다. 가족·인맥의 사교 모임 등급을 올려 먼저 소개받으세요.</div>`}<button id="special-manager-close" class="session-btn">닫기</button></div></div>`;
-  const close=()=>{host.style.display='none';host.innerHTML='';};
+  const close=()=>closeLifeEventOverlay();
   host.querySelectorAll('[data-special-manager]').forEach(button=>button.addEventListener('click',()=>finishSpecialManagerRecruit(id,button.dataset.specialManager)));
   $('special-manager-x').addEventListener('click',close);$('special-manager-close').addEventListener('click',close);
 }
@@ -7708,7 +7738,7 @@ function finishSpecialManagerRecruit(businessId,staffId){
   S.capital-=fee;
   addNews(`🤝 ${route.profile.name}, ${assigned.type.name} 특별 책임자 전속 계약 · 다른 특별 책임자와 업계 경쟁 시작`,'good');
   flashToast(`${route.profile.name}을 특별 책임자로 영입했습니다`,'good');
-  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
+  closeLifeEventOverlay();
   afterLifeAction('사업');
 }
 
@@ -7872,7 +7902,7 @@ function repairOpeningStoryQueue(){
   const ctx=S.monthCloseContext;
   if(ctx&&ctx.currentImportantEvent&&ctx.currentImportantEvent.factionStory==='first_attack'){
     const displaced=ctx.currentImportantEvent;
-    ctx.currentImportantEvent=null;
+    MONTH_CLOSE_FLOW.clearImportant(S);
     queueImportantEvent(displaced);
   }
   const queued=queueSeraFirstAttackEncounter(attacker||'경쟁 세력',origin.loss||0);
@@ -7952,11 +7982,7 @@ function queueFactionRankEnding() {
 }
 
 function closeFactionStory() {
-  const host = $('life-event');
-  if (host) { host.style.display='none'; host.innerHTML=''; }
-  renderLifePanel();
-  autoSave();
-  showNextImportantEvent();
+  finishImportantEvent();
 }
 
 function showFactionMentorPhoneStory(stage){
@@ -8274,7 +8300,7 @@ function showFactionRecruitment() {
     </div>
   </div>`;
   host.querySelectorAll('[data-recruit-id]').forEach(b=>b.addEventListener('click',()=>showFactionResume(b.dataset.recruitId)));
-  const close=()=>{host.style.display='none';host.innerHTML='';};
+  const close=()=>closeLifeEventOverlay();
   $('faction-recruit-x').addEventListener('click',close);$('faction-recruit-close').addEventListener('click',close);
 }
 
@@ -8357,7 +8383,7 @@ function showFactionOutcome(kind,result) {
     </div>
   </div>`;
   $('faction-outcome-close').addEventListener('click',()=>{
-    host.style.display='none';host.innerHTML='';
+    closeLifeEventOverlay();
     if(result.campaignComplete)showFactionVictoryEnding();
   });
 }
@@ -8504,7 +8530,7 @@ function resolveFactionTradeCall(choice) {
   addNews(`📡 [세력] ${text}`,'neutral');
   const f=RIVALS.ensureFaction(S.life);f.lastTradeCall={...call,result:text,choice};
   S.rivalFeed=S.rivalFeed||[];S.rivalFeed.unshift({day:S.day,text:`📡 [공동매매] ${text}`});
-  const host=$('life-event');if(host){host.style.display='none';host.innerHTML='';}
+  closeLifeEventOverlay();
   S._factionTradeCall=null;
   autoResumeFromPopup();
   flashToast(`📡 ${text}`,'neutral');
@@ -8623,7 +8649,7 @@ function afterLifeAction(monthlyGroup) {
   maybeSeraIntrusion(monthlyGroup);
   renderCapital(); renderLifePanel(); checkAchievements(); autoSave();
   const homeHost=$('life-event');
-  if(homeHost&&homeHost.querySelector('.home-life-window')){homeHost.style.display='none';homeHost.innerHTML='';}
+  if(homeHost&&homeHost.querySelector('.home-life-window'))closeLifeEventOverlay();
   if (S.phase === 'closed' && $('market-close') && $('market-close').style.display === 'block') renderCloseReport(S.day);
 }
 

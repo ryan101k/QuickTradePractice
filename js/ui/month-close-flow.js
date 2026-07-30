@@ -97,25 +97,62 @@
     return current(context);
   }
 
-  /*
-   * 위험한 3인조 마지막 장은 엔딩 확인 뒤 life-event만 닫고
-   * 중요 사건 큐의 다음 항목을 호출하지 않는 구버전 경로가 있다.
-   * 월말 진행 중 해당 확인 버튼이 눌리면 현재 월말 단계를 다시 렌더한 뒤
-   * 기존 View의 다음 버튼을 사용해 정상 큐 처리 함수로 복귀시킨다.
-   */
-  if (root.document) root.document.addEventListener('click', event => {
-    const target = event.target && event.target.closest ? event.target.closest('#trio-confirm') : null;
-    if (!target) return;
-    setTimeout(() => {
-      const sessionButton = root.document.getElementById('session-btn');
-      if (!sessionButton) return;
-      sessionButton.click();
-      setTimeout(() => {
-        const nextButton = root.document.querySelector('#market-close [data-month-close-next]');
-        if (nextButton) nextButton.click();
-      }, 0);
-    }, 0);
-  });
+  function activeEventContext(state) {
+    const context=state&&state.monthCloseContext;
+    return state&&state._monthCloseEventPhase&&context&&context.active?context:null;
+  }
 
-  root.QT_MONTH_CLOSE_FLOW = { VERSION, build, normalize, current, advance };
+  function beginEventPhase(state, context) {
+    if(!state||!context||!context.active)return null;
+    state._monthCloseEventPhase=true;
+    state._monthCloseRandomEvent=!!context.currentRandomEvent;
+    return context;
+  }
+
+  function endEventPhase(state) {
+    if(!state)return;
+    state._monthCloseEventPhase=false;
+    state._monthCloseRandomEvent=false;
+  }
+
+  function holdImportant(state, event) {
+    const context=activeEventContext(state);
+    if(context)context.currentImportantEvent=event||null;
+    return context;
+  }
+
+  function clearImportant(state) {
+    const context=state&&state.monthCloseContext;
+    if(context)context.currentImportantEvent=null;
+  }
+
+  function holdRandom(state, event) {
+    const context=activeEventContext(state);
+    if(!context)return null;
+    state._monthCloseRandomEvent=!!event;
+    context.currentRandomEvent=event||null;
+    return context;
+  }
+
+  function clearRandom(state) {
+    if(!state)return;
+    state._monthCloseRandomEvent=false;
+    const context=state.monthCloseContext;
+    if(context)context.currentRandomEvent=null;
+  }
+
+  root.QT_MONTH_CLOSE_FLOW = {
+    VERSION,
+    build,
+    normalize,
+    current,
+    advance,
+    activeEventContext,
+    beginEventPhase,
+    endEventPhase,
+    holdImportant,
+    clearImportant,
+    holdRandom,
+    clearRandom,
+  };
 })(window);
