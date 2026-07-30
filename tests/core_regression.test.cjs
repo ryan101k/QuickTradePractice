@@ -1512,6 +1512,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /function showOpeningFriendMessage\(firstSetup=false\)\{[\s\S]{0,320}const job=jobOf\(L\.job\|\|'none'\)/, '완전 초기화 직후 프롤로그가 바깥 함수의 지역변수를 참조해 중단되면 안 된다');
   assert.match(appSource, /const host=\$\('life-modal'\);if\(!host\)return;/, '프롤로그 팝업 호스트가 준비되지 않았을 때 부팅 전체가 예외로 중단되면 안 된다');
   assert.match(appSource, /class="phone-shell origin-referral-phone"/, '투자지원센터 소개 대화는 일반 설명창이 아니라 휴대폰 대화로 진행돼야 한다');
+  assert.match(appSource, /chatLog\.scrollTop=chatLog\.scrollHeight/, '친구 대화가 길어져도 다음 메시지 버튼이 휴대폰 화면 아래에 가려지면 안 된다');
   assert.doesNotMatch(appSource, /origin-referral-skip/, '친구 연락에서 나래 첫 만남을 건너뛰는 버튼이 있으면 안 된다');
   const careerAssignSource=appSource.slice(appSource.indexOf('function assignStartingCareer'),appSource.indexOf('function unlockPrologueCareer'));
   assert.match(careerAssignSource,/const job=\{id:'none',name:'무직'\}/,'새 인생은 직업 없이 은둔 상태로 시작해야 한다');

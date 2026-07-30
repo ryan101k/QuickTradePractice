@@ -2099,6 +2099,8 @@ function showOriginFriendReferral(){
       ?'<button type="button" id="origin-referral-next">다음 메시지</button>'
       :'<button type="button" id="origin-referral-go">📍 주소를 확인하고 투자지원센터로 간다</button>';
     host.innerHTML=`<div class="phone-notification-stage origin-referral-stage"><div class="phone-shell origin-referral-phone"><div class="phone-status"><span>QuickTalk</span><span>●●● 36%</span></div><div class="phone-chat-screen open"><header><img class="char-thumb" src="./assets/characters/${npc.portrait}" alt="${contact.name}"><span><b>${contact.name}</b><small>${school.friendTag} · ${npc.job}</small></span></header><div class="phone-chat-log">${shown.map(([speaker,text])=>`<div class="phone-bubble ${speaker==='플레이어'?'mine':'incoming'}">${text}</div>`).join('')}<div class="phone-reply-label">${index<lines.length-1?'대화를 계속 확인합니다.':'친구가 보낸 위치를 확인합니다.'}</div><div class="phone-reply-options">${action}</div></div></div></div></div>`;
+    const chatLog=host.querySelector('.phone-chat-log');
+    if(chatLog)requestAnimationFrame(()=>{chatLog.scrollTop=chatLog.scrollHeight;});
     const next=$('origin-referral-next');if(next)next.addEventListener('click',()=>{S._originReferralIndex++;render();});
     const go=$('origin-referral-go');if(go)go.addEventListener('click',()=>{S.life.referralSeen=true;showTutorial();});
   };
