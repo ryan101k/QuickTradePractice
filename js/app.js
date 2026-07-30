@@ -4097,6 +4097,20 @@ function meetContact() {
 }
 function showIndustryGatherings(){
   const host=$('life-event');if(!host||!SOCIAL)return;
+  prepareLifeEventOverlay(false);
+  let html;
+  try{html=buildIndustryGatheringsHTML();}
+  catch(e){
+    console.error('[사교모임 팝업] 렌더 중 오류:',e);
+    html=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🥂 사교 모임</div><div class="title-bar-controls"><button aria-label="Close" id="industry-gathering-x"></button></div></div><div class="window-body"><div class="event-desc">사교 모임 정보를 불러오는 중 문제가 발생했습니다.<br><span class="muted">${(e&&e.message||e||'').toString().slice(0,120)}</span></div><button id="industry-gathering-close" class="session-btn">닫기</button></div></div>`;
+  }
+  host.style.display='block';host.innerHTML=html;
+  const close=()=>{host.style.display='none';host.innerHTML='';};
+  host.querySelectorAll('[data-industry-gathering]').forEach(button=>button.addEventListener('click',()=>attendIndustryGathering(button.dataset.industryGathering)));
+  const x=$('industry-gathering-x'),c=$('industry-gathering-close');
+  if(x)x.addEventListener('click',close);if(c)c.addEventListener('click',close);
+}
+function buildIndustryGatheringsHTML(){
   const social=SOCIAL.ensure(S.life);
   const naraeGuide=social.industry.meetings===0
     ?'“사교모임은 비싼 사람을 바로 만나는 곳이 아니에요. 오늘은 명함 욕심 내지 말고 분위기만 보세요. 대신 끝나도 바로 가지 말고 제 신호를 기다려요 — 위층에 당신이 꼭 봐 둬야 할 사람이 있거든요.”'
@@ -4105,11 +4119,7 @@ function showIndustryGatherings(){
       :social.industry.meetings===2
         ?'“이제 분위기는 알겠죠? 다음부터는 모임이 끝나도 바로 가지 마세요. 제가 따로 부르면 이유 묻지 말고 따라와요.”'
         :'“아는 얼굴이 생겼으면 이제 누가 자리를 만들고 누가 사람을 시험하는지도 보일 거예요. 끝난 뒤 제 신호도 놓치지 말고요.”';
-  host.style.display='block';
-  host.innerHTML=`<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">🥂 사교 모임 · 업계 동향</div><div class="title-bar-controls"><button aria-label="Close" id="industry-gathering-x"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래 · 인맥 수업</strong><br><span class="muted">${naraeGuide}</span></div></div><div class="event-desc">처음에는 공개 네트워킹에서 얼굴과 분위기를 익히고, 다시 불리는 횟수가 늘수록 더 안쪽의 자리와 업계 동향이 열립니다.</div><div class="date-glance"><span>사회 평판 ${Math.round(social.reputation)}</span><span>사교 실적 ${social.industry.standing}</span><span>참석 ${social.industry.meetings}회</span></div><div class="resume-grid">${SOCIAL.INDUSTRY_GATHERINGS.map(g=>{const status=SOCIAL.gatheringStatus(S.life,g.id);return`<button class="resume-card" data-industry-gathering="${g.id}" ${status.available&&S.capital>=g.cost?'':'disabled'}><span>${g.icon}</span><b>${g.name} · ${g.tier}등급</b><small>${g.desc}</small><em>${g.tier===0?'처음 보는 얼굴과 공개된 정보부터 익힙니다':g.tier===1?'실무자의 표정에서 다음 움직임을 읽습니다':g.tier===2?'공개되지 않은 사업 계획과 세력 동향을 듣습니다':'대표자들의 협상과 다음 시장 충돌을 확인합니다'}</em><strong>${won(g.cost)}${!status.available?` · ${status.reason}`:S.capital<g.cost?' · 현금 부족':''}</strong></button>`;}).join('')}</div><button id="industry-gathering-close" class="session-btn">이번 달은 참가하지 않는다</button></div></div>`;
-  const close=()=>{host.style.display='none';host.innerHTML='';};
-  host.querySelectorAll('[data-industry-gathering]').forEach(button=>button.addEventListener('click',()=>attendIndustryGathering(button.dataset.industryGathering)));
-  $('industry-gathering-x').addEventListener('click',close);$('industry-gathering-close').addEventListener('click',close);
+  return `<div class="window event-window resume-window"><div class="title-bar event-bar"><div class="title-bar-text">🥂 사교 모임 · 업계 동향</div><div class="title-bar-controls"><button aria-label="Close" id="industry-gathering-x"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(D.SPECIAL_CHARACTERS.narae,'neutral')}" alt="나래"><div><strong>나래 · 인맥 수업</strong><br><span class="muted">${naraeGuide}</span></div></div><div class="event-desc">처음에는 공개 네트워킹에서 얼굴과 분위기를 익히고, 다시 불리는 횟수가 늘수록 더 안쪽의 자리와 업계 동향이 열립니다.</div><div class="date-glance"><span>사회 평판 ${Math.round(social.reputation)}</span><span>사교 실적 ${social.industry.standing}</span><span>참석 ${social.industry.meetings}회</span></div><div class="resume-grid">${SOCIAL.INDUSTRY_GATHERINGS.map(g=>{const status=SOCIAL.gatheringStatus(S.life,g.id);return`<button class="resume-card" data-industry-gathering="${g.id}" ${status.available&&S.capital>=g.cost?'':'disabled'}><span>${g.icon}</span><b>${g.name} · ${g.tier}등급</b><small>${g.desc}</small><em>${g.tier===0?'처음 보는 얼굴과 공개된 정보부터 익힙니다':g.tier===1?'실무자의 표정에서 다음 움직임을 읽습니다':g.tier===2?'공개되지 않은 사업 계획과 세력 동향을 듣습니다':'대표자들의 협상과 다음 시장 충돌을 확인합니다'}</em><strong>${won(g.cost)}${!status.available?` · ${status.reason}`:S.capital<g.cost?' · 현금 부족':''}</strong></button>`;}).join('')}</div><button id="industry-gathering-close" class="session-btn">이번 달은 참가하지 않는다</button></div></div>`;
 }
 function attendIndustryGathering(id){
   const gathering=SOCIAL.INDUSTRY_GATHERINGS.find(item=>item.id===id);if(!gathering)return;
