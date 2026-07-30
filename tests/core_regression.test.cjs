@@ -2145,6 +2145,8 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   });
   assert.match(lifeEventSource,/id: 'life_moving'[\s\S]{0,500}housingMonths >= 12[\s\S]{0,200}lastHousingRenewalMonth/,'housing renewal must wait for a real lease renewal interval');
   assert.match(triggerAppSource,/housingTenure:housing\.tenure[\s\S]{0,300}lastHousingRenewalMonth:housing\.lastRenewalMonth/,'life event context must include lease timing');
+  assert.match(lifeEventSource,/id: 'love_blind'[\s\S]{0,300}c\.outsideFearResolved/,'주말 외출 사건은 프롤로그의 외출 공포가 해결된 뒤에만 발생해야 한다');
+  assert.match(triggerAppSource,/outsideFearResolved:freeOutingUnlocked\(L\)/,'일상 사건 판정은 현재 외출 해금 상태를 전달해야 한다');
   assert.match(triggerAppSource,/function dangerousTrioFatigueHTML\(\)[\s\S]{0,1200}공동생활 피로 · 체력 -/,'month-close life actions must explain dangerous trio cohabitation fatigue');
   assert.match(triggerAppSource,/typeof LIFE_FINANCE\.active === 'function' \? LIFE_FINANCE\.active\(L\) : \[\]/,'fresh boot must tolerate the removed insurance API');
   assert.match(triggerAppSource,/\(D\.PASSIVE_ASSETS \|\| \[\]\)/,'fresh boot must tolerate removed passive-asset data');

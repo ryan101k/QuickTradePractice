@@ -93,7 +93,7 @@ const LIFE_EVENTS = [
   {
     id: 'love_blind', cat: 'life', emoji: '🌆', title: '주말 외출 제안',
     desc: '친구가 집에만 있지 말고 같이 바람이나 쐬자고 부릅니다.',
-    cond: c => c.rel === 'single',
+    cond: c => c.rel === 'single' && c.outsideFearResolved,
     options: [
       { text: '나간다', effects: { cash: -80000, happy: 6, stress: -7 }, outcome: '새 연락처는 생기지 않았지만 답답했던 기분은 풀렸습니다.' },
       { text: '안 나간다', effects: { happy: 3 }, outcome: '집이 최고다.' },
