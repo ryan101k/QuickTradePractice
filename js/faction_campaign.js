@@ -105,6 +105,60 @@
     return{...result,member:f.members.find(member=>member.sourceId===template.sourceId)};
   }
 
+  function repairMentorProgress(life,day){
+    const f=ensure(life);
+    const recordedDeath=life.worldDeaths&&life.worldDeaths['장태식'];
+    const foundingMember=(f.members||[]).find(member=>/^mentor-/.test(member.sourceId||''));
+    const mentorStoryStarted=(f.level||0)>0&&(f.mentor==='장태식'||!!foundingMember);
+    if(recordedDeath||f.mentorDeathSeen){
+      f.mentorDeathSeen=true;
+      f.mentorDeathPending=false;
+      f.mentorDefenseSeen=true;
+      f.mentorDefenseQueued=false;
+      if(!recordedDeath){
+        life.worldDeaths=life.worldDeaths||{};
+        life.worldDeaths['장태식']={
+          day:f.mentorDeathDay||day||1,
+          cause:`${f.mentorKilledBy||f.firstAttacker||'경쟁 세력'}의 보복 습격`,
+          source:'faction-prologue'
+        };
+      }
+      return{faction:f,repaired:false,due:false,dead:true};
+    }
+    if(!mentorStoryStarted)return{faction:f,repaired:false,due:false,dead:false};
+
+    let repaired=false;
+    let stalled=false;
+    // 구버전 저장은 첫 방어 완료만 기록하고 사망 후속 플래그를 남기지 않아
+    // 장태식 사건이 영구히 멈출 수 있다. 방어를 한 번 다시 보여 안전하게 이어 간다.
+    if(f.mentorDefenseSeen){
+      f.mentorDefenseSeen=false;
+      f.mentorDefenseQueued=false;
+      repaired=true;
+      stalled=true;
+    }
+    if(!f.mentorDeathPending){
+      f.mentorDeathPending=true;
+      repaired=true;
+      stalled=true;
+    }
+    if(!Number.isFinite(f.mentorHandoffDay)){
+      f.mentorHandoffDay=Math.max(1,(day||1)-1);
+      repaired=true;
+    }
+    if(!Number.isFinite(f.mentorDefenseDueDay)){
+      f.mentorDefenseDueDay=f.mentorHandoffDay+1;
+      repaired=true;
+    }
+    if(stalled&&Number.isFinite(day))f.mentorDefenseDueDay=Math.min(f.mentorDefenseDueDay,day);
+    return{
+      faction:f,
+      repaired,
+      due:Number.isFinite(day)&&day>=f.mentorDefenseDueDay,
+      dead:false
+    };
+  }
+
   function resolveMentorFall(life,attackerName,day){
     const f=ensure(life);
     if(!f.mentorDeathPending||f.mentorDeathSeen)return{ok:false,alreadySeen:!!f.mentorDeathSeen,faction:f};
@@ -185,7 +239,9 @@
       attacked:`${f.firstAttacker||'경쟁 세력'}의 공격 뒤 나래와 대응책을 찾는 중입니다.`,
       legal_wait:'나래가 합법적인 조사와 신고를 진행하고 있습니다. 다음 달 결과가 도착합니다.',
       forming:'장태식에게 조직의 기본을 배웠습니다. 첫 거점을 마련하면 세력이 출범합니다.',
-      active:`${(PATHS[f.path]||PATHS.network).name} 노선으로 경쟁 세력의 자금·신용·사업 기반을 무너뜨리는 중입니다.`,
+      active:f.mentorDeathPending&&!f.mentorDeathSeen
+        ?`${(PATHS[f.path]||PATHS.network).name} 1단계가 창설됐습니다. 다음 월말에는 장태식과 첫 방어 후속 사건이 이어집니다.`
+        :`${(PATHS[f.path]||PATHS.network).name} 노선으로 경쟁 세력의 자금·신용·사업 기반을 무너뜨리는 중입니다.`,
       victory:'세력전 메인 목표를 달성했습니다. 엔딩 이후에도 계속 플레이할 수 있습니다.',
     };
     return labels[f.storyStage]||labels.locked;
@@ -193,6 +249,6 @@
 
   root.QT_FACTION_CAMPAIGN={
     PATHS,FOUNDING_MEMBERS,ensure,onAttack,completeFirstAttack,takeDueStory,choosePath,foundWithMentor,
-    resolveMentorFall,activateSpecial,checkVictory,progress,ending,recordEnding,stageText
+    repairMentorProgress,resolveMentorFall,activateSpecial,checkVictory,progress,ending,recordEnding,stageText
   };
 })(window);

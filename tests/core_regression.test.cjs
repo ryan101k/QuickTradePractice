@@ -26,6 +26,20 @@ vm.createContext(context);
 }
 
 {
+  const stressContext={console};
+  stressContext.window=stressContext;
+  vm.createContext(stressContext);
+  vm.runInContext(fs.readFileSync(path.join(root,'js/core/stress-balance.js'),'utf8'),stressContext,{filename:'js/core/stress-balance.js'});
+  const balance=stressContext.QT_STRESS_BALANCE;
+  assert.equal(balance.contactRelief({affection:24,trust:30},'warm'),0,'호감 기준 전에는 평범한 연락이 회복 행동이 되면 안 된다');
+  assert.equal(balance.contactRelief({affection:40,trust:20},'warm'),6,'가까운 사이의 다정한 답장은 누적 스트레스를 실제로 낮춰야 한다');
+  assert.equal(balance.contactRelief({affection:65,trust:35},'warm'),10,'높은 호감과 신뢰에서는 연락이 확실한 회복원이 되어야 한다');
+  assert.equal(balance.intrusionStress({affection:65,trust:35},70,4),0,'안정된 관계의 낮은 위험 연락은 스트레스를 더 쌓지 않아야 한다');
+  assert.ok(balance.intrusionStress({affection:65,trust:35},90,8)>=3,'극단적인 침해는 호감이 높아도 위험성을 완전히 지우면 안 된다');
+  assert.equal(balance.supportAvailable({affection:20,trust:8},true),true,'세 인물의 회복 연락은 같은 호감·신뢰 기준으로 열려야 한다');
+}
+
+{
   const bgmDocumentListeners = {};
   const bgmWindowListeners = {};
   let mobileAudio;
@@ -1582,7 +1596,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource, /제가 1층에서 기다릴게요/, '투자 컨설팅은 집에 틀어박힌 플레이어를 나래가 직접 데리러 나와야 한다');
   assert.doesNotMatch(lifeEventsSource, /life_rainy_canvas[\s\S]{0,1800}outsideFearResolved/, '윤세라를 폐작업실에서 한 번 만난 사실만으로 자유 외출이 열리면 안 된다');
   assert.match(appSource, /title:'윤세라 · 문밖에서 기다린 사람'[\s\S]{0,1800}unlockOuting:'walk_together'/, '윤세라가 자기 공포를 먼저 밝히고 함께 걷는 별도 사건이 외출을 열어야 한다');
-  assert.match(appSource, /S\.life\.outsideFearResolution=\{source:'sera_opened_door',day:S\.day,choice:choice\.unlockOuting\}/, '외출 해금은 윤세라 사건의 선택과 날짜를 서사 상태로 남겨야 한다');
+  assert.match(appSource, /S\.life\.outsideFearResolution=\{source:`\$\{pending\.id\}_support`,day:S\.day,choice:choice\.unlockOuting,person:r\.name\}/, '외출 해금은 도움을 준 인물·사건·선택·날짜를 서사 상태로 남겨야 한다');
   assert.match(appSource, /자발적인 외출 해금 · 서로 문을 열어 준 사람/, '외출 기능이 열린 이유를 사건 결과 화면에서 명확히 보여줘야 한다');
   assert.match(appSource, /function repairOutsideFearUnlock\(L=S\.life\)[\s\S]{0,500}sera\.dangerEvents\.sera_friend==='seen'[\s\S]{0,300}else L\.outsideFearResolved=false/, '구버전 저장은 세라 친구 사건을 실제로 봤을 때만 기존 외출 해금을 보존해야 한다');
   assert.match(appSource, /formerClubEx:true/, '옛 동아리 여성 다섯은 과거 연인 기록으로 시작해야 한다');
@@ -1631,12 +1645,16 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(appSource,/function seraHomeMomentAvailable\(sera,moment\)/,'윤세라 집 행동은 호감과 신뢰 조건으로 단계별 해금돼야 한다');
   assert.match(appSource,/r\.status==='acquaintance'&&\(r\.affection\|\|0\)>=18&&\(r\.trust\|\|0\)>=10/,'처음 집에 데려온 윤세라는 생활을 쌓은 뒤에야 친구가 되어야 한다');
   assert.match(appSource,/rememberPerson\(Object\.assign\(\{\}, D\.SPECIAL_CHARACTERS\.sera\), 'acquaintance'\)/,'윤세라 첫 조우가 즉시 친구 상태를 부여하면 안 된다');
-  assert.match(appSource,/function showSeraRestModal\(sera\)/,'윤세라 동거 중 일반 휴식도 전용 선택 장면으로 갈라져야 한다');
+  const restSource=appSource.slice(appSource.indexOf('function doRestMonth'),appSource.indexOf('function doDecompressMonth'));
+  assert.doesNotMatch(restSource,/showSeraRestModal|resolveDangerousTrioHomeMoment/,'일반 휴식은 특정 인물 장면을 강제로 재생하면 안 된다');
+  assert.match(appSource,/data-support-contact="\$\{name\}"/,'집에서는 조건을 충족한 세 인물 중 회복 연락 상대를 직접 골라야 한다');
+  assert.match(appSource,/const SUPPORT_CONTACT_MOMENTS=\{[\s\S]*'강유진'[\s\S]*'한채린'[\s\S]*'윤세라'/,'강유진·한채린·윤세라 모두 고유한 회복 장면을 가져야 한다');
+  assert.match(appSource,/'support-contact':'휴식'/,'회복 연락도 월간 자유시간을 사용하는 휴식 행동이어야 한다');
   assert.match(appSource,/L\.seraTemporaryMomentIds=seen[\s\S]{0,120}L\.seraTemporaryMoments=seen\.length/,'윤세라 임시 보호는 같은 행동 반복이 아니라 서로 다른 생활 장면 수로 진행돼야 한다');
   assert.match(appSource,/available&&!alreadyTemporary/,'임시 보호 중 이미 본 생활 장면은 다시 눌러 진행도를 소모할 수 없어야 한다');
   const replyPersonSource=appSource.slice(appSource.indexOf('function replyToPerson'),appSource.indexOf('function relationshipDateLine'));
   assert.match(replyPersonSource,/L\.happy=clamp\(\(L\.happy\|\|0\)\+seraHappy/,'윤세라 집착 문자에 대한 대응은 플레이어 행복도를 바꿔야 한다');
-  assert.doesNotMatch(replyPersonSource,/L\.stress/,'윤세라 집착 문자 답장이 플레이어 스트레스를 직접 바꾸면 안 된다');
+  assert.match(replyPersonSource,/STRESS_BALANCE\.contactRelief\(r,kind\)/,'호감과 신뢰가 쌓인 연락은 누적 스트레스를 낮춰야 한다');
   const seraIntrusionSource=appSource.slice(appSource.indexOf('function maybeSeraIntrusion'),appSource.indexOf('function dangerousTrioFollowsOuting'));
   assert.match(seraIntrusionSource,/L\.happy=clamp\(\(L\.happy\|\|0\)\+happyDelta/,'윤세라의 외출 개입도 대응에 따라 행복도로 처리해야 한다');
   assert.doesNotMatch(seraIntrusionSource,/L\.stress=clamp/,'윤세라의 외출 개입이 스트레스를 강제 가산하면 안 된다');
@@ -1664,7 +1682,9 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.match(socialNetworkSource, /집에만 있지 말고 밖에도 나가 봐라/, '아버지는 과거 연인과 재회시키기보다 현재 생활을 살라고 조언해야 한다');
   assert.doesNotMatch(socialNetworkSource, /예린이네하고 다시 연락/, '아버지가 차단한 전 연인과 다시 연락하라고 말하면 안 된다');
   assert.match(lifeEventsSource, /새 연락처는 생기지 않았지만/, '일반 외출 사건이 자동으로 히로인 연락처를 만들면 안 된다');
-  assert.match(appSource, /r\.name==='윤세라'\?\.72:earlyContact\?\.10:\.16/, '위험 히로인 중 윤세라만 초반 고빈도 연락 예외여야 한다');
+  assert.match(appSource, /safeDangerFriend\?\(dangerFriendEarly\?\.18:\.24\)/, '강유진·한채린·윤세라의 친구 연락 빈도는 같은 기준으로 균형을 맞춰야 한다');
+  assert.doesNotMatch(appSource, /r\.name==='윤세라'\?\.72/, '윤세라만 압도적으로 자주 연락하는 예외가 남으면 안 된다');
+  assert.match(appSource,/source:`\$\{pending\.id\}_support`/,'세 인물의 첫 친구 장면 모두 외출 공포를 풀 수 있어야 한다');
   assert.match(appSource,/function showSpecialFollowupMeet\(id,c,rec\)/,'강유진은 첫 조우 뒤 별도의 후속 수사를 가져야 한다');
   assert.match(appSource,/canSpecialFollowup\(yujinRecord\)/,'강유진은 첫 사건 조건이 사라져도 후속 약속이 다시 떠야 한다');
   assert.doesNotMatch(appSource,/한채린의 비서실 약속에 응한다/,'한채린 후속 이야기를 행동창의 전용 버튼으로 진행하면 안 된다');
@@ -1967,6 +1987,22 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.equal(founded.faction.members.length,1,'선택한 노선에 맞는 첫 부하 한 명이 즉시 합류해야 한다');
   assert.equal(founded.member.sourceId,'mentor-intel');
   assert.equal(founded.faction.mentorDeathPending,true,'새 창설 흐름은 장태식 피습 후속 사건을 예약해야 한다');
+  const normalMentorProgress=context.QT_FACTION_CAMPAIGN.repairMentorProgress(foundedLife,8);
+  assert.equal(normalMentorProgress.due,false,'창설한 당월에는 장태식 후속 사건을 바로 재생하면 안 된다');
+  assert.match(context.QT_FACTION_CAMPAIGN.stageText(foundedLife),/1단계가 창설됐습니다/);
+  const legacyMentorLife={
+    faction:{
+      name:'프론티어 연합',level:1,path:'network',storyStage:'active',mentor:'장태식',
+      members:[{...context.QT_FACTION_CAMPAIGN.FOUNDING_MEMBERS.network,stats:{...context.QT_FACTION_CAMPAIGN.FOUNDING_MEMBERS.network.stats}}],
+      mentorDefenseSeen:true,mentorDefenseQueued:true,mentorDeathPending:false,mentorHandoffDay:7
+    }
+  };
+  const repairedMentor=context.QT_FACTION_CAMPAIGN.repairMentorProgress(legacyMentorLife,9);
+  assert.equal(repairedMentor.repaired,true,'구버전의 멈춘 장태식 후속 상태를 복구해야 한다');
+  assert.equal(repairedMentor.due,true,'복구된 첫 방어 사건은 다음 월말에 즉시 예약할 수 있어야 한다');
+  assert.equal(repairedMentor.faction.mentorDeathPending,true);
+  assert.equal(repairedMentor.faction.mentorDefenseSeen,false);
+  assert.equal(repairedMentor.faction.mentorDefenseQueued,false);
   founded.faction.firstAttacker='🦁 태양';
   const fall=context.QT_FACTION_CAMPAIGN.resolveMentorFall(foundedLife,'🦁 태양',8);
   assert.equal(fall.ok,true);
