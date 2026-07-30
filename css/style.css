@@ -729,6 +729,12 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
   position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
   z-index: 10025; width: min(560px, 94vw); animation: breaking-in .3s ease;
 }
+.life-modal-host.phone-modal-host {
+  inset: 0;
+  transform: none;
+  width: 100%;
+  animation: none;
+}
 .life-window { box-shadow: 6px 6px 0 rgba(0,0,0,.5); }
 .life-bar { background: linear-gradient(90deg, #7a1fd6, #d61f7a) !important; }
 .life-window .window-body { background: #fbf7ff; padding: 10px; max-height: 82vh; overflow-y: auto; }
