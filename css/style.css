@@ -729,7 +729,7 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
 /* 직업 선택 / 이직 모달 */
 .life-modal-host {
   position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  z-index: 10025; width: min(560px, 94vw); animation: breaking-in .3s ease;
+  z-index: 10025; width: min(560px, 94vw); animation: centered-popup-in .2s ease-out;
 }
 .life-modal-host.phone-modal-host {
   inset: 0;
@@ -898,7 +898,13 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
 /* 선택지 이벤트 모달 */
 .event-host {
   position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  z-index: 10030; width: min(500px, 94vw); animation: breaking-in .3s ease;
+  z-index: 10030; width: min(500px, 94vw); animation: centered-popup-in .2s ease-out;
+}
+/* breaking-in은 상단 속보용이라 세로 중앙 팝업에 적용하면 애니메이션 중
+   transform 기준이 바뀌어 버튼이 포인터 아래에서 이동한다. */
+@keyframes centered-popup-in {
+  from { opacity:0; transform:translate(-50%, calc(-50% - 14px)); }
+  to { opacity:1; transform:translate(-50%, -50%); }
 }
 .phone-event-host {
   position:fixed; inset:0; top:0; left:0; z-index:10050;
@@ -912,6 +918,10 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
 .event-desc { font-size: 13px; color: #333; line-height: 1.5; margin-bottom: 10px; }
 .event-options { display: flex; flex-direction: column; gap: 6px; }
 .event-opt { text-align: left; padding: 8px 10px; font-size: 13px; cursor: pointer; }
+.event-host button, .close-host button, .life-modal-host button {
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
 .event-opt:hover { background: #fff0d0; }
 .event-outcome:not(:empty) { margin-top: 10px; border-top: 2px dashed #d6a01f; padding-top: 8px; }
 .oc-text { font-size: 13px; margin-bottom: 4px; }

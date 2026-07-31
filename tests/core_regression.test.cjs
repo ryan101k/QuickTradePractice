@@ -153,7 +153,7 @@ for (const file of [
 
 {
   const hosts = {
-    'life-event': { style:{ display:'none' }, className:'', innerHTML:'stale' },
+    'life-event': { style:{ display:'none' }, className:'', innerHTML:'stale', onclick:()=>{} },
     secondary: { style:{ display:'none' }, className:'', innerHTML:'secondary' },
   };
   const completed = [];
@@ -171,11 +171,14 @@ for (const file of [
   assert.equal(first.ok,true,'the shared overlay manager must open the life-event host');
   assert.equal(hosts['life-event'].style.display,'block');
   assert.equal(hosts['life-event'].className,'event-host story-host');
+  assert.equal(hosts['life-event'].onclick,null,'opening a reused popup host must clear stale delegated clicks');
+  hosts['life-event'].onclick=()=>{};
   assert.equal(overlay.complete('done',{token:first.token}),true,'an active overlay must complete once');
   assert.deepEqual(completed,['done']);
   assert.deepEqual(closed,['completed']);
   assert.equal(hosts['life-event'].style.display,'none');
   assert.equal(hosts['life-event'].innerHTML,'');
+  assert.equal(hosts['life-event'].onclick,null,'closing a popup must remove its delegated click handler');
   assert.equal(overlay.complete('again',{token:first.token}),false,'a completed overlay must not resolve twice');
 
   const stale = overlay.open({id:'event:stale'});
@@ -1542,6 +1545,7 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.doesNotMatch(appSource, /data-act="career-train"/, '중복된 직무교육 버튼은 제거돼야 한다');
   assert.match(appSource, /id === 'study'[\s\S]{0,160}CAREER\.train/, '자기계발이 운영 역량 성장을 도와야 한다');
   assert.match(appSource, /allowShort:true,shortSellingPower:power/, '세력 자동 공매도는 실제 공매도 체결 경로를 사용해야 한다');
+  assert.doesNotMatch(appSource, /function runBots\(\)[\s\S]{0,1800}showRivalAlert\(/, 'AI 라이벌의 대량 매수는 플레이를 막는 팝업을 띄우면 안 된다');
   assert.match(appSource, /class="life-action-money"/, '장 마감 행동 화면에서 보유 현금이 항상 보여야 한다');
   assert.match(lifeActionViewSource, /class="life-action-wallet"/, '행동 화면의 현금 표시줄은 스크롤 본문 밖에 고정돼야 한다');
   assert.match(lifeActionViewSource, /api\.wallet\(\)/, '행동 화면은 최신 현금과 총재산 표시를 렌더링해야 한다');
@@ -2235,8 +2239,13 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   const triggerAppSource=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
   const eventFlowSource=fs.readFileSync(path.join(root,'js/ui/important-event-flow.js'),'utf8');
   assert.match(triggerAppSource,/function finishImportantEvent\(options\)/,'queued popups must share one completion path');
+  assert.match(triggerAppSource,/host\.onclick=null;[\s\S]{0,100}host\.className=phoneMode/,'switching popup types must discard the previous delegated click handler');
   assert.equal((triggerAppSource.match(/if\(host\)\{host\.style\.display='none';host\.innerHTML='';\}/g)||[]).length,1,'life-event DOM clearing must only remain in the overlay fallback');
   assert.doesNotMatch(triggerAppSource,/closeLifeEvent\(\);[\s\S]{0,100}showNextImportantEvent\(\)/,'a popup confirmation must not advance the queue twice');
+  const popupCss=fs.readFileSync(path.join(root,'css/style.css'),'utf8');
+  assert.match(popupCss,/@keyframes centered-popup-in[\s\S]{0,220}translate\(-50%, -50%\)/,'centered popups must keep the same transform throughout their entrance animation');
+  assert.match(popupCss,/\.life-modal-host \{[\s\S]{0,180}animation: centered-popup-in/,'secondary life modals must use the stable centered animation too');
+  assert.match(popupCss,/\.event-host button[\s\S]{0,160}touch-action:manipulation/,'popup buttons must opt out of delayed touch gestures');
   assert.match(triggerAppSource,/function releaseImportantEventReservation\(event\)/,'dropped events must release their module reservation');
   assert.match(eventFlowSource,/return queue\.includes\(event\)/,'event queue callers must receive the actual insertion result');
   assert.doesNotMatch(triggerAppSource,/if\s*\(\s*!met\.length\s*\)\s*return/,'online and route triggers must run before any real-world contact exists');

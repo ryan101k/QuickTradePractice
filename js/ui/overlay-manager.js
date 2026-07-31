@@ -33,6 +33,9 @@
 
     function hideHost(host, clear) {
       if (!host) return;
+      // life-event 호스트는 여러 종류의 팝업이 재사용한다. 이전 팝업이
+      // 남긴 DOM0 위임 핸들러가 다음 팝업의 클릭을 가로채지 않게 한다.
+      host.onclick = null;
       if (host.style) host.style.display = settings.hiddenDisplay;
       if (clear !== false) host.innerHTML = '';
     }
@@ -44,6 +47,7 @@
       if (!host) return { ok:false, reason:'missing_host', hostId };
 
       if (active && active.host !== host) hideHost(active.host, true);
+      host.onclick = null;
       sequence += 1;
       active = {
         token: sequence,

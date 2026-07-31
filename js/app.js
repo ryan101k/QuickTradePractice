@@ -2548,7 +2548,12 @@ function prepareLifeEventOverlay(phoneMode) {
   const dateHost=$('date-host');
   if(dateHost&&dateHost.style.display==='block'){dateHost.style.display='none';dateHost.innerHTML='';}
   const host=$('life-event');
-  if(host)host.className=phoneMode?'event-host phone-event-host':'event-host';
+  if(host){
+    // 월말 메시지와 단체방은 DOM0 위임 클릭을 쓴다. 같은 호스트를
+    // 일반 사건이 이어받을 때 예전 핸들러도 반드시 함께 버린다.
+    host.onclick=null;
+    host.className=phoneMode?'event-host phone-event-host':'event-host';
+  }
 }
 
 function openLifeEventOverlay(event, phoneMode) {
@@ -9115,8 +9120,6 @@ function runBots() {
       bot.owned[target.name] = (has || 0) + qty;
       if (value >= 2000000) {
         pushRivalFeed(`🛒 ${bot.name} · ${target.name} ${qty.toLocaleString('ko-KR')}주 대량 매수 (${won(value)})`);
-        if (value >= 5000000 && S.phase === 'open' && !S._helpActive && Math.random() < 0.14)
-          showRivalAlert(bot, `<b>${bot.name}</b>이(가) <b>${target.name}</b>을(를) ${qty.toLocaleString('ko-KR')}주 대량 매수했어요! (${won(value)})`, target.name);
       }
     } else if (has) {
       const value = has * price;
@@ -9131,11 +9134,6 @@ function pushRivalFeed(text) {
   S.rivalFeed = S.rivalFeed || [];
   S.rivalFeed.unshift({ day: S.day, text });
   if (S.rivalFeed.length > 50) S.rivalFeed.length = 50;
-}
-
-function showRivalAlert(bot, html, stockName) {
-  const emoji = (bot.name.match(/^\S+/) || ['🤖'])[0];
-  showHelpCard({ emoji, name: bot.name, portrait:bot.portrait }, `⚔️ <b>라이벌 동향</b><br>${html}`, stockName ? () => goBuy(stockName) : null, stockName ? '📈 차트 보기' : null);
 }
 
 /* ---- 장중 라이벌 습격: 즉시 피해 + 세력 있으면 그 자리에서 역공 ---- */
