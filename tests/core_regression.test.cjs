@@ -597,12 +597,26 @@ for (const file of [
   earlyPreludeLife.met.find(person=>person.name==='윤세라').seraObsessionAwakened=true;
   assert.equal(trio.preludeEligibility(earlyPreludeLife).ok,true,'호감 20과 세 사람의 각성 사건을 본 뒤에는 개인 완결 전에도 첫 악우 사건이 열려야 한다');
   const interwovenLife={
-    day:40,seraHousing:'cohabit',met:trio.NAMES.map(name=>({name,status:'friend',affection:60,trust:50,
+    day:40,seraHousing:'cohabit',partner:{name:'강유진'},met:trio.NAMES.map(name=>({name,status:name==='강유진'?'partner':'friend',affection:60,trust:50,
       yujinRescueCompulsionAwakened:name==='강유진',chaerinSubmissionAwakened:name==='한채린',seraObsessionAwakened:name==='윤세라',
       story:{chapter:1,completed:false,history:[],traits:{},variant:'adult'}})),dangerousTrio:{badFriendsFormed:true}
   };
+  const explicitDayLife=JSON.parse(JSON.stringify(interwovenLife));delete explicitDayLife.day;
+  assert.equal(trio.start(explicitDayLife).ok,true);
+  const explicitOpening=trio.next(explicitDayLife,40);
+  assert.ok(trio.apply(explicitDayLife,explicitOpening.choices[0].id,40),'월 정보가 life 밖에 있어도 첫 장 선택을 처리해야 한다');
+  explicitDayLife.met.find(person=>person.name==='강유진').story.chapter=2;
+  assert.equal(trio.waiting(explicitDayLife,41).kind,'cooldown','공통서사는 선택 직후 한 달의 여운을 명시해야 한다');
+  assert.equal(trio.next(explicitDayLife,41),null,'같은 달 다음 장이 연달아 열리면 안 된다');
+  assert.equal(trio.next(explicitDayLife,42).focus,'강유진','life.day가 없어도 명시한 게임 월을 사용해 영구 정지 없이 다음 장이 열려야 한다');
   assert.equal(trio.eligibility(interwovenLife).ok,true,'악우가 된 뒤에는 세 개인사가 끝나지 않아도 첫 공동작전을 시작할 수 있어야 한다');
   assert.equal(trio.start(interwovenLife).ok,true);
+  assert.equal(interwovenLife.met.find(person=>person.name==='강유진').status,'partner','공동 악우 본편 시작이 기존 연애 상태를 친구로 강등하면 안 된다');
+  const interwovenYujin=interwovenLife.met.find(person=>person.name==='강유진');
+  assert.equal(trio.personalCarry(interwovenLife,'강유진').route,'unknown');
+  interwovenYujin.story.ending={route:'dangerous_dependence'};
+  assert.equal(trio.personalCarry(interwovenLife,'강유진').route,'dangerous_dependence','본편 시작 뒤 완료한 개인 결말은 시작 시점의 미완료 스냅샷보다 우선해야 한다');
+  delete interwovenYujin.story.ending;
   trio.apply(interwovenLife,trio.next(interwovenLife).choices[0].id);
   interwovenLife.day+=2;
   assert.equal(trio.next(interwovenLife),null,'유진 중심 장면은 유진의 병원 이야기가 충분히 드러날 때까지 기다려야 한다');
@@ -1071,7 +1085,7 @@ const finishFreedomForBusiness=life=>{
   assert.match(freedomAppSource,/guildStoryWaiting[\s\S]{0,1500}정모 이야기 대기 중/,'정모가 잠긴 동안 게임 비용과 행동을 반복 소모시키면 안 된다');
   assert.match(freedomAppSource,/result\.meetupQueued&&FREEDOM_TRIO\.queueFirstOuting\(S\.life\)[\s\S]{0,180}freedomFirstOuting:true/,'정모 수락 뒤 첫 만남은 다음 달까지 불필요하게 밀리지 않아야 한다');
   assert.match(freedomAppSource,/function foundFactionFromMentor[\s\S]{0,1800}freedom\.meetupDeferred&&FREEDOM_TRIO\.chapterTwoUnlocked\(S\.life\)[\s\S]{0,220}freedomGuildEvent:'offline_table'/,'세력 창설로 정모 조건이 열리면 같은 월말 사건 큐에서 바로 정모 제안이 이어져야 한다');
-  assert.match(freedomAppSource,/if\(freedomPersonalStoryManaged\(m,L\)\)return/,'자유인 전용 개인사가 열린 뒤 일반 캐릭터 개인서사를 동시에 큐에 넣으면 안 된다');
+  assert.match(freedomAppSource,/if\(freedomPersonalStoryManaged\(m,L\)\)continue/,'자유인 전용 개인사가 열린 뒤 일반 캐릭터 개인서사를 동시에 큐에 넣으면 안 된다');
   assert.match(freedomAppSource,/function showFreedomGuildEvent[\s\S]*?phone-notification-stage freedom-guild-stage/,'자유인 온라인 길드 사건도 공통 휴대폰 UI를 사용해야 한다');
   assert.match(freedomAppSource,/function showFirstCloseGuildTutorial[\s\S]*?phone-chat-screen open/,'첫 자유인 접속 장면도 공통 휴대폰 대화 화면을 사용해야 한다');
   assert.match(freedomAppSource,/function showOriginFriendReferral[\s\S]*?phone-notification-stage origin-referral-stage/,'초반 친구 메시지를 열었을 때도 자유인과 같은 전체 휴대폰 UI를 사용해야 한다');
@@ -2258,8 +2272,9 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
   assert.doesNotMatch(appSource,/applyDangerousTrioHazardPay/,'첫 부하의 월급 두 배 요구는 농담이므로 실제 급여 처리 함수가 있으면 안 된다');
   const trioSource=fs.readFileSync(path.join(root,'js/dangerous_trio.js'),'utf8');
   assert.match(trioSource,/가짜 불화와 진짜 공조/,'위험 3인조는 겉으로만 사이 나쁜 악우여야 한다');
-  assert.match(trioSource,/진짜 미친년들 같습니다/,'악우 형성 사건에는 첫 부하의 솔직한 상황 보고가 있어야 한다');
-  assert.match(trioSource,/월급 두 배는 받아야겠습니다/,'잘잘못 재판 뒤 첫 부하가 위험수당을 요구해야 한다');
+  assert.match(trioSource,/평범한 방식으로 사람을 좋아하시는 것 같지는 않습니다/,'악우 형성 사건에는 첫 부하의 솔직하지만 과하게 모욕적이지 않은 상황 보고가 있어야 한다');
+  assert.match(trioSource,/수당은 조금 올려 주셨으면 합니다/,'잘잘못 재판 뒤 첫 부하가 위험수당을 자연스럽게 요구해야 한다');
+  assert.doesNotMatch(trioSource,/진짜 미친년들 같습니다/,'첫 부하의 대사는 인물을 개발자식 별칭으로 뭉뚱그리면 안 된다');
   assert.match(trioSource,/두 배로 되겠냐\. 세 배는 받아야지/,'플레이어도 월급 요구를 농담으로 받아칠 수 있어야 한다');
   assert.doesNotMatch(trioSource,/payRate/,'월급 농담 선택이 실제 급여 배율을 저장하면 안 된다');
   assert.match(trioSource,/id:'preference_audit'/,'세 사람은 정식 공생 전에 서로의 취향을 폭로하는 사건을 겪어야 한다');
@@ -2287,6 +2302,9 @@ assert.equal(typeof context.QT_PAGE_LIFECYCLE.mount, 'function', '페이지 이�
     assert.doesNotMatch(appSource,new RegExp(`${removed}:\\{`),`${removed} 중복 호감 컷씬은 정식 개인 아크와 병렬로 남으면 안 된다`);
   }
   assert.match(appSource,/아직 삼키고 있는 말/,'그룹 본편은 개인 결말을 완료표가 아니라 현재 장의 감정 전제로 보여줘야 한다');
+  assert.match(appSource,/DANGEROUS_TRIO\.waiting\(L,S\.day\)/,'인맥 진행 화면은 공통서사가 멈춘 이유를 실제 게임 월과 함께 보여줘야 한다');
+  assert.match(appSource,/L\.lastAutoStoryDay===S\.day/,'같은 달에 개인서사 자동 예약 함수가 다시 불려도 두 번째 이야기를 넣으면 안 된다');
+  assert.match(appSource,/L\.lastAutoStoryPerson=m\.name;L\.lastAutoStoryDay=S\.day;break/,'한 달에 여러 개인서사가 한꺼번에 쏟아지지 않도록 한 명만 자동 예약해야 한다');
   assert.match(trioSource,/state\.stage===1&&!focusReady\(life,'강유진'\)/,'인물별 3인 장면은 각 인물의 개인 중간 사건에 맞춰 따로 열려야 한다');
   assert.match(trioSource,/state\.stage===4&&!rows\.every\(row=>row\.directionFixed\)/,'37분 위기는 세 사람의 관계 방향이 정해진 뒤 열려야 한다');
   assert.match(trioSource,/state\.stage>=5&&!rows\.every\(row=>row\.ready\)/,'최종 공동생활 합의만 세 개인사가 모두 끝난 뒤 열려야 한다');

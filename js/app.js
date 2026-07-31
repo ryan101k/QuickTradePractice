@@ -5275,22 +5275,26 @@ function closeCharacterStory(){
 /* 호감도 조건이 충족되면 개인 스토리를 클릭 없이 자동으로 꺼내 온다 —
  * 챕터마다 한 번만 제시하고, 미뤄두면 인맥 목록의 📖 버튼으로 다시 볼 수 있다. */
 function queueAvailableStories(L){
-  ensureMet(L).forEach(m=>{
+  if(L.lastAutoStoryDay===S.day)return;
+  const people=ensureMet(L);
+  const lastIndex=people.findIndex(m=>m.name===L.lastAutoStoryPerson);
+  const ordered=lastIndex>=0?people.slice(lastIndex+1).concat(people.slice(0,lastIndex+1)):people;
+  for(const m of ordered){
     syncPersonalRomancePath(m,L);
-    if(freedomPersonalStoryManaged(m,L))return;
-    if(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(L,m.name))return;
+    if(freedomPersonalStoryManaged(m,L))continue;
+    if(FREEDOM_TRIO&&!FREEDOM_TRIO.canMeetOffline(L,m.name))continue;
     const active=RELATIONSHIPS.isPartner(L,m.name)||['friend','casual','partner','polycule','lover'].includes(m.status);
-    if(!active)return;
-    const st=STORIES.get(m);if(!st)return;
-    const chapter=STORIES.next(m);if(!chapter)return;              // 호감도 조건 충족 & 미완결
+    if(!active)continue;
+    const st=STORIES.get(m);if(!st)continue;
+    const chapter=STORIES.next(m);if(!chapter)continue;              // 호감도 조건 충족 & 미완결
     const state=STORIES.ensure(m);
-    if((state.offeredChapter==null?-1:state.offeredChapter)>=state.chapter)return;  // 이번 챕터는 이미 자동 제시함
+    if((state.offeredChapter==null?-1:state.offeredChapter)>=state.chapter)continue;  // 이번 챕터는 이미 자동 제시함
     const queued=queueImportantEvent({type:'love',story:true,personName:m.name,scene:chapter.scene?`./assets/${chapter.scene}`:characterEventScene(m.name,chapter.index),icon:'📖',
       title:`${STORIES.phaseLabel(chapter.phase)} · ${m.name}와의 이야기 · ${chapter.title}`,
       desc:chapter.phase==='friend'?`${m.name}와(과) 친구로 신뢰를 쌓으며, 지금까지 보이지 않던 사정이 드러나기 시작했습니다.`:`${m.name}와(과) 연인이 된 뒤에만 꺼낼 수 있었던 이야기가 시작됩니다.`,
       detail:`평소와 다른 연락이 왔습니다. ${m.name}에게는 아직 끝내지 못한 이야기가 있는 것 같습니다.`,tone:'neutral'});
-    if(queued)state.offeredChapter=state.chapter;
-  });
+    if(queued){state.offeredChapter=state.chapter;L.lastAutoStoryPerson=m.name;L.lastAutoStoryDay=S.day;break;}
+  }
 }
 function resolveCharacterStory(choice){
   const r=S._storyPerson,result=r&&STORIES.apply(r,choice);if(!result)return;
@@ -5568,7 +5572,7 @@ function queueNaturalDangerousEvents(L){
       const prelude=DANGEROUS_TRIO.queuePrelude(L,S.day);
       if(prelude)routeQueued=queueImportantEvent({dangerousTrioPrelude:prelude.id});
       else if(DANGEROUS_TRIO.queue(L))routeQueued=queueImportantEvent({dangerousTrioStart:true});
-      else if(state.active&&state.encountered&&DANGEROUS_TRIO.next(L)&&state.lastChapterDay!==S.day){
+      else if(state.active&&state.encountered&&DANGEROUS_TRIO.next(L,S.day)&&state.lastChapterDay!==S.day){
         if(queueImportantEvent({dangerousTrioChapter:true})){
           state.lastChapterDay=S.day;
           routeQueued=true;
@@ -7537,7 +7541,7 @@ function startDangerousTrioRoute(auto){
   autoSave();showDangerousTrioStory();
 }
 function showDangerousTrioStory(){
-  const chapter=DANGEROUS_TRIO.next(S.life),host=$('life-event');if(!chapter||!host){closeLifeEventOverlay();MONTH_CLOSE_FLOW.clearImportant(S);showNextImportantEvent();return;}
+  const chapter=DANGEROUS_TRIO.next(S.life,S.day),host=$('life-event');if(!chapter||!host){closeLifeEventOverlay();MONTH_CLOSE_FLOW.clearImportant(S);showNextImportantEvent();return;}
   const state=DANGEROUS_TRIO.ensure(S.life),witness=trioWitness();
   const carry=chapter.focus&&DANGEROUS_TRIO.personalCarry?DANGEROUS_TRIO.personalCarry(S.life,chapter.focus):null;
   const continuity=DANGEROUS_TRIO.continuity?DANGEROUS_TRIO.continuity(S.life,chapter):null;
@@ -7556,7 +7560,7 @@ function resolveDangerousTrioStory(choiceId){
     state:JSON.parse(JSON.stringify(DANGEROUS_TRIO.ensure(S.life))),
     people:DANGEROUS_HEROINE_NAMES.map(name=>{const r=metRecord(S.life,name);return{name,affection:r&&r.affection,trust:r&&r.trust,obsession:r&&r.obsession};})
   };
-  const result=DANGEROUS_TRIO.apply(S.life,choiceId);if(!result)return;
+  const result=DANGEROUS_TRIO.apply(S.life,choiceId,S.day);if(!result)return;
   const poly=ensurePolycule(S.life);poly.trust=Math.round(result.state.stability);
   const host=$('life-event'),options=host.querySelector('.event-options,.phone-reply-options');if(options)options.innerHTML='';
   const scene=host.querySelector('.life-scene-banner');if(scene&&result.ending&&result.ending.scene)scene.src=result.ending.scene;
@@ -7588,8 +7592,9 @@ function activateDangerousTrioBond(){
   poly.active=true;poly.mode='dangerous_trio_success';poly.tone='dangerous_balance';poly.trust=Math.round(DANGEROUS_TRIO.ensure(L).stability);
   poly.members=people.slice(1).map(r=>{r.status='polycule';awakenDangerousHeroine(r,'relationship');return{name:r.name,job:r.job,personality:r.personality,age:r.age,emoji:r.emoji,gender:r.gender,portrait:r.portrait,special:r.special};});
   const trioState=DANGEROUS_TRIO.ensure(L);
+  const livePersonalRoutes=Object.fromEntries(DANGEROUS_HEROINE_NAMES.map(name=>[name,DANGEROUS_TRIO.personalCarry(L,name).route]));
   L.dangerousTrioBond={active:true,since:S.day,members:DANGEROUS_HEROINE_NAMES.slice(),clubEscapeAttempts:0,chaerinSupportRefusals:0,chaerinCashAccepted:false,
-    personalRoutes:Object.assign({},trioState.individualRoutes||{}),personalConcessions:JSON.parse(JSON.stringify(trioState.personalConcessions||{}))};
+    personalRoutes:livePersonalRoutes,personalConcessions:JSON.parse(JSON.stringify(trioState.personalConcessions||{}))};
   people.forEach(person=>{person.groupRoute='dangerous_bad_friends';person.individualEndingRetained=!!(person.story&&person.story.ending);});
   people.forEach(person=>RELATIONSHIPS.addMember(L,person,S.day));const group=RELATIONSHIPS.ensure(L).relationshipGroup;group.agreement.cohabiting=true;group.agreement.publicity='public';
   FAMILY.syncCaregivers(L,RELATIONSHIPS.caregiverNames(L));
@@ -9035,7 +9040,9 @@ function storyProgressHTML(L) {
   const circleMood=childhoodCircleNarrative(circle);
   const circleVisible=!!(circle&&circle.anchor&&L.devChildhoodFinale===true);
   const circleRow=circleVisible?`<div class="story-progress-card childhood-circle-progress"><strong>🎓 한 번씩 헤어진 다섯</strong><div><small class="${circleMood.tone}"><b>${circleMood.title}</b> · ${circleMood.detail}</small></div></div>`:'';
-  return rows.length||circleRow?`<div class="story-progress-list"><div class="hub-title">📖 이어지는 인물 이야기</div>${circleRow}${rows.slice(0,5).join('')}</div>`:'';
+  const dangerousWait=DANGEROUS_TRIO&&DANGEROUS_TRIO.waiting?DANGEROUS_TRIO.waiting(L,S.day):null;
+  const dangerousRow=dangerousWait?`<div class="story-progress-card dangerous-trio-progress"><strong>🦂 위험한 세 사람</strong><div><small><b>${dangerousWait.title}</b> · ${dangerousWait.text}</small></div></div>`:'';
+  return rows.length||circleRow||dangerousRow?`<div class="story-progress-list"><div class="hub-title">📖 이어지는 인물 이야기</div>${circleRow}${dangerousRow}${rows.slice(0,5).join('')}</div>`:'';
 }
 
 function mainSystemsUnlocked(L=S.life){

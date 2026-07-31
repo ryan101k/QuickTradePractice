@@ -56,9 +56,12 @@ const PERSONAL_ARC_LESSONS={
  }
 };
 function personalCarry(life,name){
- const state=ensure(life),person=rec(life,name),route=state.individualRoutes&&state.individualRoutes[name]
-  ||person&&person.story&&person.story.ending&&person.story.ending.route
+ const state=ensure(life),person=rec(life,name);
+ const currentRoute=person&&person.story&&person.story.ending&&person.story.ending.route
   ||person&&(name==='강유진'?person.yujinEndingRoute:name==='한채린'?person.chaerinEndingRoute:person.seraEndingRoute);
+ const savedRoute=state.individualRoutes&&state.individualRoutes[name];
+ const route=currentRoute||(savedRoute&&savedRoute!=='unknown'?savedRoute:null);
+ if(currentRoute){state.individualRoutes=state.individualRoutes||{};state.individualRoutes[name]=currentRoute;}
  const unfinished={
   '강유진':{title:'먼저 불리고 싶은 사람',text:'유진은 사건이 끝난 뒤에도 자신이 필요한 사람으로 남고 싶어 합니다. 다른 두 사람의 도움을 인정하는 순간, 그 욕망이 보호인지 독점인지 선명해집니다.'},
   '한채린':{title:'도발로 반응을 훔치는 사람',text:'채린은 원하는 말을 직접 부탁하는 대신 상대를 화나게 만들어 반응을 끌어냅니다. 세 사람 앞에서는 약점을 무기로 쓰지 않고 자기 욕망을 말해야 합니다.'},
@@ -91,7 +94,7 @@ const PRELUDES=[
    {name:'강유진',line:'한채린 씨는 자기 돈에도 안 눌리는 사람 앞에서만 편해지고, 세라 씨는 솔직하다는 말로 무단침입을 덮어요.'},
    {name:'한채린',line:'당신은 이 사람이 무너질 때까지 보호를 늘려 자기 번호부터 누르게 만들잖아. 윤세라는 열쇠를 훔치고도 우리보다 솔직한 척하고.'},
    {name:'윤세라',line:'그래도 채린 씨 계열사 흔적은 내가 지웠고, 유진 씨 순찰기록은 채린 씨가 막았네요. 둘 다 나 싫다면서 왜 내 흔적을 치워줘요?'},
-   {name:'첫 부하',line:'이런 말씀 드리긴 죄송하지만 진짜 미친년들 같습니다. 서로 취향을 다 맞히고 잘못까지 덮어주는데, 이 회의를 계속 경호하려면 월급 두 배는 받아야겠습니다.'}
+   {name:'첫 부하',line:'이런 말씀 드리긴 죄송하지만 세 분 다 평범한 방식으로 사람을 좋아하시는 것 같지는 않습니다. 서로 잘못은 정확히 짚으면서 외부 기록은 지워 주고 계십니다. 이 회의를 계속 경호하려면 수당은 조금 올려 주셨으면 합니다.'}
   ],
   choices:[
    {id:'triple_joke',text:'“두 배로 되겠냐. 세 배는 받아야지.”라고 받아친다',stability:10,trust:5,result:'첫 부하는 진담인지 확인하듯 당신을 보다가 웃었습니다. 채린이 급여명세서를 달라고 손을 내밀자 당신과 부하는 동시에 농담이라고 정정했습니다. 셋은 서로를 신고하겠다는 말을 멈추지 않으면서도 외부에 넘길 자료부터 함께 지웠습니다.'},
@@ -530,26 +533,38 @@ function start(life){
  if(root.QT_ROMANCE_ROUTES&&!root.QT_ROMANCE_ROUTES.begin(life,'dangerous').ok)return{ok:false,check:eligibility(life)};
  const routePath=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.path(life,'dangerous');
  const state=ensure(life),rows=progress(life);state.active=true;state.queued=false;state.encountered=true;state.friendRoute=!!(routePath&&routePath.path==='pure');state.storyMode=state.friendRoute?'pure':'interwoven';state.stage=Math.max(0,state.stage||0);state.stability=Math.max(50,state.stability||0);state.ending=null;
- state.individualRoutes=Object.fromEntries(rows.map(row=>[row.name,row.route||'unknown']));
+ state.individualRoutes=Object.fromEntries(rows.map(row=>[row.name,row.route||null]));
  state.personalConcessions={};
- NAMES.forEach(name=>{const r=rec(life,name);if(r){if(!routePath||routePath.path!=='pure'||routePath.name!==name)r.status='friend';r.trust=clamp((r.trust||0)+4,0,100);}});
+ NAMES.forEach(name=>{const r=rec(life,name);if(r)r.trust=clamp((r.trust||0)+4,0,100);});
  return{ok:true,state,chapter:chaptersFor(life)[state.stage]};
 }
-function next(life){
+function eventDay(life,day){
+ if(day!=null&&Number.isFinite(Number(day)))return Number(day);
+ if(life&&life.day!=null&&Number.isFinite(Number(life.day)))return Number(life.day);
+ return null;
+}
+function waiting(life,day){
  const state=ensure(life);
  if(!state.active||state.ending)return null;
- const rows=progress(life),today=Number(life.day)||0;
- if(Number.isFinite(state.lastResolvedChapterDay)&&today<=state.lastResolvedChapterDay+1)return null;
- if(state.storyMode==='pure'){
-  if(state.stage===1&&!rows.every(row=>row.directionFixed))return null;
-  if(state.stage>=2&&!rows.every(row=>row.ready))return null;
- }else{
-  if(state.stage===1&&!focusReady(life,'강유진'))return null;
-  if(state.stage===2&&!focusReady(life,'한채린'))return null;
-  if(state.stage===3&&!focusReady(life,'윤세라'))return null;
-  if(state.stage===4&&!rows.every(row=>row.directionFixed))return null;
-  if(state.stage>=5&&!rows.every(row=>row.ready))return null;
+ const rows=progress(life),today=eventDay(life,day);
+ if(Number.isFinite(state.lastResolvedChapterDay)&&Number.isFinite(today)&&today<=state.lastResolvedChapterDay+1){
+  return{kind:'cooldown',title:'지난 대화가 가라앉는 중',text:'세 사람은 각자의 생활로 돌아가 지난 선택을 곱씹고 있습니다. 다음 달이 되면 새로운 이야기가 이어집니다.'};
  }
+ if(state.storyMode==='pure'){
+  if(state.stage===1&&!rows.every(row=>row.directionFixed))return{kind:'direction',title:'각자의 대답을 기다리는 중',text:'세 사람의 개인 이야기에서 관계에 붙일 이름을 먼저 확인해야 합니다.'};
+  if(state.stage>=2&&!rows.every(row=>row.ready))return{kind:'completion',title:'끝내지 못한 개인 이야기',text:'세 사람 모두 자기 이야기를 마무리해야 동맹의 마지막 약속을 정할 수 있습니다.'};
+ }else{
+  if(state.stage===1&&!focusReady(life,'강유진'))return{kind:'personal',name:'강유진',title:'강유진의 병원 이야기를 기다리는 중',text:'유진은 병원과 끝난 사건 사이에서 아직 자기 마음을 말하지 못했습니다. 유진의 개인 이야기를 조금 더 이어가세요.'};
+  if(state.stage===2&&!focusReady(life,'한채린'))return{kind:'personal',name:'한채린',title:'한채린의 사교모임 이야기를 기다리는 중',text:'채린은 도발 없이 부탁하는 법을 아직 꺼내지 못했습니다. 채린의 개인 이야기를 조금 더 이어가세요.'};
+  if(state.stage===3&&!focusReady(life,'윤세라'))return{kind:'personal',name:'윤세라',title:'윤세라의 집 이야기를 기다리는 중',text:'세라는 열린 문 앞에서 기다리는 법을 아직 보여 주지 못했습니다. 세라의 개인 이야기를 조금 더 이어가세요.'};
+  if(state.stage===4&&!rows.every(row=>row.directionFixed))return{kind:'direction',title:'각자의 대답을 기다리는 중',text:'세 사람의 개인 이야기에서 관계에 붙일 이름을 먼저 확인해야 합니다.'};
+  if(state.stage>=5&&!rows.every(row=>row.ready))return{kind:'completion',title:'끝내지 못한 개인 이야기',text:'공동생활을 정하기 전에 세 사람 모두 자기 이야기를 마무리해야 합니다.'};
+ }
+ return null;
+}
+function next(life,day){
+ const state=ensure(life);
+ if(!state.active||state.ending||waiting(life,day))return null;
  return chaptersFor(life)[state.stage]||null;
 }
 function continuity(life,chapter){
@@ -584,13 +599,13 @@ function endingFor(state,finalChoice,life){
  }
  return{id:'bad_friends',title:'네 번째 열쇠를 두고 간 밤',tone:'good',scene:'./assets/event-trio-meeting-5.png',text:'세 사람은 각자의 권한과 거절선을 인정하는 악우가 됐습니다. 누구도 관계를 기정사실로 만들지 않고, 좁은 자취방에 네 번째 열쇠만 두고 돌아갔습니다. 이제 먼저 대답을 요구할 사람은 세 사람 쪽입니다.'};
 }
-function apply(life,choiceId){
- const state=ensure(life),chapter=next(life);if(!chapter)return null;const choice=chapter.choices.find(c=>c.id===choiceId);if(!choice)return null;
+function apply(life,choiceId,day){
+ const state=ensure(life),chapter=next(life,day);if(!chapter)return null;const choice=chapter.choices.find(c=>c.id===choiceId);if(!choice)return null;
  state.stability=clamp((state.stability||0)+(choice.stability||0),0,100);state.axes[choice.tag]=(state.axes[choice.tag]||0)+1;state.history.push({stage:state.stage,choice:choice.id,tag:choice.tag,focus:chapter.focus||null});
  recordPlayerChoice(life,'dangerous-group',choice.tag,chapter.title);
  NAMES.forEach(name=>{const r=rec(life,name);if(!r)return;r.trust=clamp((r.trust||0)+(choice.trust||0),0,100);r.affection=clamp((r.affection||0)+(choice.tag==='fracture'?-2:3),0,100);if(choice.obsession){const key=name==='윤세라'?'obsession':'dangerLevel';r[key]=clamp((r[key]||0)+choice.obsession,0,100);}});
  if(chapter.focus)state.personalConcessions[chapter.focus]={choice:choice.id,tag:choice.tag,route:personalCarry(life,chapter.focus).route};
- state.lastResolvedChapterDay=Number(life.day)||0;
+ const today=eventDay(life,day);state.lastResolvedChapterDay=Number.isFinite(today)?today:null;
  state.stage++;if(state.stage>=chaptersFor(life).length){state.ending=endingFor(state,choice,life);state.active=false;if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'dangerous',state.ending.id,state.ending.tone);}
  return{chapter,choice,state,ending:state.ending};
 }
@@ -616,5 +631,5 @@ function applyAftermath(life,choiceId){
 }
 function compatibleCandidate(){return false;}
 
-root.QT_DANGEROUS_TRIO={VERSION,NAMES,ROMANCE_ENDINGS,romanceEnding,PRELUDES,CHAPTERS,pureChapters,chaptersFor,AFTERMATH,PERSONAL_ARC_LESSONS,PLAYER_ARC_MODES,PLAYER_ARC_COPY,personalCarry,continuity,recordPlayerChoice,playerArcSummary,ensure,awakeningReady,focusReady,directionFixed,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,storyComplete,resolveUnavailable,confessionReady,eligibility,queue,cancelQueue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
+root.QT_DANGEROUS_TRIO={VERSION,NAMES,ROMANCE_ENDINGS,romanceEnding,PRELUDES,CHAPTERS,pureChapters,chaptersFor,AFTERMATH,PERSONAL_ARC_LESSONS,PLAYER_ARC_MODES,PLAYER_ARC_COPY,personalCarry,continuity,recordPlayerChoice,playerArcSummary,ensure,awakeningReady,focusReady,directionFixed,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,storyComplete,resolveUnavailable,confessionReady,eligibility,queue,cancelQueue,start,waiting,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
 })(window);
