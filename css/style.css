@@ -279,6 +279,12 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
 .stat:last-child { border-right: none; }
 .stat-label { font-size: 11px; color: #444; }
 .stat-val { font-size: 16px; font-weight: bold; }
+.stat-detail { font-size: 10px; color: #555; line-height: 1.15; white-space: nowrap; }
+.debt-stat.has-debt { background:#ffe3e3; border-color:#b40000; }
+.debt-stat.debt-raised { animation:debt-alert .36s steps(2,end) 4; }
+@keyframes debt-alert { 50% { background:#b40000; color:#fff; } }
+.debt-stat.debt-raised .stat-label,
+.debt-stat.debt-raised .stat-detail { color:inherit; }
 .badge { background: #000080; color: #fff; padding: 2px 10px; border-radius: 2px; font-size: 14px; }
 
 /* ---------------------------------------------------------------- 컨트롤바 */
@@ -924,6 +930,9 @@ img[src*="pixel-event-"], img[src*="-childhood-pixel-"] { image-rendering: pixel
 }
 .event-opt:hover { background: #fff0d0; }
 .event-outcome:not(:empty) { margin-top: 10px; border-top: 2px dashed #d6a01f; padding-top: 8px; }
+.freedom-identity-reveal { display:grid; gap:6px; margin:10px 0; }
+.freedom-identity-reveal > div { display:flex; justify-content:space-between; gap:12px; padding:8px 10px; border:1px solid #b8a36e; background:#fff9df; }
+.freedom-identity-reveal span { color:#555; text-align:right; }
 .oc-text { font-size: 13px; margin-bottom: 4px; }
 .oc-changes { font-size: 13px; font-weight: bold; margin-bottom: 8px; }
 #event-confirm { width: 100%; padding: 8px; }

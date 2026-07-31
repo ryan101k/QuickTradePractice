@@ -274,6 +274,27 @@ const pct = n => (n >= 0 ? '+' : '') + (n * 100).toFixed(2) + '%';
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const actorName = (value, fallback='경쟁 세력') => {
+  const name=value&&typeof value==='object'?value.name:value;
+  return String(name||fallback);
+};
+const hasFinalConsonant = value => {
+  const text=actorName(value,'').replace(/\s+$/,'');
+  const code=text.charCodeAt(text.length-1)-0xAC00;
+  return code>=0&&code<=11171&&code%28!==0;
+};
+const withSubjectParticle = value => {
+  const name=actorName(value);
+  return `${name}${hasFinalConsonant(name)?'이':'가'}`;
+};
+const withTopicParticle = value => {
+  const name=actorName(value);
+  return `${name}${hasFinalConsonant(name)?'은':'는'}`;
+};
+function rivalStoryActor(value){
+  const name=actorName(value),bot=(S.bots||[]).find(entry=>entry.name===name);
+  return bot&&(bot.jailMonths||0)>0?`${bot.faction||name} 잔당`:name;
+}
 
 // ETF 레버리지 배율 라벨
 function levLabel(lev) {
@@ -2068,7 +2089,8 @@ function showOpeningFriendMessage(firstSetup=false){
   const job=jobOf(L.job||'none');
   const host=$('life-modal');if(!host)return;
   host.style.display='flex';host.className='life-modal-host';
-  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🌒 프롤로그 · 멈춘 방</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-family.png" alt="읽지 않은 메시지가 켜진 채 어두운 자취방에 놓인 휴대전화"><div class="event-title">졸업 뒤, 자취방의 문을 잠갔습니다.</div><div class="event-desc">생활경제연구회의 다섯 사람과 맺었던 관계는 서로를 지킨다는 명목 아래 망가졌고, 마지막 모의투자 대회에서는 후원사의 조작 장부까지 발견됐습니다. 당신은 누구와도 끝까지 이야기하지 못한 채 연락처를 차단하고 원본 장부만 들고 사라졌습니다.<br><br>아버지가 보내는 월 생활비로 버티던 어느 밤, 오랫동안 조용하던 휴대전화가 켜졌습니다.</div><div class="phone-shell prologue-phone"><div class="phone-status"><span>오전 11:42</span><span>●●● 38%</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">📱</span><span><b>${friend&&friend.name||'학교 친구'}</b><small>메시지 1개</small></span></header><div class="phone-chat-log"><div class="phone-bubble incoming">야, 살아 있냐? 돈 버는 법 알려 달라더니 답이 없네.</div></div></div></div><div class="important-event-detail">현재 · ${job.name} · 낡은 자취방 · 아버지 생활비 월 ${won(FATHER_MONTHLY_SUPPORT)}원<br>${school.icon} ${school.name}</div><button id="origin-start" class="session-btn opening">${friend&&friend.name||'친구'}의 메시지를 연다</button></div></div>`;
+  const playerScar=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.playerEcho?CHILDHOOD_CIRCLE.playerEcho(L,'opening'):'';
+  host.innerHTML=`<div class="window life-window"><div class="title-bar life-bar"><div class="title-bar-text">🌒 프롤로그 · 멈춘 방</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/life-origin-family.png" alt="읽지 않은 메시지가 켜진 채 어두운 자취방에 놓인 휴대전화"><div class="event-title">졸업 뒤, 자취방의 문을 잠갔습니다.</div><div class="event-desc">생활경제연구회의 다섯 사람과 맺었던 관계는 서로를 지킨다는 명목 아래 망가졌고, 마지막 모의투자 대회에서는 후원사의 조작 장부까지 발견됐습니다. 당신은 누구와도 끝까지 이야기하지 못한 채 연락처를 차단하고 원본 장부만 들고 사라졌습니다.<br><br>${playerScar}<br><br>아버지가 보내는 월 생활비로 버티던 어느 밤, 오랫동안 조용하던 휴대전화가 켜졌습니다.</div><div class="phone-shell prologue-phone"><div class="phone-status"><span>오전 11:42</span><span>●●● 38%</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">📱</span><span><b>${friend&&friend.name||'학교 친구'}</b><small>메시지 1개</small></span></header><div class="phone-chat-log"><div class="phone-bubble incoming">야, 살아 있냐? 돈 버는 법 알려 달라더니 답이 없네.</div></div></div></div><div class="important-event-detail">현재 · ${job.name} · 낡은 자취방 · 아버지 생활비 월 ${won(FATHER_MONTHLY_SUPPORT)}원<br>${school.icon} ${school.name}</div><button id="origin-start" class="session-btn opening">${friend&&friend.name||'친구'}의 메시지를 연다</button></div></div>`;
   if(firstSetup)addNews(`🌒 은둔 생활 시작 · 무직 · 아버지가 매달 최소 생활비를 보냅니다`,'neutral');
   $('origin-start').addEventListener('click',()=>{checkAchievements();renderMarketPhase();renderAll();showOriginFriendReferral();autoSave();});
   autoSave();
@@ -2802,7 +2824,7 @@ function resolveRelationshipSocialEvent(choiceId){
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
   $('relationship-social-outcome').innerHTML=`<div class="oc-text ${result.tone==='bad'?'down':result.tone==='good'?'up':''}">${result.text}</div><div class="oc-changes">평판 ${Math.round(social.reputation)} · 세력 정보 ${Math.round((faction.intel||0)*100)}% · 스트레스 ${Math.round(S.life.stress||0)}</div><button id="relationship-social-confirm" class="session-btn opening">결과 확인 · 다음 사건 보기</button>`;
   const headline=pending.kind==='sera-victim-confrontation'
-    ?`🧾 ${pending.attackerName}은 윤세라의 이름을 기억하지 못했습니다. 기록을 들이민 뒤에야 과거 피해자였음을 확인했습니다.`
+    ?`🧾 ${withTopicParticle(pending.attackerName)} 윤세라의 이름을 기억하지 못했습니다. 기록을 들이민 뒤에야 과거 피해자였음을 확인했습니다.`
     :`${pending.kind==='celebrity-disclosure'?'📸':'📵'} ${result.text}`;
   addNews(headline,result.tone||'neutral');
   $('relationship-social-confirm').addEventListener('click',()=>{
@@ -3053,6 +3075,9 @@ function showMonthlyMessagePopup(event){
     :metRecord(L,event.personName);
   if(!isContact&&!isRival&&target&&FREEDOM_TRIO&&!FREEDOM_TRIO.canContact(L,target.name)){showNextImportantEvent();return;}
   if(!target){showNextImportantEvent();return;}
+  // Older saves can still contain a rival message that was queued before the
+  // sender went to jail or collapsed. Drop that stale notification here too.
+  if(isRival&&((target.jailMonths||0)>0||target.bankrupt)){showNextImportantEvent();return;}
   const role=isContact?SOCIAL.role(target):null;
   const title=isContact?`${role.icon} ${target.name}`:target.name;
   const avatar=isContact?`<span class="message-popup-avatar">${role.icon}</span>`
@@ -3170,7 +3195,7 @@ function resolveBondEncounter(kind){
   const pending=S._bondEncounter,host=$('life-event');if(!pending||!host)return;
   const r=pending.r,per=D.PERSONALITIES[r.personality]||{};
   let affection=0,trust=0,text='';
-  if(kind==='listen'){affection=4;trust=6;text=per.name==='냉정'?'말을 재촉하지 않자 조금씩 속내를 꺼냈습니다.':'판단하지 않고 들어준 덕분에 대화가 예상보다 오래 이어졌습니다.';}
+  if(kind==='listen'){affection=4;trust=6;text=per.name==='냉정'?'재촉하지 않으니까, 조금씩 말할 수 있었어요.':'판단하지 않고 들어줘서… 생각보다 오래 이야기했네요.';}
   else if(kind==='memory'){affection=6;trust=4;text='사소한 말을 기억하고 있다는 사실에 상대의 표정이 눈에 띄게 부드러워졌습니다.';}
   else{const premature=(r.affection||0)<8;affection=premature?2:7;trust=premature?-1:2;text=premature?'아직은 둘만의 약속이 조금 부담스럽다며 다음을 기약했습니다.':'잠시 놀랐지만 일정을 확인해 먼저 가능한 날을 말해줬습니다.';}
   r.affection=clamp((r.affection||0)+affection,0,100);r.trust=clamp((r.trust||0)+trust,0,100);addBondInteraction(r,`encounter-${kind}`);
@@ -3496,8 +3521,9 @@ function resolveFreedomFirstOuting(choiceId){
     :result.mode==='guarded'
       ?'<div class="important-event-detail">위험한 3인조는 이 만남을 경계 대상으로 기록했습니다. 자유인 세 사람은 맞서 싸우지 않고, 연락과 외출의 경계를 먼저 확인합니다.</div>'
       :'';
+  const identityReveal=`<div class="freedom-identity-reveal">${FREEDOM_TRIO.GUILD_MEMBERS.map(member=>`<div><b>${member.name} · ${member.nickname}</b><span>${member.job}</span></div>`).join('')}</div>`;
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
-  $('freedom-first-outing-outcome').innerHTML=`<div class="oc-text up">${choiceId==='call'?'현관에서 게임 카페까지 길드 음성 채팅이 한 번도 끊기지 않았습니다.':'누구에게도 증명하지 않고 약속 장소에 도착했습니다.'} 네 개의 길드 키링을 테이블에 올린 뒤에야 세 사람은 실명과 직업을 직접 밝혔습니다.</div>${rescue}${freedomState.dangerousDisclosurePending?'<div class="important-event-detail">현재 공동생활 관계는 이 자리에서 성급하게 폭로하지 않습니다. 네 사람의 현실 우정이 생긴 뒤, 관계가 달라질 수 있는 중반 대화에서 직접 공개해야 합니다.</div>':''}<button id="freedom-first-outing-confirm" class="session-btn opening">첫 정모를 마친다</button>`;
+  $('freedom-first-outing-outcome').innerHTML=`<div class="oc-text up">${choiceId==='call'?'현관에서 게임 카페까지 길드 음성 채팅이 한 번도 끊기지 않았습니다.':'누구에게도 증명하지 않고 약속 장소에 도착했습니다.'} 네 개의 길드 키링을 테이블에 올린 뒤에야 세 사람은 실명과 직업을 직접 밝혔습니다.</div>${identityReveal}${rescue}${freedomState.dangerousDisclosurePending?'<div class="important-event-detail">현재 공동생활 관계는 이 자리에서 성급하게 폭로하지 않습니다. 네 사람의 현실 우정이 생긴 뒤, 관계가 달라질 수 있는 중반 대화에서 직접 공개해야 합니다.</div>':''}<button id="freedom-first-outing-confirm" class="session-btn opening">첫 정모를 마친다</button>`;
   addNews('🎮 자유인 3인조 첫 정모 · 닉네임에서 현실 친구로','good');
   $('freedom-first-outing-confirm').addEventListener('click',()=>{
     finishImportantEvent();
@@ -3573,14 +3599,20 @@ function maybeLifeEvent() {
   }
   const eventPartner=pick(RELATIONSHIPS.consensualMembers(L));
   const housing=HOUSING.ensure(L);
-  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,stress:L.stress||0,charm:L.charm,affection:L.affection||0,pers:eventPartner&&eventPartner.personality,partnerJob:eventPartner&&eventPartner.job,partnerName:eventPartner&&eventPartner.name,partnerNames:RELATIONSHIPS.names(L),hasLovers:!!(L.lovers&&L.lovers.length),familyPlan:!!L.familyPlan,dangerousTrioLiving:!!(L.dangerousTrioBond&&L.dangerousTrioBond.active),housingTenure:housing.tenure,housingMonths:housing.months||0,lastHousingRenewalMonth:housing.lastRenewalMonth||0,morality:L.morality==null?60:L.morality,guilt:L.guilt||0,makjang:!!L.makjang,hasShark:(L.loans||[]).some(x=>x.illegal),naraeKnown:!!L.tutorialMet,seraKnown:!!metRecord(L,'윤세라'),seraRescueReady:!!(L.seraRescueOrigin&&L.seraRescueOrigin.ready),outsideFearResolved:freeOutingUnlocked(L),day:S.day,trades:S.trades||0,hasLongPosition:Object.values(S.owned||{}).some(position=>(position.qty||0)>0),lastBurnoutEventDay:L.lastBurnoutEventDay };
+  const ctx = { job:L.job,loan:L.loan,rel:L.relationship,happy:L.happy,health:L.health,stress:L.stress||0,charm:L.charm,affection:L.affection||0,pers:eventPartner&&eventPartner.personality,partnerJob:eventPartner&&eventPartner.job,partnerName:eventPartner&&eventPartner.name,partnerNames:RELATIONSHIPS.names(L),hasLovers:!!(L.lovers&&L.lovers.length),familyPlan:!!L.familyPlan,dangerousTrioLiving:!!(L.dangerousTrioBond&&L.dangerousTrioBond.active),housingTenure:housing.tenure,housingMonths:housing.months||0,lastHousingRenewalMonth:housing.lastRenewalMonth||0,morality:L.morality==null?60:L.morality,guilt:L.guilt||0,makjang:!!L.makjang,hasShark:(L.loans||[]).some(x=>x.illegal),naraeKnown:!!L.tutorialMet,seraKnown:!!metRecord(L,'윤세라'),seraRescueReady:!!(L.seraRescueOrigin&&L.seraRescueOrigin.ready),outsideFearResolved:freeOutingUnlocked(L),fatherHealthEventSeen:!!L.fatherHealthEventSeen,generation:L.generation,day:S.day,trades:S.trades||0,hasLongPosition:Object.values(S.owned||{}).some(position=>(position.qty||0)>0),lastBurnoutEventDay:L.lastBurnoutEventDay };
   const seraIntro = (D.LIFE_EVENTS || []).find(e => e.id === 'life_rainy_canvas');
   if (!ctx.seraKnown && seraIntro && (!seraIntro.cond||seraIntro.cond(ctx)) && Math.random() < 0.32) {
     showLifeEvent(seraIntro);
     return true;
   }
   const pool = (D.LIFE_EVENTS || []).concat(D.ROMANCE_EVENTS || []).filter(e => !e.cond || e.cond(ctx));
-  if (pool.length) { showLifeEvent(pick(pool)); return true; }
+  const recent=Array.isArray(L.recentRandomEventIds)?L.recentRandomEventIds:[];
+  const fresh=pool.filter(event=>!recent.includes(event.id));
+  const selected=pick(fresh.length?fresh:pool);
+  if (selected) {
+    if(selected.id)L.recentRandomEventIds=[selected.id,...recent.filter(id=>id!==selected.id)].slice(0,3);
+    showLifeEvent(selected);return true;
+  }
   return false;
 }
 
@@ -3631,6 +3663,10 @@ function applyEventEffects(eff) {
   }
   if (eff.happy != null) { L.happy = clamp(L.happy + eff.happy, 0, 100); changes.push(`행복 ${eff.happy >= 0 ? '+' : ''}${eff.happy}`); }
   if (eff.stress != null) { L.stress = clamp((L.stress || 0) + eff.stress, 0, 100); changes.push(`스트레스 ${eff.stress >= 0 ? '+' : ''}${eff.stress}`); }
+  if (eff.health != null) { L.health = clamp((L.health || 0) + eff.health, 0, 100); changes.push(`건강 ${eff.health >= 0 ? '+' : ''}${eff.health}`); }
+  if (eff.parentHealth != null) { L.parentHealth=clamp((L.parentHealth||0)+eff.parentHealth,0,100);changes.push(`아버지 건강 ${eff.parentHealth>=0?'+':''}${eff.parentHealth}`); }
+  if (eff.familyBond != null) { L.familyBond=clamp((L.familyBond||0)+eff.familyBond,0,100);changes.push(`가족 유대 ${eff.familyBond>=0?'+':''}${eff.familyBond}`); }
+  if(eff.fatherHealthEventSeen)L.fatherHealthEventSeen=true;
   if (eff.charm != null) { L.charm = Math.max(0, L.charm + eff.charm); changes.push(`매력 ${eff.charm >= 0 ? '+' : ''}${eff.charm}`); }
   if (eff.affection != null) {
     const members=RELATIONSHIPS.consensualMembers(L),targets=S._curEventPartnerName?members.filter(person=>person.name===S._curEventPartnerName):members;
@@ -3660,13 +3696,15 @@ function applyEventEffects(eff) {
     rec.affection = Math.max(rec.affection || 0, 4);
     rec.trust = Math.max(rec.trust || 0, 2);
     rec.obsession = Math.max(rec.obsession || 0, 8);
-    rec.pickedUpAfterRuin=true;
+    rec.pickedUpAfterRuin=['temporary','cohabit'].includes(eff.seraHousing);
     rec.seraEarlyAcquaintance=true;
     L.seraIntelHelper=false;
     if(L.seraRescueOrigin)L.seraRescueOrigin.ready=false;
     pushPersonMessage(L, rec, '오늘은 문 잠가도 돼요. 어디 안 갈게요. 아직은 서로 아무것도 묻지 말아요.', false);
-    changes.push('🖤 <b>윤세라를 오늘 밤만 임시로 집에 들임 · 거처는 아직 정하지 않음</b>');
-    addNews('🖤 모든 것을 잃고 계단에 있던 윤세라를 집에 들였습니다', 'neutral');
+    changes.push('🖤 <b>계단의 마지막 상자 곁에서 윤세라와 처음 연락처를 교환함</b>');
+    addNews(eff.seraHousing==='separate'
+      ?'🖤 모든 것을 잃은 윤세라에게 별도 임시 숙소를 마련했습니다'
+      :'🖤 모든 것을 잃고 계단에 있던 윤세라를 오늘 밤 집에 들였습니다', 'neutral');
   }
   if(eff.seraHousing){
     const trio=DANGEROUS_TRIO&&DANGEROUS_TRIO.ensure(L);
@@ -3756,6 +3794,12 @@ function closeLifeEvent() {
 function doHobby(id) {
   const h = D.HOBBIES.find(x => x.id === id); if (!h) return;
   if(!['game','study'].includes(id)&&!freeOutingUnlocked(S.life)){showOutsideFearModal();return;}
+  if(id==='game'&&FREEDOM_TRIO){
+    const guild=FREEDOM_TRIO.ensure(S.life);
+    if(guild.meetupDeferred&&!FREEDOM_TRIO.chapterTwoUnlocked(S.life)){
+      flashToast('🎮 정모 이야기는 첫 공격과 세력 창설 뒤 자동으로 이어집니다','neutral');return;
+    }
+  }
   if (S.capital < h.cost) { flashToast('💸 현금이 부족합니다', 'bad'); playSound('error'); return; }
   S.capital -= h.cost;
   S.life.happy = clamp(S.life.happy + h.happy, 0, 100);
@@ -3791,7 +3835,8 @@ function doHealthCheckup() {
   S.capital -= cost;
   const found = HEALTH.checkup(S.life);
   flashToast(found.length ? `🏥 검진 결과: ${found.map(x=>x.name).join(', ')}` : '🏥 특별한 이상이 없습니다', found.length ? 'bad' : 'good');
-  afterLifeAction();
+  if(showYujinHospitalMoment({kind:'checkup',found:found.map(item=>item.name)}))return;
+  afterLifeAction('건강');
 }
 
 function doTreatment() {
@@ -3802,7 +3847,64 @@ function doTreatment() {
   S.capital -= claim.pay; HEALTH.treat(S.life);
   if (claim.covered) addNews(`🛡️ ${claim.plan.name} 보험금 ${won(claim.covered)}원 지급`, 'good');
   addNews(`🏥 ${offer.name} 치료 완료 · 건강 회복`, 'good');
-  flashToast(`🏥 ${offer.name} 치료 완료`, 'good'); afterLifeAction();
+  flashToast(`🏥 ${offer.name} 치료 완료`, 'good');
+  if(showYujinHospitalMoment({kind:'treatment',found:[offer.name]}))return;
+  afterLifeAction('건강');
+}
+
+const YUJIN_HOSPITAL_MOMENTS=[
+  {
+    title:'두 번째로 적힌 보호자',scene:'./assets/event-yujin-guardian-rank.webp',
+    desc:'접수대 보호자 칸에는 이미 아버지의 이름이 적혀 있습니다. 유진은 누군가 먼저 와 있어 다행이라고 말하면서도, 빈칸을 찾던 펜끝을 바로 놓지 못합니다. 연인이 아니라 보호자로서 밀렸다는 사실에 서운해진 자기 표정을 가장 먼저 알아챈 사람도 유진입니다.',
+    line:'아버님이 먼저 오셔서 다행이에요. 정말로요. 그런데 왜 제가 두 번째인지부터 세고 있었을까요. 누가 더 걱정했는지 순위를 매길 일도 아닌데.'
+  },
+  {
+    title:'혼자 다녀온 병원의 봉투',scene:'./assets/event-yujin-secret-hospital.webp',
+    desc:'현관을 열자 장바구니와 구급함을 든 유진의 시선이 당신 손의 처방 봉투에서 멈춥니다. 별일 없이 혼자 진료를 마쳤다는 사실에는 안도하면서도, 자신에게 알리지 않았다는 사실을 배신처럼 받아들인 얼굴이 먼저 드러납니다.',
+    line:'결과가 괜찮아서 다행이에요. 그런데 왜 혼자 갔는지가 더 화나요. 아픈 게 아니라, 제가 필요했던 순간을 놓친 것 같아서 이러는 거라는 것도 알아요.'
+  },
+  {
+    title:'비워 두지 못한 병실 의자',scene:'./assets/event-yujin-5135.png',
+    desc:'검사가 끝났는데도 유진은 빈 병실 의자에서 일어나지 않습니다. 맥박도 체온도 정상이지만, 당신이 잠들 때 자기 손을 찾았다는 이유 하나로 퇴근 보고를 미룹니다.',
+    line:'당신이 약해질 때마다 저를 찾으면 좋겠다는 생각과, 다시는 약해지지 않았으면 좋겠다는 생각이 같이 들어요. 둘 중 하나가 거짓말이면 차라리 쉬울 텐데.'
+  },
+  {
+    title:'진료가 없는 날의 가방',scene:'./assets/event-yujin-safehouse-ending.png',
+    desc:'예약된 진료가 없는 날인데도 유진은 죽과 영양제, 여분 열쇠와 작은 구급함을 들고 찾아왔습니다. 필요한 것을 묻기 전에 한 달치 돌봄 목록부터 만든 자신을 깨닫고 현관 밖에서 멈춥니다. 위기가 아니라 챙겨줄 일을 계속 만드는 쪽으로 마음이 기울고 있습니다.',
+    line:'오늘은 병원 일정도 없는데 또 왔네요. 필요한지 묻지도 않고 챙길 것부터 만든 건 알아요. 문을 열어주면 기쁜 것도… 조금 잘못된 기분이라는 것까지요.'
+  }
+];
+function showYujinHospitalMoment(visit){
+  const rec=metRecord(S.life,'강유진'),host=$('life-event');
+  if(!rec||!host||!hasPersonalContact(rec)||rec.lastHospitalMomentDay===S.day)return false;
+  const index=Math.max(0,Math.floor(rec.hospitalMomentIndex||0));
+  if(index>=YUJIN_HOSPITAL_MOMENTS.length)return false;
+  const moment=YUJIN_HOSPITAL_MOMENTS[index];
+  S._yujinHospitalMoment={rec,index,moment,visit};
+  const echo=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.playerEcho?CHILDHOOD_CIRCLE.playerEcho(S.life,'hospital'):'';
+  prepareLifeEventOverlay(false);
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window yujin-hospital-window"><div class="title-bar event-bar"><div class="title-bar-text">🏥 강유진 · 병원에서 드러난 마음</div></div><div class="window-body"><img class="life-scene-banner" src="${moment.scene}" alt="${moment.title}"><div class="event-title">${moment.title}</div><div class="event-desc">${moment.desc}</div><div class="story-dialogue"><b>강유진</b> “${moment.line}”</div>${echo?`<div class="story-continuity player-wound-reflection"><b>🪞 익숙해서 더 위험한 안도</b><br>${echo}</div>`:''}<div class="event-options"><button class="event-opt" data-yujin-hospital="depend"><b>오늘은 유진이 정한 대로 돌봐 달라고 한다</b><span>유진의 잘못된 안도를 알면서도 필요한 사람으로 만들어 줍니다.</span></button><button class="event-opt opening" data-yujin-hospital="boundary"><b>챙겨줘서 고맙지만 다음 행동은 먼저 물어봐 달라고 한다</b><span>돌봄을 거절하지 않으면서 유진이 멈출 자리를 정합니다.</span></button><button class="event-opt bad" data-yujin-hospital="complicity"><b>나에게만 집중하면 이 감정을 문제 삼지 않겠다고 한다</b><span>죄책감을 둘만의 비밀 보호 계약으로 바꿉니다.</span></button></div><div id="yujin-hospital-outcome" class="event-outcome"></div></div></div>`;
+  host.querySelectorAll('[data-yujin-hospital]').forEach(button=>button.addEventListener('click',()=>resolveYujinHospitalMoment(button.dataset.yujinHospital)));
+  return true;
+}
+function resolveYujinHospitalMoment(kind){
+  const pending=S._yujinHospitalMoment,host=$('life-event');if(!pending||!host)return;
+  const rec=pending.rec;
+  const result={
+    depend:{affection:9,trust:4,danger:9,tone:'neutral',line:'오늘만은 전부 제가 할게요. 당신이 편해지는 게 먼저예요. …그 다음에도 저를 먼저 불러주면 더 좋고요.'},
+    boundary:{affection:7,trust:11,danger:-6,tone:'good',line:'먼저 묻고, 싫다고 하면 멈출게요. 제가 서운해도 그 감정까지 당신이 치료할 필요는 없으니까.'},
+    complicity:{affection:8,trust:-3,danger:14,tone:'bad',line:'그럼 다른 사람에게는 설명하지 않을게요. 당신이 아플 때 제일 먼저 아는 사람도, 끝까지 남는 사람도 저 하나면 돼요.'}
+  }[kind];
+  rec.affection=clamp((rec.affection||0)+result.affection,0,100);rec.trust=clamp((rec.trust||0)+result.trust,0,100);
+  rec.dangerLevel=clamp((rec.dangerLevel||0)+result.danger,0,100);rec.hospitalMomentIndex=pending.index+1;rec.lastHospitalMomentDay=S.day;
+  addBondInteraction(rec,`yujin-hospital-${kind}`);
+  if(CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.recordPlayerPattern)CHILDHOOD_CIRCLE.recordPlayerPattern(S.life,kind==='boundary'?'face':'crisis',kind==='boundary'?7:6);
+  addNews(`🏥 강유진 병원 이야기 · ${pending.moment.title}` ,result.tone);
+  host.querySelector('.event-options').innerHTML='';
+  $('yujin-hospital-outcome').innerHTML=`<div class="story-dialogue"><b>강유진</b> “${result.line}”</div><div class="oc-changes">호감 +${result.affection} · 신뢰 ${result.trust>=0?'+':''}${result.trust} · 구원 강박 ${result.danger>=0?'+':''}${result.danger}</div><button id="yujin-hospital-confirm" class="session-btn opening">병원을 나선다</button>`;
+  $('yujin-hospital-confirm').addEventListener('click',()=>{closeLifeEventOverlay();S._yujinHospitalMoment=null;afterLifeAction('건강');});
+  renderLifePanel();autoSave();
 }
 
 function investmentMentorState(L=S.life){
@@ -3860,6 +3962,7 @@ function showHomeLifeModal(){
   const guild=FREEDOM_TRIO&&FREEDOM_TRIO.ensure(L);
   const home=HOUSING.home(L),tenure=HOUSING.TENURES[L.housing.tenure];
   const gameLabel=guild&&guild.guildJoined?`〈${guild.guildName||FREEDOM_TRIO.GUILD_NAME}〉 길드원들과 게임하기`:null;
+  const guildStoryWaiting=!!(guild&&guild.meetupDeferred&&!FREEDOM_TRIO.chapterTwoUnlocked(L));
   const trioHome=trioHere?`<div class="route-sep">네 사람이 같은 자취방에서 보내는 시간</div><div class="important-event-detail">유진·채린·세라가 누구의 소유도 아닌 이 집을 중립 거점으로 유지해 달라고 요청했습니다. 공동생활이 이어지는 동안 이사는 세 사람 모두가 거점 합의를 해제해야 가능합니다.</div><div class="home-action-grid"><button class="life-btn" data-trio-home="late-morning">☕ 비좁은 늦은 아침 <small>행복 +7 · 스트레스 -7 · 체력 +2</small></button><button class="life-btn" data-trio-home="quiet-night">📺 소파에 붙어 조용히 쉰다 <small>행복 +5 · 스트레스 -12 · 체력 +4</small></button><button class="life-btn" data-trio-home="rules">🔑 귀가·동행 규칙을 다시 정한다 <small>공생 안정도 +6 · 집착 -3</small></button></div>`:'';
   const seraHome=seraHere&&!trioHere?seraHomeSection(sera):'';
   const supportRows=DANGEROUS_HEROINE_NAMES.map(name=>{
@@ -3872,7 +3975,7 @@ function showHomeLifeModal(){
   const supportSection=supportRows?`<div class="route-sep">마음을 놓을 수 있는 연락</div><div class="important-event-detail">호감과 신뢰가 쌓인 사람의 연락은 부담이 아니라 회복이 됩니다. 누구와 쉴지는 직접 고릅니다.</div><div class="home-action-grid">${supportRows}</div>`:'';
   host.style.display='block';
   const seraSummary=L.seraHousing==='temporary'?'윤세라를 임시로 보호 중':'윤세라와 동거 중';
-  host.innerHTML=`<div class="window event-window home-life-window"><div class="title-bar event-bar"><div class="title-bar-text">🏠 오늘은 집에서</div><div class="title-bar-controls"><button aria-label="Close" id="home-life-x"></button></div></div><div class="window-body"><div class="home-life-summary"><b>${trioHere?'위험한 세 사람과 공동생활 중':seraHere?seraSummary:'혼자 보내는 시간'}</b><small>${home.icon} ${home.name} · ${tenure?tenure.name:'거주'} · 행복 ${Math.round(L.happy||0)}/100 · 스트레스 ${Math.round(L.stress||0)}/100</small></div><div class="route-sep">이번 주를 집에서 보내기</div><div class="home-action-grid"><button class="life-btn" data-act="rest">🛌 아무 일정 없이 푹 쉰다 <small>생활비 30,000 · 스트레스 -22 · 건강 +3</small></button><button class="life-btn" data-act="decompress">🌿 휴대폰을 끄고 마음을 정리한다 <small>비용 없음 · 스트레스 -16 · 행복 +3</small></button>${indoor.map(h=>`<button class="life-btn" data-act="hobby" data-id="${h.id}">${h.emoji} ${h.id==='game'&&gameLabel?gameLabel:h.name} <small>${won(h.cost)}</small></button>`).join('')}</div>${supportSection}${trioHome}${seraHome}<button id="home-life-close" class="session-btn">닫기</button></div></div>`;
+  host.innerHTML=`<div class="window event-window home-life-window"><div class="title-bar event-bar"><div class="title-bar-text">🏠 오늘은 집에서</div><div class="title-bar-controls"><button aria-label="Close" id="home-life-x"></button></div></div><div class="window-body"><div class="home-life-summary"><b>${trioHere?'위험한 세 사람과 공동생활 중':seraHere?seraSummary:'혼자 보내는 시간'}</b><small>${home.icon} ${home.name} · ${tenure?tenure.name:'거주'} · 행복 ${Math.round(L.happy||0)}/100 · 스트레스 ${Math.round(L.stress||0)}/100</small></div><div class="route-sep">이번 주를 집에서 보내기</div><div class="home-action-grid"><button class="life-btn" data-act="rest">🛌 아무 일정 없이 푹 쉰다 <small>생활비 30,000 · 스트레스 -22 · 건강 +3</small></button><button class="life-btn" data-act="decompress">🌿 휴대폰을 끄고 마음을 정리한다 <small>비용 없음 · 스트레스 -16 · 행복 +3</small></button>${indoor.map(h=>`<button class="life-btn" data-act="hobby" data-id="${h.id}" ${h.id==='game'&&guildStoryWaiting?'disabled':''}>${h.emoji} ${h.id==='game'&&guildStoryWaiting?'〈다음 접속〉 정모 이야기 대기 중':h.id==='game'&&gameLabel?gameLabel:h.name} <small>${h.id==='game'&&guildStoryWaiting?'첫 공격과 세력 창설 뒤 자동으로 이어집니다':won(h.cost)}</small></button>`).join('')}</div>${supportSection}${trioHome}${seraHome}<button id="home-life-close" class="session-btn">닫기</button></div></div>`;
   wireLifeHub(host);
   host.querySelectorAll('[data-trio-home]').forEach(button=>button.addEventListener('click',()=>resolveDangerousTrioHomeMoment(button.dataset.trioHome)));
   const close=()=>closeLifeEventOverlay();
@@ -4149,7 +4252,63 @@ function attendIndustryGathering(id){
     showChaerinGatheringFollowup(D.SPECIAL_CHARACTERS.chaerin,chaerin,gathering);
     return;
   }
+  if(showChaerinSocietyMoment(chaerin,gathering))return;
   afterLifeAction('인맥');
+}
+
+const CHAERIN_SOCIETY_MOMENTS=[
+  {
+    title:'일부러 틀린 호칭',scene:'./assets/event-chaerin-public-provocation.png',
+    desc:'채린은 모두가 듣는 자리에서 당신의 직함을 일부러 낮춰 부르고, 방금 합의한 소개 순서까지 어깁니다. 모욕하려는 얼굴이라기보다 당신이 어디까지 참다가 자기 말을 끊을지 기다리는 얼굴입니다.',
+    line:'왜, 또 화났어? 그날은 손까지 올라갔으면서 오늘은 말 한마디 못 하네. 내가 틀렸으면 여기서 멈추라고 해봐.'
+  },
+  {
+    title:'경매 번호표를 든 손',scene:'./assets/event-chaerin-black-collar.png',
+    desc:'자선 경매에서 채린은 필요하지도 않은 물건의 가격을 계속 올립니다. 당신이 손목을 잡아 번호표를 내리자 채린은 화를 내야 할 타이밍을 놓치고, 너무 빨리 손을 내려버린 자신을 감추려 잔만 만집니다.',
+    line:'내 돈을 내가 쓰는데 네가 왜 막아. …다시 놓으라는 뜻은 아니야. 잡았으면 적어도 끝까지 왜 안 되는지는 말해.'
+  },
+  {
+    title:'사람들 앞에 남겨 둔 실수',scene:'./assets/event-chaerin-9.png',
+    desc:'채린은 평소라면 비서가 세 번 확인했을 발표 자료에 자기 실수를 그대로 남겨 둡니다. 당신이 발견하기 전까지 고치지 않았고, 지적받는 순간 수치보다 안도가 먼저 번집니다. 완벽한 후계자가 혼날 이유를 직접 만들어 온 셈입니다.',
+    line:'실수한 게 아니라 확인하려고 둔 거야. 네가 모두 보는 앞에서 나를 세울지, 끝나고 따로 부를지. 어느 쪽을 원했다고 생각하지 마.'
+  },
+  {
+    title:'끝난 모임의 빈 복도',scene:'./assets/event-chaerin-private-command.png',
+    desc:'모든 수행원이 떠난 뒤 채린은 붉은 뺨을 처음 만졌던 손으로 자기 목걸이를 쥡니다. 아픈 자극과 굴복을 원한다는 사실보다, 그것을 원한다고 말한 뒤에도 버려지지 않을 수 있는지를 더 두려워합니다.',
+    line:'맞고 싶은 게 아니야. 내가 어디까지 망가져도 네가 끝까지 보고, 멈출 때는 네가 확실히 멈춰주길 바라는 거지. …그게 같은 말이라면 지금은 반박하지 마.'
+  }
+];
+function showChaerinSocietyMoment(rec,gathering){
+  const host=$('life-event');
+  if(!rec||!host||rec.chaerinRouteClosed||!hasPersonalContact(rec)||!rec.chaerinSubmissionAwakened||rec.lastSocietyMomentDay===S.day)return false;
+  const index=Math.max(0,Math.floor(rec.societyMomentIndex||0));
+  if(index>=CHAERIN_SOCIETY_MOMENTS.length)return false;
+  const moment=CHAERIN_SOCIETY_MOMENTS[index];
+  S._chaerinSocietyMoment={rec,index,moment,gathering};
+  const echo=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.playerEcho?CHILDHOOD_CIRCLE.playerEcho(S.life,'gathering'):'';
+  prepareLifeEventOverlay(false);
+  host.style.display='block';
+  host.innerHTML=`<div class="window event-window chaerin-industry-window"><div class="title-bar event-bar"><div class="title-bar-text">🥂 한채린 · 사교모임 뒤의 부정</div></div><div class="window-body"><img class="life-scene-banner" src="${moment.scene}" alt="${moment.title}"><div class="event-title">${moment.title}</div><div class="event-desc">${moment.desc}</div><div class="story-dialogue"><b>한채린</b> “${moment.line}”</div>${echo?`<div class="story-continuity player-wound-reflection"><b>🪞 도발을 끝까지 키우는 두 사람</b><br>${echo}</div>`:''}<div class="event-options"><button class="event-opt" data-chaerin-society="command"><b>사람들 없는 곳으로 데려가 잘못한 행동을 하나씩 말하게 한다</b><span>채린이 원한 가학적 긴장을 사적인 합의와 중단선 안에서 받아들입니다.</span></button><button class="event-opt opening" data-chaerin-society="equal"><b>도발로 얻지 말고 원하는 반응을 직접 부탁하게 한다</b><span>피학 욕망을 부정하지 못하게 하되 거절 가능한 말로 바꿉니다.</span></button><button class="event-opt bad" data-chaerin-society="conspire"><b>밖에서 더 크게 사고 칠수록 안에서 더 가혹하게 다루겠다고 한다</b><span>위험한 자극과 권력 스캔들을 서로의 보상으로 만듭니다.</span></button></div><div id="chaerin-society-outcome" class="event-outcome"></div></div></div>`;
+  host.querySelectorAll('[data-chaerin-society]').forEach(button=>button.addEventListener('click',()=>resolveChaerinSocietyMoment(button.dataset.chaerinSociety)));
+  return true;
+}
+function resolveChaerinSocietyMoment(kind){
+  const pending=S._chaerinSocietyMoment,host=$('life-event');if(!pending||!host)return;
+  const rec=pending.rec;
+  const result={
+    command:{affection:10,trust:6,danger:10,tone:'neutral',line:'사람들 앞에서는 안 돼. 둘만 있을 때, 내가 멈추라고 하면 멈추고… 그전까지는 변명 못 하게 해. 내가 원해서 하는 말은 아니지만.'},
+    equal:{affection:8,trust:12,danger:-5,tone:'good',line:'직접 부탁하면 거절할 수도 있잖아. 그게 무서워서 사고부터 친 거야. …그래도 다음에는 원하는 걸 먼저 말해볼게.'},
+    conspire:{affection:11,trust:-5,danger:17,tone:'bad',line:'그럼 밖에서는 내가 판을 망치고, 문이 닫히면 네가 값을 받는 거네. 들키면 둘 다 끝이라서 더 마음에 들어.'}
+  }[kind];
+  rec.affection=clamp((rec.affection||0)+result.affection,0,100);rec.trust=clamp((rec.trust||0)+result.trust,0,100);
+  rec.dangerLevel=clamp((rec.dangerLevel||0)+result.danger,0,100);rec.societyMomentIndex=pending.index+1;rec.lastSocietyMomentDay=S.day;
+  rec.chaerinDefiance=(rec.chaerinDefiance||0)+(kind==='equal'?1:2);addBondInteraction(rec,`chaerin-society-${kind}`);
+  if(CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.recordPlayerPattern)CHILDHOOD_CIRCLE.recordPlayerPattern(S.life,kind==='equal'?'face':'crisis',kind==='equal'?7:6);
+  addNews(`🥂 한채린 사교모임 이야기 · ${pending.moment.title}`,result.tone);
+  host.querySelector('.event-options').innerHTML='';
+  $('chaerin-society-outcome').innerHTML=`<div class="story-dialogue"><b>한채린</b> “${result.line}”</div><div class="oc-changes">호감 +${result.affection} · 신뢰 ${result.trust>=0?'+':''}${result.trust} · 피학 충동 ${result.danger>=0?'+':''}${result.danger}</div><button id="chaerin-society-confirm" class="session-btn opening">모임을 끝낸다</button>`;
+  $('chaerin-society-confirm').addEventListener('click',()=>{closeLifeEventOverlay();S._chaerinSocietyMoment=null;afterLifeAction('인맥');});
+  renderLifePanel();autoSave();
 }
 
 function showNaraeChaerinLead(gathering,introducedId){
@@ -4398,8 +4557,8 @@ function courtshipProgress(rec){
 }
 function dangerousRiskMeta(rec){
   if(!rec)return null;
-  if(rec.name==='강유진')return{icon:'🚨',label:'과잉보호',value:rec.dangerLevel||0};
-  if(rec.name==='한채린')return{icon:'👑',label:'지배욕',value:rec.dangerLevel||0};
+  if(rec.name==='강유진')return{icon:'🚨',label:'구원 강박',value:rec.dangerLevel||0};
+  if(rec.name==='한채린')return{icon:'👑',label:'피학 충동',value:rec.dangerLevel||0};
   if(rec.name==='윤세라')return{icon:'🖤',label:'집착',value:rec.obsession||0};
   return null;
 }
@@ -4445,7 +4604,7 @@ function queueYujinInvestigation(housing,attacker){
   L.yujinInvestigation={
     ready:true,
     housing:housing||L.seraHousing||'reject',
-    attacker:attacker||L.seraRescueOrigin&&L.seraRescueOrigin.attacker||RIVALS.ensureFaction(L).firstAttacker||'경쟁 세력',
+    attacker:rivalStoryActor(attacker||L.seraRescueOrigin&&L.seraRescueOrigin.attacker||RIVALS.ensureFaction(L).firstAttacker||'경쟁 세력'),
     queuedDay:S.day,
   };
   queueImportantEvent({yujinInvestigation:true,type:'court',scene:'./assets/event-yujin-rain-rescue.png'});
@@ -4463,6 +4622,11 @@ function showYujinInvestigation(manual){
     return;
   }
   const cohabit=!!(sera&&['temporary','cohabit'].includes(housing)),separate=!!(sera&&housing==='separate');
+  const connection=cohabit
+    ?'피해자 윤세라가 현재 당신과 함께 지내는 것'
+    :separate
+      ?'당신이 피해자 윤세라에게 별도 임시 숙소와 비상 연락처를 마련해 준 것'
+      :'당신이 피해자 윤세라에게 지원 연락처를 남긴 것';
   const seraPartner=!!(sera&&RELATIONSHIPS.isPartner(L,'윤세라'));
   S._yujinInvestigation={manual:!!manual,c,sera,housing};
   const scene=cohabit
@@ -4474,7 +4638,7 @@ function showYujinInvestigation(manual){
     ?`<button class="event-opt" data-yujin-first="plain"><b>“거래 기록이든 뭐든 전부 열어 드리겠습니다. 확인하세요.”</b><span>의심을 풀 수 있게 사건 조사에 전면 협조합니다.</span></button><button class="event-opt" data-yujin-first="protect"><b>“저를 의심하는 건 좋은데, 세라를 다시 사건 취급하진 마세요.”</b><span>피해자 보호를 먼저 요구하며 선을 긋습니다.</span></button><button class="event-opt" data-yujin-first="challenge"><b>“제가 그 세력 수혜자로 보입니까? 근거부터 말씀하시죠.”</b><span>의심의 근거와 확보한 증거를 따져 묻습니다.</span></button>`
     :`<button class="event-opt" data-yujin-first="plain"><b>알고 있는 거래·송금 기록과 마지막 행적을 전부 말한다</b><span>참고인으로 정식 조사에 전면 협조합니다.</span></button><button class="event-opt" data-yujin-first="protect"><b>세라가 다시 이용당하지 않게 먼저 보호해 달라고 한다</b><span>수사보다 피해자 안전을 우선해 달라고 요구합니다.</span></button><button class="event-opt" data-yujin-first="challenge"><b>내가 왜 수혜자로 의심받는지부터 설명하라고 한다</b><span>담당 수사관의 의심 근거와 증거를 확인합니다.</span></button>`;
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window yujin-investigation-window"><div class="title-bar event-bar"><div class="title-bar-text">👮‍♀️ 경쟁 세력 피해 수사 · 주거지 확인</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-yujin-rain-rescue.png" alt="사건 수사를 위해 찾아온 강유진"><div class="event-title">${cohabit?'현관문은 세라가 먼저 열었습니다.':'담당 수사관이 당신을 참고인으로 찾았습니다.'}</div><div class="event-desc">${L.yujinInvestigation&&L.yujinInvestigation.attacker||'경쟁 세력'}는 주가조작으로 일반 개미 투자자들의 돈을 빨아들이던 세력입니다. 그 차명계좌를 쫓던 강유진은 피해자 명단과 당신의 거래 기록이 겹친 것, 그리고 당신이 피해자 윤세라를 데려간 것을 확인했습니다. 신고하러 간 만남이 아니라, 수사가 먼저 당신을 참고인으로 지목한 순간입니다.</div>${scene}<div class="event-options">${choices}</div><div id="yujin-investigation-outcome" class="event-outcome"></div></div></div>`;
+  host.innerHTML=`<div class="window event-window yujin-investigation-window"><div class="title-bar event-bar"><div class="title-bar-text">👮‍♀️ 경쟁 세력 피해 수사 · 주거지 확인</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-yujin-rain-rescue.png" alt="사건 수사를 위해 찾아온 강유진"><div class="event-title">${cohabit?'현관문은 세라가 먼저 열었습니다.':'담당 수사관이 당신을 참고인으로 찾았습니다.'}</div><div class="event-desc">${withTopicParticle(L.yujinInvestigation&&L.yujinInvestigation.attacker||'경쟁 세력')} 주가조작으로 일반 개미 투자자들의 돈을 빨아들이던 세력입니다. 그 차명계좌를 쫓던 강유진은 피해자 명단과 당신의 거래 기록이 겹친 것, 그리고 ${connection}을 확인했습니다. 신고하러 간 만남이 아니라, 수사가 먼저 당신을 참고인으로 지목한 순간입니다.</div>${scene}<div class="event-options">${choices}</div><div id="yujin-investigation-outcome" class="event-outcome"></div></div></div>`;
   host.querySelectorAll('[data-yujin-first]').forEach(button=>button.addEventListener('click',()=>resolveYujinInvestigation(button.dataset.yujinFirst)));
 }
 
@@ -4505,13 +4669,27 @@ function resolveYujinInvestigation(choice){
   const seraReply=cohabit?`<div class="story-dialogue"><b>윤세라</b> “경찰님, 이 사람 의심할 시간에 저 돈 떼먹은 사람들부터 잡으세요.”</div><div class="story-dialogue"><b>강유진</b> “그래서 여기까지 온 겁니다, 세라 씨. 이 사람이 그쪽 편인지 아닌지 가리는 것도 그 일의 일부고요.”</div>`:'';
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
   $('yujin-investigation-outcome').innerHTML=`<div class="story-dialogue"><b>강유진</b> “${effect.line}”</div>${seraReply}<div class="oc-changes">강유진 · 공식 사건 연락만 가능 · 호감 ${effect.affection} · 신뢰 ${effect.trust}<br>개인 연락처는 후속 수사와 사적인 대화를 거쳐야 열립니다.</div><button id="yujin-investigation-confirm" class="session-btn opening">업무용 명함을 받아 둔다</button>`;
-  $('yujin-investigation-confirm').addEventListener('click',()=>{
-    closeLifeEventOverlay();S._yujinInvestigation=null;
-    queueFactionMentorAfterSera();
-    renderLifePanel();autoSave();
-    if(pending.manual)afterLifeAction('인맥');else showNextImportantEvent();
-  });
+  $('yujin-investigation-confirm').addEventListener('click',()=>showYujinFirstHospitalEscort(pending,rec));
   autoSave();
+}
+
+function showYujinFirstHospitalEscort(pending,rec){
+  const host=$('life-event'),L=S.life;if(!host||!pending||!rec)return;
+  L.yujinHospitalIntroduced=true;
+  rec.yujinHospitalEscort=true;
+  L.health=clamp((L.health||0)+4,0,100);
+  L.stress=clamp((L.stress||0)-4,0,100);
+  host.innerHTML=`<div class="window event-window yujin-hospital-window"><div class="title-bar event-bar"><div class="title-bar-text">🏥 강유진 · 조사실 다음 행선지</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-yujin-14.png" alt="경찰조사 뒤 플레이어를 병원으로 데려가는 강유진"><div class="event-title">조사가 끝났지만 유진은 귀가 택시가 아니라 병원으로 목적지를 찍었습니다.</div><div class="event-desc">오랫동안 집 밖에 거의 나가지 않았던 당신은 진술을 마치고 일어서다 조사실 문 앞에서 휘청였습니다. 유진은 사건 자료에 붙은 배달 내역과 같은 주소만 반복된 생활 기록, 제대로 먹지 못한 흔적을 이미 확인한 상태였습니다. 순찰차는 부담스러울 거라며 택시를 부른 뒤, 참고인 건강 확인도 수사의 일부라는 명분으로 병원 접수대까지 따라옵니다.</div><div class="story-dialogue"><b>강유진</b> “체포하는 거 아니에요. 경찰차도 안 불렀고요. 다만 지금 혼자 돌려보냈다가 쓰러지면, 제가 알면서도 방치한 사람이 되잖아요. 검사 결과 확인할 때까지는 여기 있을게요.”</div><div class="event-desc">검진 결과는 당장 입원할 정도는 아니었지만 영양과 수면이 크게 무너져 있었습니다. 유진은 의사의 말을 업무 수첩 뒤쪽에 적고, 다음 진료 날짜까지 확인한 뒤에야 당신을 집 앞에 내려줍니다.</div><div class="oc-changes">건강 +4 · 스트레스 -4 · 강유진의 병원 동행 시작</div><button id="yujin-first-hospital-confirm" class="session-btn opening">병원 영수증과 업무용 명함을 함께 받아 든다</button></div></div>`;
+  $('yujin-first-hospital-confirm').addEventListener('click',()=>finishYujinInvestigationSequence(pending));
+  addNews('🏥 경찰조사 뒤 강유진이 집 밖 생활이 무너진 플레이어를 병원에 데려갔습니다','neutral');
+  renderLifePanel();autoSave();
+}
+
+function finishYujinInvestigationSequence(pending){
+  closeLifeEventOverlay();S._yujinInvestigation=null;
+  queueFactionMentorAfterSera();
+  renderLifePanel();autoSave();
+  if(pending&&pending.manual)afterLifeAction('인맥');else showNextImportantEvent();
 }
 
 function meetSpecialPerson(id) {
@@ -4629,6 +4807,9 @@ function resolveChaerinGatheringBreak(kind){
   const rec=pending.rec;
   rec.specialFollowupCount=Math.max(3,rec.specialFollowupCount||0);rec.lastSpecialFollowupDay=S.day;
   addBondInteraction(rec,`chaerin-breaking-point-${kind}`);
+  if(CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.recordPlayerPattern){
+    CHILDHOOD_CIRCLE.recordPlayerPattern(S.life,kind==='leave'?'avoid':kind==='endure'?'face':'crisis',kind==='strike'?8:5);
+  }
   let result='',tone='neutral';
   if(kind==='leave'){
     rec.chaerinRouteClosed=true;rec.secretaryContact=false;rec.contactUnlocked=false;rec.contactChannel='차단한 비서실 번호';
@@ -4684,8 +4865,8 @@ function showSpecialFollowupMeet(id,c,rec){
   let intro='',interruption='';
   if(id==='yujin'){
     intro=count===1
-      ? '유진은 추가 진술을 받겠다며 경찰서 조사실로 불렀습니다. 첫 두 번만큼은 차명계좌, 윤세라의 피해 기록, 당신을 공격한 세력의 이동 경로를 정확히 확인합니다. 다만 조사가 끝난 뒤에도 식사는 했는지, 혼자 귀가해도 괜찮은지를 묻는 목소리만은 기록용이 아닙니다.'
-      : '사건에 필요한 진술은 이미 끝났습니다. 그런데도 유진은 비어 있는 조사실에 새 사건철을 올려두고 당신을 다시 불렀습니다. 표지에는 “추가 피해 예방”이라고 적혀 있지만 안에는 식사 여부와 귀가 시간, 필요한 생활비가 빼곡합니다. 보호할 명분이 없어지면 자신도 필요 없어질까 봐 사건을 끝내지 못하고 있습니다.';
+      ? '첫 조사 뒤 병원까지 데려다준 유진은 추가 진술보다 먼저 재진 날짜를 확인했습니다. 오늘 약속 장소도 경찰서가 아니라 병원 대기실입니다. 차명계좌 질문은 몇 분 만에 끝났지만, 식사와 수면 기록을 묻고 진료실 문이 닫힐 때까지 기다리는 태도는 업무 확인이라고 보기 어렵습니다.'
+      : '사건에 필요한 진술은 이미 끝났습니다. 그런데도 유진은 “참고인 건강 확인”이라는 새 파일을 만들어 다음 검진과 약 수령 날짜를 적어 둡니다. 보호할 명분이 없어지면 자신도 필요 없어질까 봐 수사가 끝난 자리에도 돌볼 일을 계속 만들고 있습니다.';
     interruption=seraAtHome&&trioAlreadyMet
       ? '<div class="hub-note bad-friends-note"><b>세라와 동거 중</b><br>카페 밖에는 세라가 먼저 와 있었습니다. 유진이 “참고인 조사를 따라오는 동거인은 처음 보네요”라고 하자 세라는 “애인인지 두 번이나 물어보는 담당 경찰도 처음 봤어요”라고 받아칩니다. 유진은 사적인 질문이 아니었다고 부정하면서도 귀가할 때까지 두 사람을 따라옵니다.</div>'
       : '';
@@ -4704,7 +4885,7 @@ function showSpecialFollowupMeet(id,c,rec){
   const name=id==='yujin'?'강유진':'한채린';
   const progress=contactReadiness(rec);
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${c.emoji} ${name} · ${count}번째 후속 약속</div><div class="title-bar-controls"><button aria-label="Close" id="special-followup-close"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="${name}"><div><strong>${name} · ${id==='yujin'?'업무용 연락만 가능':'비서실 연락만 가능'}</strong><br><span class="muted">${progress.missing.join(' · ')||'조금 더 솔직한 대화가 필요합니다'}</span></div></div><div class="event-desc">${intro}</div>${interruption}<div class="event-options"><button class="event-opt" data-special-followup="open">${id==='yujin'?(count===1?'조사가 끝난 뒤 긴장이 풀려 유진에게 잠시 기댄다':'사건이 없어도 내가 먼저 부를 테니 더는 조사 명목을 만들지 말라고 한다'):'“번호 줄 거면 주고, 시험할 거면 그만 불러”라고 말을 끊는다'}</button><button class="event-opt" data-special-followup="practical">${id==='yujin'?'공식 신고와 개인 비상연락의 선을 함께 정한다':'명령하지 말고 원하는 게 있으면 직접 부탁하라고 한다'}</button><button class="event-opt" data-special-followup="formal">${id==='yujin'?'도움은 필요 없다며 사건 이야기만 하고 돌아간다':'비위를 맞추며 채린이 정해 주는 대로 따르겠다고 한다'}</button><button class="event-opt" id="special-followup-cancel">다음으로 미룬다</button></div></div></div>`;
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">${c.emoji} ${name} · ${count}번째 후속 약속</div><div class="title-bar-controls"><button aria-label="Close" id="special-followup-close"></button></div></div><div class="window-body"><div class="date-profile"><img class="char-thumb" src="${characterPortrait(c)}" alt="${name}"><div><strong>${name} · ${id==='yujin'?'업무용 연락만 가능':'비서실 연락만 가능'}</strong><br><span class="muted">${progress.missing.join(' · ')||'조금 더 솔직한 대화가 필요합니다'}</span></div></div><div class="event-desc">${intro}</div>${interruption}<div class="event-options"><button class="event-opt" data-special-followup="open">${id==='yujin'?(count===1?'채혈 뒤 어지러워 유진의 팔을 붙잡는다':'사건이 없어도 내가 먼저 부를 테니 더는 조사 명목을 만들지 말라고 한다'):'“번호 줄 거면 주고, 시험할 거면 그만 불러”라고 말을 끊는다'}</button><button class="event-opt" data-special-followup="practical">${id==='yujin'?'진료와 돌봄은 먼저 물어보고 정하자고 한다':'명령하지 말고 원하는 게 있으면 직접 부탁하라고 한다'}</button><button class="event-opt" data-special-followup="formal">${id==='yujin'?'검사 결과만 받고 혼자 귀가하겠다고 한다':'비위를 맞추며 채린이 정해 주는 대로 따르겠다고 한다'}</button><button class="event-opt" id="special-followup-cancel">다음으로 미룬다</button></div></div></div>`;
   host.querySelectorAll('[data-special-followup]').forEach(b=>b.addEventListener('click',()=>resolveSpecialFollowupMeet(b.dataset.specialFollowup)));
   [$('special-followup-close'),$('special-followup-cancel')].forEach(b=>{if(b)b.addEventListener('click',closeSpecialFollowupMeet);});
 }
@@ -4726,7 +4907,7 @@ function resolveSpecialFollowupMeet(kind){
     rec.yujinRescueCompulsionAwakened=true;
     awakenDangerousHeroine(rec,'embrace');
     rec.dangerLevel=clamp((rec.dangerLevel||0)+10,0,100);
-    pushPersonMessage(S.life,rec,'아까 기댄 건 잊으라고 하지 마요. 다음에도 힘들면 조사 같은 명분 없이 그냥 나부터 불러요.',false);
+    pushPersonMessage(S.life,rec,'아까 병원에서 내 팔 잡은 건 잊으라고 하지 마요. 다음에도 어지러우면 조사 같은 명분 없이 그냥 나부터 불러요.',false);
   }
   if(id==='chaerin'){
     rec.chaerinDefiance=(rec.chaerinDefiance||0)+(gain.defiance||0);
@@ -5116,6 +5297,12 @@ function resolveCharacterStory(choice){
   const playerReflection=DANGEROUS_HEROINE_NAMES.includes(r.name)&&DANGEROUS_TRIO&&DANGEROUS_TRIO.recordPlayerChoice
     ?DANGEROUS_TRIO.recordPlayerChoice(S.life,r.name,result.choice.trait,result.chapter.title)
     :null;
+  if(DANGEROUS_HEROINE_NAMES.includes(r.name)&&CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.recordPlayerPattern){
+    const trait=result.choice.trait;
+    const patternMode=['boundary','equal','anchor'].includes(trait)?'face'
+      :['sever','withdraw'].includes(trait)?'avoid':'crisis';
+    CHILDHOOD_CIRCLE.recordPlayerPattern(S.life,patternMode,4);
+  }
   if(r.name==='한채린'&&CHAR_TRAITS){
     const delta=result.choice.trait==='command'?12:result.choice.trait==='conspire'?6:result.choice.trait==='equal'?2:0;
     if(delta)CHAR_TRAITS.change(r,delta);
@@ -5376,13 +5563,16 @@ function queueNaturalDangerousEvents(L){
   if(DANGEROUS_TRIO){
     DANGEROUS_TRIO.resolveUnavailable(L);
     const state=DANGEROUS_TRIO.ensure(L);
-    const prelude=DANGEROUS_TRIO.queuePrelude(L,S.day);
-    if(prelude)routeQueued=queueImportantEvent({dangerousTrioPrelude:prelude.id});
-    else if(DANGEROUS_TRIO.queue(L))routeQueued=queueImportantEvent({dangerousTrioStart:true});
-    else if(state.active&&state.encountered&&DANGEROUS_TRIO.next(L)&&state.lastChapterDay!==S.day){
-      if(queueImportantEvent({dangerousTrioChapter:true})){
-        state.lastChapterDay=S.day;
-        routeQueued=true;
+    const personalStoryWaiting=(S._importantEvents||[]).some(event=>event&&event.story&&DANGEROUS_HEROINE_NAMES.includes(event.personName));
+    if(!personalStoryWaiting){
+      const prelude=DANGEROUS_TRIO.queuePrelude(L,S.day);
+      if(prelude)routeQueued=queueImportantEvent({dangerousTrioPrelude:prelude.id});
+      else if(DANGEROUS_TRIO.queue(L))routeQueued=queueImportantEvent({dangerousTrioStart:true});
+      else if(state.active&&state.encountered&&DANGEROUS_TRIO.next(L)&&state.lastChapterDay!==S.day){
+        if(queueImportantEvent({dangerousTrioChapter:true})){
+          state.lastChapterDay=S.day;
+          routeQueued=true;
+        }
       }
     }
   }
@@ -5428,6 +5618,7 @@ function queueNaturalFreedomEvents(L){
   FREEDOM_TRIO.resolveUnavailable(L);
   if(FREEDOM_TRIO.queueFirstOuting(L)){queueImportantEvent({freedomFirstOuting:true});return;}
   const state=FREEDOM_TRIO.ensure(L);
+  if(state.meetupDeferred&&FREEDOM_TRIO.chapterTwoUnlocked(L)){if(queueImportantEvent({freedomGuildEvent:'offline_table'}))state.meetupDeferred=false;return;}
   if(FREEDOM_TRIO.dangerousDisclosureReady(L)){
     if(queueImportantEvent({freedomDangerousDisclosure:true}))return;
   }
@@ -5504,6 +5695,8 @@ function monthlyRelationshipMessages(L){
     const active=RELATIONSHIPS.isPartner(L,r.name)||['acquaintance','friend','casual','lover','polycule'].includes(r.status);
     if(!active)return;
     if(!hasPersonalContact(r))return;
+    const room=personChat(L,r.name);
+    if(Number.isFinite(room.lastIncomingDay)&&S.day-room.lastIncomingDay<2)return;
     const safeDangerFriend=isDangerousHeroine(r)&&r.status==='friend'&&!dangerousRomanceActive(L,r);
     const risk=dangerousRiskMeta(r),obsession=risk?risk.value:0;
     const gettingCloser=['acquaintance','friend'].includes(r.status)&&!courtshipReadiness(r).ready;
@@ -5553,7 +5746,7 @@ function queueRelationshipSocialMonthly(L){
     }
   }
   const faction=RIVALS.ensureFaction(L);
-  const seraEvent=RELATIONSHIP_SOCIAL.seraConfrontation(L,faction.firstAttacker||faction.lastAttacker);
+  const seraEvent=RELATIONSHIP_SOCIAL.seraConfrontation(L,rivalStoryActor(faction.firstAttacker||faction.lastAttacker));
   if(seraEvent)queueImportantEvent(seraEvent);
   const publicityEvent=RELATIONSHIP_SOCIAL.celebrityDisclosure(L);
   if(publicityEvent)queueImportantEvent(publicityEvent);
@@ -5569,7 +5762,9 @@ function showFreedomGuildEvent(eventId){
     showNextImportantEvent();
     return;
   }
-  S._freedomGuildEvent=eventId;prepareLifeEventOverlay(true);host.style.display='block';
+  S._freedomGuildEvent=eventId;
+  S._freedomGuildQueued=!!(S.monthCloseContext&&S.monthCloseContext.currentImportantEvent&&S.monthCloseContext.currentImportantEvent.freedomGuildEvent===eventId);
+  prepareLifeEventOverlay(true);host.style.display='block';
   const state=FREEDOM_TRIO.ensure(S.life);
   const messages=FREEDOM_TRIO.GUILD_MEMBERS.map(member=>`<div class="phone-bubble incoming"><b>${member.nickname} · ${member.role||'길드원'}</b><span>${member.line}</span></div>`).join('');
   host.innerHTML=`<div class="phone-notification-stage freedom-guild-stage"><div class="phone-shell"><div class="phone-status"><span>QuickTalk · ${FREEDOM_TRIO.GUILD_NAME}</span><span>●●●</span></div><div class="phone-chat-screen open"><header><span class="phone-app-icon">🎮</span><span><b>${event.title}</b><small>현실 정보 비공개 · 게임 파티</small></span></header><div class="phone-chat-log"><div class="phone-date-chip">게임한 밤 ${state.gameSessions}회 · 파티의 온기 ${Math.round(state.guildWarmth)}</div><div class="phone-bubble incoming"><b>시스템</b><span>${event.desc}</span></div>${messages}<div class="phone-reply-label">어떻게 답할까요?</div><div class="phone-reply-options">${event.choices.map(choice=>`<button type="button" data-guild-choice="${choice.id}">${choice.text}</button>`).join('')}</div><div class="event-outcome" id="freedom-guild-outcome"></div></div></div></div></div>`;
@@ -5607,8 +5802,23 @@ function showFirstCloseGuildTutorial(){
     });
   }
 }
+function deferQueuedSeraSpotlightsForFreedom(){
+  const queue=S._importantEvents||[],kept=[];
+  queue.forEach(event=>{
+    const dangerMeta=event.dangerousHeroineEvent&&DANGEROUS_AFFECTION_EVENTS[event.dangerousHeroineEvent];
+    const seraSpotlight=event.story&&event.personName==='윤세라'
+      ||dangerMeta&&dangerMeta.name==='윤세라'
+      ||event.monthlyMessage&&event.targetType==='person'&&event.personName==='윤세라';
+    if(seraSpotlight)releaseImportantEventReservation(event);else kept.push(event);
+  });
+  S._importantEvents=kept;
+}
 function resolveFreedomGuildEvent(choiceId){
   const eventId=S._freedomGuildEvent,result=FREEDOM_TRIO&&FREEDOM_TRIO.resolveGuild(S.life,eventId,choiceId),host=$('life-event');if(!result||!host)return;
+  if(result.meetupQueued&&FREEDOM_TRIO.queueFirstOuting(S.life)){
+    deferQueuedSeraSpotlightsForFreedom();
+    queueImportantEvent({freedomFirstOuting:true});
+  }
   const options=host.querySelector('.phone-reply-options');if(options)options.innerHTML='';
   const branch=result.onlineOnly
     ?'<div class="important-event-detail">현재 관계를 존중해 정모는 열리지 않습니다. 이것은 실패가 아니며, 실명·직업·현실 초상화·개인 연락처는 잠긴 채 네 사람은 온라인 친구로 계속 게임합니다.</div>'
@@ -5619,30 +5829,40 @@ function resolveFreedomGuildEvent(choiceId){
         :'';
   $('freedom-guild-outcome').innerHTML=`<div class="phone-bubble mine">${result.choice.text}</div><div class="phone-bubble incoming followup">${result.choice.result}</div>${branch}<div class="oc-changes">파티의 온기 ${result.choice.warmth>=0?'+':''}${result.choice.warmth}</div><button id="freedom-guild-confirm" class="phone-chat-confirm">${result.meetupQueued?'정모 공지를 확인한다':'게임을 종료한다'}</button>`;
   $('freedom-guild-confirm').addEventListener('click',()=>{
+    const queued=S._freedomGuildQueued;
     S._freedomGuildEvent=null;
-    closeLifeEventOverlay();renderLifePanel();autoSave();
+    S._freedomGuildQueued=false;
+    if(queued)finishImportantEvent();
+    else closeLifeEventOverlay();
+    renderLifePanel();autoSave();
   });
   renderLifePanel();autoSave();
 }
 function monthlyRivalMessages(L){
   if(!RIVALS||!RIVALS.contactMessage)return;
   const faction=RIVALS.ensureFaction(L);
-  const live=(S.bots||[]).map((bot,index)=>({bot,index})).filter(({bot})=>bot.contactUnlocked&&!bot.bankrupt);
+  const live=(S.bots||[]).map((bot,index)=>({bot,index})).filter(({bot})=>bot.contactUnlocked&&!bot.bankrupt&&(bot.jailMonths||0)<=0);
   if(!live.length)return;
   const first=!Number.isFinite(L.lastRivalMessageDay);
   if(!first&&S.day-L.lastRivalMessageDay<1)return;
   if(!first&&Math.random()>.78)return;
   const recent=(faction.lastAttacker&&live.find(entry=>entry.bot.name===faction.lastAttacker))||null;
-  const entry=recent||pick(live);
+  const candidates=[recent,...live.filter(entry=>entry!==recent).sort(()=>Math.random()-.5)].filter(Boolean);
   const stocks=(S.stocks||[]).filter(stock=>stock.listed&&stock.type!=='etf'&&stock.history&&stock.history.length);
   let stock=null;
   if(stocks.length){
     const ranked=stocks.map(item=>({item,change:changeInfo(item).rate*100}));
-    ranked.sort((a,b)=>entry.bot.style==='value'?a.change-b.change:entry.bot.style==='momentum'?Math.abs(b.change)-Math.abs(a.change):Math.random()-.5);
+    ranked.sort((a,b)=>candidates[0].bot.style==='value'?a.change-b.change:candidates[0].bot.style==='momentum'?Math.abs(b.change)-Math.abs(a.change):Math.random()-.5);
     stock=ranked[0];
   }
-  const message=RIVALS.contactMessage(entry.bot,{day:S.day,trades:S.trades||0,contactReason:entry.bot.contactReason,lastAttacker:faction.lastAttacker,stock:{name:stock&&stock.item.name,change:stock&&stock.change}});
+  let entry=null,message=null;
+  for(const candidate of candidates){
+    const next=RIVALS.contactMessage(candidate.bot,{day:S.day,trades:S.trades||0,contactReason:candidate.bot.contactReason,lastAttacker:faction.lastAttacker,stock:{name:stock&&stock.item.name,change:stock&&stock.change}});
+    if(next.text!==candidate.bot.lastOutboundMessage){entry=candidate;message=next;break;}
+  }
+  if(!entry||!message)return;
   L.lastRivalMessageDay=S.day;
+  entry.bot.lastOutboundMessage=message.text;
   pushPersonMessage(L,entry.bot,message.text,false);
   queueImportantEvent({monthlyMessage:true,targetType:'rival',targetId:entry.index,text:message.text,rivalMessage:message});
 }
@@ -6273,7 +6493,7 @@ function replyToPerson(r,kind,options){
     if(answer)pushPersonMessage(L,r,answer,false);
   }
   const meta=[
-    r.name==='윤세라'&&seraHappy?`윤세라의 집착 문자는 행복에 남았습니다 · 행복 ${seraHappy>0?'+':''}${seraHappy}`:'',
+    r.name==='윤세라'&&seraHappy?`윤세라의 연락이 기분에 영향을 줬습니다 · 행복 ${seraHappy>0?'+':''}${seraHappy}`:'',
     stressRelief?`친밀한 연락으로 긴장이 풀렸습니다 · 스트레스 -${stressRelief}`:'',
   ].filter(Boolean).join(' · ');
   if(!options.popup)renderChatPanel();renderLifePanel();autoSave();return{ok:true,text,answer,meta};
@@ -7301,10 +7521,10 @@ function showDangerousTrioRoute(){
   const L=S.life,state=DANGEROUS_TRIO.ensure(L),check=DANGEROUS_TRIO.eligibility(L),cast=dangerousTrioCast();
   if(state.active){showDangerousTrioStory();return;}
   const castHtml=cast.map(r=>`<div class="trio-person"><img src="${characterPortrait(r)}" alt="${r.name}"><b>${r.name}</b><small>${relationTag(L,r.name)}</small></div>`).join('');
-  const progress=`<div class="trio-requirement ${check.badFriendsFormed?'ready':''}"><b>세 사람</b><span>${check.badFriendsFormed?'서로를 욕하면서도 같은 자료를 들고 왔습니다':'서로의 잘못을 따지느라 아직 같은 편이라고 인정하지 않습니다'}</span></div>`+check.rows.map(row=>`<div class="trio-requirement ${row.ready?'ready':''}"><b>${row.name}</b><span>${row.ready?'시선을 피하지 않고 자리에 남았습니다':'아직 같은 방에 오래 머물 생각은 없어 보입니다'}</span></div>`).join('');
+  const progress=`<div class="trio-requirement ${check.badFriendsFormed?'ready':''}"><b>세 사람</b><span>${check.badFriendsFormed?'서로를 욕하면서도 같은 자료를 들고 왔습니다':'서로의 잘못을 따지느라 아직 같은 편이라고 인정하지 않습니다'}</span></div>`+check.rows.map(row=>`<div class="trio-requirement ${row.awakened?'ready':''}"><b>${row.name}</b><span>${row.startNeed}</span></div>`).join('');
   const ending=state.ending?`<div class="story-ending"><b>📕 ${state.ending.title}</b><br>${state.ending.text}</div>`:'';
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">🦂 세 사람의 낯선 동석</div><div class="title-bar-controls"><button aria-label="Close" id="trio-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${state.ending&&state.ending.scene||'./assets/event-trio-647.png'}" alt="강유진 한채린 윤세라가 같은 방에 모인 장면"><div class="trio-cast">${castHtml}</div><div class="event-desc">서로를 믿지 않던 유진, 채린, 세라가 한 테이블에 앉았습니다. 셋은 각자 자신이 가장 정상이라고 주장하면서도 누구도 먼저 자리를 뜨지 않습니다.</div>${ending||`<div class="trio-requirements">${progress}</div><div class="important-event-detail">${check.ok?'세 사람 모두 당신의 말을 기다리고 있습니다.':'몇 번이나 대화가 끊기고 의자가 밀려났습니다. 오늘은 아직 셋을 붙잡아 둘 수 없을 것 같습니다.'}</div><button id="trio-start" class="session-btn ${check.ok?'opening':''}" ${check.ok?'':'disabled'}>세 사람과 이야기를 시작한다</button>`}</div></div>`;
+  host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">🦂 세 사람의 낯선 동석</div><div class="title-bar-controls"><button aria-label="Close" id="trio-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${state.ending&&state.ending.scene||'./assets/event-trio-first-crossing.webp'}" alt="강유진 한채린 윤세라가 같은 방에 모인 장면"><div class="trio-cast">${castHtml}</div><div class="event-desc">서로를 믿지 않던 유진, 채린, 세라가 한 테이블에 앉았습니다. 셋은 각자 자신이 가장 정상이라고 주장하면서도 누구도 먼저 자리를 뜨지 않습니다.</div>${ending||`<div class="trio-requirements">${progress}</div><div class="important-event-detail">${check.ok?'세 사람 모두 당신의 말을 기다리고 있습니다.':'몇 번이나 대화가 끊기고 의자가 밀려났습니다. 오늘은 아직 셋을 붙잡아 둘 수 없을 것 같습니다.'}</div><button id="trio-start" class="session-btn ${check.ok?'opening':''}" ${check.ok?'':'disabled'}>세 사람과 이야기를 시작한다</button>`}</div></div>`;
   $('trio-x').addEventListener('click',closeLifeEvent);
   const start=$('trio-start');if(start)start.addEventListener('click',startDangerousTrioRoute);
 }
@@ -7327,7 +7547,7 @@ function showDangerousTrioStory(){
     return`<div class="trio-dialogue"><img src="${row.portrait}" alt="${row.name}"><div><b>${row.name}</b><p>“${row.line}”</p></div></div>`;
   }).join('');
   host.style.display='block';
-  host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">${chapter.icon} ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="trio-story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${chapter.scene}" alt="${chapter.title} 이벤트 컷신"><div class="trio-meter"><span>세 사람의 분위기</span><b class="${state.stability<30?'down':'up'}">${state.stability<30?'금방이라도 깨질 듯함':'묘하게 맞물림'}</b></div>${carry?`<div class="story-continuity"><b>📕 ${carry.name} 개인 아크 · ${carry.title}</b><br>${carry.text}<br><span class="muted">개인 결말은 지워지지 않습니다. 이번 장에서는 그 결론을 세 사람이 함께 있는 관계에서도 지킬 수 있는지 확인합니다.</span></div>`:''}${chapter.playerWound?`<div class="story-continuity player-wound-reflection"><b>🪞 플레이어의 결핍 · ${playerArc&&playerArc.title||'닫힌 방문 앞의 사람'}</b><br>${chapter.playerWound}${playerArc?`<br><span class="muted">지금까지의 선택 경향: ${playerArc.text}</span>`:''}</div>`:''}${continuity?`<div class="story-continuity trio-story-bridge"><b>🦂 지난 선택이 만든 다음 과제</b>${continuity.previous?`<br>${continuity.previous}`:''}${continuity.next?`<br><span class="muted">${continuity.next}</span>`:''}</div>`:''}<div class="event-desc">${chapter.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${chapter.choices.map(choice=>`<button class="event-opt" data-trio-choice="${choice.id}">${choice.text}</button>`).join('')}<button class="event-opt" id="trio-story-later">지금은 셋을 돌려보낸다</button></div><div class="event-outcome" id="trio-outcome"></div></div></div>`;
+  host.innerHTML=`<div class="window event-window trio-route-window"><div class="title-bar event-bar"><div class="title-bar-text">${chapter.icon} ${chapter.title}</div><div class="title-bar-controls"><button aria-label="Close" id="trio-story-x"></button></div></div><div class="window-body"><img class="life-scene-banner" src="${chapter.scene}" alt="${chapter.title} 이벤트 컷신"><div class="trio-meter"><span>세 사람의 분위기</span><b class="${state.stability<30?'down':'up'}">${state.stability<30?'금방이라도 깨질 듯함':'묘하게 맞물림'}</b></div>${carry?`<div class="story-continuity"><b>📕 ${carry.name}이 아직 삼키고 있는 말 · ${carry.title}</b><br>${carry.text}</div>`:''}${chapter.playerWound?`<div class="story-continuity player-wound-reflection"><b>🪞 혼자 남는 데 익숙한 사람 · ${playerArc&&playerArc.title||'닫힌 방문 앞의 사람'}</b><br>${chapter.playerWound}${playerArc?`<br><span class="muted">세 사람은 당신이 지금까지 피해 온 방식도 이미 눈치챘습니다. ${playerArc.text}</span>`:''}</div>`:''}${continuity?`<div class="story-continuity trio-story-bridge"><b>🦂 지난번에 남은 말</b>${continuity.previous?`<br>${continuity.previous}`:''}${continuity.next?`<br><span class="muted">${continuity.next}</span>`:''}</div>`:''}<div class="event-desc">${chapter.desc}</div><div class="trio-dialogues">${speakers}</div><div class="event-options">${chapter.choices.map(choice=>`<button class="event-opt" data-trio-choice="${choice.id}">${choice.text}</button>`).join('')}<button class="event-opt" id="trio-story-later">지금은 셋을 돌려보낸다</button></div><div class="event-outcome" id="trio-outcome"></div></div></div>`;
   host.querySelectorAll('[data-trio-choice]').forEach(button=>button.addEventListener('click',()=>resolveDangerousTrioStory(button.dataset.trioChoice)));
   [$('trio-story-x'),$('trio-story-later')].forEach(button=>button.addEventListener('click',closeLifeEvent));
 }
@@ -7342,9 +7562,9 @@ function resolveDangerousTrioStory(choiceId){
   const scene=host.querySelector('.life-scene-banner');if(scene&&result.ending&&result.ending.scene)scene.src=result.ending.scene;
   const ending=result.ending?`<div class="story-ending ${result.ending.tone==='bad'?'down':''}"><b>📕 ${result.ending.title}</b><br>${result.ending.text}</div>`:'';
   const playerEnding=result.ending&&DANGEROUS_TRIO.playerArcSummary?DANGEROUS_TRIO.playerArcSummary(S.life):null;
-  const success=result.ending&&result.ending.id==='bad_friends'?`<div class="important-event-detail up">세 사람의 모든 이야기가 끝났습니다. 다음 장에서 세 사람이 먼저 네 번째 열쇠를 받을지 묻습니다.</div>`:'';
+  const success=result.ending&&result.ending.id==='bad_friends'?`<div class="important-event-detail up">네 번째 열쇠의 자리가 정해졌습니다. 이제 세 사람은 이 생활과 관계를 어떤 이름으로 부를지 당신의 대답을 기다립니다.</div>`:'';
   const retry=result.ending&&result.ending.tone==='bad'?'<button id="trio-retry" class="session-btn opening">↩️ 마지막 선택 다시 하기</button>':'';
-  $('trio-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">공생 안정도 ${result.choice.stability>=0?'+':''}${result.choice.stability} · 세 사람 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}${result.choice.obsession?` · 집착 +${result.choice.obsession}`:''}</div>${ending}${playerEnding?`<div class="story-continuity player-wound-reflection"><b>🪞 플레이어 개인 아크 · ${playerEnding.title}</b><br>${playerEnding.text}</div>`:''}${success}${retry}<button id="trio-confirm" class="session-btn ${result.ending&&result.ending.tone==='bad'?'':'opening'}">${result.ending?'엔딩 확인':'이번 사건을 마친다'}</button>`;
+  $('trio-outcome').innerHTML=`<div class="oc-text">${result.choice.result}</div><div class="oc-changes">공생 안정도 ${result.choice.stability>=0?'+':''}${result.choice.stability} · 세 사람 신뢰 ${result.choice.trust>=0?'+':''}${result.choice.trust||0}${result.choice.obsession?` · 집착 +${result.choice.obsession}`:''}</div>${ending}${playerEnding?`<div class="story-continuity player-wound-reflection"><b>🪞 당신이 되풀이한 선택 · ${playerEnding.title}</b><br>${playerEnding.text}</div>`:''}${success}${retry}<button id="trio-confirm" class="session-btn ${result.ending&&result.ending.tone==='bad'?'':'opening'}">${result.ending?'엔딩 확인':'이번 사건을 마친다'}</button>`;
   addNews(`${result.chapter.icon} 위험한 세 사람 · ${result.chapter.title}`,result.choice.tag==='fracture'?'bad':'neutral');
   const retryBtn=$('trio-retry');if(retryBtn)retryBtn.addEventListener('click',retryDangerousTrioChoice);
   $('trio-confirm').addEventListener('click',()=>{
@@ -7865,7 +8085,7 @@ function queueSeraOpeningEncounter(source='early',attacker=null,loss=0){
 
 function awakenSeraAfterFactionAttack(attacker){
   const L=S.life,sera=metRecord(L,'윤세라');if(!L||!sera)return false;
-  const name=attacker&&attacker.name||attacker||'그 세력';
+  const name=rivalStoryActor(attacker||'그 세력');
   if(L.seraRescueOrigin){
     L.seraRescueOrigin.attacker=name;
     L.seraRescueOrigin.playerAttackDay=S.day;
@@ -8068,6 +8288,13 @@ function foundFactionFromMentor(pathId){
   result.faction.mentorDefenseQueued=false;
   pushPersonMessage(S.life,contact,'대표님, 장 선생님한테 얘기 들었습니다. 다음 공격은 같이 막아보자고 하셨습니다. 제가 먼저 상황 보고드리겠습니다.',false);
   flashToast(`${result.path.factionName} 창설 · 첫 부하 ${result.member.name} 합류 · 다음 달 장태식과 첫 방어`,'good');
+  if(FREEDOM_TRIO){
+    const freedom=FREEDOM_TRIO.ensure(S.life);
+    if(freedom.meetupDeferred&&FREEDOM_TRIO.chapterTwoUnlocked(S.life)){
+      deferQueuedSeraSpotlightsForFreedom();
+      if(queueImportantEvent({freedomGuildEvent:'offline_table'}))freedom.meetupDeferred=false;
+    }
+  }
   closeFactionStory();
 }
 
@@ -8075,7 +8302,8 @@ function showFactionMentorDefense(){
   const host=$('life-event'),faction=FACTION_CAMPAIGN.ensure(S.life);if(!host)return;
   const path=FACTION_CAMPAIGN.PATHS[faction.path]||FACTION_CAMPAIGN.PATHS.network;
   const member=faction.members.find(item=>item.sourceId===(FACTION_CAMPAIGN.FOUNDING_MEMBERS[faction.path]||FACTION_CAMPAIGN.FOUNDING_MEMBERS.network).sourceId)||faction.members[0];
-  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🦈 제1장 · 장태식과 첫 방어</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-taesik-first-defense.png" alt="장태식과 첫 부하가 세 가지 방어안을 펼쳐 놓은 장면"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(D.SPECIAL_CHARACTERS.taesik,'neutral')}" alt="장태식"><div><strong>장태식 · 마지막 수업</strong><br><span class="muted">${member.name}과 함께하는 첫 실제 방어</span></div></div><div class="event-title">“사람 붙여줬다고 세력이 되는 게 아니다. 네가 결정을 내리고, 그 결정 때문에 남는 사람이 있어야 세력이지.”</div><div class="event-desc">${faction.firstAttacker}이 다시 공매도와 허위 주문을 겹쳐 당신의 보유 종목을 흔듭니다. 장태식은 답을 대신 말하지 않고 세 가지 대응만 펼쳐 놓습니다. 이번에는 플레이어가 직접 지시하고 ${member.name}이 그 지시를 실행합니다.</div><div class="event-options"><button class="event-opt" data-mentor-defense="evidence"><b>주문 원본을 보존하고 상대 계좌를 역추적한다</b><span>방어보다 다음 반격에 쓸 증거를 남깁니다.</span></button><button class="event-opt" data-mentor-defense="shield"><b>세력 자금으로 보유 종목의 급락부터 막는다</b><span>손실을 줄이고 첫 부하의 실행력을 확인합니다.</span></button><button class="event-opt" data-mentor-defense="decoy"><b>가짜 주문을 흘려 공격자의 다음 계좌를 드러낸다</b><span>위험하지만 적대 세력의 연결망을 확인합니다.</span></button></div></div></div>`;
+  const storyAttacker=rivalStoryActor(faction.firstAttacker);
+  host.innerHTML=`<div class="window event-window"><div class="title-bar event-bar"><div class="title-bar-text">🦈 제1장 · 장태식과 첫 방어</div></div><div class="window-body"><img class="life-scene-banner" src="./assets/event-taesik-first-defense.png" alt="장태식과 첫 부하가 세 가지 방어안을 펼쳐 놓은 장면"><div class="date-profile"><img class="char-portrait" src="${characterPortrait(D.SPECIAL_CHARACTERS.taesik,'neutral')}" alt="장태식"><div><strong>장태식 · 마지막 수업</strong><br><span class="muted">${member.name}과 함께하는 첫 실제 방어</span></div></div><div class="event-title">“사람 붙여줬다고 세력이 되는 게 아니다. 네가 결정을 내리고, 그 결정 때문에 남는 사람이 있어야 세력이지.”</div><div class="event-desc">${withSubjectParticle(storyAttacker)} 다시 공매도와 허위 주문을 겹쳐 당신의 보유 종목을 흔듭니다. 장태식은 답을 대신 말하지 않고 세 가지 대응만 펼쳐 놓습니다. 이번에는 플레이어가 직접 지시하고 ${member.name}이 그 지시를 실행합니다.</div><div class="event-options"><button class="event-opt" data-mentor-defense="evidence"><b>주문 원본을 보존하고 상대 계좌를 역추적한다</b><span>방어보다 다음 반격에 쓸 증거를 남깁니다.</span></button><button class="event-opt" data-mentor-defense="shield"><b>세력 자금으로 보유 종목의 급락부터 막는다</b><span>손실을 줄이고 첫 부하의 실행력을 확인합니다.</span></button><button class="event-opt" data-mentor-defense="decoy"><b>가짜 주문을 흘려 공격자의 다음 계좌를 드러낸다</b><span>위험하지만 적대 세력의 연결망을 확인합니다.</span></button></div></div></div>`;
   host.querySelectorAll('[data-mentor-defense]').forEach(button=>button.addEventListener('click',()=>resolveFactionMentorDefense(button.dataset.mentorDefense,path,member)));
 }
 
@@ -8089,18 +8317,20 @@ function resolveFactionMentorDefense(choice,path,member){
   const contact=SOCIAL.ensure(S.life).contacts.find(item=>item.factionMemberId===member.sourceId);
   addNews(`🛡️ 장태식과 첫 방어 성공 · ${member.name}이 플레이어의 지시를 끝까지 실행했습니다`,'good');
   const fall=FACTION_CAMPAIGN.resolveMentorFall(S.life,faction.firstAttacker,S.day);
+  const storyAttacker=rivalStoryActor(fall.attacker);
   const taesikBot=(S.bots||[]).find(bot=>bot.leader==='장태식');
   const result={faction,path,member};
-  if(fall.ok&&taesikBot)RIVALS.collapseFaction(taesikBot,S.day,`수장 장태식 사망 · ${fall.attacker}의 보복으로 태식 사채라인 강제 해산`,faction,{leaderDeceased:true,killedBy:fall.attacker,collapseSource:'mentor-fall'});
-  LEGACY.push(S.life,dateInfo(S.day).age,'🕯️',`첫 방어 성공 뒤 장태식 사망 · ${fall.attacker} 배후`,'faction');
-  addNews(`🚨 속보 · 첫 방어 직후 장태식 피습 사망 · 배후 ${fall.attacker}`,'bad');
+  if(fall.ok&&taesikBot)RIVALS.collapseFaction(taesikBot,S.day,`수장 장태식 사망 · ${storyAttacker}의 보복으로 태식 사채라인 강제 해산`,faction,{leaderDeceased:true,killedBy:storyAttacker,collapseSource:'mentor-fall'});
+  LEGACY.push(S.life,dateInfo(S.day).age,'🕯️',`첫 방어 성공 뒤 장태식 사망 · ${storyAttacker} 배후`,'faction');
+  addNews(`🚨 속보 · 첫 방어 직후 장태식 피습 사망 · 배후 ${storyAttacker}`,'bad');
   showFactionMentorFall(result,fall,taesikBot,contact);
 }
 
 function showFactionMentorFall(result,fall,taesikBot,contact){
   const host=$('life-event');if(!host)return;
   const t=D.SPECIAL_CHARACTERS.taesik,member=result.member;
-  const attacker=(S.bots||[]).find(bot=>bot.name===fall.attacker);
+  const attacker=(S.bots||[]).find(bot=>bot.name===fall.attacker),attackerActive=attacker&&(attacker.jailMonths||0)<=0;
+  const storyAttacker=rivalStoryActor(fall.attacker);
   host.style.display='block';
   host.innerHTML=`<div class="window event-window faction-mentor-fall-window">
     <div class="title-bar event-bar"><div class="title-bar-text">🚨 세력 속보 · 태식 사채라인 해산</div></div>
@@ -8108,8 +8338,8 @@ function showFactionMentorFall(result,fall,taesikBot,contact){
       <img class="life-scene-banner" src="${lifeSceneImage('faction')}" alt="비어 버린 태식 사채라인 사무실과 끊긴 연락망">
       <div class="date-profile"><img class="char-portrait" src="${characterPortrait(t,'neutral')}" alt="장태식"><div><strong>장태식 · 사망</strong><br><span class="down">수장 부재 · 조직 강제 해산</span></div></div>
       <div class="event-title">첫 방어를 마친 그날 밤, 장태식의 번호가 끊겼습니다.</div>
-      <div class="event-desc">${fall.attacker}은 장태식이 당신에게 사람과 장부를 넘겼다는 사실을 알아냈습니다. 사무실은 습격당했고, 남은 조직원은 흩어졌습니다. 현장에 도착했을 때 장태식은 이미 숨져 있었고 마지막 발신 기록에는 당신과 ${member.name}의 번호만 남아 있었습니다.</div>
-      ${attacker?`<div class="date-profile"><img class="char-portrait" src="./assets/characters/${attacker.portrait||'mob-faction-intel.png'}" alt="${attacker.name}"><div><strong>배후 · ${attacker.name}</strong><br><span class="down">${attacker.faction||'경쟁 세력'} · 장태식 제거 지시</span></div></div>`:''}
+      <div class="event-desc">${withTopicParticle(storyAttacker)} 장태식이 당신에게 사람과 장부를 넘겼다는 사실을 알아냈습니다. 사무실은 습격당했고, 남은 조직원은 흩어졌습니다. 현장에 도착했을 때 장태식은 이미 숨져 있었고 마지막 발신 기록에는 당신과 ${member.name}의 번호만 남아 있었습니다.</div>
+      ${attackerActive?`<div class="date-profile"><img class="char-portrait" src="./assets/characters/${attacker.portrait||'mob-faction-intel.png'}" alt="${attacker.name}"><div><strong>배후 · ${attacker.name}</strong><br><span class="down">${attacker.faction||'경쟁 세력'} · 장태식 제거 지시</span></div></div>`:`<div class="date-profile"><span class="message-popup-avatar">⚔️</span><div><strong>배후 · ${storyAttacker}</strong><br><span class="down">수감된 수장의 지시망을 이어받은 잔당 · 장태식 제거</span></div></div>`}
       <div class="faction-operation-summary faction-collapse-summary">
         <span>현금 <b>0원</b></span>
         <span>거점 <b>전부 폐쇄</b></span>
@@ -8125,7 +8355,7 @@ function showFactionMentorFall(result,fall,taesikBot,contact){
   </div>`;
   $('faction-mentor-legacy').addEventListener('click',()=>{
     pushPersonMessage(S.life,contact,`${member.revengeVow} 앞으로 지원자는 제가 먼저 확인해서 이력서로 올리겠습니다.`,false);
-    flashToast(`${result.path.factionName} 창설 · ${member.name}이 복수를 다짐하고 합류`,'good');
+    flashToast(`${result.path.factionName} 계승 · ${member.name}이 장태식의 장부를 넘겨받음`,'good');
     closeFactionStory();
   });
 }
@@ -8152,8 +8382,9 @@ function showFactionStory(stage) {
     return;
   }
 
-  const attacker=S.bots.find(bot=>bot.name===faction.firstAttacker);
-  const attackerLine=attacker?RIVALS.reactionLine(attacker,'wary'):'“혼자 움직이는 계좌치고는 제법이군. 하지만 혼자 버티는 데는 한계가 있어.”';
+  const attacker=S.bots.find(bot=>bot.name===faction.firstAttacker),attackerActive=attacker&&(attacker.jailMonths||0)<=0;
+  const storyAttacker=rivalStoryActor(faction.firstAttacker);
+  const attackerLine=attackerActive?RIVALS.reactionLine(attacker,'wary'):'“개인 하나가 입을 열기 전에 장부와 연결 기록부터 회수한다.”';
   const traded=(S.trades||0)>0||Object.values(S.owned||{}).some(position=>(position.qty||0)>0);
   const exposureCopy=traded
     ?'당신이 다시 거래하며 남긴 주문 습관이 과거 원본 장부의 작성자를 드러냈습니다.'
@@ -8162,7 +8393,7 @@ function showFactionStory(stage) {
     <div class="title-bar event-bar"><div class="title-bar-text">⚔️ 세력 캠페인 · 혼자라는 약점</div></div>
     <div class="window-body">
       <img class="life-scene-banner" src="${lifeSceneImage('faction')}" alt="첫 세력 공격 직후 도착한 연락">
-      <div class="date-profile">${attacker&&attacker.portrait?`<img class="char-portrait" src="./assets/characters/${attacker.portrait}" alt="${attacker.name}">`:'<span class="message-popup-avatar">⚔️</span>'}<div><strong>${faction.firstAttacker||'경쟁 세력'}</strong><br><span class="down">첫 번째 직접 공격</span></div></div>
+      <div class="date-profile">${attackerActive&&attacker.portrait?`<img class="char-portrait" src="./assets/characters/${attacker.portrait}" alt="${attacker.name}">`:'<span class="message-popup-avatar">⚔️</span>'}<div><strong>${storyAttacker}</strong><br><span class="down">첫 번째 공격의 남은 연결망</span></div></div>
       <div class="event-title">${attackerLine}</div>
       <div class="event-desc">공격자는 생활경제연구회 모의투자 대회의 계좌번호 일부를 보내 왔습니다. 사라진 후원사는 이 경쟁 세력의 차명회사였습니다. ${exposureCopy} 상대는 조작 증거를 회수하고, 혼자인 당신이 입을 열기 전에 꺾으려 합니다.</div>
       <div class="important-event-detail">📱 아버지: “학교 때 그 다섯에게서 겨우 벗어난 줄 알았더니, 그 대회 뒤에 있던 사람들까지 다시 찾아온 거냐? 이번에도 혼자 숨지 마라.”</div>
@@ -8184,7 +8415,7 @@ function resolveFactionFirstAttack(choice) {
   const n=D.SPECIAL_CHARACTERS.narae;
   const options=host.querySelector('.event-options');if(options)options.innerHTML='';
   const opener=choice==='question'
-    ?`${faction.firstAttacker}은 “그 장부가 네 손에 있는 한 넌 투자자가 아니라 증거물이다. 혼자면 빼앗기면 끝이지”라고 답한 뒤 연락을 끊었습니다.`
+    ?`${withTopicParticle(rivalStoryActor(faction.firstAttacker))} “그 장부가 네 손에 있는 한 넌 투자자가 아니라 증거물이다. 혼자면 빼앗기면 끝이지”라고 답한 뒤 연락을 끊었습니다.`
     :'답장은 보내지 않았습니다. 과거 원본 장부, 연락 원문, 이번 거래 기록을 한 묶음으로 보존했습니다.';
   $('faction-first-outcome').innerHTML=`<div class="date-profile"><img class="char-thumb" src="${characterPortrait(n,'neutral')}" alt="나래"><div><b>나래</b><br><span class="muted">합법 대응을 준비합니다</span></div></div><div class="oc-text">${opener}<br><br>“제가 증권사 기록과 신고 절차부터 맡을게요. 싸우기 전에, 상대가 다시는 모른 척하지 못할 증거를 남겨야 해요.”</div><button id="faction-first-confirm" class="session-btn opening">나래에게 대응을 맡긴다 · 다음 달 결과 확인</button>`;
   $('faction-first-confirm').addEventListener('click',closeFactionStory);
@@ -8737,6 +8968,7 @@ function renderLifePanel() {
     `<div class="life-stat"><span>나이/시점</span><strong>${info.label}</strong></div>
      <div class="life-stat"><span>가정환경</span><strong>${((ORIGIN&&ORIGIN.family(L.familyBackground))||{icon:'🏠',name:'기록 없음'}).icon} ${((ORIGIN&&ORIGIN.family(L.familyBackground))||{name:'기록 없음'}).name}</strong></div>
      <div class="life-stat"><span>지나간 학교 기록</span><strong>${((ORIGIN&&ORIGIN.school(L.schoolLife))||{icon:'🎒',name:'기록 없음'}).icon} ${((ORIGIN&&ORIGIN.school(L.schoolLife))||{name:'기록 없음'}).name}</strong></div>
+     ${CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.playerPatternLabel?`<div class="life-stat"><span>플레이어의 애착 습관</span><strong class="${CHILDHOOD_CIRCLE.ensure(L).playerPattern.face>=CHILDHOOD_CIRCLE.ensure(L).playerPattern.crisis?'up':'down'}">🪞 ${CHILDHOOD_CIRCLE.playerPatternLabel(L)}</strong></div>`:''}
      <div class="life-stat"><span>경제 국면</span><strong>${ECONOMY.phase(S.economy).icon} ${ECONOMY.phase(S.economy).name} · ${S.economy.monthsLeft}개월 예상</strong></div>
      <div class="life-stat"><span>기준금리</span><strong>🏦 ${ECONOMY.ensure(S.economy).baseRate.toFixed(2)}% · ${ECONOMY.ensure(S.economy).lastRateDelta > 0 ? '인상' : ECONOMY.ensure(S.economy).lastRateDelta < 0 ? '인하' : '동결'}</strong></div>
      <div class="life-stat"><span>물가상승률</span><strong>🌡️ ${ECONOMY.ensure(S.economy).inflation.toFixed(1)}%</strong></div>
@@ -8797,7 +9029,7 @@ function storyProgressHTML(L) {
     const title=state.completed?(state.ending&&state.ending.title||'마무리된 이야기'):story.chapters[state.chapter].title;
     const bars=story.chapters.map((_,i)=>`<i class="${i<state.chapter?'done':i===state.chapter&&next?'ready':''}"></i>`).join('');
     const status=gate.reason==='relationship-complete'?'🌱 이전 완결 기록 보류 · 실제 연인이 되면 확정':state.completed?title:next?`${STORIES.phaseLabel(next.phase)} · 평소와 다른 연락이 올 것 같습니다`:gate.reason==='relationship'?`🌱 친구 이야기 완료 · 연인이 되면 ${title} 시작`:`${title} · 아직 꺼내지 않은 이야기`;
-    return `<div class="story-progress-card"><strong>${r.emoji||'📖'} ${r.name}</strong><div><div class="story-track" aria-label="${r.name}과 이어진 이야기">${bars}</div><small>${status}</small></div></div>`;
+    return `<div class="story-progress-card"><strong>${r.emoji||'📖'} ${r.name}</strong><div><div class="story-track" aria-label="${r.name}${hasFinalConsonant(r.name)?'과':'와'} 이어진 이야기">${bars}</div><small>${status}</small></div></div>`;
   });
   const circle=CHILDHOOD_CIRCLE&&CHILDHOOD_CIRCLE.ensure(L);
   const circleMood=childhoodCircleNarrative(circle);
@@ -9045,7 +9277,7 @@ function wireLifeHub(host) {
     if(new Set([
       'home-life','income-work','origin-ally','meet-special','person-request',
       'business-start','business-hire','business-manager','business-expand','business-close','business-strategy','industry-gathering',
-      'faction-recruit','date','marry','polycule','rival','faction'
+      'faction-recruit','date','marry','polycule','rival','faction','checkup','treat'
     ]).has(act))closeWorkspace();
     if (act === 'home-life') showHomeLifeModal();
     else if (act === 'income-work') showIncomeWorkModal();
@@ -9802,8 +10034,24 @@ function renderCapital() {
   $('realized').textContent = won(S.realizedPnL);
   const debtEl = $('debt');
   if (debtEl) {
-    debtEl.textContent = won(S.loan);
-    debtEl.className = 'stat-val' + (S.loan > 0 ? ' down' : '');
+    const investmentDebt=Math.max(0,Math.round(S.loan||0));
+    const personalDebt=Math.max(0,Math.round(S.life&&S.life.loan||0));
+    const totalDebt=investmentDebt+personalDebt;
+    debtEl.textContent = won(totalDebt);
+    debtEl.className = 'stat-val' + (totalDebt > 0 ? ' down' : '');
+    const breakdown=$('debt-breakdown');
+    if(breakdown)breakdown.textContent=`투자 ${won(investmentDebt)} · 개인 ${won(personalDebt)}`;
+    const debtStat=$('debt-stat');
+    if(debtStat){
+      debtStat.classList.toggle('has-debt',totalDebt>0);
+      debtStat.title=`투자 신용융자 ${won(investmentDebt)}원 · 개인대출 ${won(personalDebt)}원`;
+      if(Number.isFinite(S._renderedDebtTotal)&&totalDebt>S._renderedDebtTotal){
+        debtStat.classList.remove('debt-raised');
+        requestAnimationFrame(()=>debtStat.classList.add('debt-raised'));
+        setTimeout(()=>debtStat.classList.remove('debt-raised'),1700);
+      }
+    }
+    S._renderedDebtTotal=totalDebt;
   }
   const bpEl = $('buying-power');
   if (bpEl) bpEl.textContent = won(buyingPower());

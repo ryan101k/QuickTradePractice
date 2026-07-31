@@ -44,14 +44,6 @@ const LIFE_EVENTS = [
     ],
   },
   {
-    id: 'debt_family', cat: 'debt', emoji: '👨‍👩‍👧', title: '가족의 부탁',
-    desc: '가족이 급하다며 돈을 빌려달라 합니다.',
-    options: [
-      { text: '빌려준다', effects: { cash: -5000000, happy: 6 }, outcome: '가족을 도왔다. 돌려받을 수 있을까?' },
-      { text: '거절한다', effects: { happy: -8 }, outcome: '마음이 영 불편하다.' },
-    ],
-  },
-  {
     id: 'debt_loanshark', cat: 'debt', emoji: '🦈', title: '사채업자의 유혹',
     desc: '급전이 필요하면 바로 빌려준다는 제안이 왔습니다.',
     cond: c => c.loan > 30000000,
@@ -112,9 +104,10 @@ const LIFE_EVENTS = [
   {
     id: 'life_health', cat: 'life', emoji: '🤒', title: '건강 이상 신호',
     desc: '몸이 계속 안 좋습니다. 병원에 갈까요?',
+    cond: c => Number(c.health) < 75,
     options: [
-      { text: '제대로 치료받는다', effects: { cash: -1500000, happy: 8 }, outcome: '건강을 되찾았다.' },
-      { text: '참고 버틴다', effects: { happy: -10 }, outcome: '몸이 더 안 좋아졌다...' },
+      { text: '제대로 치료받는다', effects: { cash: -1500000, health: 25, happy: 8 }, outcome: '진료와 치료를 받고 건강을 회복했다.' },
+      { text: '참고 버틴다', effects: { health: -8, happy: -10 }, outcome: '몸이 더 안 좋아졌다...' },
     ],
   },
   {
@@ -199,15 +192,6 @@ LIFE_EVENTS.push(
     ],
   },
   {
-    id: 'life_familyask', cat: 'life', emoji: '🏠', title: '가족의 사업 자금',
-    desc: '가족이 사업을 해보겠다며 투자를 부탁합니다. 계획서는 두 장짜리입니다.',
-    options: [
-      { text: '사업계획을 같이 다시 짠다', effects: { happy: 5, cash: -500000 }, outcome: '숫자를 채워 넣다 보니 가족도 스스로 무리라는 걸 알았다.' },
-      { text: '잃어도 되는 돈만 투자한다', effects: { cash: [-10000000, 20000000] }, outcome: '결과는 하늘에 맡겼다. 관계는 지켰다.' },
-      { text: '단호히 거절한다', effects: { happy: -8 }, outcome: '명절 밥상이 조용해졌다.' },
-    ],
-  },
-  {
     id: 'life_flexpost', cat: 'life', emoji: '📸', title: '수익 인증의 유혹',
     desc: '수익 캡처를 SNS에 올릴까 고민 중입니다. 손가락이 업로드 버튼 위에 멈춰 있습니다.',
     options: [
@@ -260,12 +244,13 @@ LIFE_EVENTS.push(
     ],
   },
   {
-    id: 'life_parenthealth', cat: 'life', emoji: '🏥', title: '아버지의 검진 결과',
-    desc: '아버지 건강검진에서 재검사가 필요하다는 연락이 왔습니다.',
+    id: 'life_parenthealth', cat: 'life', emoji: '🏥', title: '아버지가 숨긴 재검 통지서',
+    desc: '매달 생활비를 보내던 아버지는 자기 검진 결과만 말하지 않았습니다. 가족 의료 앱에 재검 예약이 비어 있는 것을 보고 먼저 연락하자, 괜히 집 밖으로 불러내고 싶지 않았다는 답이 돌아옵니다.',
+    cond: c => c.generation === 1 && c.outsideFearResolved && c.day >= 12 && !c.fatherHealthEventSeen,
     options: [
-      { text: '휴가를 내고 같이 병원에 간다', effects: { cash: -500000, happy: 10 }, outcome: '다행히 큰 문제는 아니었다. 같이 간 게 더 오래 기억에 남았다.' },
-      { text: '검사비를 보내드린다', effects: { cash: -1500000, happy: 4 }, outcome: '"바쁜데 뭐하러." 목소리는 서운함 반, 고마움 반이었다.' },
-      { text: '결과 나오면 알려달라고 한다', effects: { happy: -7 }, outcome: '결과는 괜찮았다. 다만 그 통화가 계속 마음에 걸렸다.' },
+      { text: '병원 앞에서 만나 함께 재검을 받는다', effects: { cash:-500000, happy:5, stress:2, parentHealth:10, familyBond:10, fatherHealthEventSeen:true }, outcome: '집 밖으로 나오는 데 시간이 걸렸지만 아버지는 재촉하지 않았습니다. 큰 병은 아니었고, 두 사람은 돌아오는 길에 처음으로 서로의 두려움을 숨기지 않았습니다.' },
+      { text: '예약과 택시를 잡고 결과가 나올 때까지 통화한다', effects: { cash:-300000, happy:2, parentHealth:6, familyBond:5, fatherHealthEventSeen:true }, outcome: '직접 곁에 있지는 못했지만 혼자 병원을 미루게 두지도 않았습니다. 아버지는 진료실을 나와 가장 먼저 결과 사진을 보냈습니다.' },
+      { text: '괜찮다는 말을 믿고 더 묻지 않는다', effects: { happy:-5, stress:6, parentHealth:-6, familyBond:-7, fatherHealthEventSeen:true }, outcome: '재검 예약은 또 한 달 미뤄졌습니다. 아무 일 없는 척 끝낸 통화가 오히려 오래 마음에 남았습니다.' },
     ],
   },
 

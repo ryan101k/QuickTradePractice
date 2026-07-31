@@ -1,7 +1,7 @@
 /* QuickTrade Life — 강유진 × 한채린 × 윤세라 결핍 공생 루트 */
 (function(root){
 'use strict';
-const VERSION=2;
+const VERSION=3;
 const NAMES=['강유진','한채린','윤세라'];
 const ROMANCE_ENDINGS={
  cohabitation_refusal:{
@@ -43,7 +43,7 @@ const PERSONAL_ARC_LESSONS={
   equal:{title:'불러주는 사람',text:'유진은 요청받기 전까지 문밖에서 기다리는 법을 배웠습니다. 그 기다림을 채린과 세라에게도 허락할 수 있는지가 남았습니다.'}
  },
  '한채린':{
-  private_submission:{title:'왕관을 내려놓는 방',text:'채린은 둘만 있을 때 권력을 내려놓는 법을 배웠습니다. 셋이 함께라면 굴복을 특별대우의 증거로 만들지 않아야 합니다.'},
+  private_submission:{title:'왕관을 내려놓는 방',text:'채린은 피학 충동을 도발과 공개적 사고로 훔치지 않고, 둘만의 합의와 중단 규칙 안에서 부탁하는 법을 배웠습니다. 셋이 함께라면 그 취향을 특별대우의 증거로 만들지 않아야 합니다.'},
   boardroom_pair:{title:'같은 테이블의 포식자',text:'채린은 사랑과 거래를 한 테이블에 올려놓았습니다. 이제 돈과 지분으로 자기 자리만 더 크게 만들지 않아야 합니다.'},
   equal:{title:'값을 매기지 않은 자리',text:'채린은 값을 매기지 않고도 사람이 남을 수 있음을 배웠습니다. 그 자리를 다른 두 사람과 같은 크기로 나눌 차례입니다.'}
  },
@@ -59,13 +59,18 @@ function personalCarry(life,name){
  const state=ensure(life),person=rec(life,name),route=state.individualRoutes&&state.individualRoutes[name]
   ||person&&person.story&&person.story.ending&&person.story.ending.route
   ||person&&(name==='강유진'?person.yujinEndingRoute:name==='한채린'?person.chaerinEndingRoute:person.seraEndingRoute);
- const lesson=(PERSONAL_ARC_LESSONS[name]||{})[route]||{title:'끝낸 개인 이야기',text:'둘만의 관계에서 내린 결론을 세 사람이 함께 있는 자리에서도 다시 선택해야 합니다.'};
+ const unfinished={
+  '강유진':{title:'먼저 불리고 싶은 사람',text:'유진은 사건이 끝난 뒤에도 자신이 필요한 사람으로 남고 싶어 합니다. 다른 두 사람의 도움을 인정하는 순간, 그 욕망이 보호인지 독점인지 선명해집니다.'},
+  '한채린':{title:'도발로 반응을 훔치는 사람',text:'채린은 원하는 말을 직접 부탁하는 대신 상대를 화나게 만들어 반응을 끌어냅니다. 세 사람 앞에서는 약점을 무기로 쓰지 않고 자기 욕망을 말해야 합니다.'},
+  '윤세라':{title:'열린 문을 견디는 사람',text:'세라는 곁에 없는 시간을 버림받았다는 증거로 받아들입니다. 유진과 채린이 옆에 있어도 돌아온다는 대답을 기다릴 수 있는지가 남았습니다.'}
+ };
+ const lesson=(PERSONAL_ARC_LESSONS[name]||{})[route]||unfinished[name];
  return{name,route:route||'unknown',title:lesson.title,text:lesson.text};
 }
 
 const PRELUDES=[
  {
-  id:'three_ends_one_ledger',title:'악우 형성 1 · 우연히 겹친 세 사람',icon:'🚪',scene:'./assets/event-trio-647.png',
+  id:'three_ends_one_ledger',title:'악우 형성 1 · 우연히 겹친 세 사람',icon:'🚪',scene:'./assets/event-trio-first-crossing.webp',
   desc:'세 사람은 협력하러 온 게 아닙니다. 각자 당신을 자기 방식대로 만나러 왔다가 같은 자리에서 정면으로 마주쳤을 뿐입니다. 채린은 찢긴 계약서의 남은 조각을 돌려주러, 유진은 사건 뒤의 안전을 확인하러, 세라는 약속한 편의점 물건을 건네러 왔습니다. 서로 다른 이유가 모두 당신 한 사람에게 향한다는 사실을 알아챈 셋은 인사보다 먼저 “쟤는 대체 뭐지”부터 눈으로 잽니다.',
   speakers:[
    {name:'한채린',line:'계약서 조각 돌려주러 왔어. 경찰이랑 스토커가 낄 자리 아니야. …왜 둘 다 내가 못 버린 걸 아는 표정인데.'},
@@ -115,7 +120,7 @@ const CHAPTERS=[
  },
  {
   title:'유진 · 가장 먼저 부르지 않은 밤',icon:'📵',scene:'./assets/event-trio-yujin-shared-signal.png',focus:'강유진',
-  desc:'유진은 세 사람의 비상 연락망을 완성하고도 자기 이름을 첫 칸에 쓰지 못합니다. 둘만의 이야기에서 얻은 결론을 지키려면, 위험을 먼저 발견한 자신이 아니라 도움을 요청한 당신이 순서를 정해야 합니다.',
+  desc:'유진은 세 사람의 비상 연락망을 완성하고도 자기 이름을 첫 칸에서 지우지 못합니다. 병원과 끝난 사건을 계속 챙기며 드러난 마음은 단순한 책임감이 아니었습니다. 위험을 먼저 발견한 자신이 아니라 도움을 요청한 당신이 누구를 부를지 정해야 합니다.',
   bridge:'첫 공동작전에서 유진은 누구보다 빨리 움직였지만, 세라의 정보와 채린의 자금이 없었다면 합법적인 구조까지 끝내지 못했음을 압니다. 이제 보호를 독점하는 대신 다른 두 사람의 도움을 인정해야 합니다.',
   playerWound:'당신에게도 “유진이 알아서 구해 주면 내가 틀린 선택을 하지 않아도 된다”는 유혹이 있습니다. 도움을 청하는 것과 판단 자체를 맡기는 것이 다르다는 사실을 말로 정해야 합니다.',
   speakers:[
@@ -125,14 +130,14 @@ const CHAPTERS=[
   ],
   choices:[
    {id:'shared_signal',tag:'balance',text:'위험 종류에 따라 연락할 사람을 내가 직접 고르겠다고 한다',preview:'유진의 보호를 독점권이 아닌 선택 가능한 안전망으로 바꾼다',stability:12,trust:6,result:'유진은 자기 번호 옆의 1순위 표시를 지웠습니다. 대신 세 사람 모두가 볼 수 있는 “본인이 도움을 요청했는가” 칸을 가장 위에 만들었습니다.'},
-   {id:'always_yujin',tag:'containment',text:'어떤 일이든 유진을 가장 먼저 부르겠다고 약속한다',preview:'유진의 개인 결말을 그룹 안의 서열로 굳힌다',stability:-5,obsession:9,result:'유진은 안도했지만 채린과 세라는 그 약속을 자신들이 넘어야 할 새 경계선으로 받아들였습니다.'},
+   {id:'always_yujin',tag:'containment',text:'어떤 일이든 유진을 가장 먼저 부르겠다고 약속한다',preview:'유진의 불안을 세 사람 사이의 서열로 굳힌다',stability:-5,obsession:9,result:'유진은 안도했지만 채린과 세라는 그 약속을 자신들이 넘어야 할 새 경계선으로 받아들였습니다.'},
    {id:'no_help',tag:'fracture',text:'누구에게도 도움을 청하지 않겠다고 한다',preview:'보호와 통제를 구분하는 대신 세 사람 모두를 밀어낸다',stability:-13,trust:-5,result:'유진은 물러났지만 기다리지는 않았습니다. 세 사람은 당신 몰래 각자의 감시망을 다시 켰습니다.'}
   ]
  },
  {
   title:'채린 · 도발하지 않고 부탁한 밤',icon:'🖤',scene:'./assets/event-trio-chaerin-direct-request.png',focus:'한채린',
-  desc:'채린은 검은 목걸이를 테이블 위에 놓고도 누구에게도 차 달라고 말하지 못합니다. 둘만 있을 때는 도발로 명령을 끌어냈지만, 세라와 유진이 보는 앞에서는 원하는 것을 직접 부탁해야 합니다. 세 사람 모두 채린의 취향을 이미 알아챘고, 채린만 끝까지 아니라고 우깁니다.',
-  bridge:'유진이 가장 먼저 불릴 권리를 내려놓은 뒤, 이번에는 채린이 상대를 화나게 만들어 원하는 반응을 훔치는 습관을 내려놓아야 합니다. 굴복하고 싶은 욕망보다 중요한 것은 거절과 중단이 가능한 부탁으로 바꾸는 일입니다.',
+  desc:'채린은 검은 목걸이를 테이블 위에 놓고도 누구에게도 차 달라고 말하지 못합니다. 둘만 있을 때는 도발로 가혹한 반응을 끌어냈지만, 세라와 유진이 보는 앞에서는 원하는 것을 직접 부탁해야 합니다. 세 사람 모두 채린의 피학 취향을 이미 알아챘고, 채린만 끝까지 아니라고 우깁니다.',
+  bridge:'유진이 가장 먼저 불릴 권리를 내려놓은 뒤, 이번에는 채린이 상대를 화나게 만들어 원하는 가학적 반응을 훔치는 습관을 내려놓아야 합니다. 피학 욕망보다 중요한 것은 거절과 중단이 가능한 부탁으로 바꾸는 일입니다.',
   playerWound:'당신은 채린의 도발에 반응할수록 자기가 관계를 움직인다고 착각하기 쉽습니다. 이번에는 채린의 결핍을 이용해 공개적으로 굴복시키지 않고, 원하는 말을 직접 하게 기다려야 합니다.',
   speakers:[
    {name:'한채린',line:'이걸 차겠다는 뜻은 아니야. 그냥… 내가 직접 결정하고 직접 풀 수 있게 하라고 누가 명령하면 생각은 해볼 수 있다는 거지.'},
@@ -247,6 +252,10 @@ function pureChapters(life){
 }
 function chaptersFor(life){
  const path=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.path(life,'dangerous');
+ const state=life&&life.dangerousTrio;
+ if(path&&path.path==='pure'&&state&&state.storyMode==='interwoven'){
+  return[...CHAPTERS.slice(0,5),pureChapters(life)[2]];
+ }
  return path&&path.path==='pure'?pureChapters(life):CHAPTERS;
 }
 const AFTERMATH=[
@@ -331,7 +340,8 @@ function ensure(life){
  const playerAxes=s.playerArc.axes||(s.playerArc.axes={});
  ['face','delegate','control','enclose','avoid','deflect'].forEach(key=>{if(!Number.isFinite(playerAxes[key]))playerAxes[key]=0;});
  if(!Array.isArray(s.playerArc.history))s.playerArc.history=[];
- if(!s.version){
+ const previousVersion=Number(s.version)||0;
+ if(previousVersion<2){
   // 4장 구버전 진행 중 저장은 공조 1장까지만 보존하고 새 인물별 양보 장부터 잇는다.
   if(s.active&&!s.ending&&(s.stage||0)>=1){
    s.history=s.history.filter(item=>(item.stage||0)===0);
@@ -342,10 +352,14 @@ function ensure(life){
    s.stage=1;
   }
   if(Number.isFinite(s.preludeStage))s.preludeStage=Math.min(s.preludeStage,PRELUDES.length);
-  s.version=VERSION;
  }
  if(!s.individualRoutes||typeof s.individualRoutes!=='object')s.individualRoutes={};
  if(!s.personalConcessions||typeof s.personalConcessions!=='object')s.personalConcessions={};
+ if(!s.storyMode&&(s.active||s.encountered)){
+  const path=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.path(life,'dangerous');
+  s.storyMode=path&&path.path==='pure'?'pure':'interwoven';
+ }
+ s.version=VERSION;
  if(!Number.isFinite(s.preludeStage))s.preludeStage=0;
  if(!Array.isArray(s.preludeHistory))s.preludeHistory=[];
  if(s.active||s.encountered||s.ending){
@@ -370,21 +384,47 @@ function playerArcSummary(life){
 }
 const PRELUDE_AFFECTION=45;
 const FIRST_PRELUDE_AFFECTION=20;
+const FOCUS_CHAPTERS={'강유진':2,'한채린':2,'윤세라':2};
+function storyState(person){
+ const stories=root.QT_CHARACTER_STORIES;
+ return person&&stories?stories.ensure(person):person&&person.story||null;
+}
+function awakeningReady(life,name){
+ const person=rec(life,name),state=storyState(person);
+ if(!person)return false;
+ if((state&&state.chapter||0)>0)return true;
+ if(name==='강유진')return !!(person.yujinRescueCompulsionAwakened||life.yujinInvestigationSeen||person.officialContact||person.dangerEvents&&person.dangerEvents.yujin_embrace==='seen');
+ if(name==='한채린')return !!(person.chaerinSubmissionAwakened||person.dangerEvents&&person.dangerEvents.chaerin_warning==='seen');
+ return !!(person.seraObsessionAwakened||person.pickedUpAfterRuin||['temporary','cohabit','separate','reject'].includes(life.seraHousing)||person.dangerEvents&&person.dangerEvents.sera_warning==='seen');
+}
+function focusReady(life,name){
+ const state=storyState(rec(life,name));
+ return !!(state&&(state.completed||(state.chapter||0)>=(FOCUS_CHAPTERS[name]||1)));
+}
+function directionFixed(life,name){
+ const person=rec(life,name),stories=root.QT_CHARACTER_STORIES;
+ if(!person||!stories)return false;
+ if(person.story&&person.story.ending)return true;
+ const state=stories.ensure(person),start=stories.relationshipStartIndex(name);
+ return !!((state.completed&&state.ending)||(['pure','group','platonic'].includes(state.romancePath)&&(state.chapter||0)>=start));
+}
 function preludeEligibility(life){
  const state=ensure(life),people=NAMES.map(name=>rec(life,name));
  const allKnown=people.every(person=>person&&!['ex','deceased','parted'].includes(person.status));
  const affections=people.map(person=>person?person.affection||0:0);
  const allHighAffection=people.every(person=>person&&(person.affection||0)>=PRELUDE_AFFECTION);
  const firstAffectionReady=people.every(person=>person&&(person.affection||0)>=FIRST_PRELUDE_AFFECTION);
+ const allAwakened=NAMES.every(name=>awakeningReady(life,name));
+ const firstPersonalStep=NAMES.every(name=>{const personal=storyState(rec(life,name));return personal&&(personal.chapter||0)>=1;});
  const stageReady=state.preludeStage===0
-  ?firstAffectionReady
-  :allHighAffection&&people.every(person=>person&&root.QT_CHARACTER_STORIES&&root.QT_CHARACTER_STORIES.ensure(person).chapter>=2);
+  ?firstAffectionReady&&allAwakened
+  :allHighAffection&&firstPersonalStep;
  const sera=rec(life,'윤세라'),legacyHome=life.seraHousing==null&&sera&&sera.pickedUpAfterRuin;
  const seraHome=(life.seraHousing==='cohabit'||legacyHome)&&!state.lockedOut;
  const faction=life.faction||{},subordinateReady=(faction.level||0)>0&&Array.isArray(faction.members)&&faction.members.length>0;
  const caseLinked=!!life.yujinInvestigationSeen||!!(rec(life,'강유진')||{}).officialContact;
  const guard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'dangerous');
- return{ok:(!guard||guard.ok)&&!state.active&&!state.encountered&&!state.ending&&!state.badFriendsFormed&&allKnown&&stageReady&&subordinateReady&&caseLinked,allKnown,allHighAffection,firstAffectionReady,stageReady,minAffection:Math.min(...affections),seraHome,subordinateReady,caseLinked,guard};
+ return{ok:(!guard||guard.ok)&&!state.active&&!state.encountered&&!state.ending&&!state.badFriendsFormed&&allKnown&&stageReady&&subordinateReady&&caseLinked,allKnown,allHighAffection,firstAffectionReady,allAwakened,firstPersonalStep,stageReady,minAffection:Math.min(...affections),seraHome,subordinateReady,caseLinked,guard};
 }
 function nextPrelude(life){
  const state=ensure(life);
@@ -432,8 +472,10 @@ function progress(life){
   const chapter=state?state.chapter:0,total=story?story.chapters.length:0;
   const completed=legacyCompleted||!!(state&&state.completed),ending=legacyEnding||state&&state.ending;
    const lesson=(PERSONAL_ARC_LESSONS[name]||{})[route]||null;
-   return{name,met:!!r,active,chapter,total,route,accepted,lesson,resolved:!!r&&(!active||completed),ready:!!r&&(!active||completed),
-   need:!r?'아직 만나지 못함':!active?`현재 관계: ${r.status||'지인'} · 개인 인연 종료`:!state||!completed?`개인 스토리 ${chapter}/${total} 진행`:`개인 이야기 완료 · ${ending&&ending.title||'결말 확인'}`};
+   const awakened=awakeningReady(life,name),focused=focusReady(life,name),direction=directionFixed(life,name);
+   const startNeed=!r?'아직 만나지 못함':!awakened?'서로에게 숨기던 결핍이 아직 드러나지 않음':focused?'세 사람이 있는 자리에서도 물러서지 않음':'둘만 있을 때조차 꺼내지 못한 말이 남아 있음';
+   return{name,met:!!r,active,chapter,total,route,accepted,lesson,awakened,focusReady:focused,directionFixed:direction,startNeed,resolved:!!r&&(!active||completed),ready:!!r&&(!active||completed),
+   need:!r?'아직 만나지 못함':!active?`현재 관계: ${r.status||'지인'} · 개인 인연 종료`:!state||!completed?`${name}에게 아직 끝내지 못한 이야기가 있음`:`${ending&&ending.title||'서로의 대답을 확인함'}`};
  });
  return rows;
 }
@@ -468,16 +510,9 @@ function eligibility(life){
  const sera=rec(life,'윤세라');
  const legacyHome=life.seraHousing==null&&sera&&sera.pickedUpAfterRuin;
  const seraHome=(life.seraHousing==='cohabit'||legacyHome)&&!state.lockedOut;
- const individualDirectionFixed=NAMES.every(name=>{
-  const person=rec(life,name),stories=root.QT_CHARACTER_STORIES;
-  if(!person||!stories)return false;
-  if(person.story&&person.story.ending)return true;
-  const personal=stories.ensure(person),start=stories.relationshipStartIndex(name);
-  const legacyDirection=(personal.chapter||0)>=start&&personal.branchPending!==true;
-  return !!((personal.completed&&personal.ending)||((personal.romancePath||legacyDirection)&&(personal.chapter||0)>=start));
- });
+ const allAwakened=NAMES.every(name=>awakeningReady(life,name));
  const guard=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.canStart(life,'dangerous');
- return{ok:!!((!guard||guard.ok)&&!state.encountered&&!state.active&&!state.ending&&state.badFriendsFormed&&relationshipOpen&&clean&&seraHome&&individualDirectionFixed),partner,relationshipOpen,clean,seraHome,individualDirectionFixed,badFriendsFormed:!!state.badFriendsFormed,outsiders,rows,guard};
+ return{ok:!!((!guard||guard.ok)&&!state.encountered&&!state.active&&!state.ending&&state.badFriendsFormed&&relationshipOpen&&clean&&seraHome&&allAwakened),partner,relationshipOpen,clean,seraHome,allAwakened,individualDirectionFixed:NAMES.every(name=>directionFixed(life,name)),badFriendsFormed:!!state.badFriendsFormed,outsiders,rows,guard};
 }
 function queue(life){
  const check=eligibility(life),state=ensure(life);
@@ -494,7 +529,7 @@ function start(life){
  const check=eligibility(life);if(!check.ok)return{ok:false,check};
  if(root.QT_ROMANCE_ROUTES&&!root.QT_ROMANCE_ROUTES.begin(life,'dangerous').ok)return{ok:false,check:eligibility(life)};
  const routePath=root.QT_ROMANCE_ROUTES&&root.QT_ROMANCE_ROUTES.path(life,'dangerous');
- const state=ensure(life),rows=progress(life);state.active=true;state.queued=false;state.encountered=true;state.friendRoute=!!(routePath&&routePath.path==='pure');state.stage=Math.max(0,state.stage||0);state.stability=Math.max(50,state.stability||0);state.ending=null;
+ const state=ensure(life),rows=progress(life);state.active=true;state.queued=false;state.encountered=true;state.friendRoute=!!(routePath&&routePath.path==='pure');state.storyMode=state.friendRoute?'pure':'interwoven';state.stage=Math.max(0,state.stage||0);state.stability=Math.max(50,state.stability||0);state.ending=null;
  state.individualRoutes=Object.fromEntries(rows.map(row=>[row.name,row.route||'unknown']));
  state.personalConcessions={};
  NAMES.forEach(name=>{const r=rec(life,name);if(r){if(!routePath||routePath.path!=='pure'||routePath.name!==name)r.status='friend';r.trust=clamp((r.trust||0)+4,0,100);}});
@@ -503,9 +538,18 @@ function start(life){
 function next(life){
  const state=ensure(life);
  if(!state.active||state.ending)return null;
- // 공동 반격과 세 사람의 양보까지는 개인 서사와 교차한다.
- // 위기와 공동생활 합의(5·6장)는 세 개인사가 모두 끝난 뒤에만 연다.
- if(state.stage>=4&&!progress(life).every(row=>row.ready))return null;
+ const rows=progress(life),today=Number(life.day)||0;
+ if(Number.isFinite(state.lastResolvedChapterDay)&&today<=state.lastResolvedChapterDay+1)return null;
+ if(state.storyMode==='pure'){
+  if(state.stage===1&&!rows.every(row=>row.directionFixed))return null;
+  if(state.stage>=2&&!rows.every(row=>row.ready))return null;
+ }else{
+  if(state.stage===1&&!focusReady(life,'강유진'))return null;
+  if(state.stage===2&&!focusReady(life,'한채린'))return null;
+  if(state.stage===3&&!focusReady(life,'윤세라'))return null;
+  if(state.stage===4&&!rows.every(row=>row.directionFixed))return null;
+  if(state.stage>=5&&!rows.every(row=>row.ready))return null;
+ }
  return chaptersFor(life)[state.stage]||null;
 }
 function continuity(life,chapter){
@@ -546,6 +590,7 @@ function apply(life,choiceId){
  recordPlayerChoice(life,'dangerous-group',choice.tag,chapter.title);
  NAMES.forEach(name=>{const r=rec(life,name);if(!r)return;r.trust=clamp((r.trust||0)+(choice.trust||0),0,100);r.affection=clamp((r.affection||0)+(choice.tag==='fracture'?-2:3),0,100);if(choice.obsession){const key=name==='윤세라'?'obsession':'dangerLevel';r[key]=clamp((r[key]||0)+choice.obsession,0,100);}});
  if(chapter.focus)state.personalConcessions[chapter.focus]={choice:choice.id,tag:choice.tag,route:personalCarry(life,chapter.focus).route};
+ state.lastResolvedChapterDay=Number(life.day)||0;
  state.stage++;if(state.stage>=chaptersFor(life).length){state.ending=endingFor(state,choice,life);state.active=false;if(root.QT_ROMANCE_ROUTES)root.QT_ROMANCE_ROUTES.complete(life,'dangerous',state.ending.id,state.ending.tone);}
  return{chapter,choice,state,ending:state.ending};
 }
@@ -571,5 +616,5 @@ function applyAftermath(life,choiceId){
 }
 function compatibleCandidate(){return false;}
 
-root.QT_DANGEROUS_TRIO={VERSION,NAMES,ROMANCE_ENDINGS,romanceEnding,PRELUDES,CHAPTERS,pureChapters,chaptersFor,AFTERMATH,PERSONAL_ARC_LESSONS,PLAYER_ARC_MODES,PLAYER_ARC_COPY,personalCarry,continuity,recordPlayerChoice,playerArcSummary,ensure,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,storyComplete,resolveUnavailable,confessionReady,eligibility,queue,cancelQueue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
+root.QT_DANGEROUS_TRIO={VERSION,NAMES,ROMANCE_ENDINGS,romanceEnding,PRELUDES,CHAPTERS,pureChapters,chaptersFor,AFTERMATH,PERSONAL_ARC_LESSONS,PLAYER_ARC_MODES,PLAYER_ARC_COPY,personalCarry,continuity,recordPlayerChoice,playerArcSummary,ensure,awakeningReady,focusReady,directionFixed,preludeEligibility,nextPrelude,queuePrelude,deferPrelude,applyPrelude,progress,storyComplete,resolveUnavailable,confessionReady,eligibility,queue,cancelQueue,start,next,apply,monthly,nextAftermath,applyAftermath,compatibleCandidate};
 })(window);

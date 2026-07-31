@@ -3,6 +3,8 @@
  * 마지막에 선택될 사람이라 믿었다. 졸업 직전 ‘보호 계획’이라는 이름으로
  * 일정·약·평판·동선·계정을 나눠 통제했고, 주인공은 모든 것을 잃고 도망쳤다.
  * 현재 루트의 질문은 용서가 아니라 다섯이 자기 잘못을 인정하고 선택권을 돌려주는가다.
+ * 주인공 역시 갈등을 말로 끝내지 못하고, 상대가 선을 넘은 뒤에야 폭발하거나
+ * 잠적해야 사랑의 크기가 확인된다고 느끼는 위기형 애착 습관을 갖고 있다.
  */
 (function (root) {
   'use strict';
@@ -344,11 +346,13 @@
     {icon:'📱',title:'가족이 먼저 꺼낸 옛이야기',text:'“요즘 학교 때 그 애들한테 연락 온 건 아니지? 밖에서 누가 지켜보는 것 같으면 혼자 확인하지 마.”',direct:true},
     {icon:'🧷',title:'바뀐 비상 연락처',text:'병원 앱의 비상 연락처가 잠깐 옛 동아리 순서로 돌아갔다가 다시 비어 있었습니다. 수정 기록에는 관리자 이름이 남지 않았습니다.',direct:false},
     {icon:'🎓',title:'졸업사진 뒤의 새 메모',text:'분명 빈칸이던 졸업사진 뒷면에 “우리는 아직 네가 끝냈다는 말에 동의하지 않았어”라는 문장이 적혀 있습니다.',direct:false},
+    {icon:'🪞',title:'차단 뒤에 기다린 이름',text:'다섯을 전부 차단한 밤에도 휴대전화를 끄지 못했습니다. 누구에게도 오지 말라고 해놓고, 끝까지 찾아오는 사람이 있는지 새벽까지 화면을 확인했던 기억이 돌아왔습니다.',direct:true},
+    {icon:'🩹',title:'아플 때만 확실했던 관계',text:'평범한 날에는 서로의 마음을 의심했지만 쓰러지거나 사고가 난 날에는 다섯이 동시에 달려왔습니다. 숨이 막히면서도 그때만큼은 버려지지 않았다고 안도했습니다.',direct:true},
   ];
 
   function ensure(life) {
     if (!life.childhoodCircle || typeof life.childhoodCircle !== 'object') {
-      life.childhoodCircle = { anchor:null, schoolId:null, stage:'dormant', pressure:0, trust:0, accountability:0, refusals:0, pastStructure:'failed_shared_harem', collectiveFault:'protective_plan', playerFault:'conflict_avoidance', seen:{}, traits:{}, route:null, pending:null };
+      life.childhoodCircle = { anchor:null, schoolId:null, stage:'dormant', pressure:0, trust:0, accountability:0, refusals:0, pastStructure:'failed_shared_harem', collectiveFault:'protective_plan', playerFault:'crisis_attachment', seen:{}, traits:{}, route:null, pending:null };
     }
     const state = life.childhoodCircle;
     state.seen = state.seen || {};
@@ -361,7 +365,9 @@
     if (!Number.isFinite(state.lastForeshadowDay)) state.lastForeshadowDay = 0;
     state.pastStructure = 'failed_shared_harem';
     state.collectiveFault = 'protective_plan';
-    state.playerFault = 'conflict_avoidance';
+    state.playerFault = 'crisis_attachment';
+    state.playerPattern=state.playerPattern&&typeof state.playerPattern==='object'?state.playerPattern:{avoid:35,crisis:45,face:20};
+    ['avoid','crisis','face'].forEach(key=>{if(!Number.isFinite(state.playerPattern[key]))state.playerPattern[key]=key==='face'?20:35;});
     state.futureExpansion = true;
     return state;
   }
@@ -373,7 +379,7 @@
     state.pastIncident = 'mock_investment_account';
     state.pastStructure = 'failed_shared_harem';
     state.collectiveFault = 'protective_plan';
-    state.playerFault = 'conflict_avoidance';
+    state.playerFault = 'crisis_attachment';
     person.childhoodFriend = true;
     person.formerClubEx = true;
     person.oldCircleRole = META[person.name] && META[person.name].role;
@@ -385,6 +391,28 @@
   function line(person, scene) {
     const rows = person && person.childhoodFriend && LINES[person.name] && LINES[person.name][scene];
     return rows && rows.length ? rows[Math.floor(Math.random() * rows.length)] : '';
+  }
+  function recordPlayerPattern(life,mode,amount){
+    const state=ensure(life),pattern=state.playerPattern,value=Math.max(1,Number(amount)||1);
+    if(mode==='face'){pattern.face=Math.min(100,pattern.face+value);pattern.avoid=Math.max(0,pattern.avoid-Math.ceil(value/2));}
+    else if(mode==='avoid'){pattern.avoid=Math.min(100,pattern.avoid+value);}
+    else pattern.crisis=Math.min(100,pattern.crisis+value);
+    return pattern;
+  }
+  function playerEcho(life,context){
+    const state=ensure(life);if(!state.anchor)return'';
+    const copy={
+      hospital:'학창 시절에도 아프거나 무너진 날에만 다섯 사람의 마음이 확실해졌습니다. 누군가가 지나치게 챙겨주는 모습이 숨 막히면서도, 평온한 날보다 안심되는 자신의 반응까지 낯설지는 않습니다.',
+      gathering:'싫다는 말을 제때 하지 않고 상대가 선을 넘을 때까지 버틴 뒤, 한 번의 폭발로 관계를 확인하던 방식은 졸업 전에도 반복됐습니다. 채린의 도발만 이상한 것이 아니라 그 도발이 끝까지 커지기를 기다리는 자신도 익숙한 패턴 안에 있습니다.',
+      opening:'당신은 통제를 싫어하면서도 누군가가 선을 넘을 만큼 자신을 원할 때에야 버려지지 않았다고 안도합니다. 그래서 불편한 말을 미루고, 관계가 위기가 된 뒤에야 떠나거나 상대를 붙잡아 왔습니다.'
+    };
+    return copy[context]||copy.opening;
+  }
+  function playerPatternLabel(life){
+    const pattern=ensure(life).playerPattern;
+    if(pattern.face>=Math.max(pattern.avoid,pattern.crisis))return'불편한 답을 직접 말하는 연습 중';
+    if(pattern.crisis>=pattern.avoid)return'위기가 와야 사랑을 믿는 습관';
+    return'상처받기 전에 먼저 사라지는 습관';
   }
   function foreshadow(life,day) {
     const state=ensure(life),now=Math.max(1,Math.floor(Number(day||life.day||1)));
@@ -464,6 +492,7 @@
 
   root.QT_CHILDHOOD_CIRCLE = {
     MEMBERS, META, STORIES, LINES, EVENTS, FORESHADOWS,
-    ensure, register, storyFor, line, foreshadow, monthly, event, resolve, activeCount
+    ensure, register, storyFor, line, foreshadow, monthly, event, resolve, activeCount,
+    recordPlayerPattern,playerEcho,playerPatternLabel
   };
 })(window);

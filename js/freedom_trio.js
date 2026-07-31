@@ -19,9 +19,9 @@ const ROMANCE_ENDINGS={
 };
 function romanceEnding(kind){return ROMANCE_ENDINGS[kind]||null;}
 const GUILD_MEMBERS=[
-  {name:'채원',nickname:'막차요정',avatar:'⚔️',role:'돌진형 근접 딜러',line:'한 번 들어가 볼게요. 전멸하면… 다음 판에 덜 무리하면 되죠.'},
-  {name:'유나',nickname:'무보정',avatar:'🛡️',role:'얼굴을 가린 중갑 탱커',line:'사진 인증은 금지. 공격은 내가 막을 테니까 위치만 지켜요.'},
-  {name:'소희',nickname:'쉼표',avatar:'🎧',role:'지원형 컨트롤러·공대장',line:'세 걸음 뒤. 지금 멈추고, 다음 신호에 같이 들어가요.'},
+  {name:'채원',nickname:'막차요정',job:'국제선 객실승무원',avatar:'⚔️',role:'돌진형 근접 딜러',line:'한 번 들어가 볼게요. 전멸하면… 다음 판에 덜 무리하면 되죠.'},
+  {name:'유나',nickname:'무보정',job:'패션모델·광고모델',avatar:'🛡️',role:'얼굴을 가린 중갑 탱커',line:'사진 인증은 금지. 공격은 내가 막을 테니까 위치만 지켜요.'},
+  {name:'소희',nickname:'쉼표',job:'바이올리니스트',avatar:'🎧',role:'지원형 컨트롤러·공대장',line:'세 걸음 뒤. 지금 멈추고, 다음 신호에 같이 들어가요.'},
 ];
 const GUILD_NAME='다음 접속';
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
